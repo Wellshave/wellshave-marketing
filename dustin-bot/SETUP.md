@@ -6,8 +6,10 @@ bot identity, instead of sending from Dustin's personal account.
 ## One-time setup (Dustin, ~10 min, browser required)
 
 1. **Create the app** — go to <https://api.slack.com/apps> → *Create New App* →
-   *From a manifest* → pick the **Wellshave** workspace → paste the contents of
-   [`manifest.yaml`](./manifest.yaml) → *Create*.
+   *From a manifest* → pick the **Wellshave** workspace → in the paste dialog,
+   **select the YAML tab first** (it defaults to JSON), then paste the contents
+   of [`manifest.yaml`](./manifest.yaml) → *Next* → *Create*.
+   Keep the manifest free of `#` comments — Slack's parser rejects them.
 2. **Set the avatar** — in *Basic Information → Display Information*, upload an
    icon (a robot-styled photo of Dustin works great).
 3. **Install to workspace** — *Install App* → *Install to Wellshave* → allow.
