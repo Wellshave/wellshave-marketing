@@ -1,0 +1,23 @@
+# Slack app manifest for Dustin 2.0
+# Create the app at https://api.slack.com/apps -> "Create New App" -> "From a manifest"
+# Pick the Wellshave workspace, paste this YAML, review, create.
+display_information:
+  name: Dustin 2.0
+  description: Dustin's AI ops assistant — daily digests, task nudges, and follow-ups from the Production Lab.
+  background_color: "#1a1d21"
+features:
+  bot_user:
+    display_name: Dustin 2.0
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write        # post messages as the bot
+      - im:write          # open DMs with team members
+      - users:read        # resolve user IDs / names
+      - users:read.email  # map Notion emails -> Slack users
+      - channels:read     # find channel IDs like #productivity
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
