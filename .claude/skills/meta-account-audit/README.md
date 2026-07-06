@@ -20,12 +20,22 @@ The Wellshave weekly-meta-audit routine overrides two things from the skill's de
    directly, not Lotux Agency's `365b1dde-…` root with a company sub-page. All
    dated audits sit as direct children of that Wellshave page (matches
    existing convention set by prior audits).
-3. **Slack posting** — routine adds a Slack summary in Dutch to
-   `#creative_strategy` (`C0913MY42CV`) after the Notion page is created; the
-   skill itself only writes to Notion.
+3. **Slack posting** — routine sends the Slack summary in Dutch as a **DM to
+   the Dustin Operator** bot (`U0BF4TD7CPP`, handle `@dustin_20`), which
+   relays into `#creative_strategy` (`C0913MY42CV`). Do NOT post the summary
+   directly into the channel — always route via the Operator DM. The skill
+   itself only writes to Notion.
 4. **Output language** — Wellshave routine writes both Notion + Slack in
    **Dutch**; the skill's report_structure template is in English. Translate
    headings and reads while keeping the section order intact.
+5. **Notion title format** — `Wellshave® | Audit v{YYYYMMDD} ({week_start} –
+   {week_end} {year})`, e.g. `Wellshave® | Audit v20260713 (6 – 12 juli
+   2026)`. Date in the title is the run date (this Monday), not the reporting
+   date.
+6. **Date-range calc** — reporting week = the Mon–Sun that just closed
+   relative to this Monday-morning run. Comparison week = the 7 days before
+   that. Print `week_start` and `week_end` (ISO) explicitly in the first
+   status update so a wrong window is caught immediately.
 
 Everything else — the data-collection call sequence, MCP quirks (split A/B
 calls, gated tools graceful-degrade), auction ranking cross-check, three-signal
