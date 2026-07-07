@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fable 5 proxy</title>
+<style>body{font:15px/1.6 system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;color:#222}code{background:#f2f2f2;padding:.1em .3em;border-radius:4px}</style>
+<h1>Fable 5 proxy</h1>
+<p>OpenAI-compatible proxy in front of Claude Fable 5 (fallback: Opus 4.8).</p>
+<ul>
+  <li><code>POST /v1/chat/completions</code> — OpenAI-compatible</li>
+  <li><code>POST /v1/messages</code> — Anthropic-native passthrough</li>
+  <li><code>GET /v1/models</code> · <code>GET /health</code></li>
+</ul>
+<p>See the repo README for configuration and usage.</p>

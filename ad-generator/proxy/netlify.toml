@@ -1,0 +1,14 @@
+# Netlify config for the Fable 5 proxy.
+# In the Netlify UI set the site's "Base directory" to: ad-generator/proxy
+# Then add environment variables: ANTHROPIC_API_KEY (required),
+# PROXY_API_KEY (recommended for a public site), and optionally
+# PRIMARY_MODEL / FALLBACK_MODEL to override the defaults.
+
+[build]
+  # No build step — the function is plain ESM with zero dependencies.
+  command = "echo 'no build needed'"
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

@@ -1,0 +1,15 @@
+{
+  "name": "fable5-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenAI-compatible proxy in front of Claude Fable 5 (fallback: Opus 4.8) for the Wellshave ad generator.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/smoke.mjs && node test/integration.mjs"
+  }
+}
