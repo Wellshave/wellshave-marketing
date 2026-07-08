@@ -477,10 +477,10 @@ function renderStatics() {
     var r0 = fRecent.length ? fRecent[0] : null;
     var heroHTML = r0
       ? '<div onclick="openRecent(0)" style="border:1px solid rgba(201,169,97,0.3); border-radius:16px; overflow:hidden; cursor:pointer; background:#0a0906; display:flex; flex-direction:column;">'
-        + '<div class="adthumb" id="dashHeroThumb" style="min-height:230px; position:relative;"><div class="adname" style="font-size:110px;">' + esc(r0.tag) + '</div>'
-        + '<div style="position:absolute; top:15px; left:15px; display:flex; align-items:center; gap:6px; background:rgba(201,169,97,0.16); border:1px solid rgba(201,169,97,0.45); border-radius:20px; padding:5px 12px; font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.08em; color:#e6cd92;">📌 MEEST RECENTE CONCEPT</div>'
-        + '<div style="position:absolute; left:0; right:0; bottom:0; padding:22px; background:linear-gradient(0deg, rgba(5,4,3,0.94), transparent); pointer-events:none;"><div class="clamp2" style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:22px; color:#f7f2e8; line-height:1.15;">' + esc(r0.headline) + '</div></div></div>'
-        + '<div style="padding:16px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#e6cd92; background:rgba(201,169,97,0.1); border:1px solid rgba(201,169,97,0.28); border-radius:20px; padding:4px 11px;">' + esc(r0.product) + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#ada599; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:4px 11px;">' + esc(r0.persona) + '</span><span style="margin-left:auto; font-size:12px; color:#635c54;">Klik om te openen →</span></div>'
+        + '<div style="padding:13px 18px 11px; font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.08em; color:#e6cd92;">📌 MEEST RECENTE CONCEPT</div>'
+        + '<div class="adthumb" id="dashHeroThumb" style="height:190px; position:relative;"><div class="adname" style="font-size:104px;">' + esc(r0.tag) + '</div></div>'
+        + '<div style="padding:16px 20px;"><div class="clamp2" style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:20px; color:#f7f2e8; line-height:1.25; margin-bottom:12px;">' + esc(r0.headline) + '</div>'
+        + '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#e6cd92; background:rgba(201,169,97,0.1); border:1px solid rgba(201,169,97,0.28); border-radius:20px; padding:4px 11px;">' + esc(r0.product) + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#ada599; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:4px 11px;">' + esc(r0.persona) + '</span><span style="margin-left:auto; font-size:12px; color:#635c54;">Klik om te openen →</span></div></div>'
         + '</div>'
       : '<div onclick="setNav(\'nieuw\')" style="border:1px dashed rgba(201,169,97,0.3); border-radius:16px; background:rgba(201,169,97,0.03); min-height:250px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; padding:30px;"><div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:20px; color:#f7f2e8; margin-bottom:6px;">Nog geen concept van de week</div><div style="font-size:13px; color:#8d764a; line-height:1.6; max-width:320px;">Zodra je een advertentie bewaart, verschijnt hier je recentste concept.</div><div style="margin-top:14px; font-size:12.5px; color:#e6cd92;">Maak je eerste advertentie → Nieuwe ad</div></div>';
     var byAuthor = {}; allCreatives.forEach(function(c){ if (c.author && c.author !== '—') byAuthor[c.author] = (byAuthor[c.author] || 0) + 1; });
@@ -1587,11 +1587,9 @@ function renderBibliotheek() {
   var grid = items.length ? ('<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">'
     + items.map(function(it){ var res = libResult(it.roas);
       return '<div onclick="libOpen(\'' + it.id + '\')" style="border:1px solid rgba(255,255,255,0.08); border-radius:14px; overflow:hidden; background:#0a0908; cursor:pointer;">'
-      + '<div class="adthumb" id="libthumb-' + it.id + '" style="height:140px; position:relative;"><div class="adname" style="font-size:46px;">' + esc(it.tag) + '</div>'
-      + '<div style="position:absolute; top:11px; left:11px; font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.06em; color:' + res.color + '; background:' + res.bg + '; border:1px solid ' + res.border + '; border-radius:14px; padding:3px 9px;">' + res.label + '</div>'
-      + (it.scriptLen ? '<div style="position:absolute; top:11px; right:11px; font-family:\'JetBrains Mono\',monospace; font-size:9px; color:#ada599; background:rgba(0,0,0,0.5); border-radius:12px; padding:3px 8px;">' + it.scriptLen + '</div>' : '')
-      + '</div>'
-      + '<div style="padding:14px 15px;">'
+      + '<div class="adthumb" id="libthumb-' + it.id + '" style="height:140px; position:relative;"><div class="adname" style="font-size:46px;">' + esc(it.tag) + '</div></div>'
+      + '<div style="padding:13px 15px 14px;">'
+      + '<div style="display:flex; align-items:center; gap:7px; margin-bottom:9px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.06em; color:' + res.color + '; background:' + res.bg + '; border:1px solid ' + res.border + '; border-radius:14px; padding:3px 9px;">' + res.label + '</span>' + (it.scriptLen ? '<span style="font-family:\'JetBrains Mono\',monospace; font-size:9px; color:#ada599; background:rgba(255,255,255,0.06); border-radius:12px; padding:3px 8px;">' + it.scriptLen + '</span>' : '') + '</div>'
       + '<div class="clamp2" style="font-size:13px; color:#f7f2e8; line-height:1.35; margin-bottom:8px; height:36px;">' + esc(it.headline) + '</div>'
       + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.05em; color:#635c54; margin-bottom:11px;">' + esc(it.product) + ' · ' + esc(it.persona) + '</div>'
       + '<div style="display:flex; gap:12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:' + res.color + ';">ROAS ' + it.roas + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">CTR ' + it.ctr + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#8d764a;">' + it.cpa + '</span></div>'
@@ -1607,7 +1605,7 @@ function renderBibliotheek() {
     loadCreativeImage(it.id, function(b64){
       if (!b64) return;
       var el2 = document.getElementById('libthumb-' + it.id);
-      if (el2) el2.innerHTML = '<img src="' + imgSrc(b64) + '" style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0;"/>' + el2.innerHTML.replace(/<div class="adname"[\s\S]*?<\/div>/, '');
+      if (el2) el2.innerHTML = '<img src="' + imgSrc(b64) + '" style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0;"/>';
     });
   });
 }
@@ -1695,6 +1693,7 @@ function renderPersonas() {
 var _rm2 = renderModal;
 renderModal = function() {
   var m = state.modal;
+  if (m && m._type === 'prodEdit') { renderProdEditModal(m.id); return; }
   if (m && m._type === 'prod') { renderProdModal(m.id); return; }
   if (m && m._type === 'lib') { renderLibModal(m.it); return; }
   _rm2();
@@ -1741,10 +1740,82 @@ function renderProdModal(id) {
     + '</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">BEST PRESTERENDE ADS</div>' + (bestAds||'<div style="font-size:12px; color:#635c54;">Nog geen ads.</div>')
     + '<div style="display:flex; gap:10px; margin-top:22px;">'
+    + '<button onclick="openProdEdit(\'' + id + '\')" style="padding:13px 18px; border-radius:11px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">✎ Bewerk</button>'
     + '<button onclick="prodToGenerator(\'' + p.name.replace(/'/g,"\\'") + '\')" style="flex:1; padding:13px; border-radius:11px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Maak advertentie met dit product →</button>'
     + '<button onclick="closeModal(); setNav(\'bibliotheek\');" style="padding:13px 18px; border-radius:11px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Zoek ads →</button>'
     + '</div>'
     + '</div></div></div>';
+}
+function openProdEdit(id) { state.modal = { _type:'prodEdit', id:id }; renderModal(); }
+function saveProductToSupabase(p) {
+  if (!AI.sbReady || !canWrite() || p.dbId == null) return Promise.resolve(false);
+  var body = { name:p.name, niche:p.niche, price:p.price, rating:p.rating, reviews:p.reviews, sell:p.sell, usps:p.usps, features:p.features, vs_us:p.vsUs, vs_them:p.vsThem, proof:p.proof, target:p.target, forbidden:p.forbidden, appearance:p.appearance };
+  return fetch(AI.sbUrl.replace(/\/+$/,'') + '/rest/v1/products?id=eq.' + encodeURIComponent(p.dbId), { method:'PATCH', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=minimal' }, sbAuthHeaders()), body: JSON.stringify(body) }).then(function(r){ return r.ok; });
+}
+function prodEditSave(id) {
+  var p = prodData.find(function(x){ return x.id===id; }); if (!p) return;
+  var g = function(fid){ var e = document.getElementById(fid); return e ? e.value : ''; };
+  var lines = function(fid){ return g(fid).split('\n').map(function(s){ return s.trim(); }).filter(Boolean); };
+  p.name = g('peName').trim() || p.name;
+  p.niche = g('peNiche').trim() || p.niche;
+  p.price = g('pePrice').trim();
+  p.rating = g('peRating').trim();
+  p.reviews = g('peReviews').trim();
+  p.sell = g('peSell').trim();
+  p.usps = lines('peUsps');
+  p.features = lines('peFeat').map(function(l){ var m2 = l.split(/\s+[—-]\s+/); return { icon:'◆', name:(m2[0]||'').trim(), desc:(m2.slice(1).join(' — ')||'').trim() }; });
+  p.vsUs = lines('peVsUs');
+  p.vsThem = lines('peVsThem');
+  p.proof = lines('peProof').map(function(t){ return { icon:'✓', text:t }; });
+  p.target = g('peTarget').trim();
+  p.forbidden = g('peForbidden').trim();
+  p.appearance = g('peAppearance').trim();
+  try { renderProducten(); } catch(e){}
+  var msg = document.getElementById('peMsg');
+  if (AI.sbReady && canWrite() && p.dbId != null) {
+    if (msg) { msg.textContent = 'Opslaan in team-database…'; msg.style.color = '#8d764a'; }
+    saveProductToSupabase(p).then(function(ok){
+      if (msg) { msg.textContent = ok ? '✓ Opgeslagen in de team-database' : 'Lokaal bijgewerkt — DB-schrijven mislukt'; msg.style.color = ok ? '#4fe0a8' : '#e0705a'; }
+      showToast(ok ? 'Product bijgewerkt' : 'Lokaal bijgewerkt');
+      setTimeout(function(){ prodOpen(id); }, ok ? 650 : 1200);
+    }).catch(function(e){ if (msg) { msg.textContent = 'Lokaal bijgewerkt (DB: ' + e.message + ')'; msg.style.color = '#e0705a'; } setTimeout(function(){ prodOpen(id); }, 1200); });
+  } else {
+    if (msg) { msg.textContent = (session ? 'Je account is nog niet goedgekeurd om team-breed te schrijven — ' : 'Log in als teamlid om team-breed te bewaren — ') + 'wijziging staat lokaal.'; msg.style.color = '#8d764a'; }
+    showToast('Lokaal bijgewerkt');
+    setTimeout(function(){ prodOpen(id); }, 900);
+  }
+}
+function renderProdEditModal(id) {
+  var el = document.getElementById('layer-modal');
+  var p = prodData.find(function(x){ return x.id===id; });
+  if (!p) { el.innerHTML = ''; return; }
+  function fld(fid, label, val, ph, rows){
+    var inp = rows
+      ? '<textarea id="' + fid + '" rows="' + rows + '" placeholder="' + esc(ph) + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px; resize:vertical; line-height:1.5;">' + esc(val || '') + '</textarea>'
+      : '<input id="' + fid + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px;"/>';
+    return '<div style="margin-bottom:13px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">' + label + '</div>' + inp + '</div>';
+  }
+  var featText = (p.features || []).map(function(f){ return (f.name || '') + (f.desc ? ' — ' + f.desc : ''); }).join('\n');
+  var proofText = (p.proof || []).map(function(pr){ return pr.text || ''; }).join('\n');
+  el.innerHTML =
+    '<div onclick="closeModal()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; padding:40px; overflow-y:auto; animation:overlayIn 0.2s ease;">'
+    + '<div onclick="event.stopPropagation()" style="width:640px; max-width:100%; background:#0b0a08; border:1px solid rgba(201,169,97,0.25); border-radius:18px; box-shadow:0 50px 140px rgba(0,0,0,0.7); animation:modalIn 0.26s cubic-bezier(0.16,1,0.3,1); padding:26px 28px; position:relative;">'
+    + '<div onclick="prodOpen(\'' + id + '\')" style="position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px; z-index:5;">✕</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">PRODUCT BEWERKEN · ' + brandLabel(brandOfNiche(p.niche)) + '</div>'
+    + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:23px; color:#f7f2e8; line-height:1; margin-bottom:16px;">' + esc(p.name) + '</div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:2;">' + fld('peName', 'NAAM', p.name, '') + '</div><div style="flex:1;">' + fld('peNiche', 'NICHE', p.niche, 'bv. body') + '</div></div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('pePrice', 'PRIJS', p.price, '€ 59,95') + '</div><div style="flex:1;">' + fld('peRating', 'RATING', p.rating, '4.7★') + '</div><div style="flex:1;">' + fld('peReviews', 'REVIEWS', p.reviews, '1.240') + '</div></div>'
+    + fld('peSell', 'PITCH / SELL', p.sell, 'Korte pakkende omschrijving.', 2)
+    + fld('peUsps', 'UNIQUE SELLING POINTS', (p.usps || []).join('\n'), 'Eén USP per regel', 4)
+    + fld('peFeat', 'FEATURES', featText, 'Eén per regel: naam — beschrijving', 4)
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('peVsUs', 'WELLGROUP WINT', (p.vsUs || []).join('\n'), 'Eén per regel', 3) + '</div><div style="flex:1;">' + fld('peVsThem', 'CONCURRENT MIST', (p.vsThem || []).join('\n'), 'Eén per regel', 3) + '</div></div>'
+    + fld('peProof', 'GARANTIE & SOCIAL PROOF', proofText, 'Eén per regel', 2)
+    + fld('peTarget', 'DOELGROEP', p.target, 'Wie koopt dit product?', 2)
+    + fld('peForbidden', 'VERBODEN CLAIMS', p.forbidden, 'Wat mag Rory NIET beweren?', 2)
+    + fld('peAppearance', 'UITERLIJK / VERPAKKING', p.appearance, 'Kleur, materiaal, look-and-feel', 2)
+    + '<div style="display:flex; gap:10px; margin-top:6px;"><button onclick="prodEditSave(\'' + id + '\')" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button><button onclick="prodOpen(\'' + id + '\')" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Annuleer</button></div>'
+    + '<div id="peMsg" style="font-size:12px; color:#635c54; margin-top:12px; min-height:16px;"></div>'
+    + '</div></div>';
 }
 function renderLibModal(it) {
   var el = document.getElementById('layer-modal');
@@ -1905,7 +1976,7 @@ function loadFromSupabase() {
     if (rows && rows.length) {
       sbLoaded = true;
       prodData = rows.map(function(r){ return {
-        id: r.slug || ('p'+r.id), tag: r.tag, name: r.name, niche: r.niche, price: r.price, hero: r.hero,
+        id: r.slug || ('p'+r.id), dbId: r.id, tag: r.tag, name: r.name, niche: r.niche, price: r.price, hero: r.hero,
         rating: r.rating, reviews: r.reviews, sell: r.sell, usps: r.usps||[], features: r.features||[],
         vsUs: r.vs_us||[], vsThem: r.vs_them||[], personaIdx: r.persona_ids||[], proof: r.proof||[],
         adCount: (r.best_ad_ids||[]).length, bestRoas: r.best_roas||'—', bestAdIds: r.best_ad_ids||[],
@@ -2000,6 +2071,10 @@ function brandText() {
   if (b.tagline) L.push('Tagline: ' + b.tagline + '.');
   if (b.guarantee) L.push('Garantie: ' + String(b.guarantee).replace(/\n/g, ', ') + '.');
   if (b.proof) L.push('Social proof: ' + String(b.proof).replace(/\n/g, ', ') + '.');
+  if (b.colorPrimary || b.colorSecondary || b.colorAccent) L.push('Merkkleuren: ' + [b.colorPrimary && ('primair ' + b.colorPrimary), b.colorSecondary && ('secundair ' + b.colorSecondary), b.colorAccent && ('accent ' + b.colorAccent)].filter(Boolean).join(', ') + '.');
+  if (b.fontHeading || b.fontBody) L.push('Fonts: koppen ' + (b.fontHeading || '—') + ', tekst ' + (b.fontBody || '—') + '.');
+  if (b.imageStyle) L.push('Beeld-/fotografiestijl: ' + String(b.imageStyle).replace(/\n/g, '; ') + '.');
+  if (b.visualGuidelines) L.push('Visuele do’s & don’ts: ' + String(b.visualGuidelines).replace(/\n/g, '; ') + '.');
   L.push('Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.');
   return L.join(' ');
 }
@@ -2016,7 +2091,7 @@ function saveBrandProfilesToSupabase() {
 function openBrandDna() { state.modal = { _type:'brandDna' }; renderModal(); }
 function brandDnaSave() {
   var g = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
-  brandProfiles[activeBrand] = { name:g('bdName'), positioning:g('bdPos'), tone:g('bdTone'), audience:g('bdAud'), usps:g('bdUsps'), dos:g('bdDos'), donts:g('bdDonts'), tagline:g('bdTag'), guarantee:g('bdGuar'), proof:g('bdProof') };
+  brandProfiles[activeBrand] = { name:g('bdName'), positioning:g('bdPos'), tone:g('bdTone'), audience:g('bdAud'), usps:g('bdUsps'), dos:g('bdDos'), donts:g('bdDonts'), tagline:g('bdTag'), guarantee:g('bdGuar'), proof:g('bdProof'), colorPrimary:g('bdColP'), colorSecondary:g('bdColS'), colorAccent:g('bdColA'), fontHeading:g('bdFontH'), fontBody:g('bdFontB'), imageStyle:g('bdImg'), visualGuidelines:g('bdVis'), logo:g('bdLogo') };
   try { localStorage.setItem('atelier-brandprofiles', JSON.stringify(brandProfiles)); } catch(e){}
   brandProfile = brandProfiles[activeBrand];
   var msg = document.getElementById('bdMsg');
@@ -2038,6 +2113,10 @@ function renderBrandDnaModal() {
       : '<input id="' + id + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px;"/>';
     return '<div style="margin-bottom:13px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">' + label + '</div>' + inp + '</div>';
   }
+  function colorField(id, label, val, def){
+    var v = val || def;
+    return '<div style="flex:1; min-width:110px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.1em; color:#8d764a; margin-bottom:6px;">' + label + '</div><div style="display:flex; align-items:center; gap:8px;"><input type="color" id="' + id + '" value="' + v + '" oninput="var s=document.getElementById(\'' + id + '_h\'); if(s) s.textContent=this.value;" style="width:34px; height:30px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; background:#0d0c0a; padding:2px; cursor:pointer;"/><span id="' + id + '_h" style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">' + v + '</span></div></div>';
+  }
   el.innerHTML =
     '<div onclick="closeModal()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; padding:40px; overflow-y:auto; animation:overlayIn 0.2s ease;">'
     + '<div onclick="event.stopPropagation()" style="width:600px; max-width:100%; background:#0b0a08; border:1px solid rgba(201,169,97,0.25); border-radius:18px; box-shadow:0 50px 140px rgba(0,0,0,0.7); animation:modalIn 0.26s cubic-bezier(0.16,1,0.3,1); padding:26px 28px; position:relative;">'
@@ -2056,6 +2135,13 @@ function renderBrandDnaModal() {
     + field('bdTag', 'TAGLINE / PAY-OFF', b.tagline, 'bv. Scheer veilig, ook daar')
     + field('bdGuar', 'GARANTIE', b.guarantee, 'bv. 100 dagen niet-goed-geld-terug')
     + field('bdProof', 'SOCIAL PROOF', b.proof, 'bv. 4.6 op Trustpilot, 50.000+ klanten', 2)
+    + '<div style="border-top:1px solid rgba(255,255,255,0.07); margin:8px 0 16px;"></div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">VISUELE IDENTITEIT</div>'
+    + '<div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">' + colorField('bdColP', 'PRIMAIR', b.colorPrimary, '#c9a961') + colorField('bdColS', 'SECUNDAIR', b.colorSecondary, '#0a0908') + colorField('bdColA', 'ACCENT', b.colorAccent, '#4fe0a8') + '</div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + field('bdFontH', 'KOPPEN-FONT', b.fontHeading, 'bv. Fraunces') + '</div><div style="flex:1;">' + field('bdFontB', 'BODY-FONT', b.fontBody, 'bv. Hanken Grotesk') + '</div></div>'
+    + field('bdImg', 'BEELD- / FOTOGRAFIESTIJL', b.imageStyle, 'bv. warm licht, echte mannen, huid-close-ups, geen stockfoto-gevoel', 2)
+    + field('bdVis', 'VISUELE DO’S & DON’TS', b.visualGuidelines, 'wel: donkere achtergrond, gouden accenten · niet: felle kleuren, clip-art', 2)
+    + field('bdLogo', 'LOGO-URL (optioneel)', b.logo, 'https://…')
     + '<div style="display:flex; gap:10px; margin-top:6px;"><button onclick="brandDnaSave()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button><button onclick="closeModal()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Sluiten</button></div>'
     + '<div id="bdMsg" style="font-size:12px; color:#635c54; margin-top:12px; min-height:16px;"></div>'
     + '</div></div>';
