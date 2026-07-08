@@ -2061,20 +2061,50 @@ var BRAND_DEFAULTS = {
 function brandText() {
   var b = (brandProfiles && brandProfiles[activeBrand]) || null;
   if (!b) return BRAND_DEFAULTS[activeBrand] || BRAND_DEFAULTS.wellshave;
+  var one = function(s){ return String(s).replace(/\n/g, '; '); };
   var L = ['Merk: ' + (b.name || brandLabel(activeBrand)) + ' (onderdeel van Wellgroup).'];
-  if (b.positioning) L.push('Positionering: ' + b.positioning + '.');
-  if (b.tone) L.push('Toon of voice: ' + b.tone + '.');
-  if (b.audience) L.push('Doelgroep: ' + b.audience + '.');
-  if (b.usps) L.push('Kernbeloftes/USP’s: ' + String(b.usps).replace(/\n/g, '; ') + '.');
-  if (b.dos) L.push('Wel doen: ' + String(b.dos).replace(/\n/g, '; ') + '.');
-  if (b.donts) L.push('Vermijden: ' + String(b.donts).replace(/\n/g, '; ') + '.');
   if (b.tagline) L.push('Tagline: ' + b.tagline + '.');
-  if (b.guarantee) L.push('Garantie: ' + String(b.guarantee).replace(/\n/g, ', ') + '.');
-  if (b.proof) L.push('Social proof: ' + String(b.proof).replace(/\n/g, ', ') + '.');
+  if (b.archetype) L.push('Merkarchetype: ' + b.archetype + '.');
+  if (b.positioning) L.push('Positionering: ' + one(b.positioning) + '.');
+  if (b.mission) L.push('Missie: ' + one(b.mission) + '.');
+  if (b.vision) L.push('Visie: ' + one(b.vision) + '.');
+  if (b.values) L.push('Kernwaarden: ' + one(b.values) + '.');
+  if (b.promise) L.push('Merkbelofte: ' + one(b.promise) + '.');
+  if (b.story) L.push('Merkverhaal: ' + one(b.story) + '.');
+  if (b.usps) L.push('USP’s: ' + one(b.usps) + '.');
+  if (b.audience) L.push('Doelgroep: ' + one(b.audience) + '.');
+  if (b.pain) L.push('Grootste klantpijn: ' + one(b.pain) + '.');
+  if (b.position) L.push('Marktpositie: ' + b.position + '.');
+  if (b.competitors) L.push('Concurrenten: ' + one(b.competitors) + '.');
+  if (b.diff) L.push('Onderscheid: ' + one(b.diff) + '.');
+  if (b.tone) L.push('Toon of voice: ' + one(b.tone) + '.');
+  if (b.personality) L.push('Persoonlijkheid: ' + b.personality + '.');
+  if (b.address) L.push('Aanspreekvorm: ' + b.address + '.');
+  if (b.lang) L.push('Taal/markt: ' + b.lang + '.');
+  if (b.powerWords) L.push('Gebruik deze woorden: ' + one(b.powerWords) + '.');
+  if (b.banWords) L.push('Vermijd deze woorden: ' + one(b.banWords) + '.');
+  if (b.phrases) L.push('Signature-zinnen: ' + one(b.phrases) + '.');
+  if (b.dos) L.push('Wel doen: ' + one(b.dos) + '.');
+  if (b.donts) L.push('Vermijden: ' + one(b.donts) + '.');
+  if (b.allowedClaims) L.push('Toegestane claims: ' + one(b.allowedClaims) + '.');
+  if (b.forbidden) L.push('Verboden claims: ' + one(b.forbidden) + '.');
   if (b.colorPrimary || b.colorSecondary || b.colorAccent) L.push('Merkkleuren: ' + [b.colorPrimary && ('primair ' + b.colorPrimary), b.colorSecondary && ('secundair ' + b.colorSecondary), b.colorAccent && ('accent ' + b.colorAccent)].filter(Boolean).join(', ') + '.');
   if (b.fontHeading || b.fontBody) L.push('Fonts: koppen ' + (b.fontHeading || '—') + ', tekst ' + (b.fontBody || '—') + '.');
-  if (b.imageStyle) L.push('Beeld-/fotografiestijl: ' + String(b.imageStyle).replace(/\n/g, '; ') + '.');
-  if (b.visualGuidelines) L.push('Visuele do’s & don’ts: ' + String(b.visualGuidelines).replace(/\n/g, '; ') + '.');
+  if (b.imageStyle) L.push('Beeld-/fotografiestijl: ' + one(b.imageStyle) + '.');
+  if (b.visualGuidelines) L.push('Visuele do’s & don’ts: ' + one(b.visualGuidelines) + '.');
+  if (b.graphics) L.push('Grafische stijl: ' + one(b.graphics) + '.');
+  if (b.guarantee) L.push('Garantie: ' + one(b.guarantee) + '.');
+  if (b.proof) L.push('Social proof: ' + one(b.proof) + '.');
+  if (b.reviews) L.push('Reviews: ' + b.reviews + '.');
+  if (b.awards) L.push('Awards/keurmerken: ' + one(b.awards) + '.');
+  if (b.customers) L.push('Klanten: ' + b.customers + '.');
+  if (b.price) L.push('Prijspositie: ' + b.price + '.');
+  if (b.offer) L.push('Aanbod/kortingsbeleid: ' + one(b.offer) + '.');
+  if (b.delivery) L.push('Levering: ' + b.delivery + '.');
+  if (b.returns) L.push('Retour: ' + b.returns + '.');
+  if (b.payment) L.push('Betaalmethoden: ' + b.payment + '.');
+  if (b.cta) L.push('Primaire CTA’s: ' + one(b.cta) + '.');
+  if (b.channels) L.push('Kanalen: ' + b.channels + '.');
   L.push('Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.');
   return L.join(' ');
 }
@@ -2091,7 +2121,15 @@ function saveBrandProfilesToSupabase() {
 function openBrandDna() { if (!session) { openLogin(); return; } state.modal = { _type:'brandDna' }; renderModal(); }
 function brandDnaSave() {
   var g = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
-  brandProfiles[activeBrand] = { name:g('bdName'), positioning:g('bdPos'), tone:g('bdTone'), audience:g('bdAud'), usps:g('bdUsps'), dos:g('bdDos'), donts:g('bdDonts'), tagline:g('bdTag'), guarantee:g('bdGuar'), proof:g('bdProof'), colorPrimary:g('bdColP'), colorSecondary:g('bdColS'), colorAccent:g('bdColA'), fontHeading:g('bdFontH'), fontBody:g('bdFontB'), imageStyle:g('bdImg'), visualGuidelines:g('bdVis'), logo:g('bdLogo') };
+  brandProfiles[activeBrand] = {
+    name:g('bdName'), tagline:g('bdTag'), archetype:g('bdArchetype'), positioning:g('bdPos'), mission:g('bdMission'), vision:g('bdVision'), values:g('bdValues'), promise:g('bdPromise'), story:g('bdStory'), usps:g('bdUsps'),
+    audience:g('bdAud'), pain:g('bdPain'), position:g('bdPosition'), competitors:g('bdCompetitors'), diff:g('bdDiff'),
+    tone:g('bdTone'), personality:g('bdPersonality'), address:g('bdAddress'), lang:g('bdLang'), powerWords:g('bdPowerWords'), banWords:g('bdBanWords'), phrases:g('bdPhrases'),
+    dos:g('bdDos'), donts:g('bdDonts'), allowedClaims:g('bdAllowedClaims'), forbidden:g('bdForbidden'),
+    colorPrimary:g('bdColP'), colorSecondary:g('bdColS'), colorAccent:g('bdColA'), fontHeading:g('bdFontH'), fontBody:g('bdFontB'), imageStyle:g('bdImg'), visualGuidelines:g('bdVis'), graphics:g('bdGraphics'), logo:g('bdLogo'),
+    guarantee:g('bdGuar'), proof:g('bdProof'), reviews:g('bdReviews'), awards:g('bdAwards'), customers:g('bdCustomers'),
+    price:g('bdPrice'), offer:g('bdOffer'), delivery:g('bdDelivery'), returns:g('bdReturns'), payment:g('bdPayment'), cta:g('bdCta'), channels:g('bdChannels')
+  };
   try { localStorage.setItem('atelier-brandprofiles', JSON.stringify(brandProfiles)); } catch(e){}
   brandProfile = brandProfiles[activeBrand];
   var msg = document.getElementById('bdMsg');
@@ -2103,6 +2141,10 @@ function brandDnaSave() {
     if (msg) { msg.textContent = session ? 'Lokaal opgeslagen — je account is nog niet goedgekeurd om team-breed te schrijven' : 'Lokaal opgeslagen — log in als teamlid om team-breed te bewaren'; msg.style.color = '#8d764a'; }
     showToast('Merk-DNA lokaal opgeslagen');
   }
+}
+function brandDnaTab(name){
+  var secs = document.querySelectorAll('.bdSection'); for (var i=0;i<secs.length;i++){ secs[i].style.display = (secs[i].getAttribute('data-sec')===name) ? 'block' : 'none'; }
+  var tabs = document.querySelectorAll('.bdTab'); for (var j=0;j<tabs.length;j++){ var on = tabs[j].getAttribute('data-sec')===name; tabs[j].style.background = on ? 'rgba(201,169,97,0.14)' : 'transparent'; tabs[j].style.color = on ? '#e6cd92' : '#8d764a'; tabs[j].style.borderColor = on ? 'rgba(201,169,97,0.35)' : 'rgba(255,255,255,0.08)'; }
 }
 function renderBrandDnaModal() {
   var el = document.getElementById('layer-modal');
@@ -2117,6 +2159,9 @@ function renderBrandDnaModal() {
     var v = val || def;
     return '<div style="flex:1; min-width:110px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.1em; color:#8d764a; margin-bottom:6px;">' + label + '</div><div style="display:flex; align-items:center; gap:8px;"><input type="color" id="' + id + '" value="' + v + '" oninput="var s=document.getElementById(\'' + id + '_h\'); if(s) s.textContent=this.value;" style="width:34px; height:30px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; background:#0d0c0a; padding:2px; cursor:pointer;"/><span id="' + id + '_h" style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">' + v + '</span></div></div>';
   }
+  function selField(id, label, val, opts){
+    return '<div style="margin-bottom:13px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">' + label + '</div><select id="' + id + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px; cursor:pointer;">' + opts.map(function(o){ return '<option value="' + esc(o) + '"' + ((val||'')===o ? ' selected' : '') + '>' + esc(o || '— kies —') + '</option>'; }).join('') + '</select></div>';
+  }
   el.innerHTML =
     '<div onclick="closeModal()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; padding:40px; overflow-y:auto; animation:overlayIn 0.2s ease;">'
     + '<div onclick="event.stopPropagation()" style="width:600px; max-width:100%; background:#0b0a08; border:1px solid rgba(201,169,97,0.25); border-radius:18px; box-shadow:0 50px 140px rgba(0,0,0,0.7); animation:modalIn 0.26s cubic-bezier(0.16,1,0.3,1); padding:26px 28px; position:relative;">'
@@ -2125,23 +2170,67 @@ function renderBrandDnaModal() {
     + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:24px; color:#f7f2e8; line-height:1; margin-bottom:6px;">Merk-instellingen · ' + brandLabel(activeBrand) + '</div>'
     + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:14px;">Rory (Fable 5) gebruikt dit merk-DNA in élke ad-flow, zodat elk concept on-brand is. Je bewerkt nu <b style="color:#e6cd92;">' + brandLabel(activeBrand) + '</b>.</div>'
     + '<div style="display:flex; gap:6px; margin-bottom:18px;">' + [['wellshave','Wellshave'],['wellshine','Wellshine']].map(function(x){ var on = activeBrand===x[0]; return '<div onclick="setBrand(\'' + x[0] + '\'); openBrandDna();" style="padding:6px 13px; border-radius:8px; cursor:pointer; font-family:\'JetBrains Mono\',monospace; font-size:10px; ' + (on ? 'background:linear-gradient(135deg,#e6cd92,#8d764a); color:#1a1408; font-weight:600;' : 'color:#8d764a; border:1px solid rgba(255,255,255,0.1);') + '">' + x[1] + '</div>'; }).join('') + '</div>'
-    + field('bdName', 'MERKNAAM', b.name || brandLabel(activeBrand), brandLabel(activeBrand))
-    + field('bdPos', 'POSITIONERING', b.positioning, 'Waar staat het merk voor? Wat maakt het anders?', 2)
-    + field('bdTone', 'TOON OF VOICE', b.tone, 'bv. warm, premium, mannelijk, nuchter-Nederlands', 2)
-    + field('bdAud', 'DOELGROEP', b.audience, 'Wie is de ideale klant?', 2)
-    + field('bdUsps', 'KERNBELOFTES / USP’S', b.usps, 'Eén per regel', 3)
-    + field('bdDos', 'WEL DOEN', b.dos, 'Wat moet Rory juist doen? Eén per regel', 2)
-    + field('bdDonts', 'VERMIJDEN', b.donts, 'Claims/woorden die Rory moet vermijden. Eén per regel', 2)
-    + field('bdTag', 'TAGLINE / PAY-OFF', b.tagline, 'bv. Scheer veilig, ook daar')
-    + field('bdGuar', 'GARANTIE', b.guarantee, 'bv. 100 dagen niet-goed-geld-terug')
-    + field('bdProof', 'SOCIAL PROOF', b.proof, 'bv. 4.6 op Trustpilot, 50.000+ klanten', 2)
-    + '<div style="border-top:1px solid rgba(255,255,255,0.07); margin:8px 0 16px;"></div>'
-    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">VISUELE IDENTITEIT</div>'
-    + '<div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">' + colorField('bdColP', 'PRIMAIR', b.colorPrimary, '#c9a961') + colorField('bdColS', 'SECUNDAIR', b.colorSecondary, '#0a0908') + colorField('bdColA', 'ACCENT', b.colorAccent, '#4fe0a8') + '</div>'
-    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + field('bdFontH', 'KOPPEN-FONT', b.fontHeading, 'bv. Fraunces') + '</div><div style="flex:1;">' + field('bdFontB', 'BODY-FONT', b.fontBody, 'bv. Hanken Grotesk') + '</div></div>'
-    + field('bdImg', 'BEELD- / FOTOGRAFIESTIJL', b.imageStyle, 'bv. warm licht, echte mannen, huid-close-ups, geen stockfoto-gevoel', 2)
-    + field('bdVis', 'VISUELE DO’S & DON’TS', b.visualGuidelines, 'wel: donkere achtergrond, gouden accenten · niet: felle kleuren, clip-art', 2)
-    + field('bdLogo', 'LOGO-URL (optioneel)', b.logo, 'https://…')
+    + '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.07); padding-bottom:14px;">'
+      + [['kern','Merk-kern'],['markt','Doelgroep'],['toon','Tone of voice'],['content','Do\'s & don\'ts'],['visueel','Visueel'],['bewijs','Bewijs'],['aanbod','Aanbod']].map(function(t){ var on = t[0]==='kern'; return '<div class="bdTab" data-sec="' + t[0] + '" onclick="brandDnaTab(\'' + t[0] + '\')" style="padding:6px 11px; border-radius:8px; cursor:pointer; font-family:\'JetBrains Mono\',monospace; font-size:10px; border:1px solid ' + (on?'rgba(201,169,97,0.35)':'rgba(255,255,255,0.08)') + '; background:' + (on?'rgba(201,169,97,0.14)':'transparent') + '; color:' + (on?'#e6cd92':'#8d764a') + ';">' + t[1] + '</div>'; }).join('')
+    + '</div>'
+    + '<div class="bdSection" data-sec="kern" style="display:block;">'
+      + field('bdName','MERKNAAM', b.name || brandLabel(activeBrand), brandLabel(activeBrand))
+      + field('bdTag','TAGLINE / PAY-OFF', b.tagline, 'bv. Scheer veilig, ook daar')
+      + selField('bdArchetype','MERKARCHETYPE', b.archetype, ['','De Held','De Rebel','De Wijze','De Ontdekker','De Verzorger','De Maker','De Heerser','De Magiër','De Onschuldige','De Grappenmaker','De Minnaar','De Gewone man'])
+      + field('bdPos','POSITIONERING', b.positioning, 'Waar staat het merk voor? Wat maakt het anders?', 2)
+      + field('bdMission','MISSIE — WAAROM BESTAAN WE', b.mission, 'De diepere reden achter het merk', 2)
+      + field('bdVision','VISIE', b.vision, 'Waar wil het merk naartoe?', 2)
+      + field('bdValues','KERNWAARDEN', b.values, 'Eén per regel', 2)
+      + field('bdPromise','MERKBELOFTE', b.promise, 'Wat beloven we élke klant?', 2)
+      + field('bdStory','MERKVERHAAL / ORIGIN', b.story, 'Kort ontstaansverhaal', 3)
+      + field('bdUsps','KERNBELOFTES / USP’S', b.usps, 'Eén per regel', 3)
+    + '</div>'
+    + '<div class="bdSection" data-sec="markt" style="display:none;">'
+      + field('bdAud','DOELGROEP / IDEALE KLANT', b.audience, 'Leeftijd, situatie, drijfveren', 3)
+      + field('bdPain','GROOTSTE PIJN / BEHOEFTE', b.pain, 'Welk probleem lost het merk op?', 2)
+      + selField('bdPosition','MARKTPOSITIE', b.position, ['','Marktleider','Uitdager','Underdog','Nichespeler'])
+      + field('bdCompetitors','CONCURRENTEN', b.competitors, 'bv. Manscaped, Philips, Braun', 2)
+      + field('bdDiff','ONDERSCHEID T.O.V. CONCURRENTEN', b.diff, 'Waarom wij en niet zij?', 2)
+    + '</div>'
+    + '<div class="bdSection" data-sec="toon" style="display:none;">'
+      + field('bdTone','TONE OF VOICE', b.tone, 'bv. warm, premium, mannelijk, nuchter-Nederlands', 2)
+      + field('bdPersonality','PERSOONLIJKHEID', b.personality, 'bv. zelfverzekerd, nuchter, een tikje brutaal')
+      + selField('bdAddress','AANSPREEKVORM', b.address, ['','Je (informeel)','U (formeel)'])
+      + field('bdLang','TAAL / MARKT', b.lang, 'bv. Nederlands (NL)')
+      + field('bdPowerWords','WOORDEN DIE WE WÉL GEBRUIKEN', b.powerWords, 'Eén per regel', 2)
+      + field('bdBanWords','WOORDEN DIE WE NIET GEBRUIKEN', b.banWords, 'Eén per regel', 2)
+      + field('bdPhrases','SIGNATURE-ZINNEN', b.phrases, 'Zinnen die typisch merk zijn', 2)
+    + '</div>'
+    + '<div class="bdSection" data-sec="content" style="display:none;">'
+      + field('bdDos','WEL DOEN', b.dos, 'Wat moet Rory juist doen? Eén per regel', 3)
+      + field('bdDonts','VERMIJDEN', b.donts, 'Wat moet Rory vermijden? Eén per regel', 3)
+      + field('bdAllowedClaims','TOEGESTANE CLAIMS', b.allowedClaims, 'Claims die bewezen/toegestaan zijn', 2)
+      + field('bdForbidden','VERBODEN CLAIMS / COMPLIANCE', b.forbidden, 'Wat mag nooit beweerd worden (medisch e.d.)', 2)
+    + '</div>'
+    + '<div class="bdSection" data-sec="visueel" style="display:none;">'
+      + '<div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">' + colorField('bdColP','PRIMAIR', b.colorPrimary, '#c9a961') + colorField('bdColS','SECUNDAIR', b.colorSecondary, '#0a0908') + colorField('bdColA','ACCENT', b.colorAccent, '#4fe0a8') + '</div>'
+      + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + field('bdFontH','KOPPEN-FONT', b.fontHeading, 'bv. Fraunces') + '</div><div style="flex:1;">' + field('bdFontB','BODY-FONT', b.fontBody, 'bv. Hanken Grotesk') + '</div></div>'
+      + field('bdImg','BEELD- / FOTOGRAFIESTIJL', b.imageStyle, 'bv. warm licht, echte mannen, huid-close-ups, geen stockfoto-gevoel', 2)
+      + field('bdVis','VISUELE DO’S & DON’TS', b.visualGuidelines, 'wel: donkere achtergrond, gouden accenten · niet: felle kleuren, clip-art', 2)
+      + field('bdGraphics','GRAFISCHE STIJL / ICONOGRAFIE', b.graphics, 'Vormen, iconen, grafische elementen', 2)
+      + field('bdLogo','LOGO-URL (optioneel)', b.logo, 'https://…')
+    + '</div>'
+    + '<div class="bdSection" data-sec="bewijs" style="display:none;">'
+      + field('bdGuar','GARANTIE', b.guarantee, 'bv. 100 dagen niet-goed-geld-terug')
+      + field('bdProof','SOCIAL PROOF', b.proof, 'bv. sterke reviews, bekende klanten', 2)
+      + field('bdReviews','REVIEWS (SCORE + AANTAL)', b.reviews, 'bv. 4.6 op Trustpilot · 3.200 reviews')
+      + field('bdAwards','AWARDS / KEURMERKEN', b.awards, 'bv. Beste Getest 2025', 2)
+      + field('bdCustomers','AANTAL KLANTEN', b.customers, 'bv. 50.000+ tevreden klanten')
+    + '</div>'
+    + '<div class="bdSection" data-sec="aanbod" style="display:none;">'
+      + selField('bdPrice','PRIJSPOSITIE', b.price, ['','Budget','Middenklasse','Premium','Luxe'])
+      + field('bdOffer','STANDAARD AANBOD / KORTINGSBELEID', b.offer, 'bv. bundelkorting, welkomstactie', 2)
+      + field('bdDelivery','LEVERING / VERZENDING', b.delivery, 'bv. gratis, morgen in huis')
+      + field('bdReturns','RETOURBELEID', b.returns, 'bv. 100 dagen gratis retour')
+      + field('bdPayment','BETAALMETHODEN', b.payment, 'bv. iDEAL, achteraf betalen, creditcard')
+      + field('bdCta','PRIMAIRE CTA’S', b.cta, 'bv. Shop nu, Bekijk het aanbod', 2)
+      + field('bdChannels','KANALEN', b.channels, 'bv. Meta, TikTok, Google')
+    + '</div>'
     + '<div style="display:flex; gap:10px; margin-top:6px;"><button onclick="brandDnaSave()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button><button onclick="closeModal()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Sluiten</button></div>'
     + '<div id="bdMsg" style="font-size:12px; color:#635c54; margin-top:12px; min-height:16px;"></div>'
     + '</div></div>';
