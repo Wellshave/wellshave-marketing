@@ -1,0 +1,2 @@
+# Netlify CLI local state (site linkage, deploy cache) — not for version control
+.netlify/
