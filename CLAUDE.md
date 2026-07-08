@@ -36,3 +36,17 @@ MCP tools — alleen uitgaande berichten lopen via de bot.
 
 Kanaal-IDs: #productivity = C0A3AG516MP. Slack user IDs: Willem = U06SNFERCPN,
 Jhelarie = U0AEAUF1QLS, Dustin = U03JNJZA3ED.
+
+## Atelier Console (ad generator) — één canoniek HTML-bestand
+
+De ad-generator "Atelier Console" is één single-file HTML-app. Bewerk bij elke
+wijziging ALTIJD hetzelfde bestand in-place — nooit nieuwe of versienummer-kopieën
+maken.
+- Canoniek (bron van waarheid): `atelier-console/index.html` in deze repo, branch
+  `claude/atelier-console-redesign-u07czk`. Commit + push elke wijziging.
+- Google Drive-mirror: `atelier-console-v0.1.html` in map
+  `4. CLAUDE / Ad generator / Nieuw design` (fileId
+  `1J0ytUcbjBfuvR96o-2Vj1mQhrZuAIdkc`). Na elke grote wijziging bijwerken zodat
+  repo en Drive gelijklopen (zelfde bestand, geen nieuwe versie).
+- Live op Netlify: site `wellshave-adgen` → https://wellshave-adgen.netlify.app.
+- Volledige deploy-/redeploy-instructies staan in `DEPLOY.md`.
