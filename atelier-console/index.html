@@ -46,6 +46,11 @@
     <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.2em;color:#635c54;padding:18px 10px 8px;">ARCHIEF</div>
     <div id="archivenav"></div>
     <div id="authRow" style="margin-top:auto;"></div>
+    <div onclick="openBrandDna()" style="display:flex; align-items:center; gap:8px; padding:11px 10px; border-radius:8px; cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+      <span style="width:7px; height:7px; border-radius:2px; background:#c9a961; flex-shrink:0;"></span>
+      <span style="font-size:12px; color:#ada599;">Merk-DNA</span>
+      <span style="margin-left:auto; font-size:12px; color:#8d764a;">◆</span>
+    </div>
     <div onclick="openSettings()" style="display:flex; align-items:center; gap:8px; padding:11px 10px; border-radius:8px; cursor:pointer; color:#8d764a;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
       <span id="aiDot" style="width:7px; height:7px; border-radius:50%; background:#635c54; flex-shrink:0;"></span>
       <span style="font-size:12px; color:#ada599;">Instellingen</span>
@@ -1875,8 +1880,11 @@ function loadCreativeImage(id, cb) {
     .then(function(rows){ cb((rows[0] && rows[0].image_b64) || ''); })
     .catch(function(){ cb(''); });
 }
-/* merkprofiel (voor Fable 5) */
+/* merkprofiel per merk (voor Fable 5) */
 var brandProfile = null;
+var brandProfiles = { wellshave: null, wellshine: null };
+var brandRowId = null;
+try { var _bp = localStorage.getItem('atelier-brandprofiles'); if (_bp) brandProfiles = JSON.parse(_bp); } catch(e){}
 /* Bewaar een creative (ad/script) in de bibliotheek — vereist ingelogde approved member. */
 function sbSaveCreative(rec) {
   if (!AI.sbReady) return Promise.reject(new Error('Supabase niet gekoppeld'));
@@ -1906,7 +1914,7 @@ function loadFromSupabase() {
     }
   }).catch(function(e){ if (!sbLoadWarned) { sbLoadWarned = true; showToast('Kon data niet uit Supabase laden — voorbeeld getoond (' + e.message + ')'); } });
   // merkprofiel (voor Fable 5)
-  sbGet('brand_profile', '&limit=1').then(function(rows){ if (rows && rows[0]) brandProfile = rows[0].data || null; }).catch(function(){});
+  sbGet('brand_profile', '&limit=1').then(function(rows){ if (rows && rows[0]) { brandRowId = rows[0].id; var d = rows[0].data || {}; if (d.wellshave || d.wellshine) { brandProfiles = { wellshave: d.wellshave || null, wellshine: d.wellshine || null }; } else if (d && Object.keys(d).length) { brandProfiles = { wellshave: d, wellshine: brandProfiles.wellshine || null }; } brandProfile = brandProfiles[activeBrand]; } }).catch(function(){});
   // persona's
   sbGet('personas', '&order=id.asc').then(function(rows){
     if (rows && rows.length) {
@@ -1974,16 +1982,83 @@ var EXPERTS = {
   ogilvy: 'Je schrijft Meta ad copy volgens David Ogilvy: één belofte per ad, feiten boven bijvoeglijke naamwoorden, een kop die 80% van het werk doet, specifiek en geloofwaardig. Nederlands, spreektaal waar het past, nooit hyperbool die Meta afkeurt.',
   theriot: 'Je beoordeelt en bouwt creatives als Nick Theriot: je denkt in market awareness (Schwartz), market sophistication, hook-kracht en de "purple cow". Elke hook moet de scroll stoppen; elke claim moet bewezen worden. Direct, meetbaar, zonder fluff.'
 };
-var BRAND = 'Merk: Wellgroup (DTC grooming voor mannen — Wellshave/Wellshine). Toon: warm, premium, mannelijk, nuchter-Nederlands. Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.';
-/* echte merkdata (uit Supabase brand_profile) indien geladen */
+var BRAND_DEFAULTS = {
+  wellshave: 'Merk: Wellshave (DTC grooming/scheren voor mannen, onderdeel van Wellgroup). Toon: warm, premium, mannelijk, nuchter-Nederlands. Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.',
+  wellshine: 'Merk: Wellshine (DTC haar-styling, onderdeel van Wellgroup). Toon: fris, verzorgd, zelfverzekerd, nuchter-Nederlands. Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.'
+};
+/* Systemprompt-tekst voor het ACTIEVE merk, uit het merk-DNA (Supabase/localStorage). */
 function brandText() {
-  if (!brandProfile) return BRAND;
-  var b = brandProfile;
-  return 'Merk: ' + (b.brand_name || 'Wellshave') + '. Positionering: ' + (b.positioning || '') + '. '
-    + 'Toon: ' + (b.tone || '') + '. Doelgroep: ' + (b.audience || '') + '. '
-    + 'Garantie: ' + (b.guarantee || '').replace(/\n/g, ', ') + '. '
-    + 'Social proof: Trustpilot ' + (b.trustpilot_score || '') + ' (' + (b.trustpilot_count || '') + ' reviews), ' + (b.customer_count || '') + ' klanten. '
-    + 'Levering: ' + (b.delivery || '') + '. Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.';
+  var b = (brandProfiles && brandProfiles[activeBrand]) || null;
+  if (!b) return BRAND_DEFAULTS[activeBrand] || BRAND_DEFAULTS.wellshave;
+  var L = ['Merk: ' + (b.name || brandLabel(activeBrand)) + ' (onderdeel van Wellgroup).'];
+  if (b.positioning) L.push('Positionering: ' + b.positioning + '.');
+  if (b.tone) L.push('Toon of voice: ' + b.tone + '.');
+  if (b.audience) L.push('Doelgroep: ' + b.audience + '.');
+  if (b.usps) L.push('Kernbeloftes/USP’s: ' + String(b.usps).replace(/\n/g, '; ') + '.');
+  if (b.dos) L.push('Wel doen: ' + String(b.dos).replace(/\n/g, '; ') + '.');
+  if (b.donts) L.push('Vermijden: ' + String(b.donts).replace(/\n/g, '; ') + '.');
+  if (b.tagline) L.push('Tagline: ' + b.tagline + '.');
+  if (b.guarantee) L.push('Garantie: ' + String(b.guarantee).replace(/\n/g, ', ') + '.');
+  if (b.proof) L.push('Social proof: ' + String(b.proof).replace(/\n/g, ', ') + '.');
+  L.push('Claims altijd uit productdata, nooit verzonnen. Respecteer Meta-advertentiebeleid.');
+  return L.join(' ');
+}
+/* Merk-DNA opslaan naar Supabase (brand_profile.data, per merk). id+data-schema. */
+function saveBrandProfilesToSupabase() {
+  if (!AI.sbReady || !canWrite()) return Promise.resolve(false);
+  var base = AI.sbUrl.replace(/\/+$/,'') + '/rest/v1/brand_profile';
+  if (brandRowId != null) {
+    return fetch(base + '?id=eq.' + encodeURIComponent(brandRowId), { method:'PATCH', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=minimal' }, sbAuthHeaders()), body: JSON.stringify({ data: brandProfiles }) }).then(function(r){ return r.ok; });
+  }
+  return fetch(base, { method:'POST', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=representation' }, sbAuthHeaders()), body: JSON.stringify({ data: brandProfiles }) })
+    .then(function(r){ if (!r.ok) return false; return r.json().then(function(x){ if (x && x[0]) brandRowId = x[0].id; return true; }); });
+}
+function openBrandDna() { state.modal = { _type:'brandDna' }; renderModal(); }
+function brandDnaSave() {
+  var g = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  brandProfiles[activeBrand] = { name:g('bdName'), positioning:g('bdPos'), tone:g('bdTone'), audience:g('bdAud'), usps:g('bdUsps'), dos:g('bdDos'), donts:g('bdDonts'), tagline:g('bdTag'), guarantee:g('bdGuar'), proof:g('bdProof') };
+  try { localStorage.setItem('atelier-brandprofiles', JSON.stringify(brandProfiles)); } catch(e){}
+  brandProfile = brandProfiles[activeBrand];
+  var msg = document.getElementById('bdMsg');
+  if (AI.sbReady && canWrite()) {
+    if (msg) { msg.textContent = 'Opslaan in team-database…'; msg.style.color = '#8d764a'; }
+    saveBrandProfilesToSupabase().then(function(ok){ if (msg) { msg.textContent = ok ? '✓ Opgeslagen in de team-database' : 'Lokaal opgeslagen — DB-schrijven mislukt'; msg.style.color = ok ? '#4fe0a8' : '#e0705a'; } showToast(ok ? 'Merk-DNA opgeslagen' : 'Lokaal opgeslagen'); })
+      .catch(function(e){ if (msg) { msg.textContent = 'Lokaal opgeslagen (DB: ' + e.message + ')'; msg.style.color = '#e0705a'; } });
+  } else {
+    if (msg) { msg.textContent = session ? 'Lokaal opgeslagen — je account is nog niet goedgekeurd om team-breed te schrijven' : 'Lokaal opgeslagen — log in als teamlid om team-breed te bewaren'; msg.style.color = '#8d764a'; }
+    showToast('Merk-DNA lokaal opgeslagen');
+  }
+}
+function renderBrandDnaModal() {
+  var el = document.getElementById('layer-modal');
+  var b = (brandProfiles && brandProfiles[activeBrand]) || {};
+  function field(id, label, val, ph, rows){
+    var inp = rows
+      ? '<textarea id="' + id + '" rows="' + rows + '" placeholder="' + esc(ph) + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px; resize:vertical; line-height:1.5;">' + esc(val || '') + '</textarea>'
+      : '<input id="' + id + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px;"/>';
+    return '<div style="margin-bottom:13px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">' + label + '</div>' + inp + '</div>';
+  }
+  el.innerHTML =
+    '<div onclick="closeModal()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; padding:40px; overflow-y:auto; animation:overlayIn 0.2s ease;">'
+    + '<div onclick="event.stopPropagation()" style="width:600px; max-width:100%; background:#0b0a08; border:1px solid rgba(201,169,97,0.25); border-radius:18px; box-shadow:0 50px 140px rgba(0,0,0,0.7); animation:modalIn 0.26s cubic-bezier(0.16,1,0.3,1); padding:26px 28px; position:relative;">'
+    + '<div onclick="closeModal()" style="position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px; z-index:5;">✕</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">MERK-DNA</div>'
+    + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:24px; color:#f7f2e8; line-height:1; margin-bottom:6px;">Merk-instellingen · ' + brandLabel(activeBrand) + '</div>'
+    + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:14px;">Rory (Fable 5) gebruikt dit merk-DNA in élke ad-flow, zodat elk concept on-brand is. Je bewerkt nu <b style="color:#e6cd92;">' + brandLabel(activeBrand) + '</b>.</div>'
+    + '<div style="display:flex; gap:6px; margin-bottom:18px;">' + [['wellshave','Wellshave'],['wellshine','Wellshine']].map(function(x){ var on = activeBrand===x[0]; return '<div onclick="setBrand(\'' + x[0] + '\'); openBrandDna();" style="padding:6px 13px; border-radius:8px; cursor:pointer; font-family:\'JetBrains Mono\',monospace; font-size:10px; ' + (on ? 'background:linear-gradient(135deg,#e6cd92,#8d764a); color:#1a1408; font-weight:600;' : 'color:#8d764a; border:1px solid rgba(255,255,255,0.1);') + '">' + x[1] + '</div>'; }).join('') + '</div>'
+    + field('bdName', 'MERKNAAM', b.name || brandLabel(activeBrand), brandLabel(activeBrand))
+    + field('bdPos', 'POSITIONERING', b.positioning, 'Waar staat het merk voor? Wat maakt het anders?', 2)
+    + field('bdTone', 'TOON OF VOICE', b.tone, 'bv. warm, premium, mannelijk, nuchter-Nederlands', 2)
+    + field('bdAud', 'DOELGROEP', b.audience, 'Wie is de ideale klant?', 2)
+    + field('bdUsps', 'KERNBELOFTES / USP’S', b.usps, 'Eén per regel', 3)
+    + field('bdDos', 'WEL DOEN', b.dos, 'Wat moet Rory juist doen? Eén per regel', 2)
+    + field('bdDonts', 'VERMIJDEN', b.donts, 'Claims/woorden die Rory moet vermijden. Eén per regel', 2)
+    + field('bdTag', 'TAGLINE / PAY-OFF', b.tagline, 'bv. Scheer veilig, ook daar')
+    + field('bdGuar', 'GARANTIE', b.guarantee, 'bv. 100 dagen niet-goed-geld-terug')
+    + field('bdProof', 'SOCIAL PROOF', b.proof, 'bv. 4.6 op Trustpilot, 50.000+ klanten', 2)
+    + '<div style="display:flex; gap:10px; margin-top:6px;"><button onclick="brandDnaSave()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button><button onclick="closeModal()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Sluiten</button></div>'
+    + '<div id="bdMsg" style="font-size:12px; color:#635c54; margin-top:12px; min-height:16px;"></div>'
+    + '</div></div>';
 }
 
 /* Kernaanroep: non-streaming Fable 5 via de proxy, met refusal-fallback. */
@@ -2171,6 +2246,7 @@ var _rm3 = renderModal;
 renderModal = function() {
   if (state.modal && state.modal._type === 'settings') { renderSettingsModal(); return; }
   if (state.modal && state.modal._type === 'login') { renderLoginModal(); return; }
+  if (state.modal && state.modal._type === 'brandDna') { renderBrandDnaModal(); return; }
   _rm3();
 };
 function renderSettingsModal() {
