@@ -3,12 +3,12 @@
 // handler. The `path` config routes every proxy endpoint to this function.
 //
 // Deploy: set the Netlify "base directory" to `ad-generator/proxy` and add the
-// ANTHROPIC_API_KEY (and optional PROXY_API_KEY) as site environment variables.
+// ANTHROPIC_API_KEY (Fable 5 + >=30d retention) as a site environment variable.
 
 import { handleRequest } from '../../src/handler.js';
 
 export default async (request) => handleRequest(request);
 
 export const config = {
-  path: ['/', '/health', '/v1/chat/completions', '/v1/messages', '/v1/models'],
+  path: ['/', '/health', '/anthropic'],
 };

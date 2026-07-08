@@ -1,106 +1,104 @@
 # Fable 5 proxy
 
-**Ad generator — step 1.** A small, zero-dependency proxy that puts **Claude
-Fable 5** (`claude-fable-5`) behind the API the ad generator already speaks, with
-**automatic fallback to Opus 4.8** (`claude-opus-4-8`) whenever Fable 5 is
-unavailable (per the Notion note: *"toegang tot Fable 5 was eerder tijdelijk
-beperkt — als het niet beschikbaar is, kan Opus 4.8 als fallback dienen"*).
+**Ad generator — step 1.** A tiny, zero-dependency proxy that lets the new ad
+generator (**"Atelier Console"**, live at https://wellshave-adgen.netlify.app —
+one HTML file) reach **Claude Fable 5** from the browser without exposing the
+Anthropic key.
 
-The ad generator currently runs on the OpenAI Chat Completions format. Point it
-at this proxy and its "brain" becomes Fable 5 — **no other code change needed**.
+The app calls the proxy via its `fable5()` function using the **native Anthropic
+Messages API** format. Model fallback (Fable 5 → Opus 4.8) is handled
+**server-side by Anthropic** via the `fallbacks` field in the body plus the
+`anthropic-beta: server-side-fallback-2026-06-01` header — the proxy just
+forwards everything verbatim.
 
-## What it does
+## The contract
 
-- Accepts **OpenAI Chat Completions** requests (`POST /v1/chat/completions`) and
-  translates them to the Anthropic Messages API, then translates the answer
-  back. Streaming and non-streaming both supported.
-- Forces the model to Fable 5 and **falls back to Opus 4.8** on model-unavailable
-  errors (404 / 403 / 529 / model-not-found 400s). Real request errors are *not*
-  masked — they pass straight through.
-- Also offers an **Anthropic-native passthrough** (`POST /v1/messages`) that
-  keeps the native shape but still applies the model forcing + fallback + auth,
-  so the existing "Ad generator Claude" key path can route through Fable 5 too.
-- The Anthropic key lives only in an env var. **No secret is ever committed.**
+`POST /anthropic` — forward the body **byte-for-byte** to
+`https://api.anthropic.com/v1/messages`, injecting `x-api-key` and passing
+`anthropic-version` + `anthropic-beta` through unchanged. Return the Anthropic
+JSON response **unchanged**.
 
-## Endpoints
+```
+POST <proxy>/anthropic
+  content-type: application/json
+  anthropic-version: 2023-06-01
+  anthropic-beta: server-side-fallback-2026-06-01
+  body: { model:"claude-fable-5", max_tokens, output_config?, fallbacks:[…], system, messages }
+→ relays Anthropic's { stop_reason, content:[{type:"text",text}], usage, … }
+```
 
-| Method | Path                    | Purpose                                   |
-| ------ | ----------------------- | ----------------------------------------- |
-| POST   | `/v1/chat/completions`  | OpenAI-compatible (primary use)           |
-| POST   | `/v1/messages`          | Anthropic-native passthrough              |
-| GET    | `/v1/models`            | Lists the primary + fallback model        |
-| GET    | `/health`               | Health + effective config                 |
+| Method | Path         | Purpose                                            |
+| ------ | ------------ | -------------------------------------------------- |
+| POST   | `/anthropic` | verbatim passthrough to Anthropic Messages         |
+| GET    | `/health`    | `{ ok: true, service }` — the app's "Test proxy" button |
+| GET    | `/`          | same as `/health`                                  |
+| OPTIONS| any          | CORS preflight → 204                                |
+
+CORS: `Access-Control-Allow-Origin: *`, allow-headers include `Content-Type,
+anthropic-version, anthropic-beta`.
+
+The proxy does **not** parse, translate or rewrite the body — `output_config`,
+`fallbacks`, `system`, `messages` all reach Anthropic exactly as sent. It does
+**not** do its own fallback (that's server-side). The OpenAI-compatible
+`/compat/chat/completions` route of the Cloudflare AI Gateway is the **old** tool
+(OpenAI, for images) and is intentionally not used here.
+
+## Requirements
+
+- `ANTHROPIC_API_KEY` (or `ANTHROPIC_KEY`) with **Fable 5 access**.
+- The org must have **≥ 30 days data retention** — Fable 5 does not run under
+  zero-data-retention.
 
 ## Quickstart (local)
 
 ```bash
 cd ad-generator/proxy
-cp .env.example .env          # then paste the Anthropic key into .env
-node --env-file=.env server.js   # Node >= 20.6; or: export the vars and `npm start`
-```
+cp .env.example .env        # paste the Anthropic key
+node --env-file=.env server.js   # Node >= 20.6; or export the vars and `npm start`
 
-Smoke test it:
-
-```bash
-curl -s localhost:8787/v1/chat/completions \
-  -H 'content-type: application/json' \
-  -H 'authorization: Bearer <PROXY_API_KEY>' \
-  -d '{"messages":[{"role":"user","content":"Write a punchy Wellshave headline."}]}'
+curl localhost:8787/health
+curl localhost:8787/anthropic -H 'content-type: application/json' \
+  -H 'anthropic-version: 2023-06-01' \
+  -H 'anthropic-beta: server-side-fallback-2026-06-01' \
+  -d '{"model":"claude-fable-5","max_tokens":100,"messages":[{"role":"user","content":"hi"}]}'
 ```
 
 ## Configuration
 
-All via environment variables (see `.env.example`):
-
-| Variable               | Default                | Notes                                                            |
-| ---------------------- | ---------------------- | ---------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`    | —                      | **Required.** Use the "API Ad generator Claude" key.             |
-| `PROXY_API_KEY`        | *(empty = open)*       | Shared secret callers must send. **Set it for any public deploy.** |
-| `PRIMARY_MODEL`        | `claude-fable-5`       | The model the proxy forces.                                      |
-| `FALLBACK_MODEL`       | `claude-opus-4-8`      | Used when the primary is unavailable.                            |
-| `ALLOW_MODEL_OVERRIDE` | `false`                | Let callers pick a different `claude-*` model.                   |
-| `DEFAULT_MAX_TOKENS`   | `4096`                 | Used when the caller omits `max_tokens` (Anthropic requires it). |
-| `ANTHROPIC_BASE_URL`   | `https://api.anthropic.com` | Point at a gateway (e.g. Cloudflare AI Gateway) if desired.  |
-| `CORS_ORIGIN`          | `*`                    | Echoed to browser callers.                                       |
-| `PORT`                 | `8787`                 | Standalone server only.                                          |
+| Variable             | Default                              | Notes                                            |
+| -------------------- | ------------------------------------ | ------------------------------------------------ |
+| `ANTHROPIC_API_KEY`  | — (also reads `ANTHROPIC_KEY`)       | **Required.** Fable 5 access + ≥30d retention.   |
+| `CORS_ORIGIN`        | `*`                                  | Set to `https://wellshave-adgen.netlify.app` to lock down. |
+| `ANTHROPIC_VERSION`  | `2023-06-01`                         | Only used if the caller omits the header.        |
+| `ANTHROPIC_BETA`     | `server-side-fallback-2026-06-01`    | Only used if the caller omits the header.        |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com`          | Point at a mock/gateway for testing.             |
+| `PORT`               | `8787`                               | Standalone server only.                          |
 
 ## Deploy
 
-**Netlify Functions (recommended — you already deploy here).**
-1. New site from this repo; set **Base directory** to `ad-generator/proxy`.
-2. Add env vars `ANTHROPIC_API_KEY` and `PROXY_API_KEY` (and any overrides).
-3. Deploy. The function in `netlify/functions/proxy.js` serves every route via
-   the Web-standard `Request → Response` handler in `src/handler.js`.
+**Netlify (recommended — the app already lives on Netlify).** Deploy this as its
+own site so the proxy URL is separate from the app:
+1. New site from this repo; **Base directory** = `ad-generator/proxy`.
+2. Add env var `ANTHROPIC_API_KEY`.
+3. Deploy. `netlify/functions/proxy.js` serves `/anthropic`, `/health`, `/`.
 
-**Other targets.** The core is a plain `handleRequest(request: Request):
-Promise<Response>` in `src/handler.js`, so it drops into any Web-Fetch runtime:
-- **Supabase Edge Function (Deno):** `Deno.serve((req) => handleRequest(req))`.
-- **Cloudflare Worker:** `export default { fetch: handleRequest }`.
-- **Self-host / any Node box:** `node server.js`.
+The core is a Web-standard `handleRequest(request): Response`, so it also drops
+into a **Cloudflare Worker** (`export default { fetch: handleRequest }`), a
+**Supabase Edge Function** (`Deno.serve(handleRequest)`), or any Node box
+(`node server.js`).
 
-## Point the ad generator at it
+> Already have the `wellgroup-team-proxy` Cloudflare Worker live with Fable 5
+> access? It implements this same `/anthropic` contract — just use its URL and
+> skip deploying this one. This repo copy is for a version-controlled Netlify
+> deploy.
 
-Change the ad generator's OpenAI base URL to the proxy and use the
-`PROXY_API_KEY` as the API key:
+## Wire it into the app
 
-- Base URL: `https://<your-deploy>/v1`
-- API key: your `PROXY_API_KEY`
-
-It will keep sending OpenAI-format requests; it now gets Fable 5 answers.
+In the app: **Instellingen (⚙) → Team-proxy URL** = your deploy URL **without
+`/anthropic`** (the app appends it). Click **Test proxy** (pings `/health`).
 
 ## Tests
 
 ```bash
-node test/smoke.mjs         # offline unit tests (translation, streaming, fallback rules)
-node test/integration.mjs   # end-to-end through a mock Anthropic upstream
+npm test   # node test/smoke.mjs (routing/CORS) && node test/integration.mjs (mock upstream)
 ```
-
-## Notes / limits
-
-- Translation covers what an ad generator uses: system prompts, multi-turn text,
-  image inputs, `temperature`/`top_p`/`max_tokens`/`stop`, `response_format`
-  JSON hinting, streaming, and function/tool calls.
-- `response_format: json_object` is enforced by a system-prompt instruction
-  (Anthropic has no dedicated parameter), not by a hard schema.
-- Fallback is intentionally conservative so genuine 400/422 request bugs surface
-  instead of being retried on the fallback model.

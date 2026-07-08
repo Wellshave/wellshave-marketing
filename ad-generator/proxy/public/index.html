@@ -3,10 +3,9 @@
 <title>Fable 5 proxy</title>
 <style>body{font:15px/1.6 system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;color:#222}code{background:#f2f2f2;padding:.1em .3em;border-radius:4px}</style>
 <h1>Fable 5 proxy</h1>
-<p>OpenAI-compatible proxy in front of Claude Fable 5 (fallback: Opus 4.8).</p>
+<p>Verbatim passthrough to the Anthropic Messages API for the Atelier Console ad generator. Fallback (Fable&nbsp;5 → Opus&nbsp;4.8) is handled server-side by Anthropic.</p>
 <ul>
-  <li><code>POST /v1/chat/completions</code> — OpenAI-compatible</li>
-  <li><code>POST /v1/messages</code> — Anthropic-native passthrough</li>
-  <li><code>GET /v1/models</code> · <code>GET /health</code></li>
+  <li><code>POST /anthropic</code> — forwards to <code>api.anthropic.com/v1/messages</code></li>
+  <li><code>GET /health</code> — the app's "Test proxy" ping</li>
 </ul>
-<p>See the repo README for configuration and usage.</p>
+<p>See the repo README for configuration and deployment.</p>

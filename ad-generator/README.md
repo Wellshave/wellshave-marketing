@@ -1,33 +1,29 @@
-# Ad generator
+# Ad generator — "Atelier Console"
 
-Rebuild / upgrade of the Wellshave ad generator, on top of **Claude Fable 5**.
+The new Wellshave ad generator is a single HTML app, live at
+**https://wellshave-adgen.netlify.app**, running on **Claude Fable 5**. It talks
+to the model through a proxy (so the Anthropic key never touches the browser).
 
-## Step 1 — Fable 5 proxy ✅ (this commit)
+## Step 1 — Fable 5 proxy ✅ (this repo)
 
-Put Fable 5 behind the API the ad generator already speaks (OpenAI Chat
-Completions), with automatic fallback to Opus 4.8. Pointing the existing
-generator at this proxy swaps its brain to Fable 5 with no other code change.
+A thin proxy exposing `POST /anthropic` that forwards the app's **native
+Anthropic Messages** requests verbatim to `api.anthropic.com`, injecting the
+`x-api-key`. Model fallback (Fable 5 → Opus 4.8) is handled **server-side by
+Anthropic** via the `fallbacks` body field + `anthropic-beta` header, which the
+proxy passes through untouched.
 
-→ Code, docs and tests in [`proxy/`](./proxy/). It runs as a Netlify Function
-or a standalone Node service, is zero-dependency, and keeps the Anthropic key
-in an env var (never in the repo).
+→ Code, docs and tests in [`proxy/`](./proxy/). Zero dependencies; deploys as a
+Netlify Function, Cloudflare Worker, Supabase Edge Function, or standalone Node
+service. Built to the exact contract the app's `fable5()` function expects.
 
-**To go live:** deploy `proxy/` (Netlify base dir `ad-generator/proxy`), set
-`ANTHROPIC_API_KEY` + `PROXY_API_KEY`, then repoint the ad generator's OpenAI
-base URL at the proxy. See [`proxy/README.md`](./proxy/README.md).
+**To go live:** deploy `proxy/` (or reuse the existing `wellgroup-team-proxy`
+Cloudflare Worker, which implements the same contract), set `ANTHROPIC_API_KEY`
+(Fable 5 access + ≥30d data retention), then paste the proxy URL into the app at
+**Instellingen (⚙) → Team-proxy URL** and hit **Test proxy**. See
+[`proxy/README.md`](./proxy/README.md).
 
-## Candidate next steps (to confirm with Dustin)
+## Notes
 
-Pulled from the Wellshave OS "Claude systemen" notes — **not yet specced**, listed
-here so step 1 has a home and the direction is visible:
-
-- **Meta data in the generator** — "Claude meta acc laten ophalen en laten
-  displayen in ad generator": pull the Meta ad account performance data and
-  surface it inside the generator.
-- **Wizard mode** — "Wizard mode modus op ad generator. Spar met Rory": an
-  interactive back-and-forth where the model asks clarifying questions before
-  producing a master output.
-- **Headline quality guardrails** — no puzzle-like / confusing headlines (from
-  the "Brief ad generator" task).
-
-Each of these becomes its own step once scoped.
+- The app is native-Anthropic. The OpenAI-compatible `/compat/chat/completions`
+  route (Cloudflare AI Gateway) belongs to the **old** tool (OpenAI, for images)
+  and is not used here.

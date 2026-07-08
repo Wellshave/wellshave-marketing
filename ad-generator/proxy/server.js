@@ -29,9 +29,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(CONFIG.port, () => {
   const keyState = CONFIG.anthropicApiKey ? 'set' : 'MISSING (set ANTHROPIC_API_KEY)';
-  console.log(`fable5-proxy listening on http://localhost:${CONFIG.port}`);
-  console.log(`  primary=${CONFIG.primaryModel}  fallback=${CONFIG.fallbackModel}  anthropic key=${keyState}`);
-  if (CONFIG.proxyApiKey) console.log('  proxy auth: required (PROXY_API_KEY)');
+  console.log(`${CONFIG.serviceName} listening on http://localhost:${CONFIG.port}`);
+  console.log(`  POST /anthropic -> ${CONFIG.anthropicBaseUrl}/v1/messages   anthropic key=${keyState}`);
 });
 
 async function toWebRequest(req) {
