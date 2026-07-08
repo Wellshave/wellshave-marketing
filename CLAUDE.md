@@ -44,9 +44,11 @@ wijziging ALTIJD hetzelfde bestand in-place — nooit nieuwe of versienummer-kop
 maken.
 - Canoniek (bron van waarheid): `atelier-console/index.html` in deze repo, branch
   `claude/atelier-console-redesign-u07czk`. Commit + push elke wijziging.
-- Google Drive-mirror: `atelier-console-v0.1.html` in map
-  `4. CLAUDE / Ad generator / Nieuw design` (fileId
-  `1J0ytUcbjBfuvR96o-2Vj1mQhrZuAIdkc`). Na elke grote wijziging bijwerken zodat
-  repo en Drive gelijklopen (zelfde bestand, geen nieuwe versie).
+- Google Drive-mirror: `index.html` in map `4. CLAUDE / Ad generator / Nieuw design`.
+  (Dustin verving het oude `atelier-console-v0.1.html` — fileId
+  `1J0ytUcbjBfuvR96o-2Vj1mQhrZuAIdkc`, nu verwijderd — door dit `index.html`;
+  de nieuwe fileId nog opzoeken/verversen zodra de Drive-connector terug is.)
+  Na elke grote wijziging bijwerken zodat repo en Drive gelijklopen — bewerk dan
+  ditzelfde bestand in Drive (Versies beheren → Nieuwe versie), geen nieuwe kopie.
 - Live op Netlify: site `wellshave-adgen` → https://wellshave-adgen.netlify.app.
 - Volledige deploy-/redeploy-instructies staan in `DEPLOY.md`.
