@@ -1,5 +1,12 @@
 # Claude routines — Wellshave
 
+## Projectgeheugen — lees dit eerst (tokenbesparing)
+
+Bij werk aan/vragen over de Atelier Console of deze repo: lees eerst `MEMORY.md`
+(index) en `memory/ad-generator-herbouw.md` (volledige status) — niet de hele chat
+overlezen. Als er een Graphify-kennisgraaf in `graphify-out/` staat, query die
+(`graphify query "<vraag>"`) of lees `graphify-out/GRAPH_REPORT.md`.
+
 ## Slack: altijd posten als de bot (Wellshave Operator / Dustin 2.0)
 
 Elke routine die iets naar Slack stuurt (digests, aankondigingen, task-nudges,
