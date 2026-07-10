@@ -1619,6 +1619,68 @@ function persSetNiche(n){ persona.niche = n; if (n !== 'all') { var fi = persona
 function persSel(i){ persona.sel = i; persona.stage = 0; renderPersonas(); }
 function persStage(s){ persona.stage = s; renderPersonas(); }
 function persToGen(angleName){ var p = personaData[persona.sel]; gen.persona = ({body:'De Expert',baard:'De Verzorger',scheer:'De Minimalist'})[p.niche] || 'De Expert'; gen.brief = 'Persona ' + p.name + ' (' + p.alias + '), angle: ' + angleName + '.'; gen.analyzed = false; renderGenerator(); setNav('nieuw'); showToast('→ Generator · ' + p.name + ' / ' + angleName); }
+/* ---- persona-editor (velden + handmatige Schwartz-stages) ---- */
+var SCHWARTZ_STAGES = ['Onbewust','Probleembewust','Oplossingsbewust','Productbewust','Meest bewust'];
+function openPersEdit(){ if (!personaData.length) return; state.modal = { _type:'persEdit', idx: persona.sel }; renderModal(); }
+function persAdd(){ var nl = ({wellshave:'body', wellshine:'hair'})[activeBrand] || 'body';
+  personaData.push({ name:'Nieuwe persona', alias:'', initial:'N', age:'', role:'', niche:nl, quote:'', driver:'', demo:[], wants:[], fears:[], objections:[], failedAlts:[], benefits:[], stages:[] });
+  persona.sel = personaData.length - 1; persona.stage = 0; state.modal = { _type:'persEdit', idx: persona.sel }; renderModal(); }
+function savePersonaToSupabase(p){
+  if (!AI.sbReady || !canWrite()) return Promise.resolve(false);
+  var body = { name:p.name, alias:p.alias, initial:p.initial, age:p.age, role:p.role, niche:p.niche, quote:p.quote, demo:p.demo, wants:p.wants, fears:p.fears, objections:p.objections, failed_alts:p.failedAlts, benefits:p.benefits, stages:p.stages };
+  var base = AI.sbUrl.replace(/\/+$/,'') + '/rest/v1/personas';
+  if (p.dbId != null) return fetch(base + '?id=eq.' + encodeURIComponent(p.dbId), { method:'PATCH', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=minimal' }, sbAuthHeaders()), body: JSON.stringify(body) }).then(function(r){ return r.ok; });
+  return fetch(base, { method:'POST', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=representation' }, sbAuthHeaders()), body: JSON.stringify(body) }).then(function(r){ if (!r.ok) return false; return r.json().then(function(x){ if (x && x[0]) p.dbId = x[0].id; return true; }); });
+}
+function deletePersonaFromSupabase(p){ if (!AI.sbReady || !canWrite() || p.dbId == null) return Promise.resolve(false); return fetch(AI.sbUrl.replace(/\/+$/,'') + '/rest/v1/personas?id=eq.' + encodeURIComponent(p.dbId), { method:'DELETE', headers: sbAuthHeaders() }).then(function(r){ return r.ok; }); }
+function persDelete(){ var p = personaData[persona.sel]; if (!p) return; if (!confirm('Persona "' + (p.name||'') + '" verwijderen?')) return;
+  var removed = personaData.splice(persona.sel, 1)[0]; persona.sel = 0; persona.stage = 0; closeModal(); renderPersonas(); renderStatics();
+  if (removed && removed.dbId != null && AI.sbReady && canWrite()) deletePersonaFromSupabase(removed).then(function(ok){ showToast(ok ? 'Persona verwijderd' : 'Lokaal verwijderd (DB-fout)'); });
+  else showToast('Persona verwijderd' + (removed && removed.dbId != null ? ' (lokaal — log in om team-breed te verwijderen)' : '')); }
+function persEditSave(){
+  var idx = state.modal.idx; var p = personaData[idx]; if (!p) return;
+  var g = function(id){ var e = document.getElementById(id); return e ? e.value : ''; };
+  var lines = function(id){ return g(id).split('\n').map(function(s){ return s.trim(); }).filter(Boolean); };
+  p.name = g('psName').trim() || p.name; p.alias = g('psAlias').trim(); p.initial = ((g('psInitial').trim() || (p.name[0]||'?'))).slice(0,1).toUpperCase();
+  p.age = g('psAge').trim(); p.role = g('psRole').trim(); p.niche = g('psNiche').trim() || p.niche; p.quote = g('psQuote').trim();
+  p.demo = lines('psDemo').map(function(l){ var m = l.split(/:\s*/); return [ (m[0]||'').trim(), m.slice(1).join(': ').trim() ]; });
+  p.wants = lines('psWants'); p.fears = lines('psFears'); p.objections = lines('psObj'); p.failedAlts = lines('psFailed'); p.benefits = lines('psBenefits');
+  var stages = [];
+  for (var i=0;i<5;i++){ var mind = g('psStageMind'+i).trim(); var ang = lines('psStageAng'+i).map(function(l){ var m = l.split('|').map(function(s){ return s.trim(); }); return [m[0]||'', m[1]||'', m[2]||'', m[3]||'']; }); if (mind || ang.length) stages.push({ label: SCHWARTZ_STAGES[i], mindset: mind, angles: ang }); }
+  p.stages = stages;
+  renderPersonas(); renderStatics();
+  var msg = document.getElementById('psMsg');
+  if (AI.sbReady && canWrite()) { if (msg){ msg.textContent='Opslaan in team-database…'; msg.style.color='#8d764a'; } savePersonaToSupabase(p).then(function(ok){ if (msg){ msg.textContent = ok?'✓ Opgeslagen in de team-database':'Lokaal bijgewerkt — DB-schrijven mislukt'; msg.style.color = ok?'#4fe0a8':'#e0705a'; } showToast(ok?'Persona opgeslagen':'Lokaal opgeslagen'); setTimeout(closeModal, ok?650:1200); }).catch(function(e){ if (msg){ msg.textContent='Lokaal bijgewerkt (DB: '+e.message+')'; msg.style.color='#e0705a'; } setTimeout(closeModal, 1200); }); }
+  else { if (msg){ msg.textContent = (session?'Je account is nog niet goedgekeurd — ':'Log in als teamlid om team-breed te bewaren — ')+'wijziging staat lokaal.'; msg.style.color='#8d764a'; } showToast('Lokaal opgeslagen'); setTimeout(closeModal, 900); }
+}
+function renderPersEditModal(){
+  var el = document.getElementById('layer-modal'); var p = personaData[state.modal.idx]; if (!p) { el.innerHTML=''; return; }
+  function fld(id,label,val,ph,rows){ var inp = rows ? '<textarea id="'+id+'" rows="'+rows+'" placeholder="'+esc(ph)+'" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px; resize:vertical; line-height:1.5;">'+esc(val||'')+'</textarea>' : '<input id="'+id+'" value="'+esc(val||'')+'" placeholder="'+esc(ph)+'" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:10px 12px;"/>'; return '<div style="margin-bottom:12px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">'+label+'</div>'+inp+'</div>'; }
+  var demoText = (p.demo||[]).map(function(d){ return (d[0]||'') + ': ' + (d[1]||''); }).join('\n');
+  var stagesHtml = SCHWARTZ_STAGES.map(function(lbl,i){ var st = (p.stages||[])[i] || {}; var angText = (st.angles||[]).map(function(a){ return [a[0],a[1],a[2],a[3]].map(function(x){ return x||''; }).join(' | '); }).join('\n');
+    return '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:11px; padding:12px 14px; margin-bottom:10px; background:#0a0908;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.08em; color:#e6cd92; margin-bottom:8px;">STAGE ' + (i+1) + ' · ' + lbl + '</div>'
+      + fld('psStageMind'+i,'MINDSET', st.mindset, 'Wat denkt/voelt de klant in deze stage?', 2)
+      + fld('psStageAng'+i,'ANGLES', angText, 'Eén per regel: naam | beschrijving | emotie die het raakt | bezwaar dat het wegneemt', 3)
+      + '</div>'; }).join('');
+  el.innerHTML =
+    '<div onclick="closeModal()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-start; justify-content:center; padding:40px; overflow-y:auto; animation:overlayIn 0.2s ease;">'
+    + '<div onclick="event.stopPropagation()" style="width:660px; max-width:100%; background:#0b0a08; border:1px solid rgba(201,169,97,0.25); border-radius:18px; box-shadow:0 50px 140px rgba(0,0,0,0.7); animation:modalIn 0.26s cubic-bezier(0.16,1,0.3,1); padding:26px 28px; position:relative;">'
+    + '<div onclick="closeModal()" style="position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px; z-index:5;">✕</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">PERSONA BEWERKEN · ' + brandLabel(brandOfNiche(p.niche)) + '</div>'
+    + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:23px; color:#f7f2e8; line-height:1; margin-bottom:16px;">' + esc(p.name) + '</div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:2;">' + fld('psName','NAAM',p.name,'') + '</div><div style="flex:2;">' + fld('psAlias','ALIAS / TYPE',p.alias,'bv. de Relatie-Pragmaticus') + '</div><div style="flex:1;">' + fld('psInitial','INIT.',p.initial,'M') + '</div></div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('psAge','LEEFTIJD',p.age,'30') + '</div><div style="flex:2;">' + fld('psRole','ROL / BEROEP',p.role,'') + '</div><div style="flex:1;">' + fld('psNiche','NICHE',p.niche,'body') + '</div></div>'
+    + fld('psQuote','QUOTE', p.quote, 'Uitspraak die de persona typeert', 2)
+    + fld('psDemo','DEMOGRAFIE', demoText, 'Eén per regel: label: waarde', 3)
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('psWants','WENSEN',(p.wants||[]).join('\n'),'Eén per regel',3) + '</div><div style="flex:1;">' + fld('psFears','PIJNPUNTEN & ANGSTEN',(p.fears||[]).join('\n'),'Eén per regel',3) + '</div></div>'
+    + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('psObj','BEZWAREN',(p.objections||[]).join('\n'),'Eén per regel',2) + '</div><div style="flex:1;">' + fld('psFailed','MISLUKTE ALTERNATIEVEN',(p.failedAlts||[]).join('\n'),'Eén per regel',2) + '</div></div>'
+    + fld('psBenefits','VOORDELEN VOOR HEM',(p.benefits||[]).join('\n'),'Eén per regel',2)
+    + '<div style="border-top:1px solid rgba(255,255,255,0.07); margin:8px 0 14px;"></div><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">5 SCHWARTZ-STAGES · zelf invullen</div>'
+    + stagesHtml
+    + '<div style="display:flex; gap:10px; margin-top:6px;"><button onclick="persEditSave()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button><button onclick="persDelete()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(224,112,90,0.4); background:rgba(224,112,90,0.08); color:#e0705a; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Verwijder</button><button onclick="closeModal()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Sluiten</button></div>'
+    + '<div id="psMsg" style="font-size:12px; color:#635c54; margin-top:12px; min-height:16px;"></div>'
+    + '</div></div>';
+}
 function renderPersonas() {
   var el = document.getElementById('screen-personas');
   if (!personaData.length) { el.innerHTML = screenHeader('ARCHIEF / PERSONA’S', 'Customer Persona’s', 'Het fundament: elke persona kent 5 awareness-stages (Schwartz), en per stage meerdere marketing-angles.') + '<div style="border:1px dashed rgba(201,169,97,0.3); border-radius:14px; background:rgba(201,169,97,0.03); padding:44px; text-align:center;"><div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; color:#f7f2e8; margin-bottom:6px;">Nog geen persona’s geladen</div><div style="font-size:13px; color:#8d764a; line-height:1.6; max-width:420px; margin:0 auto;">De persona’s komen uit de team-database. Log in linksonder of controleer de Supabase-koppeling in Instellingen.</div></div>'; return; }
@@ -1660,9 +1722,9 @@ function renderPersonas() {
   if (!hasStages) {
     /* echte persona uit Supabase zonder uitgewerkte angle-stages: laat Rory ze genereren */
     angleGrid = '<div style="border:1px dashed rgba(201,169,97,0.3); border-radius:13px; background:rgba(201,169,97,0.03); padding:22px; margin-top:16px;">'
-      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.12em; color:#e6cd92; margin-bottom:10px;">NOG GEEN UITGEWERKTE ANGLES</div>'
-      + '<div style="font-size:12.5px; color:#ada599; line-height:1.6; margin-bottom:16px; max-width:520px;">Deze persona komt uit de team-database met wensen, angsten en bezwaren, maar de 5 Schwartz-stages met marketing-angles zijn nog niet uitgewerkt. Laat Rory (Fable 5) ze genereren uit de persona-data — dan verschijnen ze hier en bewaar je ze in Supabase.</div>'
-      + '<button onclick="persGenStages()" style="padding:11px 18px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">⚡ Genereer 5 stages met angles →</button>'
+      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.12em; color:#e6cd92; margin-bottom:10px;">NOG GEEN UITGEWERKTE STAGES</div>'
+      + '<div style="font-size:12.5px; color:#ada599; line-height:1.6; margin-bottom:16px; max-width:520px;">De 5 Schwartz-stages met marketing-angles zijn voor deze persona nog niet ingevuld. Vul ze zelf in via de editor — per stage een mindset en de angles (naam, wat het raakt en welk bezwaar het wegneemt).</div>'
+      + '<button onclick="openPersEdit()" style="padding:11px 18px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">✎ Vul de stages zelf in →</button>'
       + '</div>';
   } else {
     angleGrid = '<div style="background:rgba(201,169,97,0.04); border:1px solid rgba(201,169,97,0.15); border-radius:12px; padding:12px 15px; margin-bottom:16px; font-size:12.5px; color:#ada599; line-height:1.55;"><b style="color:#e6cd92;">Mindset:</b> ' + esc(stage.mindset) + '</div>'
@@ -1687,6 +1749,7 @@ function renderPersonas() {
 
   el.innerHTML = screenHeader('ARCHIEF / PERSONA’S', 'Customer Persona’s', 'Het fundament: elke persona kent 5 awareness-stages (Schwartz), en per stage meerdere marketing-angles met de emotie die ze raken en het bezwaar dat ze wegnemen. Hier begint elke ad en elk script.')
     + nicheChips
+    + '<div style="display:flex; gap:8px; margin-bottom:16px;"><button onclick="openPersEdit()" style="padding:8px 14px; border-radius:9px; border:1px solid rgba(201,169,97,0.35); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">✎ Bewerk persona</button><button onclick="persAdd()" style="padding:8px 14px; border-radius:9px; border:1px solid rgba(255,255,255,0.12); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">+ Nieuwe persona</button><button onclick="persDelete()" style="margin-left:auto; padding:8px 14px; border-radius:9px; border:1px solid rgba(224,112,90,0.35); background:rgba(224,112,90,0.06); color:#e0705a; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Verwijder</button></div>'
     + '<div style="display:grid; grid-template-columns:230px 1fr; gap:20px; align-items:start;">' + listRail + detail + '</div>';
 }
 
@@ -1697,6 +1760,7 @@ renderModal = function() {
   if (m && m._type === 'prodEdit') { renderProdEditModal(m.id); return; }
   if (m && m._type === 'prod') { renderProdModal(m.id); return; }
   if (m && m._type === 'lib') { renderLibModal(m.it); return; }
+  if (m && m._type === 'persEdit') { renderPersEditModal(); return; }
   _rm2();
 };
 function renderProdModal(id) {
@@ -2008,7 +2072,7 @@ function loadFromSupabase() {
   sbGet('personas', '&order=id.asc').then(function(rows){
     if (rows && rows.length) {
       personaData = rows.map(function(r){ return {
-        name:r.name, alias:r.alias, initial:r.initial, age:r.age, role:r.role, niche:r.niche,
+        dbId:r.id, name:r.name, alias:r.alias, initial:r.initial, age:r.age, role:r.role, niche:r.niche,
         driver:r.driver, quote:r.quote, demo:r.demo||[], wants:r.wants||[], fears:r.fears||[],
         objections:r.objections||[], failedAlts:r.failed_alts||[], benefits:r.benefits||[], stages:r.stages||[] }; });
       persona.sel = 0; persona.stage = 0; renderPersonas(); renderStatics();
