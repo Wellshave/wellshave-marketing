@@ -2201,6 +2201,34 @@ function saveBrandProfilesToSupabase() {
     .then(function(r){ if (!r.ok) return false; return r.json().then(function(x){ if (x && x[0]) brandRowId = x[0].id; return true; }); });
 }
 function openBrandDna() { state.modal = { _type:'brandDna' }; renderModal(); }
+/* ---- Brandbook uploaden -> Rory leest uit en vult merk-DNA ---- */
+var SCHEMA_BRAND = (function(){ var keys=['name','positioning','mission','vision','values','promise','story','usps','tagline','archetype','audience','pain','position','competitors','diff','tone','personality','address','lang','powerWords','banWords','phrases','dos','donts','allowedClaims','forbidden','imageStyle','visualGuidelines','graphics','logo','guarantee','proof','reviews','awards','customers','price','offer','delivery','returns','payment','cta','channels']; var props={}; keys.forEach(function(k){ props[k]={type:'string'}; }); return { type:'object', additionalProperties:false, properties:props, required:keys }; })();
+function loadPdfJs(cb){ if (window.pdfjsLib) { cb(); return; } var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'; s.onload=function(){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; }catch(e){} cb(); }; s.onerror=function(){ cb('load-fail'); }; document.head.appendChild(s); }
+function brandBookUpload(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  var msg = document.getElementById('bbMsg'); if (msg){ msg.textContent = 'Bestand inlezen…'; msg.style.color='#8d764a'; }
+  var isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+  if (isPdf) {
+    loadPdfJs(function(err){
+      if (err){ if (msg){ msg.textContent='PDF-lezer kon niet laden (offline?). Upload een .txt/.md of plak de tekst.'; msg.style.color='#e0705a'; } return; }
+      var fr = new FileReader();
+      fr.onload = function(){ pdfjsLib.getDocument({ data:new Uint8Array(fr.result) }).promise.then(function(pdf){ var pages=[]; var chain=Promise.resolve(); for (var i=1;i<=pdf.numPages;i++){ (function(n){ chain=chain.then(function(){ return pdf.getPage(n).then(function(pg){ return pg.getTextContent().then(function(tc){ pages.push(tc.items.map(function(it){ return it.str; }).join(' ')); }); }); }); })(i); } return chain.then(function(){ brandBookExtract(pages.join('\n')); }); }).catch(function(e){ if (msg){ msg.textContent='PDF lezen mislukt: '+e.message; msg.style.color='#e0705a'; } }); };
+      fr.readAsArrayBuffer(f);
+    });
+  } else {
+    var fr = new FileReader(); fr.onload = function(){ brandBookExtract(String(fr.result||'')); }; fr.readAsText(f);
+  }
+}
+function brandBookExtract(text){
+  var msg = document.getElementById('bbMsg');
+  if (!text || text.trim().length < 20){ if (msg){ msg.textContent='Kon geen tekst uit het bestand halen.'; msg.style.color='#e0705a'; } return; }
+  if (!AI.ready){ if (msg){ msg.textContent='Bestand ingelezen — koppel Fable 5 (⚙) zodat Rory automatisch invult.'; msg.style.color='#e6cd92'; } return; }
+  if (msg){ msg.textContent='Rory leest je brandbook…'; msg.style.color='#8d764a'; }
+  var sys = 'Je bent een merkstrateeg. Vul uit het aangeleverde brandbook de merkvelden in voor het merk ' + brandLabel(activeBrand) + '. Gebruik uitsluitend wat in de tekst staat; laat een veld leeg ("") als het er niet in staat. Antwoord in het Nederlands.';
+  fable5({ system:sys, user:'Brandbook:\n\n' + text.slice(0, 20000), effort:'high', schema:SCHEMA_BRAND, maxTokens:4000 })
+    .then(function(o){ var b = brandProfiles[activeBrand] || {}; Object.keys(o).forEach(function(k){ if (o[k] && String(o[k]).trim()) b[k] = String(o[k]).trim(); }); brandProfiles[activeBrand] = b; try{ localStorage.setItem('atelier-brandprofiles', JSON.stringify(brandProfiles)); }catch(e){} brandProfile = b; renderBrandDnaModal(); var m2=document.getElementById('bbMsg'); if (m2){ m2.textContent='✓ Ingevuld uit je brandbook — controleer de tabs en klik Opslaan.'; m2.style.color='#4fe0a8'; } showToast('Merk-DNA ingevuld uit brandbook'); })
+    .catch(function(e){ var m2=document.getElementById('bbMsg'); if (m2){ m2.textContent='Kon niet uitlezen: '+e.message; m2.style.color='#e0705a'; } });
+}
 function brandDnaSave() {
   var g = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
   brandProfiles[activeBrand] = {
@@ -2251,6 +2279,13 @@ function renderBrandDnaModal() {
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">MERK-DNA</div>'
     + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:24px; color:#f7f2e8; line-height:1; margin-bottom:6px;">Merk-instellingen · ' + brandLabel(activeBrand) + '</div>'
     + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:14px;">Rory (Fable 5) gebruikt dit merk-DNA in élke ad-flow, zodat elk concept on-brand is. Je bewerkt nu <b style="color:#e6cd92;">' + brandLabel(activeBrand) + '</b>.</div>'
+    + '<div style="border:1px dashed rgba(201,169,97,0.35); border-radius:12px; background:rgba(201,169,97,0.04); padding:14px 16px; margin-bottom:16px;">'
+      + '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">'
+      + '<div style="flex:1; min-width:200px;"><div style="font-size:12.5px; color:#f7f2e8; font-weight:600; margin-bottom:2px;">📄 Brandbook uploaden</div><div style="font-size:11.5px; color:#8d764a; line-height:1.5;">PDF of tekstbestand — Rory leest het uit en vult de velden hieronder in. (Vereist gekoppelde Fable 5.)</div></div>'
+      + '<label style="padding:9px 16px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12.5px; cursor:pointer; white-space:nowrap;">Kies bestand<input type="file" accept=".pdf,.txt,.md,.markdown,text/plain,application/pdf" onchange="brandBookUpload(this)" style="display:none;"/></label>'
+      + '</div>'
+      + '<div id="bbMsg" style="font-size:11.5px; color:#635c54; margin-top:8px; min-height:15px;"></div>'
+    + '</div>'
     + '<div style="display:flex; gap:6px; margin-bottom:18px;">' + [['wellshave','Wellshave'],['wellshine','Wellshine']].map(function(x){ var on = activeBrand===x[0]; return '<div onclick="setBrand(\'' + x[0] + '\'); openBrandDna();" style="padding:6px 13px; border-radius:8px; cursor:pointer; font-family:\'JetBrains Mono\',monospace; font-size:10px; ' + (on ? 'background:linear-gradient(135deg,#e6cd92,#8d764a); color:#1a1408; font-weight:600;' : 'color:#8d764a; border:1px solid rgba(255,255,255,0.1);') + '">' + x[1] + '</div>'; }).join('') + '</div>'
     + '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.07); padding-bottom:14px;">'
       + [['kern','Merk-kern'],['markt','Doelgroep'],['toon','Tone of voice'],['content','Do\'s & don\'ts'],['visueel','Visueel'],['bewijs','Bewijs'],['aanbod','Aanbod']].map(function(t){ var on = t[0]==='kern'; return '<div class="bdTab" data-sec="' + t[0] + '" onclick="brandDnaTab(\'' + t[0] + '\')" style="padding:6px 11px; border-radius:8px; cursor:pointer; font-family:\'JetBrains Mono\',monospace; font-size:10px; border:1px solid ' + (on?'rgba(201,169,97,0.35)':'rgba(255,255,255,0.08)') + '; background:' + (on?'rgba(201,169,97,0.14)':'transparent') + '; color:' + (on?'#e6cd92':'#8d764a') + ';">' + t[1] + '</div>'; }).join('')
