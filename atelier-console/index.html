@@ -46,7 +46,7 @@
     <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.2em;color:#635c54;padding:18px 10px 8px;">ARCHIEF</div>
     <div id="archivenav"></div>
     <div id="authRow" style="margin-top:auto;"></div>
-    <div id="merkDnaNav" onclick="openBrandDna()" style="display:none; align-items:center; gap:8px; padding:11px 10px; border-radius:8px; cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+    <div id="merkDnaNav" onclick="openBrandDna()" style="display:flex; align-items:center; gap:8px; padding:11px 10px; border-radius:8px; cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
       <span style="width:7px; height:7px; border-radius:2px; background:#c9a961; flex-shrink:0;"></span>
       <span style="font-size:12px; color:#ada599;">Merk-DNA</span>
       <span style="margin-left:auto; font-size:12px; color:#8d764a;">◆</span>
@@ -1550,6 +1550,7 @@ var lib = { tab: 'ads', product: 'all', status: 'all', q: '' };
 function libSet(k,v){ lib[k]=v; renderBibliotheek(); }
 function libName(it){ return it.product + ' · ' + it.angle; }
 function libOpen(id){ var all = libAds.concat(libScripts); var it = all.find(function(x){ return x.id===id; }); state.modal = { _type:'lib', it: it, img: null }; renderModal(); if (it && it.hasImage) loadCreativeImage(it.id, function(b64){ if (state.modal && state.modal._type==='lib' && state.modal.it===it) { state.modal.img = b64; renderModal(); } }); }
+function libIterate(id){ var all = libAds.concat(libScripts); var x = all.find(function(y){ return y.id===id; }); closeModal(); state.panel = x ? x.product : true; renderPanel(); }
 function renderBibliotheek() {
   var el = document.getElementById('screen-bibliotheek');
   var items = (lib.tab==='scripts' ? libScripts : libAds).filter(function(x){
@@ -1740,36 +1741,44 @@ function renderProdModal(id) {
     + '</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">BEST PRESTERENDE ADS</div>' + (bestAds||'<div style="font-size:12px; color:#635c54;">Nog geen ads.</div>')
     + '<div style="display:flex; gap:10px; margin-top:22px;">'
-    + (session ? '<button onclick="openProdEdit(\'' + id + '\')" style="padding:13px 18px; border-radius:11px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">✎ Bewerk</button>' : '')
+    + '<button onclick="openProdEdit(\'' + id + '\')" style="padding:13px 18px; border-radius:11px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">✎ Bewerk</button>'
     + '<button onclick="prodToGenerator(\'' + p.name.replace(/'/g,"\\'") + '\')" style="flex:1; padding:13px; border-radius:11px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Maak advertentie met dit product →</button>'
     + '<button onclick="closeModal(); setNav(\'bibliotheek\');" style="padding:13px 18px; border-radius:11px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Zoek ads →</button>'
     + '</div>'
     + '</div></div></div>';
 }
-function openProdEdit(id) { if (!session) { openLogin(); return; } state.modal = { _type:'prodEdit', id:id }; renderModal(); }
+function openProdEdit(id) {
+  state.modal = { _type:'prodEdit', id:id, imgs: (typeof prodImages!=='undefined' && prodImages[id]) ? prodImages[id].slice() : null };
+  renderModal();
+  if (state.modal.imgs === null) loadProductImages(id, function(imgs){ if (state.modal && state.modal._type==='prodEdit' && state.modal.id===id) { state.modal.imgs = (imgs||[]).slice(); renderModal(); } });
+}
+function prodEditReadFields(id){
+  var p = prodData.find(function(x){ return x.id===id; }); if (!p) return null;
+  var g = function(fid){ var e = document.getElementById(fid); return e ? e.value : ''; };
+  var lines = function(fid){ return g(fid).split('\n').map(function(s){ return s.trim(); }).filter(Boolean); };
+  if (!document.getElementById('peName')) return p;
+  p.name = g('peName').trim() || p.name; p.niche = g('peNiche').trim() || p.niche; p.price = g('pePrice').trim();
+  p.rating = g('peRating').trim(); p.reviews = g('peReviews').trim(); p.sell = g('peSell').trim();
+  p.usps = lines('peUsps');
+  p.features = lines('peFeat').map(function(l){ var m2 = l.split(/\s+[—-]\s+/); return { icon:'•', name:(m2[0]||'').trim(), desc:(m2.slice(1).join(' — ')||'').trim() }; });
+  p.vsUs = lines('peVsUs'); p.vsThem = lines('peVsThem');
+  p.proof = lines('peProof').map(function(t){ return { icon:'✓', text:t }; });
+  p.target = g('peTarget').trim(); p.forbidden = g('peForbidden').trim(); p.appearance = g('peAppearance').trim();
+  return p;
+}
+function prodEditAddUrl(){ prodEditReadFields(state.modal.id); var i = document.getElementById('peImgUrl'); var v = i ? (i.value||'').trim() : ''; if (!v) return; if (!state.modal.imgs) state.modal.imgs = []; state.modal.imgs.push(v); renderModal(); }
+function prodEditRemoveImg(idx){ prodEditReadFields(state.modal.id); if (state.modal && state.modal.imgs) { state.modal.imgs.splice(idx,1); renderModal(); } }
+function prodEditUpload(input){ var files = input.files; if (!files || !files.length) return; prodEditReadFields(state.modal.id); if (!state.modal.imgs) state.modal.imgs = []; var n = files.length, done = 0; for (var i=0;i<n;i++){ (function(f){ var r = new FileReader(); r.onload = function(){ state.modal.imgs.push(r.result); if (++done === n) renderModal(); }; r.readAsDataURL(f); })(files[i]); } }
 function saveProductToSupabase(p) {
   if (!AI.sbReady || !canWrite() || p.dbId == null) return Promise.resolve(false);
   var body = { name:p.name, niche:p.niche, price:p.price, rating:p.rating, reviews:p.reviews, sell:p.sell, usps:p.usps, features:p.features, vs_us:p.vsUs, vs_them:p.vsThem, proof:p.proof, target:p.target, forbidden:p.forbidden, appearance:p.appearance };
+  if (p._imgs) body.images = { product: p._imgs };
   return fetch(AI.sbUrl.replace(/\/+$/,'') + '/rest/v1/products?id=eq.' + encodeURIComponent(p.dbId), { method:'PATCH', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=minimal' }, sbAuthHeaders()), body: JSON.stringify(body) }).then(function(r){ return r.ok; });
 }
 function prodEditSave(id) {
-  var p = prodData.find(function(x){ return x.id===id; }); if (!p) return;
-  var g = function(fid){ var e = document.getElementById(fid); return e ? e.value : ''; };
-  var lines = function(fid){ return g(fid).split('\n').map(function(s){ return s.trim(); }).filter(Boolean); };
-  p.name = g('peName').trim() || p.name;
-  p.niche = g('peNiche').trim() || p.niche;
-  p.price = g('pePrice').trim();
-  p.rating = g('peRating').trim();
-  p.reviews = g('peReviews').trim();
-  p.sell = g('peSell').trim();
-  p.usps = lines('peUsps');
-  p.features = lines('peFeat').map(function(l){ var m2 = l.split(/\s+[—-]\s+/); return { icon:'•', name:(m2[0]||'').trim(), desc:(m2.slice(1).join(' — ')||'').trim() }; });
-  p.vsUs = lines('peVsUs');
-  p.vsThem = lines('peVsThem');
-  p.proof = lines('peProof').map(function(t){ return { icon:'✓', text:t }; });
-  p.target = g('peTarget').trim();
-  p.forbidden = g('peForbidden').trim();
-  p.appearance = g('peAppearance').trim();
+  var p = prodEditReadFields(id); if (!p) return;
+  p._imgs = (state.modal && state.modal.imgs) ? state.modal.imgs.slice() : (prodImages[p.id] || []);
+  prodImages[p.id] = p._imgs.slice();
   try { renderProducten(); } catch(e){}
   var msg = document.getElementById('peMsg');
   if (AI.sbReady && canWrite() && p.dbId != null) {
@@ -1803,6 +1812,15 @@ function renderProdEditModal(id) {
     + '<div onclick="prodOpen(\'' + id + '\')" style="position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px; z-index:5;">✕</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">PRODUCT BEWERKEN · ' + brandLabel(brandOfNiche(p.niche)) + '</div>'
     + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:23px; color:#f7f2e8; line-height:1; margin-bottom:16px;">' + esc(p.name) + '</div>'
+    + (function(){ var imgs = (state.modal && state.modal.imgs) || []; var loading = state.modal && state.modal.imgs === null;
+        return '<div style="margin-bottom:14px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:7px;">FOTO’S</div>'
+          + (loading ? '<div style="font-size:12px; color:#8d764a;">Foto’s laden…</div>'
+            : '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px;">'
+              + imgs.map(function(s,i){ return '<div style="position:relative; aspect-ratio:1; border-radius:9px; overflow:hidden; background:#0a0806;"><img src="' + imgSrc(s) + '" style="width:100%; height:100%; object-fit:cover;"/><div onclick="prodEditRemoveImg(' + i + ')" title="Verwijder" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:6px; background:rgba(0,0,0,0.7); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px;">✕</div></div>'; }).join('')
+              + '<label style="aspect-ratio:1; border:1px dashed rgba(201,169,97,0.4); border-radius:9px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#8d764a; font-size:24px;">+<input type="file" accept="image/*" multiple onchange="prodEditUpload(this)" style="display:none;"/></label>'
+              + '</div>')
+          + '<div style="display:flex; gap:8px; margin-top:8px;"><input id="peImgUrl" placeholder="…of plak een afbeeldings-URL" style="flex:1; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12px; padding:9px 12px;"/><button onclick="prodEditAddUrl()" style="padding:9px 14px; border-radius:10px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-size:12px; cursor:pointer;">+ URL</button></div>'
+          + '</div>'; })()
     + '<div style="display:flex; gap:12px;"><div style="flex:2;">' + fld('peName', 'NAAM', p.name, '') + '</div><div style="flex:1;">' + fld('peNiche', 'NICHE', p.niche, 'bv. body') + '</div></div>'
     + '<div style="display:flex; gap:12px;"><div style="flex:1;">' + fld('pePrice', 'PRIJS', p.price, '€ 59,95') + '</div><div style="flex:1;">' + fld('peRating', 'RATING', p.rating, '4.7★') + '</div><div style="flex:1;">' + fld('peReviews', 'REVIEWS', p.reviews, '1.240') + '</div></div>'
     + fld('peSell', 'PITCH / SELL', p.sell, 'Korte pakkende omschrijving.', 2)
@@ -1839,7 +1857,7 @@ function renderLibModal(it) {
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:12px;">VOLLEDIGE HERKOMST</div>'
     + '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:12px; overflow:hidden; margin-bottom:20px;">' + trace.map(function(t,i){ return '<div style="display:flex; gap:16px; padding:10px 14px; background:' + (i%2?'#0a0908':'#0c0b09') + ';"><span style="font-size:11.5px; color:#635c54; width:130px; flex-shrink:0;">' + t[0] + '</span><span style="font-size:12.5px; color:#f7f2e8;">' + esc(t[1]) + '</span></div>'; }).join('') + '</div>'
     + '<div style="display:flex; gap:10px;">'
-    + '<button onclick="closeModal(); state.panel=it.product; renderPanel();" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Itereer hierop →</button>'
+    + '<button onclick="libIterate(\'' + it.id + '\')" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Itereer hierop →</button>'
     + '<button onclick="closeModal()" style="padding:12px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Sluiten</button>'
     + '</div></div></div></div>';
 }
@@ -2118,7 +2136,7 @@ function saveBrandProfilesToSupabase() {
   return fetch(base, { method:'POST', headers: Object.assign({ 'Content-Type':'application/json', Prefer:'return=representation' }, sbAuthHeaders()), body: JSON.stringify({ data: brandProfiles }) })
     .then(function(r){ if (!r.ok) return false; return r.json().then(function(x){ if (x && x[0]) brandRowId = x[0].id; return true; }); });
 }
-function openBrandDna() { if (!session) { openLogin(); return; } state.modal = { _type:'brandDna' }; renderModal(); }
+function openBrandDna() { state.modal = { _type:'brandDna' }; renderModal(); }
 function brandDnaSave() {
   var g = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
   brandProfiles[activeBrand] = {
@@ -2374,7 +2392,7 @@ function renderAuthStatus() {
     el.innerHTML = '<div onclick="openLogin()" style="display:flex; align-items:center; gap:8px; padding:11px 10px; border-radius:8px; cursor:pointer;" onmouseover="this.style.background=\'rgba(255,255,255,0.04)\'" onmouseout="this.style.background=\'transparent\'">'
       + '<span style="width:7px; height:7px; border-radius:50%; background:#635c54;"></span><span style="font-size:12px; color:#ada599;">Inloggen</span><span style="margin-left:auto; font-size:12px; color:#8d764a;">→</span></div>';
   }
-  var mn = document.getElementById('merkDnaNav'); if (mn) mn.style.display = session ? 'flex' : 'none';
+  var mn = document.getElementById('merkDnaNav'); if (mn) mn.style.display = 'flex';
 }
 function openLogin() { state.modal = { _type:'login', tab:'login', msg:'' }; renderModal(); }
 function loginSetTab(t) { state.modal.tab = t; state.modal.msg=''; renderModal(); }
