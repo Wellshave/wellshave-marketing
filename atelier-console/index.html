@@ -2664,7 +2664,10 @@ function aiEndpoint(cfg) {
     var u = cfg.proxyUrl.trim().replace(/\/+$/, '');
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
     if (!/\/anthropic$/.test(u) && !/\/v1\/messages$/.test(u)) u += '/anthropic';
-    return { url: u, headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }, label: 'team-proxy' };
+    var h = { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' };
+    /* de gedeelde team-proxy vereist een ingelogd teamlid: stuur het Supabase-token mee */
+    if (typeof session !== 'undefined' && session && session.token) h['Authorization'] = 'Bearer ' + session.token;
+    return { url: u, headers: h, label: 'team-proxy' };
   }
   return null;
 }
@@ -2711,8 +2714,11 @@ function fable5(opts) {
         var data;
         try { data = JSON.parse(t); } catch(e){ throw new Error('Onleesbaar antwoord van de ' + ep.label + ' (status ' + r.status + '): "' + t.slice(0, 120) + '"'); }
         if (!r.ok || data.error) {
-          var em = (data.error && data.error.message) ? data.error.message : ('status ' + r.status);
-          if (r.status === 401 || r.status === 403) {
+          var rawErr = data.error;
+          var em = (rawErr && rawErr.message) ? rawErr.message : (typeof rawErr === 'string' ? rawErr : ('status ' + r.status));
+          if (!ep.direct && (r.status === 401 || r.status === 403) && /unauthor/i.test(em)) {
+            em = 'De team-proxy vereist een team-login. Log linksonder in met je @wellshave.com- of @well-shine.nl-account en probeer het opnieuw. (Alternatief: vul een eigen Anthropic API-key in — die route heeft geen login nodig.)';
+          } else if (r.status === 401 || r.status === 403) {
             em += ep.direct
               ? ' — de ingevulde API-key is ongeldig of ingetrokken. Een echte Anthropic-key begint met sk-ant- en is ±100 tekens; maak er één aan op console.anthropic.com → API keys.'
               : ' — de worker weigert of de ANTHROPIC_KEY-secret in Cloudflare is ongeldig. Controleer de secret in de worker (Settings → Variables).';
@@ -3002,7 +3008,7 @@ function renderSettingsModal() {
     + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:16px;">Maak een key aan op <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">console.anthropic.com</span> → API keys (begint met <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">sk-ant-</span>, ±100 tekens). De key wordt alleen in de browser van dit apparaat bewaard — alleen op vertrouwde apparaten invullen. <b style="color:#8d764a;">Er wordt niets automatisch opgehaald:</b> de app gebruikt óf deze key, óf de team-proxy waar dezelfde key als secret in Cloudflare staat.</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">OF: TEAM-PROXY URL</div>'
     + '<input id="settingsProxy" value="' + esc(AI.proxyUrl) + '" placeholder="https://jouw-worker.workers.dev" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
-    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">Cloudflare Worker die doorstuurt naar de Anthropic API (endpoint <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">/anthropic</span>). Als er ook een API-key is ingevuld, wint de key. Klik altijd even <b style="color:#e6cd92;">Test AI-verbinding</b> — die vertelt precies wat er mis is.</div>'
+    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">De gedeelde Wellgroup-worker (endpoint <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">/anthropic</span>) — de Anthropic-key staat daar server-side. Vereist wél dat je hier in de app bent <b style="color:#e6cd92;">ingelogd</b> met een teamaccount (@wellshave.com / well-shine.nl); de app stuurt je login-token automatisch mee. Als er ook een API-key is ingevuld, wint de key. Klik altijd even <b style="color:#e6cd92;">Test AI-verbinding</b>.</div>'
     + '<div style="border-top:1px solid rgba(255,255,255,0.07); margin:4px 0 20px;"></div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">SUPABASE · TEAM DATABASE</div>'
     + '<input id="settingsSbUrl" value="' + esc(AI.sbUrl) + '" placeholder="https://xxxx.supabase.co" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'

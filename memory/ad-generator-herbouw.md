@@ -50,9 +50,17 @@ maken met Rory (Fable 5) als AI-motor.
 
 ## AI-motor (Fable 5) — v2 (jul 2026, volledige herbouw generatie-engine)
 - `fable5(opts)` v2: werkt via **Anthropic API-key direct** (`AI.apiKey`, header
-  `anthropic-dangerous-direct-browser-access`, aanrader, key in localStorage) ÓF
-  via de **team-proxy** (`AI.proxyUrl`, `/anthropic` wordt automatisch
-  aangeplakt). Key wint als beide gezet. `AI.ready = !!(apiKey || proxyUrl)`.
+  `anthropic-dangerous-direct-browser-access`, key in localStorage) ÓF via de
+  **gedeelde team-proxy** `wellgroup-team-proxy.dustin-9ff.workers.dev`
+  (`AI.proxyUrl`; `https://` en `/anthropic` worden automatisch aangevuld).
+  Key wint als beide gezet. `AI.ready = !!(apiKey || proxyUrl)`.
+  **LET OP: die worker is een gedeeld productiesysteem** (bol OS, notify-relay,
+  nightly, OpenAI) — nooit vervangen; repo-kopie met `[ATELIER-PATCH]`-markers
+  in `cloudflare-worker/wellgroup-team-proxy.js`. De proxy vereist een
+  ingelogd teamlid (e-maildomein-check); de app stuurt het Supabase-token
+  automatisch mee (`aiEndpoint`), en de worker accepteert tokens van zowel het
+  bol-OS- als het Atelier-Supabase-project. `ANTHROPIC_KEY` staat al als
+  secret in de worker (nightly gebruikt hem).
 - Compat-eerst request-body (alleen model/max_tokens/system/messages — geen
   output_config/fallbacks/beta-headers). JSON-schema via system-prompt +
   `extractJson()` (robuust: fences/substring). Refusal → één retry op

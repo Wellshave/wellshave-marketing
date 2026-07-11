@@ -50,12 +50,18 @@ De app haalt NOOIT automatisch een key op; er zijn twee expliciete routes
    console.anthropic.com → API keys (begint met `sk-ant-`, ±100 tekens; vereist
    account met tegoed) → plakken in het key-veld → Test → Opslaan. De key staat
    alleen in localStorage van die browser.
-2. **Team-proxy (Cloudflare Worker, key server-side — aanrader voor het team):**
-   deploy `cloudflare-worker/wellgroup-team-proxy.js` (instructies staan bovenin
-   dat bestand): Worker aanmaken → code plakken → secret `ANTHROPIC_KEY` zetten
-   (zelfde sk-ant-key) → in de app alléén de worker-URL invullen, key-veld leeg.
-   De app plakt zelf `/anthropic` achter de URL en vult `https://` aan.
-   Bestaande worker van Dustin: `wellgroup-team-proxy.dustin-9ff.workers.dev`.
+2. **Team-proxy (gedeelde Cloudflare Worker, key server-side — aanrader):**
+   de worker `wellgroup-team-proxy.dustin-9ff.workers.dev` is een GEDEELD
+   productiesysteem (bol OS, notify-relay Slack/Notion, nightly cron, OpenAI) —
+   NOOIT zomaar vervangen. `cloudflare-worker/wellgroup-team-proxy.js` in deze
+   repo is de volledige productie-code + twee `[ATELIER-PATCH]`-toevoegingen:
+   (1) `wellshave-adgen.netlify.app` in ALLOWED_ORIGINS, (2) `verifyTeam`
+   accepteert ook logins van het Atelier-Supabase-project. `ANTHROPIC_KEY`
+   staat er al als secret (nightly gebruikt hem) — geen nieuwe key nodig.
+   Vereiste aan de app-kant: gebruiker is INGELOGD met een teamaccount
+   (@wellshave.com / well-shine.nl / platformrebels.com); de app stuurt het
+   Supabase-token automatisch mee. In de app: alleen de worker-URL invullen,
+   key-veld leeg. De app plakt zelf `https://` en `/anthropic` aan.
 
 Als beide zijn ingevuld wint de API-key. Foutdiagnoses in de app: HTML-antwoord
 = URL wijst niet naar een API; 404 = endpoint bestaat daar niet; `invalid
