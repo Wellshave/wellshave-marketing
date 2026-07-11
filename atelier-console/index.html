@@ -2717,7 +2717,7 @@ function fable5(opts) {
           var rawErr = data.error;
           var em = (rawErr && rawErr.message) ? rawErr.message : (typeof rawErr === 'string' ? rawErr : ('status ' + r.status));
           if (!ep.direct && (r.status === 401 || r.status === 403) && /unauthor/i.test(em)) {
-            em = 'De team-proxy vereist een team-login. Log linksonder in met je @wellshave.com- of @well-shine.nl-account en probeer het opnieuw. (Alternatief: vul een eigen Anthropic API-key in — die route heeft geen login nodig.)';
+            em = 'De team-proxy vereist een team-login. Log linksonder in met je teamaccount én zorg dat het account door een admin is goedgekeurd; probeer het daarna opnieuw. (Alternatief: vul een eigen Anthropic API-key in — die route heeft geen login nodig.)';
           } else if (r.status === 401 || r.status === 403) {
             em += ep.direct
               ? ' — de ingevulde API-key is ongeldig of ingetrokken. Een echte Anthropic-key begint met sk-ant- en is ±100 tekens; maak er één aan op console.anthropic.com → API keys.'

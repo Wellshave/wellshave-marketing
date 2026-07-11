@@ -1,89 +1,44 @@
-# Atelier Console → team-proxy: 2 hand-edits (NIETS vervangen)
+# Atelier Console → team-proxy: plak-klare versie (gebaseerd op Dustins upload)
 
-De worker `wellgroup-team-proxy.dustin-9ff.workers.dev` is een gedeeld
-productiesysteem (bol OS, notify-relay, nightly, OpenAI). **Plak er dus nooit
-een heel bestand overheen.** De Atelier Console heeft precies twee kleine
-toevoegingen nodig in de bestaande code — nul regels verwijderen.
+`wellgroup-team-proxy.js` in deze map is **Dustins eigen live worker-code**
+(upload `wellgroupteamproxy.worker.js`, 11 jul 2026) waarop machinaal exact
+twee toevoegingen zijn gezet — geverifieerd met een diff: al het overige is
+byte-voor-byte identiek. Deze versie is dus veilig om integraal over de live
+worker te plakken. bol OS, notify-relay, nightly en OpenAI zijn onaangeraakt.
 
-Werkwijze: Cloudflare → Workers & Pages → `wellgroup-team-proxy` → Edit code.
-(Vooraf gerust: onder **Deployments** kun je met één klik terug naar de vorige
-versie als er iets geks gebeurt.)
+## De twee toevoegingen (gemarkeerd met `[ATELIER]`)
 
----
+1. **Regel `ALLOWED_ORIGINS`** — `https://wellshave-adgen.netlify.app` (en de
+   lokale dev-poort 8823) toegevoegd aan de bestaande array. Zonder dit
+   blokkeert de browser (CORS) alle antwoorden richting de Atelier Console.
+2. **`verifyTeam`** — accepteert na de bestaande bol-OS-check óók logins van
+   het Atelier-Supabase-project (`bequyhghgkvekvibufhw`). Omdat dáár
+   zelf-registratie aan staat, is deze route bewust STRENGER dan de
+   bol-OS-check: alleen accounts met `team_members.status = 'approved'`
+   (door een admin goedgekeurd) krijgen toegang. Sluit aan op het huidige
+   live beleid (bol-OS: bestaand account volstaat, want alleen de beheerder
+   maakt daar accounts aan).
 
-## Edit 1 — origin van de ad-generator toestaan (1 regel aanvullen)
+## Live zetten (2 min)
 
-Zoek bovenin de regel met `const ALLOWED_ORIGINS = [...]` en voeg deze entries
-**toe aan de bestaande array** (niets weghalen):
+1. Cloudflare → Workers & Pages → `wellgroup-team-proxy` → Edit code →
+   volledige inhoud vervangen door `wellgroup-team-proxy.js` → Deploy.
+   (Vangnet: tab **Deployments** → vorige versie → Rollback, één klik.)
+2. Smoke-test:
+   - `https://wellgroup-team-proxy.dustin-9ff.workers.dev/health` → `{"ok":true,…}`
+   - bol OS openen → werkt zoals altijd.
+   - Atelier Console (nieuwste index.html, **ingelogd** met een goedgekeurd
+     teamaccount): ⚙ Instellingen → key-veld leeg, proxy-URL ingevuld →
+     **Test AI-verbinding** → "✓ Verbonden via team-proxy".
 
-```js
-'https://wellshave-adgen.netlify.app', 'http://localhost:8823', 'http://127.0.0.1:8823'
-```
+## Secrets
 
-Resultaat (als je array nu de standaard drie had):
+Geen nieuwe secrets nodig — `ANTHROPIC_KEY` staat al op de worker (de
+nightly/brain gebruikt hem).
 
-```js
-const ALLOWED_ORIGINS = ['https://bol-os.netlify.app', 'https://wellshave-adgen.netlify.app', 'http://localhost:8123', 'http://127.0.0.1:8123', 'http://localhost:8823', 'http://127.0.0.1:8823'];
-```
+## Als de live code ooit nieuwer is dan deze mirror
 
-Zonder deze edit blokkeert de browser (CORS) alle antwoorden richting de
-Atelier Console — ook al is alles verder goed.
-
-## Edit 2 — logins van het Atelier-Supabase-project accepteren (blok invoegen)
-
-De Atelier Console logt in op zijn éigen Supabase-project
-(`bequyhghgkvekvibufhw`), niet op het bol-OS-project. Zoek in de functie
-`verifyTeam` deze twee regels:
-
-```js
-  } catch (e) { ok = false; }
-  _teamCache.set(t, { exp: now + 60000, ok });
-```
-
-en voeg **tussen** die twee regels dit blok in:
-
-```js
-  /* [ATELIER] óók logins van het Atelier Console-Supabase-project accepteren
-     (zelfde e-maildomein-check; de ad-generator heeft een eigen project) */
-  if (!ok) {
-    try {
-      const r2 = await fetch('https://bequyhghgkvekvibufhw.supabase.co/auth/v1/user', {
-        headers: { 'Authorization': 'Bearer ' + t, 'apikey': 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv' }
-      });
-      if (r2.ok) {
-        const u2 = await r2.json();
-        const e2 = ((u2 && u2.email) || '').toLowerCase();
-        ok = ALLOWED_DOMAINS.some(d => e2.endsWith('@' + d));
-      }
-    } catch (e2) { }
-  }
-```
-
-De beveiliging blijft identiek: alleen een geldige, ingelogde sessie met een
-e-mailadres op `ALLOWED_DOMAINS` komt erdoor. Er verandert niets aan
-X-Service-Token, notify, bol, OpenAI of nightly.
-
----
-
-## Daarna: Deploy + smoke-test (2 min)
-
-1. **Deploy** in de worker-editor.
-2. `https://wellgroup-team-proxy.dustin-9ff.workers.dev/health` openen →
-   `{"ok":true,...}`.
-3. **bol OS** openen → laadt en werkt zoals altijd (er is niets aan die routes
-   veranderd).
-4. **Atelier Console** (nieuwste index.html, ingelogd met @wellshave.com):
-   ⚙ Instellingen → key-veld leeg, proxy-URL ingevuld → **Test AI-verbinding**
-   → "✓ Verbonden via team-proxy — Fable 5 antwoordde: OK".
-5. Iets mis? Workers → **Deployments** → vorige versie → Rollback.
-
-## Over de bestanden in deze map
-
-- `ATELIER-PATCH.md` (dit bestand) = de canonieke instructie: hand-edits, geen
-  vervanging.
-- `wellgroup-team-proxy.js` = referentie-mirror van de worker-code zoals Dustin
-  die op 11 jul 2026 deelde, mét de twee patches al verwerkt. Alleen gebruiken
-  om te diffen/nalezen — **niet blind over de live code heen plakken**, want de
-  live worker kan nieuwer/uitgebreider zijn dan deze mirror.
-- Een eerder gedeeld kort proxy-script (~60 regels) is **achterhaald** en
-  vervangen door deze aanpak.
+Niet plakken maar hand-editen: voeg de origin-entries toe aan
+`ALLOWED_ORIGINS` en zet het `[ATELIER]`-blok uit `verifyTeam` (zie de
+gemarkeerde regels in `wellgroup-team-proxy.js`) vlak vóór
+`_teamCache.set(t, …)`. Nul regels verwijderen.

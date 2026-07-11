@@ -1,18 +1,6 @@
 /* ============================================================
  * Wellgroup team-proxy (Cloudflare Worker)  —  BEVEILIGDE VERSIE
  *
- * ⚠️ NIET BLIND OVER DE LIVE WORKER HEEN PLAKKEN. Dit is een
- * referentie-MIRROR van de code zoals Dustin die op 11 jul 2026 deelde,
- * met twee [ATELIER-PATCH]-toevoegingen verwerkt. De live worker kan
- * inmiddels nieuwer/uitgebreider zijn. Volg voor het live zetten de
- * hand-edit-instructies in ATELIER-PATCH.md (2 kleine toevoegingen,
- * nul verwijderingen) — dan kunnen de andere systemen (bol OS,
- * notify-relay, nightly, OpenAI) nooit geraakt worden.
- *
- *   [ATELIER-PATCH 1] ALLOWED_ORIGINS + wellshave-adgen.netlify.app
- *   [ATELIER-PATCH 2] verifyTeam accepteert ook logins van het
- *      Atelier-Supabase-project (zelfde e-maildomein-check)
- *
  * De sleutels staan hier als secret, niet in de browser van teamleden.
  * Data-endpoints (/anthropic, /openai, /bol) vereisen nu een geldige
  * Supabase-login van een teamlid (token die de OS meestuurt), of een
@@ -43,16 +31,7 @@
 const SUPA_URL = 'https://npqdlptyuxnnnoqxkpjm.supabase.co';
 const SUPA_ANON = 'sb_publishable_Mqr3GMzlUdb-OrjoJKdLPg_OmfcobLu';
 const ALLOWED_DOMAINS = ['wellshave.com', 'well-shine.nl', 'platformrebels.com'];
-/* [ATELIER-PATCH 1] Atelier Console-origins toegevoegd (live + lokale dev) */
-const ALLOWED_ORIGINS = ['https://bol-os.netlify.app', 'https://wellshave-adgen.netlify.app', 'http://localhost:8123', 'http://127.0.0.1:8123', 'http://localhost:8823', 'http://127.0.0.1:8823'];
-
-/* [ATELIER-PATCH 2] Team-logins mogen uit meerdere Supabase-projecten komen:
-   het bol OS-project én het Atelier Console-project. De check blijft identiek:
-   geldige sessie + e-mail op een toegestaan domein. */
-const TEAM_AUTH_SOURCES = [
-  { url: SUPA_URL, key: SUPA_ANON },
-  { url: 'https://bequyhghgkvekvibufhw.supabase.co', key: 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv' }
-];
+const ALLOWED_ORIGINS = ['https://bol-os.netlify.app', 'https://wellshave-adgen.netlify.app', 'http://localhost:8123', 'http://127.0.0.1:8123', 'http://localhost:8823', 'http://127.0.0.1:8823']; /* [ATELIER] adgen-origins */
 
 function pickOrigin(request) {
   const o = request.headers.get('Origin') || '';
@@ -67,19 +46,34 @@ async function verifyTeam(request) {
   const c = _teamCache.get(t);
   if (c && c.exp > now) return c.ok;
   let ok = false;
-  /* [ATELIER-PATCH 2] probeer alle team-auth-bronnen tot er één slaagt */
-  for (let i = 0; i < TEAM_AUTH_SOURCES.length && !ok; i++) {
-    const src = TEAM_AUTH_SOURCES[i];
+  try {
+    const r = await fetch(SUPA_URL + '/auth/v1/user', {
+      headers: { 'Authorization': 'Bearer ' + t, 'apikey': SUPA_ANON }
+    });
+    if (r.ok) {
+      // toegang = een bestaand Supabase-account; alleen de beheerder maakt
+      // accounts aan (zelf-registratie uit), dus geen domein-check meer
+      const u = await r.json();
+      ok = !!(u && u.id);
+    }
+  } catch (e) { ok = false; }
+  /* [ATELIER] ook logins van de Atelier Console (ad-generator) accepteren.
+     Daar staat zelf-registratie AAN, dus strenger dan hierboven: alleen
+     accounts die door een admin zijn goedgekeurd (team_members.status
+     = 'approved'). Alle andere routes/systemen blijven ongewijzigd. */
+  if (!ok) {
     try {
-      const r = await fetch(src.url + '/auth/v1/user', {
-        headers: { 'Authorization': 'Bearer ' + t, 'apikey': src.key }
-      });
-      if (r.ok) {
-        const u = await r.json();
-        const e = ((u && u.email) || '').toLowerCase();
-        ok = ALLOWED_DOMAINS.some(d => e.endsWith('@' + d));
+      const AT_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
+      const AT_KEY = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
+      const r2 = await fetch(AT_URL + '/auth/v1/user', { headers: { 'Authorization': 'Bearer ' + t, 'apikey': AT_KEY } });
+      if (r2.ok) {
+        const u2 = await r2.json();
+        if (u2 && u2.id) {
+          const r3 = await fetch(AT_URL + '/rest/v1/team_members?id=eq.' + u2.id + '&select=status', { headers: { 'Authorization': 'Bearer ' + t, 'apikey': AT_KEY } });
+          if (r3.ok) { const rows = await r3.json(); ok = !!(rows && rows[0] && rows[0].status === 'approved'); }
+        }
       }
-    } catch (e) { }
+    } catch (e2) { }
   }
   _teamCache.set(t, { exp: now + 60000, ok });
   return ok;
