@@ -2659,9 +2659,10 @@ function renderBrandDnaModal() {
    robuuste extractie, refusal-retry op Opus, leesbare Nederlandse fouten. */
 function aiEndpoint(cfg) {
   cfg = cfg || AI;
-  if (cfg.apiKey) return { url: 'https://api.anthropic.com/v1/messages', headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', 'x-api-key': cfg.apiKey, 'anthropic-dangerous-direct-browser-access': 'true' }, label: 'Anthropic API (direct)' };
+  if (cfg.apiKey) return { url: 'https://api.anthropic.com/v1/messages', headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', 'x-api-key': cfg.apiKey, 'anthropic-dangerous-direct-browser-access': 'true' }, label: 'Anthropic API (direct)', direct: true };
   if (cfg.proxyUrl) {
-    var u = cfg.proxyUrl.replace(/\/+$/, '');
+    var u = cfg.proxyUrl.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
     if (!/\/anthropic$/.test(u) && !/\/v1\/messages$/.test(u)) u += '/anthropic';
     return { url: u, headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }, label: 'team-proxy' };
   }
@@ -2711,7 +2712,11 @@ function fable5(opts) {
         try { data = JSON.parse(t); } catch(e){ throw new Error('Onleesbaar antwoord van de ' + ep.label + ' (status ' + r.status + '): "' + t.slice(0, 120) + '"'); }
         if (!r.ok || data.error) {
           var em = (data.error && data.error.message) ? data.error.message : ('status ' + r.status);
-          if (r.status === 401 || r.status === 403) em += ' — controleer je API-key/proxy-toegang in Instellingen (⚙)';
+          if (r.status === 401 || r.status === 403) {
+            em += ep.direct
+              ? ' — de ingevulde API-key is ongeldig of ingetrokken. Een echte Anthropic-key begint met sk-ant- en is ±100 tekens; maak er één aan op console.anthropic.com → API keys.'
+              : ' — de worker weigert of de ANTHROPIC_KEY-secret in Cloudflare is ongeldig. Controleer de secret in de worker (Settings → Variables).';
+          }
           throw new Error(em);
         }
         return data;
@@ -2994,7 +2999,7 @@ function renderSettingsModal() {
     + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:20px;">Alle reasoning, concepten en copy draaien op <b style="color:#e6cd92;">claude-fable-5</b> met Rory, Ogilvy en Theriot als experts. Koppel via een <b style="color:#e6cd92;">Anthropic API-key</b> (simpelst) óf via de team-proxy.</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">ANTHROPIC API-KEY (AANRADER)</div>'
     + '<input id="settingsApiKey" type="password" value="' + esc(AI.apiKey) + '" placeholder="sk-ant-…" autocomplete="off" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
-    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:16px;">Maak een key aan op <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">console.anthropic.com</span> → API keys. De key wordt alleen in de browser van dit apparaat bewaard (localStorage) — alleen op vertrouwde apparaten invullen.</div>'
+    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:16px;">Maak een key aan op <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">console.anthropic.com</span> → API keys (begint met <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">sk-ant-</span>, ±100 tekens). De key wordt alleen in de browser van dit apparaat bewaard — alleen op vertrouwde apparaten invullen. <b style="color:#8d764a;">Er wordt niets automatisch opgehaald:</b> de app gebruikt óf deze key, óf de team-proxy waar dezelfde key als secret in Cloudflare staat.</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">OF: TEAM-PROXY URL</div>'
     + '<input id="settingsProxy" value="' + esc(AI.proxyUrl) + '" placeholder="https://jouw-worker.workers.dev" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
     + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">Cloudflare Worker die doorstuurt naar de Anthropic API (endpoint <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">/anthropic</span>). Als er ook een API-key is ingevuld, wint de key. Klik altijd even <b style="color:#e6cd92;">Test AI-verbinding</b> — die vertelt precies wat er mis is.</div>'
@@ -3030,6 +3035,10 @@ function settingsTest() {
   var msg = document.getElementById('settingsMsg');
   var ep = aiEndpoint(cfg);
   if (!ep) { msg.textContent = 'Vul eerst een API-key of proxy-URL in.'; msg.style.color = '#e0705a'; return; }
+  if (cfg.apiKey && !/^sk-ant-/.test(cfg.apiKey)) {
+    msg.textContent = '✕ Dit is geen Anthropic API-key: een echte begint met sk-ant- en is ±100 tekens lang. Maak er één aan op console.anthropic.com → API keys (vereist een Anthropic-account met tegoed). Er wordt géén key automatisch opgehaald — ook niet via Cloudflare.';
+    msg.style.color = '#e0705a'; return;
+  }
   msg.textContent = 'Testen via ' + ep.label + '… (echte mini-aanroep naar claude-fable-5)'; msg.style.color = '#8d764a';
   fable5({ system: 'Antwoord met exact één woord.', user: 'Zeg: OK', maxTokens: 10, _cfg: cfg })
     .then(function(t){ msg.textContent = '✓ Verbonden via ' + ep.label + ' — Fable 5 antwoordde: "' + String(t).trim().slice(0, 20) + '". Klik Opslaan om te gebruiken.'; msg.style.color = '#4fe0a8'; })

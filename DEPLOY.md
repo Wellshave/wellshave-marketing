@@ -42,6 +42,25 @@ Actuele snapshot sha256 (252.055 bytes):
   doelgroep, USP's, do's/don'ts, tagline, garantie, social proof. Voedt `brandText()`
   dat in elke Fable 5-flow als systeemprompt meegaat.
 
+## Fable 5 koppelen (AI-motor) — twee routes
+De app haalt NOOIT automatisch een key op; er zijn twee expliciete routes
+(⚙ Instellingen, "Test AI-verbinding" vertelt exact wat er misgaat):
+
+1. **Anthropic API-key direct (simpelst, per apparaat):** key aanmaken op
+   console.anthropic.com → API keys (begint met `sk-ant-`, ±100 tekens; vereist
+   account met tegoed) → plakken in het key-veld → Test → Opslaan. De key staat
+   alleen in localStorage van die browser.
+2. **Team-proxy (Cloudflare Worker, key server-side — aanrader voor het team):**
+   deploy `cloudflare-worker/wellgroup-team-proxy.js` (instructies staan bovenin
+   dat bestand): Worker aanmaken → code plakken → secret `ANTHROPIC_KEY` zetten
+   (zelfde sk-ant-key) → in de app alléén de worker-URL invullen, key-veld leeg.
+   De app plakt zelf `/anthropic` achter de URL en vult `https://` aan.
+   Bestaande worker van Dustin: `wellgroup-team-proxy.dustin-9ff.workers.dev`.
+
+Als beide zijn ingevuld wint de API-key. Foutdiagnoses in de app: HTML-antwoord
+= URL wijst niet naar een API; 404 = endpoint bestaat daar niet; `invalid
+x-api-key` = de geplakte key is geen geldige Anthropic-key.
+
 ## Supabase — auth (handmatige eenmalige stap)
 De app logt in via Supabase Google-OAuth met `redirectTo: location.origin +
 location.pathname` → op de live site `https://wellshave-adgen.netlify.app/`. Zet in
