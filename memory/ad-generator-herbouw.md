@@ -48,20 +48,45 @@ maken met Rory (Fable 5) als AI-motor.
   op live is dat `https://wellshave-adgen.netlify.app/`. Die URL moet in Supabase
   Auth → URL Configuration (Site URL + Redirect allow-list `…/**`). Nog te bevestigen.
 
-## AI-motor (Fable 5)
-- Alles draait op `claude-fable-5` via een **team-proxy** (Cloudflare worker,
-  endpoint `/anthropic`; contract in de oude Team-server). Functie `fable5(opts)`:
-  model claude-fable-5, `output_config.effort`, JSON via `output_config.format`,
-  refusal-fallback naar `claude-opus-4-8`. Experts als systemprompt: `EXPERTS.rory`
-  (strateeg à la Sutherland), `EXPERTS.ogilvy` (copy), `EXPERTS.theriot` (Schwartz/
-  hooks). GEEN Eva.
-- `AI.ready = !!AI.proxyUrl`. **Proxy staat NU niet gekoppeld** → alle flows vallen
-  terug op mock (`_genAnalyzeMock`, `_genGenerateMock`, `_copGenerateMock`), die de
-  merkinstellingen niet echt gebruiken. Proxy-URL instelbaar via Instellingen (⚙).
-- `brandText()` bouwt de merk-systemprompt van het ACTIEVE merk uit `brandProfiles`
-  en wordt geïnjecteerd in `aiAnalyseBrief`, `aiGenerateVariants`, `copGenerate`,
-  `persGenStages`. Het is nu RICHTLIJN, geen harde controle: geen na-check op
-  verboden woorden/claims. (Openstaand: strenger maken — zie onder.)
+## AI-motor (Fable 5) — v2 (jul 2026, volledige herbouw generatie-engine)
+- `fable5(opts)` v2: werkt via **Anthropic API-key direct** (`AI.apiKey`, header
+  `anthropic-dangerous-direct-browser-access`, aanrader, key in localStorage) ÓF
+  via de **team-proxy** (`AI.proxyUrl`, `/anthropic` wordt automatisch
+  aangeplakt). Key wint als beide gezet. `AI.ready = !!(apiKey || proxyUrl)`.
+- Compat-eerst request-body (alleen model/max_tokens/system/messages — geen
+  output_config/fallbacks/beta-headers). JSON-schema via system-prompt +
+  `extractJson()` (robuust: fences/substring). Refusal → één retry op
+  `claude-opus-4-8`. **Vision**: `opts.image` (dataURL) → base64 content-block.
+- Foutafhandeling is leesbaar NL: HTML-antwoord wordt herkend ("De … gaf een
+  webpagina (HTML) terug…" — dat was Dustins bug: proxy-URL wees naar een
+  website → `Unexpected token '<'`). 401/403 → hint naar Instellingen.
+  **Instellingen → "Test AI-verbinding"** doet een echte mini-call met de
+  ingevulde (nog niet opgeslagen) waarden en rapporteert exact wat er misgaat.
+- **Geen stille mock meer**: AI gekoppeld + fout → rode foutkaart
+  (`aiErrorCard`) met "Probeer opnieuw"; AI niet gekoppeld → demo-output met
+  DEMO-banner (`demoBanner`), zonder nep-cijfers.
+- Experts: `EXPERTS.rory/ogilvy/theriot`. `brandText()` (merk-DNA actieve merk)
+  gaat in ALLE flows mee, plus `productBrief()` (usps/features/vsUs/vsThem/
+  proof/forbidden/appearance), `personaBrief()` (incl. Schwartz-stage passend
+  bij awareness), `genSettingsBrief()` (format+detail, plaatsing/ratio,
+  beeld-referentie, funnel/awareness/angle/sophistication, brief) en
+  `checksBrief()` (kwaliteits-checkboxen). UI toont na generatie een
+  "🔍 Wat Rory meekreeg"-checklist (`buildGenContext`).
+- Output-schema per variant: hook/head/sub/primary/cta/visual/imgPrompt(EN)/hyp
+  — GEEN verzonnen ROAS/CTR meer. Kaarten (`variantsGrid`/`variantCard`):
+  ratio-preview (1:1/4:5/9:16, echte productfoto indien geladen, wordmark- en
+  safe-zone-opties), kopieerknoppen per veld, image-prompt-blok, hypothese,
+  Bewaar/Itereer. Echte beeld-GENERATIE zit er niet in (geen image-model in de
+  Anthropic API) — wel productie-klare image-prompts + HTML-comp-preview.
+- Flows nu allemaal echt: **Nieuwe ad** (analyse + 4 varianten), **Kopieer**
+  (screenshot-upload → vision-ontleding → productkeuze → varianten),
+  **Itereren-scherm** (winner-upload + metrics-matrix zonder sample-waarden +
+  3 stappen → iteraties), **iteratie-paneel** (vanuit Bibliotheek/kaarten:
+  richting-chips → 4 iteraties ín het paneel, bron-ad context), **Transformer**
+  (foto-upload → echte vision-lezing + advies + 3 richtingen → handoff),
+  **Scripts-scherm** (echte lijst uit libScripts i.p.v. stub). Generator/
+  Kopieer/Itereren/Transformer gebruiken live producten/persona's per merk
+  (`genProducts()`/`genPersonas()`/`genSyncDefaults()`) — sample-lijsten weg.
 
 ## Datamodel
 - **Merk-switch:** `activeBrand` ('wellshave'|'wellshine', in localStorage
@@ -100,8 +125,10 @@ Alle 8 originele schermen + kruislinks. Daarna team-feedback verwerkt:
   openLogin() als niet ingelogd. Feature-icoon = simpele bullet `•`.
 
 ## Openstaande punten
-1. **Fable 5-proxy koppelen** — zonder proxy draait alles op mock; merk-DNA stuurt
-   het genereren dan nog niet echt.
+1. **Fable 5 koppelen door Dustin** — simpelste route: Instellingen (⚙) →
+   Anthropic API-key (console.anthropic.com) → "Test AI-verbinding" → Opslaan.
+   De oude proxy-URL die hij had ingevuld gaf HTML terug (verkeerde URL); de
+   test-knop diagnosticeert dat nu zelf.
 2. **Genereren strenger op merk-DNA** (aangeboden, wacht op go): (a) hard niet-
    onderhandelbaar-blok in de prompt (verboden woorden/claims, aanspreekvorm),
    (b) na-controle/"merkrechter" die output scant/laat herschrijven, (c) brandText

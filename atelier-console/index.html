@@ -191,7 +191,15 @@ function setBrand(b){ if (b===activeBrand) return; activeBrand = b; try { localS
   if (typeof prodNiche!=='undefined') prodNiche = 'all';
   if (typeof persona!=='undefined') { persona.niche = 'all'; persona.sel = 0; }
   if (typeof lib!=='undefined') lib.product = 'all';
-  renderBrandSwitch(); renderStatics(); renderProducten(); renderPersonas(); renderBibliotheek(); showToast('Merk: ' + brandLabel(b)); }
+  if (typeof gen!=='undefined') { gen.product = ''; gen.persona = ''; gen.results = false; gen.variants = null; gen.errorMsg = ''; }
+  if (typeof genSyncDefaults==='function') genSyncDefaults();
+  renderBrandSwitch(); renderStatics(); renderProducten(); renderPersonas(); renderBibliotheek();
+  if (typeof renderGenerator==='function') renderGenerator();
+  if (typeof renderKopieer==='function') renderKopieer();
+  if (typeof renderItereren==='function') renderItereren();
+  if (typeof renderTransformer==='function') renderTransformer();
+  if (typeof renderScriptsScreen==='function') renderScriptsScreen();
+  showToast('Merk: ' + brandLabel(b)); }
 function renderBrandSwitch(){
   var el = document.getElementById('brandSwitch'); if (!el) return;
   el.innerHTML = '<div style="display:flex; gap:4px; background:#0d0c0a; border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:3px;">'
@@ -217,10 +225,26 @@ var NAV = {
   ]
 };
 
-/* schermen die nog gebouwd worden: stub-config met kicker/titel/lede uit de handoff */
-var STUBS = {
-  scripts:     { kicker: 'ARCHIEF / SCRIPTS', title: 'Scripts', lede: 'Video-scripts in het 3×6×3-format, gekoppeld aan producten en persona’s. Deze tab deelt de bron met de Bibliotheek → tab Scripts.' }
-};
+/* geen stubs meer — alle schermen zijn echt */
+var STUBS = {};
+function renderScriptsScreen() {
+  var el = document.getElementById('screen-scripts'); if (!el) return;
+  var items = libScripts.filter(function(x){ return brandMatch(x.product); });
+  var cards = items.length ? '<div style="display:flex; flex-direction:column; gap:10px;">'
+    + items.map(function(s){
+      return '<div onclick="libOpen(\'' + s.id + '\')" style="display:flex; align-items:center; gap:14px; border:1px solid rgba(255,255,255,0.07); border-radius:13px; background:#0a0908; padding:14px 16px; cursor:pointer;">'
+        + '<div style="width:46px; height:46px; border-radius:9px; background:linear-gradient(135deg,#1a1611,#0d0b08); border:1px solid rgba(201,169,97,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:\'JetBrains Mono\',monospace; font-size:8.5px; letter-spacing:0.05em; color:#8d764a;">' + esc(s.tag) + '</div>'
+        + '<div style="flex:1; min-width:0;"><div class="clamp1" style="font-size:13.5px; color:#f7f2e8; font-weight:600; line-height:1.3;">' + esc(s.headline) + '</div>'
+        + '<div style="font-size:11px; color:#635c54; margin-top:3px;">' + esc(s.product) + ' · ' + esc(s.persona) + ' · ' + esc(s.created) + ' · ' + esc(s.author) + '</div></div>'
+        + '<span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599; flex-shrink:0;">' + esc(s.scriptLen || '—') + '</span>'
+        + '</div>';
+    }).join('') + '</div>'
+    : '<div onclick="setNav(\'nieuw\')" style="border:1px dashed rgba(201,169,97,0.3); border-radius:14px; background:rgba(201,169,97,0.03); padding:34px; text-align:center; cursor:pointer;"><div style="font-size:13.5px; color:#f7f2e8; font-weight:600; margin-bottom:5px;">Nog geen scripts voor ' + brandLabel(activeBrand) + '</div><div style="font-size:12px; color:#8d764a;">Bewaarde video-scripts uit de generator verschijnen hier.</div></div>';
+  el.innerHTML = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:10px;">ARCHIEF / SCRIPTS</div>'
+    + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:33px; color:#f7f2e8; line-height:1;">Scripts</div>'
+    + '<div style="font-size:13.5px; color:#9b9382; line-height:1.6; max-width:560px; margin-top:10px; margin-bottom:24px;">Bewaarde video-scripts, gekoppeld aan producten en persona’s — zelfde bron als de Bibliotheek (tab Scripts).</div>'
+    + cards;
+}
 
 /* ====== data (sample, 1:1 uit het design — wordt vervangen door Supabase-data) ====== */
 var heroAd = { tag: 'NACHT', headline: '"Waarom dermatologen je nachtserum aanraden."', product: 'Nachtserum', persona: 'De Expert', roas: '4.12', cpc: '€ 0,71', ctr: '2,9%', live: '18d' };
@@ -376,17 +400,37 @@ function renderStubs() {
 function openHero() { state.modal = heroAd; renderModal(); }
 function openRecent(i) { var src = (libReal ? (dashRecent || []) : []).filter(function(r){ return brandMatch(r.product); }); state.modal = src[i]; renderModal(); }
 function closeModal() { state.modal = null; renderModal(); }
-function iterateHero() { state.modal = null; renderModal(); state.panel = 'Nachtserum'; renderPanel(); }
-function copyStyle() { state.modal = null; renderModal(); setNav('kopieer'); showToast('Stijl gekopieerd — verder in Kopieer ad'); }
-function openPanel(name) { state.panel = name; renderPanel(); }
-function closePanel() { state.panel = false; state.chips = {}; renderPanel(); }
-function toggleChip(id) { state.chips[id] = !state.chips[id]; renderPanel(); }
-function generateVariants() {
-  var n = 0;
-  for (var k in state.chips) if (state.chips[k]) n++;
-  state.panel = false; state.chips = {};
+function iterateHero() {
+  var m = state.modal || {};
+  state.modal = null; renderModal();
+  state.panelCtx = { product: m.product || '', headline: m.headline || '' };
+  state.panel = m.product || 'concept';
+  state.chips = {}; state.panelResults = null; state.panelError = ''; state.panelBusy = false;
   renderPanel();
-  showToast(n > 0 ? ('4 varianten gegenereerd · ' + n + ' richting' + (n > 1 ? 'en' : '')) : '4 varianten gegenereerd');
+}
+function copyStyle() { state.modal = null; renderModal(); setNav('kopieer'); showToast('Stijl gekopieerd — verder in Kopieer ad'); }
+function openPanel(name) { state.panelCtx = { product: name, headline: '' }; state.panel = name; state.chips = {}; state.panelResults = null; state.panelError = ''; state.panelBusy = false; renderPanel(); }
+function closePanel() { state.panel = false; state.chips = {}; state.panelResults = null; state.panelError = ''; state.panelBusy = false; renderPanel(); }
+function toggleChip(id) { state.chips[id] = !state.chips[id]; renderPanel(); }
+/* Iteratie vanuit het paneel: échte Fable 5-call op de bron-ad + gekozen richtingen. */
+function generateVariants() {
+  var dirs = chipDefs.filter(function(c){ return state.chips[c.id]; }).map(function(c){ return c.label; });
+  if (!dirs.length) { showToast('Kies eerst minstens één richting'); return; }
+  var ctx = state.panelCtx || { product: state.panel, headline: '' };
+  if (!AI.ready) {
+    state.panelDemo = true; state.panelResults = genMockVariants(ctx.product).slice(0, 4);
+    renderPanel(); return;
+  }
+  state.panelBusy = true; state.panelError = ''; state.panelResults = null; renderPanel();
+  var p = prodByName(ctx.product);
+  var sys = EXPERTS.rory + '\n' + EXPERTS.ogilvy + '\n\nMERK-DNA (hier NOOIT van afwijken):\n' + brandText()
+    + '\n\nOPDRACHT: itereer op een bestaande ad. Behoud de winnende structuur/boodschap; varieer UITSLUITEND in de gekozen richtingen. Genereer 4 iteratie-varianten in het Nederlands. Claims uitsluitend uit de productdata.';
+  var usr = 'BRON-AD: ' + (ctx.headline ? '"' + ctx.headline + '"' : '(geen kop bekend)') + (ctx.primary ? '\nPrimary text: ' + ctx.primary : '')
+    + '\nGEKOZEN RICHTINGEN: ' + dirs.join(' · ')
+    + '\n\n' + productBrief(p);
+  fable5({ system: sys, user: usr, schema: SCHEMA_VARIANTS, maxTokens: 6000 })
+    .then(function(o){ state.panelDemo = false; state.panelBusy = false; state.panelResults = (o.variants||[]).slice(0,4); renderPanel(); })
+    .catch(function(e){ state.panelBusy = false; state.panelError = e.message; renderPanel(); });
 }
 function openTeam(id) { state.team = id; renderTeam(); }
 function closeTeam() { state.team = null; renderTeam(); }
@@ -537,9 +581,45 @@ function renderModal() {
 function renderPanel() {
   var el = document.getElementById('layer-panel');
   if (!state.panel) { el.innerHTML = ''; return; }
+  var ctx = state.panelCtx || { product: state.panel, headline: '' };
   var chips = chipDefs.map(function(c){
     return '<div onclick="toggleChip(\'' + c.id + '\')" style="' + chipStyle(c.id) + '">' + c.label + '</div>';
   }).join('');
+
+  /* bron-preview: echte productfoto indien beschikbaar */
+  var p = prodByName(ctx.product);
+  var imgs = (p && prodImages[p.id]) || [];
+  if (p && prodImages[p.id] === undefined && AI.sbReady) loadProductImages(p.id, function(){ if (state.panel) renderPanel(); });
+  var thumb = imgs.length
+    ? '<div style="height:150px; border-radius:12px; margin-bottom:14px; overflow:hidden; position:relative;"><img src="' + imgSrc(imgs[0]) + '" style="width:100%; height:100%; object-fit:cover;"/></div>'
+    : '<div class="adthumb" style="height:150px; border-radius:12px; margin-bottom:14px;"><div class="adname" style="font-size:64px;">' + esc((p && p.tag) || (ctx.product || 'AD').slice(0,5).toUpperCase()) + '</div></div>';
+  var srcLine = ctx.headline ? '<div style="font-size:12px; color:#ada599; line-height:1.5; margin-bottom:20px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.1em; color:#8d764a;">BRON-AD</span><br/>“' + esc(ctx.headline) + '”</div>' : '';
+
+  var body;
+  if (state.panelBusy) {
+    body = '<div style="text-align:center; padding:40px 10px;"><div style="font-size:13px; color:#e6cd92; margin-bottom:8px;">Rory schrijft 4 iteraties…</div><div style="font-size:11.5px; color:#635c54;">winnende structuur vast · alleen jouw richtingen variëren</div></div>';
+  } else if (state.panelError) {
+    body = '<div style="border:1px solid rgba(224,112,90,0.4); background:rgba(224,112,90,0.06); border-radius:12px; padding:16px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#e0705a; margin-bottom:7px;">✕ FABLE 5-FOUT</div><div style="font-size:12.5px; color:#f7f2e8; line-height:1.55; margin-bottom:12px;">' + esc(state.panelError) + '</div><button onclick="generateVariants()" style="padding:9px 14px; border-radius:8px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;">↻ Probeer opnieuw</button></div>';
+  } else if (state.panelResults) {
+    SHOWN = { variants: state.panelResults, product: ctx.product, source: 'iteratie', persona: '' };
+    body = (state.panelDemo ? demoBanner() : '')
+      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.16em; color:#8d764a; margin:6px 0 12px;">' + state.panelResults.length + ' ITERATIES</div>'
+      + state.panelResults.map(function(v, i){
+        return '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:#0d0c0a; padding:14px 15px; margin-bottom:11px;">'
+          + '<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:8.5px; letter-spacing:0.08em; color:#e6cd92; background:rgba(201,169,97,0.12); border:1px solid rgba(201,169,97,0.35); border-radius:12px; padding:2px 8px;">' + esc(v.hook || 'Iteratie') + '</span></div>'
+          + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:15.5px; color:#f7f2e8; line-height:1.25; margin-bottom:6px;">' + esc(v.head || '') + '</div>'
+          + (v.primary ? '<div style="font-size:11.5px; color:#ada599; line-height:1.55; margin-bottom:7px;">' + esc(v.primary) + '</div>' : '')
+          + (v.hyp ? '<div style="font-size:11px; color:#8d764a; line-height:1.5; margin-bottom:10px;"><b style="color:#e6cd92;">Hypothese:</b> ' + esc(v.hyp) + '</div>' : '')
+          + '<div style="display:flex; gap:7px;"><button onclick="saveVariant(' + i + ')" style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:11.5px; cursor:pointer;">Bewaar</button></div>'
+          + '</div>';
+      }).join('')
+      + '<div onclick="state.panelResults=null; renderPanel();" style="text-align:center; font-size:12px; color:#8d764a; cursor:pointer; padding:8px;">← Andere richtingen kiezen</div>';
+  } else {
+    body = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.16em; color:#8d764a; margin-bottom:12px;">KIES RICHTINGEN</div>'
+      + '<div style="display:flex; flex-wrap:wrap; gap:9px; margin-bottom:26px;">' + chips + '</div>'
+      + '<div style="background:rgba(201,169,97,0.05); border:1px solid rgba(201,169,97,0.15); border-radius:12px; padding:14px 16px; font-size:12.5px; color:#ada599; line-height:1.5;">Rory behoudt de <span style="color:#e6cd92;">winnende structuur</span> en varieert alleen de gekozen richtingen. Je krijgt 4 nieuwe varianten om te beoordelen.</div>';
+  }
+
   el.innerHTML =
     '<div onclick="closePanel()" style="position:fixed; inset:0; z-index:400; background:rgba(3,2,1,0.6); backdrop-filter:blur(3px); animation:overlayIn 0.2s ease;"></div>'
     + '<div style="position:fixed; top:0; right:0; height:100vh; width:440px; max-width:100%; z-index:401; background:#0a0908; border-left:1px solid rgba(201,169,97,0.22); box-shadow:-40px 0 100px rgba(0,0,0,0.6); animation:panelIn 0.32s cubic-bezier(0.16,1,0.3,1); display:flex; flex-direction:column;">'
@@ -548,14 +628,12 @@ function renderPanel() {
     + '<div onclick="closePanel()" style="width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px;">✕</div>'
     + '</div>'
     + '<div style="padding:24px; overflow-y:auto; flex:1;">'
-    + '<div class="adthumb" style="height:150px; border-radius:12px; margin-bottom:22px;"><div class="adname" style="font-size:80px;">NACHT</div></div>'
-    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.16em; color:#8d764a; margin-bottom:12px;">KIES RICHTINGEN</div>'
-    + '<div style="display:flex; flex-wrap:wrap; gap:9px; margin-bottom:26px;">' + chips + '</div>'
-    + '<div style="background:rgba(201,169,97,0.05); border:1px solid rgba(201,169,97,0.15); border-radius:12px; padding:14px 16px; font-size:12.5px; color:#ada599; line-height:1.5;">De AI behoudt de <span style="color:#e6cd92;">winnende structuur</span> en varieert alleen de gekozen richtingen. Je krijgt 4 nieuwe varianten om te beoordelen.</div>'
+    + thumb + srcLine
+    + body
     + '</div>'
-    + '<div style="padding:20px 24px; border-top:1px solid rgba(255,255,255,0.06);">'
-    + '<button onclick="generateVariants()" style="width:100%; padding:14px; border-radius:11px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:\'Hanken Grotesk\',sans-serif; font-weight:700; font-size:14px; cursor:pointer;">Genereer 4 varianten →</button>'
-    + '</div></div>';
+    + (state.panelResults || state.panelBusy ? '' : '<div style="padding:20px 24px; border-top:1px solid rgba(255,255,255,0.06);">'
+      + '<button onclick="generateVariants()" style="width:100%; padding:14px; border-radius:11px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:\'Hanken Grotesk\',sans-serif; font-weight:700; font-size:14px; cursor:pointer;">Genereer 4 varianten →</button>'
+      + '</div>') + '</div>';
 }
 
 function renderTeam() {
@@ -669,21 +747,37 @@ function renderInsight() {
    ================================================================ */
 var gen = {
   brief: '', analyzed: false,
-  product: 'Groom Guard', place: 'Feed 1:1', ref: 'Lifestyle + gebruik (beide)',
+  product: '', place: 'Feed 1:1', ref: 'Lifestyle + gebruik (beide)',
   fmtCat: 'Alle', mode: 'Auto',
-  persona: 'De Expert', funnel: 'TOF', aware: 'problem',
+  persona: '', funnel: 'TOF', aware: 'problem',
   angleType: 'probleem', soph: 3,
   open: 'format',                 // welke stap open staat: format | audience | angle
   checks: { hook: true, feit: true, safe: true, merk: false },
-  generating: false, results: false
+  generating: false, results: false, demo: false, errorMsg: '', variants: null, context: null, aiSuggestion: ''
 };
 
-var genProdData = [
-  { name: 'Groom Guard', tag: 'GROOM', icon: 'G', meta: 'BODYGROOMER · 4 FOTO’S' },
-  { name: 'Blade Baron', tag: 'BLADE', icon: 'B', meta: 'SCHEERMES · 3 FOTO’S' },
-  { name: 'Beard Boss', tag: 'BEARD', icon: 'B', meta: 'BAARDTRIMMER · 5 FOTO’S' },
-  { name: 'Fresh Foam', tag: 'FOAM', icon: 'F', meta: 'SCHEERSCHUIM · 3 FOTO’S' }
-];
+/* Live product-/persona-lijsten voor de generator: ECHTE data (Supabase) van het
+   actieve merk — geen sample-lijsten meer. */
+function genProducts() {
+  return prodData.filter(function(p){ return brandOfNiche(p.niche) === activeBrand; })
+    .map(function(p){ return { name: p.name, tag: p.tag || (p.name||'AD').slice(0,5).toUpperCase(), icon: (p.name||'?')[0].toUpperCase(), meta: [(p.niche||'').toUpperCase(), p.price].filter(Boolean).join(' · '), p: p }; });
+}
+function genPersonas() {
+  return personaData.filter(function(p){ return brandOfNiche(p.niche) === activeBrand; })
+    .map(function(p){ return { label: (p.alias || p.name), name: p.name, p: p }; });
+}
+function prodByName(name){ return prodData.find(function(p){ return p.name === name; }) || null; }
+function personaByLabel(label){ var g = genPersonas().find(function(x){ return x.label === label || x.name === label; }); return g ? g.p : null; }
+/* Zorg dat gen.product/gen.persona altijd naar bestaande merk-items wijzen. */
+function genSyncDefaults() {
+  var ps = genProducts();
+  if (!ps.find(function(x){ return x.name === gen.product; })) gen.product = ps.length ? ps[0].name : '';
+  var rs = genPersonas();
+  if (!rs.find(function(x){ return x.label === gen.persona; })) gen.persona = rs.length ? rs[0].label : '';
+  if (typeof trf !== 'undefined' && !ps.find(function(x){ return x.name === trf.product; })) trf.product = ps.length ? ps[0].name : '';
+  if (typeof cop !== 'undefined' && !ps.find(function(x){ return x.name === cop.product; })) cop.product = ps.length ? ps[0].name : '';
+  if (typeof itr !== 'undefined' && !ps.find(function(x){ return x.name === itr.product; })) itr.product = ps.length ? ps[0].name : '';
+}
 var genPlaceData = [
   { name: 'Feed 1:1', ratio: 'vierkant' }, { name: 'Feed 4:5', ratio: 'staand' },
   { name: 'Story 9:16', ratio: 'volledig' }, { name: 'Reels 9:16', ratio: 'video-frame' }
@@ -798,7 +892,7 @@ var genFmtDetail = {
 var genFunData = [
   { key: 'TOF', sub: 'bereik' }, { key: 'MOF', sub: 'overweging' }, { key: 'BOF', sub: 'conversie' }
 ];
-var genPersData = ['De Expert', 'De Rebel', 'De Verzorger', 'De Minimalist'];
+/* (genPersData verwijderd — persona's komen live uit personaData via genPersonas()) */
 var genAwareData = [
   { key: 'unaware', label: 'Unaware', sub: 'Weet nog niet dat er een probleem is', formats: 'Meme · wist-je-dat · photo dump · editorial' },
   { key: 'problem', label: 'Problem aware', sub: 'Voelt de pijn, kent geen oplossing', formats: 'Probleem-agitatie · checklist · mythe vs feit · chat' },
@@ -909,16 +1003,27 @@ function genAnalyze(){
 }
 function genBrief(v){ gen.brief = v; }
 function genPickMode(name){ gen.mode = name; renderGenerator(); }
+/* Demo-varianten (alleen als Fable 5 NIET gekoppeld is) — duidelijk gelabeld, geen nep-cijfers. */
+function genMockVariants(productName) {
+  var nm = productName || 'het product';
+  return [
+    { hook: 'Curiosity gap', head: 'Waarom mannen hun ' + nm + ' verstoppen', sub: 'Het zit ’m niet in wat je denkt', primary: 'Voorbeeldtekst — koppel Fable 5 om Rory een echte primary text te laten schrijven op basis van je productdata en merk-DNA.', cta: 'Shop nu', visual: 'Voorbeeld: productfoto close-up met warm licht (echte visual-richting volgt uit je merk-DNA).', imgPrompt: 'Example prompt — connect Fable 5 for a real, brand-aware image prompt.', hyp: 'Demo-hypothese: een open loop die de kijker wil sluiten.' },
+    { hook: 'Before/After', head: 'In één beurt, geen gedoe', sub: 'Het verschil zie je meteen', primary: 'Voorbeeldtekst — echte copy komt uit je productfeiten (USP’s, bewijs, garantie) zodra Fable 5 gekoppeld is.', cta: 'Bekijk het aanbod', visual: 'Voorbeeld: split-beeld voor/na.', imgPrompt: 'Example prompt.', hyp: 'Demo-hypothese: visueel bewijs verlaagt twijfel.' },
+    { hook: 'Social proof', head: 'Waarom duizenden mannen al overstapten', sub: 'Lees wat zij zeggen', primary: 'Voorbeeldtekst — met Fable 5 gebruikt Rory hier je échte reviews en aantallen.', cta: 'Shop nu', visual: 'Voorbeeld: reviewkaarten boven productfoto.', imgPrompt: 'Example prompt.', hyp: 'Demo-hypothese: massa-bewijs neemt het risicogevoel weg.' },
+    { hook: 'Probleem', head: 'De fout die 9 op de 10 maken', sub: 'En hoe jij hem vermijdt', primary: 'Voorbeeldtekst — echte probleem-agitatie volgt uit de persona-pijnen die je hebt ingevuld.', cta: 'Ontdek meer', visual: 'Voorbeeld: het pijnmoment in beeld, product klein onderin.', imgPrompt: 'Example prompt.', hyp: 'Demo-hypothese: herkenning van de pijn stopt de scroll.' }
+  ];
+}
 function genGenerate(){
-  gen.generating = true; gen.results = false; renderGenerator();
-  setTimeout(function(){ gen.generating = false; gen.results = true; renderGenerator();
+  gen.generating = true; gen.results = false; gen.errorMsg = ''; renderGenerator();
+  setTimeout(function(){ gen.generating = false; gen.results = true; gen.demo = true; gen.context = null;
+    gen.variants = genMockVariants(gen.product); renderGenerator();
     document.getElementById('main-scroll').scrollTop = document.getElementById('main-scroll').scrollHeight;
-  }, 2700); // mock-vertraging; taak 5 vervangt dit door streaming Fable 5
+  }, 900);
 }
 function genOpenFmtInfo(name){ state.modal = { _type:'fmt', name: name }; renderModal(); }
 function genOpenAngleInfo(key){ state.modal = { _type:'angle', key: key }; renderModal(); }
 function genSaveVariant(i){ saveVariant(i-1); }
-function genIterVariant(i){ state.panel = gen.product + ' · variant ' + i; renderPanel(); }
+function genIterVariant(i){ iterFromShown(i-1); }
 
 function renderGenerator() {
   var el = document.getElementById('screen-nieuw');
@@ -940,16 +1045,21 @@ function renderGenerator() {
     + '<div style="font-size:13px; color:#9b9382; line-height:1.6; margin-bottom:14px;">Typ vrij wat je in gedachten hebt — een vondst, een seizoen, een doelgroep, een deal. <span style="color:#e6cd92;">Rory</span> leest het, bepaalt de concept-richting en kiest funnel-fase, format mode en persona, en vult de velden hieronder voor je in. Je overrulet elke keuze daarna nog.</div>'
     + '<textarea oninput="genBrief(this.value)" placeholder="Bv: \'voor de zomer, jonge vaders die niet lang in de douche willen — ik denk premium aesthetic.\' Of: \'Black Friday bundel, Groom Guard plus Blade Baron samen; hoe overtuig ik twijfelaars?\'" style="width:100%; min-height:76px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.12); border-radius:12px; color:#f7f2e8; font-family:inherit; font-size:13px; padding:13px 14px; resize:vertical;">' + esc(gen.brief) + '</textarea>'
     + '<button onclick="genAnalyze()" style="width:100%; margin-top:12px; padding:13px; border-radius:11px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13.5px; cursor:pointer;">⚡ Laat Rory analyseren en de werkwijze voorstellen</button>'
-    + (gen.analyzed ? '<div style="margin-top:12px; background:rgba(201,169,97,0.06); border:1px solid rgba(201,169,97,0.2); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#ada599; line-height:1.5;">Op basis van je brief: format <span style="color:#e6cd92;">' + esc(gen.mode) + '</span>, funnel <span style="color:#e6cd92;">' + gen.funnel + '</span>, doelgroep <span style="color:#e6cd92;">' + esc(gen.persona) + '</span>. Awareness <span style="color:#e6cd92;">' + genAwareLabel(gen.aware) + '</span>, angle <span style="color:#e6cd92;">' + genAngleName(gen.angleType) + '</span>, sophistication <span style="color:#e6cd92;">S' + gen.soph + '</span>. Overrule elke keuze hieronder.</div>' : '<div style="text-align:center; font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#635c54; margin-top:10px;">Rory bepaalt concept · funnel · format mode · persona</div>')
+    + (gen.analyzed ? '<div style="margin-top:12px; background:rgba(201,169,97,0.06); border:1px solid rgba(201,169,97,0.2); border-radius:11px; padding:12px 14px; font-size:12.5px; color:#ada599; line-height:1.5;">' + (gen.aiSuggestion ? '<b style="color:#e6cd92;">Rory:</b> ' + esc(gen.aiSuggestion) + '<br/>' : '') + 'Op basis van je brief: format <span style="color:#e6cd92;">' + esc(gen.mode) + '</span>, funnel <span style="color:#e6cd92;">' + gen.funnel + '</span>, doelgroep <span style="color:#e6cd92;">' + esc(gen.persona) + '</span>. Awareness <span style="color:#e6cd92;">' + genAwareLabel(gen.aware) + '</span>, angle <span style="color:#e6cd92;">' + genAngleName(gen.angleType) + '</span>, sophistication <span style="color:#e6cd92;">S' + gen.soph + '</span>. Overrule elke keuze hieronder.</div>' : '<div style="text-align:center; font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#635c54; margin-top:10px;">Rory bepaalt concept · funnel · format mode · persona</div>')
     + '</div>';
 
   /* --- 3 config-kaarten --- */
-  var prodBody = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">'
-    + genProdData.map(function(p){ return '<div onclick="genSet(\'product\',\'' + p.name + '\')" style="' + genPill(gen.product===p.name) + '">' + p.name + '</div>'; }).join('')
-    + '</div>'
-    + '<div style="display:flex; align-items:center; gap:11px; background:#0d0c0a; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px;">'
-    + '<div style="width:38px; height:38px; border-radius:9px; background:#f2ede2; color:#1a1408; font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; display:flex; align-items:center; justify-content:center;">' + (genProdData.find(function(p){return p.name===gen.product;})||{icon:'?'}).icon + '</div>'
-    + '<div><div style="font-size:13px; color:#f7f2e8; font-weight:600;">' + esc(gen.product) + '</div><div style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.08em; color:#635c54; margin-top:2px;">' + (genProdData.find(function(p){return p.name===gen.product;})||{meta:''}).meta + '</div></div></div>';
+  genSyncDefaults();
+  var liveProds = genProducts();
+  var selProd = liveProds.find(function(p){ return p.name === gen.product; }) || null;
+  var prodBody = liveProds.length
+    ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">'
+      + liveProds.map(function(p){ return '<div onclick="genSet(\'product\',\'' + p.name.replace(/'/g,"\\'") + '\')" style="' + genPill(gen.product===p.name) + '">' + esc(p.name) + '</div>'; }).join('')
+      + '</div>'
+      + '<div style="display:flex; align-items:center; gap:11px; background:#0d0c0a; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px;">'
+      + '<div style="width:38px; height:38px; border-radius:9px; background:#f2ede2; color:#1a1408; font-family:\'Fraunces\',serif; font-weight:600; font-size:19px; display:flex; align-items:center; justify-content:center;">' + (selProd ? selProd.icon : '?') + '</div>'
+      + '<div><div style="font-size:13px; color:#f7f2e8; font-weight:600;">' + esc(gen.product || '—') + '</div><div style="font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.08em; color:#635c54; margin-top:2px;">' + esc(selProd ? selProd.meta : '') + '</div></div></div>'
+    : '<div onclick="setNav(\'producten\')" style="border:1px dashed rgba(201,169,97,0.3); border-radius:10px; padding:16px; text-align:center; cursor:pointer; font-size:12px; color:#8d764a; line-height:1.5;">Nog geen ' + brandLabel(activeBrand) + '-producten geladen.<br/>Beheer ze onder <b style="color:#e6cd92;">Producten</b> →</div>';
   var placeBody = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">'
     + genPlaceData.map(function(p){ return '<div onclick="genSet(\'place\',\'' + p.name + '\')" style="' + genTile(gen.place===p.name) + '"><div style="font-size:12.5px; color:#f7f2e8; font-weight:600;">' + p.name + '</div><div style="font-size:10px; color:#635c54; margin-top:2px;">' + p.ratio + '</div></div>'; }).join('')
     + '</div>';
@@ -984,8 +1094,11 @@ function renderGenerator() {
   var step1 = stepBlock('format', '1', 'Format', 'Kies de vorm van de advertentie · 42 formats in 5 categorieën', 'gekozen: ' + gen.mode, fmtChips + fmtGrid);
 
   /* --- STAP 2: DOELGROEP & FUNNEL --- */
+  var livePers = genPersonas();
   var persRow = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">PERSONA</div>'
-    + '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:18px;">' + genPersData.map(function(p){ return '<div onclick="genSet(\'persona\',\'' + p + '\')" style="' + genPill(gen.persona===p) + '">' + p + '</div>'; }).join('') + '</div>';
+    + (livePers.length
+      ? '<div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:18px;">' + livePers.map(function(p){ return '<div onclick="genSet(\'persona\',\'' + p.label.replace(/'/g,"\\'") + '\')" style="' + genPill(gen.persona===p.label) + '">' + esc(p.label) + '</div>'; }).join('') + '</div>'
+      : '<div onclick="setNav(\'personas\')" style="border:1px dashed rgba(201,169,97,0.3); border-radius:10px; padding:14px; text-align:center; cursor:pointer; font-size:12px; color:#8d764a; margin-bottom:18px;">Nog geen ' + brandLabel(activeBrand) + '-persona’s — beheer ze onder <b style="color:#e6cd92;">Persona’s</b> →</div>');
   var funRow = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">FUNNEL-FASE</div>'
     + '<div style="display:flex; gap:8px; margin-bottom:18px;">' + genFunData.map(function(f){ return '<div onclick="genSet(\'funnel\',\'' + f.key + '\')" style="' + genTile(gen.funnel===f.key) + ' flex:1; text-align:center;"><div style="font-size:13px; color:#f7f2e8; font-weight:700;">' + f.key + '</div><div style="font-size:10px; color:#635c54; margin-top:2px;">' + f.sub + '</div></div>'; }).join('') + '</div>';
   var awRow = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">AWARENESS-NIVEAU · SCHWARTZ</div>'
@@ -1021,26 +1134,15 @@ function renderGenerator() {
     results = '<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:24px;">'
       + [0,1,2,3].map(function(){ return '<div style="border:1px solid rgba(255,255,255,0.06); border-radius:14px; overflow:hidden; background:#0a0908;"><div style="height:180px; background:linear-gradient(100deg,#151310 30%,#1e1a14 50%,#151310 70%); background-size:200% 100%; animation:genShimmer 1.4s infinite;"></div><div style="padding:16px;"><div style="height:12px; width:70%; border-radius:4px; background:rgba(255,255,255,0.06); margin-bottom:9px;"></div><div style="height:10px; width:90%; border-radius:4px; background:rgba(255,255,255,0.04);"></div></div></div>'; }).join('')
       + '</div><style>@keyframes genShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>';
-  } else if (gen.results) {
-    var mock = gen.variants || [
-      { hook: 'Curiosity gap', head: '"' + (gen.product==='Groom Guard'?'Waarom mannen stiekem hun bodygroomer verstoppen.':'De fout die 9 op de 10 maken.') + '"', roas: '3.8', ctr: '2,7%', cpc: '€ 0,74', hyp: 'Opent een loop die de kijker wil sluiten — sterk voor ' + genAwareLabel(gen.aware).toLowerCase() + ' koud verkeer.' },
-      { hook: 'Before/After', head: '"In één beurt, geen gedoe."', roas: '3.4', ctr: '2,4%', cpc: '€ 0,81', hyp: 'Toont het resultaat i.p.v. het te claimen; visueel bewijs verlaagt de twijfel.' },
-      { hook: 'Authority', head: '"Wat barbiers al jaren gebruiken."', roas: '3.1', ctr: '2,2%', cpc: '€ 0,88', hyp: 'Leent geloofwaardigheid van de expert — past bij sophistication S' + gen.soph + '.' },
-      { hook: 'Rival compare', head: '"Één ' + gen.product + ' vs. drie losse producten."', roas: '2.9', ctr: '2,0%', cpc: '€ 0,92', hyp: 'Maakt de rekensom die de kijker toch al maakt; sterk bij vergelijkend publiek.' }
-    ];
-    SHOWN = { variants: mock, product: gen.product, source: 'static' };
-    results = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#8d764a; margin:26px 0 12px;">4 variaties · ' + esc(gen.mode) + ' · ' + gen.persona + '</div>'
-      + '<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px;">'
-      + mock.map(function(v,i){ return '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:14px; overflow:hidden; background:#0a0908; animation:genUp 0.4s ease ' + (i*0.08) + 's both;">'
-        + '<div class="adthumb" style="height:180px;"><div class="adname" style="font-size:64px;">' + (genProdData.find(function(p){return p.name===gen.product;})||{tag:'AD'}).tag + '</div>'
-        + '<div style="position:absolute; top:12px; left:12px; font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.08em; color:#e6cd92; background:rgba(201,169,97,0.16); border:1px solid rgba(201,169,97,0.4); border-radius:14px; padding:3px 9px;">' + v.hook + '</div></div>'
-        + '<div style="padding:16px;">'
-        + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:16px; color:#f7f2e8; line-height:1.2; margin-bottom:10px;">' + esc(v.head) + '</div>'
-        + '<div style="display:flex; gap:14px; margin-bottom:12px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#4fe0a8;">ROAS ' + v.roas + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">CTR ' + v.ctr + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">' + v.cpc + '</span></div>'
-        + '<div style="font-size:11.5px; color:#8d764a; line-height:1.5; background:rgba(201,169,97,0.05); border-left:2px solid rgba(201,169,97,0.4); padding:8px 11px; border-radius:0 8px 8px 0; margin-bottom:13px;"><b style="color:#e6cd92;">Rory’s hypothese:</b> ' + esc(v.hyp) + '</div>'
-        + '<div style="display:flex; gap:8px;"><button onclick="genSaveVariant(' + (i+1) + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Bewaar</button><button onclick="genIterVariant(' + (i+1) + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Itereer</button></div>'
-        + '</div></div>'; }).join('')
-      + '</div><style>@keyframes genUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}</style>';
+  } else if (gen.errorMsg) {
+    results = aiErrorCard(gen.errorMsg, 'genGenerate()');
+  } else if (gen.results && gen.variants && gen.variants.length) {
+    results = variantsGrid(gen.variants, {
+      product: gen.product, place: gen.place, merk: gen.checks.merk, safe: gen.checks.safe,
+      persona: gen.persona, source: 'static', key: 'gv', rerender: 'renderGenerator',
+      demo: gen.demo, context: gen.context,
+      subtitle: gen.variants.length + ' variaties · ' + gen.mode + ' · ' + (gen.persona || '—')
+    });
   }
 
   el.innerHTML =
@@ -1111,19 +1213,114 @@ function renderAngleModal(key) {
 /* ================================================================
    ===========  GEDEELD: 4-variatie-output (mock)  ===============
    ================================================================ */
-function fourVariants(tag, subtitle, variants) {
-  SHOWN = { variants: variants, product: tag, source: 'static' };
-  return '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#8d764a; margin:26px 0 12px;">' + esc(subtitle) + '</div>'
+/* ---- gedeelde output-kaarten (Nieuwe ad / Kopieer / Itereren) ---- */
+function copyEl(id) {
+  var el = document.getElementById(id); if (!el) return;
+  var t = el.getAttribute('data-copy') || el.textContent;
+  function done(){ showToast('📋 Gekopieerd'); }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, done);
+  else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
+}
+function iterFromShown(i) {
+  var v = SHOWN.variants[i]; if (!v) return;
+  state.panelCtx = { product: SHOWN.product, headline: v.head, primary: v.primary || '' };
+  state.panel = SHOWN.product || 'concept';
+  state.chips = {}; state.panelResults = null;
+  renderPanel();
+}
+function demoBanner() {
+  return '<div style="display:flex; align-items:center; gap:10px; border:1px solid rgba(224,112,90,0.35); background:rgba(224,112,90,0.07); border-radius:11px; padding:11px 15px; margin:18px 0 4px;">'
+    + '<span style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.1em; color:#e0705a; border:1px solid rgba(224,112,90,0.5); border-radius:6px; padding:2px 7px;">DEMO</span>'
+    + '<span style="font-size:12px; color:#d8d0c2; line-height:1.5;">Dit is een voorbeeld-uitkomst, niet door AI gemaakt. <span onclick="openSettings()" style="color:#e6cd92; cursor:pointer; text-decoration:underline;">Koppel Fable 5 in Instellingen (⚙)</span> voor echte output.</span></div>';
+}
+function aiErrorCard(msg, retryJs) {
+  return '<div style="border:1px solid rgba(224,112,90,0.4); background:rgba(224,112,90,0.06); border-radius:14px; padding:20px 22px; margin-top:22px;">'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.14em; color:#e0705a; margin-bottom:8px;">✕ FABLE 5-FOUT — ER IS NIETS GEGENEREERD</div>'
+    + '<div style="font-size:13px; color:#f7f2e8; line-height:1.6; margin-bottom:14px;">' + esc(msg) + '</div>'
+    + '<div style="display:flex; gap:9px;">'
+    + '<button onclick="' + retryJs + '" style="padding:10px 16px; border-radius:9px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12.5px; cursor:pointer;">↻ Probeer opnieuw</button>'
+    + '<button onclick="openSettings()" style="padding:10px 16px; border-radius:9px; border:1px solid rgba(255,255,255,0.12); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12.5px; cursor:pointer;">⚙ Instellingen & test</button>'
+    + '</div></div>';
+}
+/* Transparantie: laat exact zien welke instellingen/data Rory meekreeg. */
+function contextChecklist(items) {
+  if (!items || !items.length) return '';
+  return '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:#0a0908; padding:13px 16px; margin:18px 0 2px;">'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.13em; color:#8d764a; margin-bottom:9px;">🔍 WAT RORY MEEKREEG — STAP VOOR STAP</div>'
+    + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:5px 18px;">'
+    + items.map(function(x){ return '<div style="font-size:11.5px; color:#ada599; line-height:1.45;"><span style="color:#4fe0a8;">✓</span> <b style="color:#d8d0c2;">' + esc(x[0]) + ':</b> ' + esc(x[1]) + '</div>'; }).join('')
+    + '</div></div>';
+}
+function placeAspect(place) {
+  if (/9:16/.test(place || '')) return { ar: '9 / 16', h: 340 };
+  if (/4:5/.test(place || '')) return { ar: '4 / 5', h: 300 };
+  return { ar: '1 / 1', h: 260 };
+}
+/* Ad-preview: echte productfoto (indien geladen) + kop-overlay in de juiste ratio. */
+var _imgLoading = {};
+function adPreview(v, i, opts) {
+  var p = prodByName(opts.product);
+  var imgs = (p && prodImages[p.id]) || [];
+  if (p && prodImages[p.id] === undefined && AI.sbReady && !_imgLoading[p.id]) {
+    _imgLoading[p.id] = 1;
+    loadProductImages(p.id, function(){ delete _imgLoading[p.id]; if (opts.rerender) { try { window[opts.rerender](); } catch(e){} } });
+  }
+  var asp = placeAspect(opts.place);
+  var photo = imgs.length ? '<img src="' + imgSrc(imgs[i % imgs.length]) + '" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"/>' : '';
+  var tag = (p && p.tag) || (opts.product || 'AD').slice(0, 5).toUpperCase();
+  var brand = (brandProfiles && brandProfiles[activeBrand]) || {};
+  var accent = brand.colorPrimary || '#c9a961';
+  var wordmark = opts.merk ? '<div style="position:absolute; top:10px; right:12px; z-index:3; font-family:\'Fraunces\',serif; font-weight:600; font-size:12px; color:#f7f2e8; text-shadow:0 1px 6px rgba(0,0,0,0.7); pointer-events:none;">' + esc(brand.name || brandLabel(activeBrand)) + '</div>' : '';
+  var safe = (opts.safe && /9:16/.test(opts.place || '')) ? '<div style="position:absolute; left:0; right:0; top:14%; border-top:1px dashed rgba(255,255,255,0.25); z-index:3; pointer-events:none;"></div><div style="position:absolute; left:0; right:0; bottom:20%; border-top:1px dashed rgba(255,255,255,0.25); z-index:3; pointer-events:none;"></div>' : '';
+  return '<div style="background:#060504; display:flex; align-items:center; justify-content:center; padding:' + (imgs.length ? '0' : '0') + ';">'
+    + '<div class="adthumb" style="position:relative; width:100%; max-height:' + asp.h + 'px; aspect-ratio:' + asp.ar + '; height:auto; overflow:hidden;">'
+    + (photo || '<div class="adname" style="font-size:54px;">' + esc(tag) + '</div>')
+    + '<div style="position:absolute; top:12px; left:12px; z-index:3; font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.08em; color:#e6cd92; background:rgba(10,9,8,0.75); border:1px solid rgba(201,169,97,0.4); border-radius:14px; padding:3px 9px;">' + esc(v.hook || 'Concept') + '</div>'
+    + wordmark + safe
+    + '<div style="position:absolute; left:0; right:0; bottom:0; z-index:2; padding:34px 14px 12px; background:linear-gradient(0deg, rgba(5,4,3,0.93) 30%, transparent); pointer-events:none;">'
+    + '<div class="clamp2" style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:17px; color:#f7f2e8; line-height:1.2;">' + esc(v.head || '') + '</div>'
+    + (v.cta ? '<div style="display:inline-block; margin-top:8px; font-size:10.5px; font-weight:700; color:#1a1408; background:' + accent + '; border-radius:7px; padding:4px 10px;">' + esc(v.cta) + '</div>' : '')
+    + '</div></div></div>';
+}
+function copyRow(id, label, val) {
+  if (!val) return '';
+  return '<div style="display:flex; gap:9px; align-items:flex-start; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05);">'
+    + '<span style="font-family:\'JetBrains Mono\',monospace; font-size:8.5px; letter-spacing:0.1em; color:#635c54; width:64px; flex-shrink:0; padding-top:2px;">' + label + '</span>'
+    + '<span id="' + id + '" style="flex:1; font-size:12px; color:#d8d0c2; line-height:1.5; white-space:pre-wrap;">' + esc(val) + '</span>'
+    + '<span onclick="copyEl(\'' + id + '\')" title="Kopieer" style="cursor:pointer; font-size:11px; color:#8d764a; flex-shrink:0;">📋</span></div>';
+}
+function variantCard(v, i, opts) {
+  var key = opts.key || 'v';
+  return '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:14px; overflow:hidden; background:#0a0908; animation:genUp 0.4s ease ' + (i*0.08) + 's both; display:flex; flex-direction:column;">'
+    + adPreview(v, i, opts)
+    + '<div style="padding:15px 16px; flex:1; display:flex; flex-direction:column;">'
+    + '<div>'
+    + copyRow(key + i + 'head', 'KOP', v.head)
+    + copyRow(key + i + 'sub', 'SUBKOP', v.sub)
+    + copyRow(key + i + 'prim', 'PRIMARY', v.primary)
+    + copyRow(key + i + 'cta', 'CTA', v.cta)
+    + '</div>'
+    + (v.visual ? '<div style="font-size:11.5px; color:#ada599; line-height:1.55; margin-top:11px;"><b style="color:#8d764a; font-family:\'JetBrains Mono\',monospace; font-size:8.5px; letter-spacing:0.1em;">VISUEEL CONCEPT</b><br/>' + esc(v.visual) + '</div>' : '')
+    + (v.imgPrompt ? '<div style="margin-top:10px; background:#0d0c0a; border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:9px 11px;"><div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:8.5px; letter-spacing:0.1em; color:#8d764a;">IMAGE-PROMPT (voor je beeldmodel)</span><span onclick="copyEl(\'' + key + i + 'imgp\')" style="cursor:pointer; font-size:10.5px; color:#e6cd92;">📋 kopieer</span></div><div id="' + key + i + 'imgp" class="clamp3" style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#9b9382; line-height:1.5;" data-copy="' + esc(v.imgPrompt) + '">' + esc(v.imgPrompt) + '</div></div>' : '')
+    + (v.hyp ? '<div style="font-size:11.5px; color:#8d764a; line-height:1.5; background:rgba(201,169,97,0.05); border-left:2px solid rgba(201,169,97,0.4); padding:8px 11px; border-radius:0 8px 8px 0; margin-top:11px;"><b style="color:#e6cd92;">Rory’s hypothese:</b> ' + esc(v.hyp) + '</div>' : '')
+    + '<div style="display:flex; gap:8px; margin-top:13px; padding-top:2px;">'
+    + '<button onclick="saveVariant(' + i + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Bewaar</button>'
+    + '<button onclick="iterFromShown(' + i + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Itereer</button>'
+    + '</div></div></div>';
+}
+function variantsGrid(variants, opts) {
+  opts = opts || {};
+  SHOWN = { variants: variants, product: opts.product || '', source: opts.source || 'static', persona: opts.persona || '' };
+  return (opts.demo ? demoBanner() : '')
+    + (opts.context ? contextChecklist(opts.context) : '')
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#8d764a; margin:22px 0 12px;">' + esc(opts.subtitle || variants.length + ' variaties') + '</div>'
     + '<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px;">'
-    + variants.map(function(v,i){ return '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:14px; overflow:hidden; background:#0a0908; animation:genUp 0.4s ease ' + (i*0.08) + 's both;">'
-      + '<div class="adthumb" style="height:170px;"><div class="adname" style="font-size:60px;">' + esc(tag) + '</div>'
-      + '<div style="position:absolute; top:12px; left:12px; font-family:\'JetBrains Mono\',monospace; font-size:9px; letter-spacing:0.08em; color:#e6cd92; background:rgba(201,169,97,0.16); border:1px solid rgba(201,169,97,0.4); border-radius:14px; padding:3px 9px;">' + esc(v.hook) + '</div></div>'
-      + '<div style="padding:16px;"><div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:15px; color:#f7f2e8; line-height:1.2; margin-bottom:10px;">' + esc(v.head) + '</div>'
-      + '<div style="display:flex; gap:14px; margin-bottom:12px;"><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#4fe0a8;">ROAS ' + v.roas + '</span><span style="font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#ada599;">CTR ' + v.ctr + '</span></div>'
-      + '<div style="font-size:11.5px; color:#8d764a; line-height:1.5; background:rgba(201,169,97,0.05); border-left:2px solid rgba(201,169,97,0.4); padding:8px 11px; border-radius:0 8px 8px 0; margin-bottom:13px;"><b style="color:#e6cd92;">Rory’s hypothese:</b> ' + esc(v.hyp) + '</div>'
-      + '<div style="display:flex; gap:8px;"><button onclick="saveVariant(' + i + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Bewaar</button><button onclick="showToast(\'Opent iteratie-paneel\')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Itereer</button></div>'
-      + '</div></div>'; }).join('')
+    + variants.map(function(v, i){ return variantCard(v, i, opts); }).join('')
     + '</div><style>@keyframes genShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}@keyframes genUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}</style>';
+}
+/* back-compat wrapper (oude aanroepen) */
+function fourVariants(tag, subtitle, variants, opts) {
+  return variantsGrid(variants, Object.assign({ product: tag, subtitle: subtitle, key: 'fv' }, opts || {}));
 }
 function skeletonGrid() {
   return '<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:24px;">'
@@ -1138,21 +1335,45 @@ function screenHeader(kicker, title, lede) {
 function primaryBtn(label, onclick, busy) {
   return '<button onclick="' + onclick + '" ' + (busy?'disabled':'') + ' style="width:100%; padding:15px; border-radius:13px; border:1px solid #c9a961; background:' + (busy?'rgba(201,169,97,0.15)':'linear-gradient(135deg,#e6cd92,#c9a961)') + '; color:' + (busy?'#e6cd92':'#1a1408') + '; font-family:inherit; font-weight:700; font-size:14.5px; cursor:' + (busy?'default':'pointer') + ';">' + label + '</button>';
 }
-function uploadZone(label, sub) {
-  return '<div style="border:1.5px dashed rgba(201,169,97,0.35); border-radius:14px; background:rgba(201,169,97,0.03); padding:34px; text-align:center; cursor:pointer;" onclick="showToast(\'Upload / plak-veld — bestand kiezen (mock)\')">'
-    + '<div style="font-size:26px; color:#8d764a; margin-bottom:10px;">⇪</div>'
+function uploadZone(label, sub, onchangeJs, accept) {
+  var inner = '<div style="font-size:26px; color:#8d764a; margin-bottom:10px;">⇪</div>'
     + '<div style="font-size:13.5px; color:#f7f2e8; font-weight:600; margin-bottom:5px;">' + label + '</div>'
-    + '<div style="font-size:11.5px; color:#635c54; line-height:1.5;">' + sub + '</div></div>';
+    + '<div style="font-size:11.5px; color:#635c54; line-height:1.5;">' + sub + '</div>';
+  if (!onchangeJs) return '<div style="border:1.5px dashed rgba(201,169,97,0.35); border-radius:14px; background:rgba(201,169,97,0.03); padding:34px; text-align:center;">' + inner + '</div>';
+  return '<label style="display:block; border:1.5px dashed rgba(201,169,97,0.35); border-radius:14px; background:rgba(201,169,97,0.03); padding:34px; text-align:center; cursor:pointer;">'
+    + inner + '<input type="file" accept="' + (accept || 'image/*') + '" onchange="' + onchangeJs + '" style="display:none;"/></label>';
 }
 
 /* ================================================================
    ==================  SCHERM: KOPIEER AD  =======================
    ================================================================ */
-var cop = { src: '', analyzed: false, fidelity: 'variant', generating: false, results: false };
+var cop = { src: '', img: '', product: '', analyzed: false, analyzing: false, srcAnalysis: null, fidelity: 'variant', generating: false, results: false, demo: false, errorMsg: '', variants: null };
 function copSet(k,v){ cop[k]=v; renderKopieer(); }
-function copAnalyze(){ cop.analyzed = true; renderKopieer(); showToast('Rory heeft de bron-ad ontleed'); }
-function copGenerate(){ cop.generating = true; cop.results = false; renderKopieer();
-  setTimeout(function(){ cop.generating=false; cop.results=true; renderKopieer(); }, 2500); }
+var SCHEMA_ADANALYSE = {
+  type:'object', additionalProperties:false,
+  properties:{ format:{type:'string'}, awareness:{type:'string'}, angle:{type:'string'}, hook:{type:'string'}, why:{type:'string'} },
+  required:['format','awareness','angle','hook','why']
+};
+function copUpload(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){ cop.img = String(fr.result || ''); cop.analyzed = false; cop.srcAnalysis = null; cop.results = false; renderKopieer(); showToast('Beeld ingeladen — klik "Ontleed deze ad"'); };
+  fr.readAsDataURL(f);
+}
+function copAnalyze(){
+  if (!cop.img && !(cop.src || '').trim()) { showToast('Upload eerst een screenshot of plak een link/beschrijving'); return; }
+  if (!AI.ready) {
+    cop.analyzed = true; cop.srcAnalysis = null; renderKopieer();
+    showToast('Demo-analyse — koppel Fable 5 (⚙) zodat Rory de ad écht ontleedt'); return;
+  }
+  cop.analyzing = true; cop.errorMsg = ''; renderKopieer();
+  var sys = EXPERTS.theriot + '\n' + EXPERTS.rory + '\nOntleed deze advertentie (screenshot en/of beschrijving/link). Geef in het Nederlands: format (+categorie), awareness-niveau + doelgroep-inschatting, marketing-angle, hook-patroon, en in "why" 2-3 zinnen waarom deze ad werkt.';
+  fable5({ system: sys, user: 'Bron: ' + (cop.src || '(alleen afbeelding)'), image: cop.img || undefined, schema: SCHEMA_ADANALYSE, maxTokens: 1500 })
+    .then(function(o){ cop.srcAnalysis = o; cop.analyzed = true; cop.analyzing = false; renderKopieer(); showToast('Rory heeft de bron-ad ontleed'); })
+    .catch(function(e){ cop.analyzing = false; cop.errorMsg = e.message; renderKopieer(); });
+}
+function copGenerate(){ cop.generating = true; cop.results = false; cop.errorMsg = ''; renderKopieer();
+  setTimeout(function(){ cop.generating=false; cop.results=true; cop.demo=true; cop.variants = genMockVariants(cop.product); renderKopieer(); }, 900); }
 function renderKopieer() {
   var el = document.getElementById('screen-kopieer');
   var fidelities = [
@@ -1160,34 +1381,43 @@ function renderKopieer() {
     { key:'variant', name:'Variant', desc:'Zelfde mechaniek, eigen hook en invalshoek. De veilige middenweg.' },
     { key:'inspiratie', name:'Inspiratie', desc:'Alleen het onderliggende idee; volledig eigen uitwerking. Meta straft look-alikes af.' }
   ];
-  var dumpBody = uploadZone('Sleep een screenshot, plak met Cmd+V, of kies een bestand', 'PNG / JPG · of plak hieronder een Meta Ads Library-link')
-    + '<div style="margin-top:12px; display:flex; gap:10px;"><input oninput="cop.src=this.value" value="' + esc(cop.src) + '" placeholder="https://www.facebook.com/ads/library/?id=…" style="flex:1; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:11px 13px;"/>'
-    + '<button onclick="copAnalyze()" style="padding:11px 18px; border-radius:10px; border:1px solid rgba(201,169,97,0.4); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Ontleed deze ad</button></div>';
+  genSyncDefaults();
+  var dumpBody = uploadZone('Upload een screenshot van de bron-ad', 'PNG / JPG — Rory bekijkt het beeld écht · of plak hieronder een link/beschrijving', 'copUpload(this)', 'image/*')
+    + (cop.img ? '<div style="display:flex; align-items:center; gap:12px; margin-top:12px;"><img src="' + cop.img + '" style="width:84px; height:84px; object-fit:cover; border-radius:10px; border:1px solid rgba(201,169,97,0.3);"/><div style="font-size:12px; color:#4fe0a8;">✓ Screenshot ingeladen</div><span onclick="cop.img=\'\'; cop.analyzed=false; cop.srcAnalysis=null; renderKopieer();" style="cursor:pointer; color:#8d764a; font-size:12px;">✕ verwijderen</span></div>' : '')
+    + '<div style="margin-top:12px; display:flex; gap:10px;"><input oninput="cop.src=this.value" value="' + esc(cop.src) + '" placeholder="Meta Ads Library-link of korte beschrijving van de bron-ad…" style="flex:1; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:inherit; font-size:12.5px; padding:11px 13px;"/>'
+    + '<button onclick="copAnalyze()" ' + (cop.analyzing?'disabled':'') + ' style="padding:11px 18px; border-radius:10px; border:1px solid rgba(201,169,97,0.4); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">' + (cop.analyzing ? 'Rory kijkt…' : 'Ontleed deze ad') + '</button></div>'
+    + '<div style="font-size:11px; color:#635c54; margin-top:8px;">Let op: een kale Ads Library-link kan Rory niet openen — upload een screenshot of beschrijf de ad kort.</div>';
 
   var analysis = '';
   if (cop.analyzed) {
-    var rows = [
-      ['Format + categorie', 'Testimonial pull-quote · B · Social proof'],
-      ['Awareness + angle', 'Product aware · Social proof'],
-      ['Hook-patroon', 'Authority — "wat barbiers gebruiken"'],
+    var an = cop.srcAnalysis;
+    var rows = an ? [
+      ['Format + categorie', an.format],
+      ['Awareness + doelgroep', an.awareness],
+      ['Marketing-angle', an.angle],
+      ['Hook-patroon', an.hook]
+    ] : [
+      ['Format + categorie', 'Demo: Testimonial pull-quote · B · Social proof'],
+      ['Awareness + doelgroep', 'Demo: Product aware'],
+      ['Hook-patroon', 'Demo: Authority']
     ];
     analysis = '<div style="border:1px solid rgba(201,169,97,0.22); border-radius:14px; background:rgba(201,169,97,0.04); padding:20px 22px; margin-bottom:22px;">'
-      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:14px;">RORY’S ANALYSE</div>'
-      + rows.map(function(r){ return '<div style="display:flex; gap:16px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span style="font-size:12px; color:#635c54; width:150px; flex-shrink:0;">' + r[0] + '</span><span style="font-size:13px; color:#f7f2e8;">' + r[1] + '</span></div>'; }).join('')
-      + '<div style="font-size:12.5px; color:#ada599; line-height:1.6; margin-top:14px;"><b style="color:#e6cd92;">Waarom het werkt:</b> de ad leunt op geleende autoriteit en een specifieke, geloofwaardige claim. De sociale bewijskracht neemt het grootste koopbezwaar weg zonder dat het merk zelf de claim hoeft te doen.</div>'
+      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.14em; color:#e6cd92; margin-bottom:14px;">RORY’S ANALYSE' + (an ? '' : ' · DEMO (Fable 5 niet gekoppeld)') + '</div>'
+      + rows.map(function(r){ return '<div style="display:flex; gap:16px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span style="font-size:12px; color:#635c54; width:150px; flex-shrink:0;">' + r[0] + '</span><span style="font-size:13px; color:#f7f2e8;">' + esc(r[1] || '—') + '</span></div>'; }).join('')
+      + '<div style="font-size:12.5px; color:#ada599; line-height:1.6; margin-top:14px;"><b style="color:#e6cd92;">Waarom het werkt:</b> ' + esc(an ? an.why : 'Demo-uitleg — koppel Fable 5 zodat Rory de echte mechaniek benoemt.') + '</div>'
       + '</div>'
+      + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:10px;">VOOR WELK PRODUCT?</div>'
+      + '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;">' + genProducts().map(function(p){ return '<div onclick="copSet(\'product\',\'' + p.name.replace(/'/g,"\\'") + '\')" style="' + genPill(cop.product===p.name) + '">' + esc(p.name) + '</div>'; }).join('') + '</div>'
       + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:10px;">FIDELITY-NIVEAU</div>'
       + '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">'
       + fidelities.map(function(f){ var a = cop.fidelity===f.key; return '<div onclick="copSet(\'fidelity\',\'' + f.key + '\')" style="' + genTile(a) + '"><div style="font-size:13px; color:#f7f2e8; font-weight:700; margin-bottom:5px;">' + f.name + '</div><div style="font-size:11px; color:#635c54; line-height:1.45;">' + f.desc + '</div></div>'; }).join('')
       + '</div>'
       + primaryBtn(cop.generating?'Rory bouwt 4 varianten…':'⚡ Genereer 4 varianten →', 'copGenerate()', cop.generating);
   }
-  var results = cop.generating ? skeletonGrid() : (cop.results ? fourVariants('KOPIE', '4 varianten · fidelity: ' + cop.fidelity, cop.variants || [
-    { hook:'Authority', head:'"Wat barbiers al jaren stiekem gebruiken."', roas:'3.6', ctr:'2,6%', hyp:'Neemt het autoriteits-mechaniek over, eigen merk-hook eroverheen.' },
-    { hook:'Social proof', head:'"9.412 mannen stapten al over."', roas:'3.3', ctr:'2,3%', hyp:'Zelfde bewijs-structuur, concreet getal uit onze eigen data.' },
-    { hook:'Curiosity gap', head:'"De reden dat je scheermes je huid irriteert."', roas:'3.0', ctr:'2,1%', hyp:'Verschuift van proof naar nieuwsgierigheid — genoeg verschil voor Meta.' },
-    { hook:'Before/After', head:'"Van kapotte huid naar glad in 3 dagen."', roas:'2.8', ctr:'1,9%', hyp:'Inspiratie-niveau: alleen het idee, volledig eigen uitwerking.' }
-  ]) : '');
+  var results = '';
+  if (cop.generating) results = skeletonGrid();
+  else if (cop.errorMsg) results = aiErrorCard(cop.errorMsg, cop.analyzed ? 'copGenerate()' : 'copAnalyze()');
+  else if (cop.results && cop.variants) results = variantsGrid(cop.variants, { product: cop.product, place: 'Feed 1:1', source: 'kopie', key: 'cv', rerender: 'renderKopieer', demo: cop.demo, subtitle: cop.variants.length + ' varianten · fidelity: ' + cop.fidelity });
 
   el.innerHTML = screenHeader('GENEREREN / KOPIEER', 'Kopieer ad', 'Plak of upload een voorbeeld-ad; Rory analyseert het mechaniek en bouwt merk-eigen varianten in drie fidelity-niveaus.')
     + dumpBody + (cop.analyzed ? '<div style="height:22px;"></div>' : '') + analysis + results;
@@ -1196,13 +1426,13 @@ function renderKopieer() {
 /* ================================================================
    ====================  SCHERM: ITEREREN  =======================
    ================================================================ */
-var itr = { asset: 'static', analyzed: false, step: 0, picks: {}, generating: false, results: false };
+var itr = { asset: 'static', product: '', img: '', analyzed: false, step: 0, picks: {}, generating: false, results: false, demo: false, errorMsg: '', variants: null };
 var itrMetrics = {
-  PERFORMANCE: [['spend','Uitgaven','€ 842'],['aov','AOV','€ 47,20'],['roas','ROAS','4,12'],['impressies','Impressies','214.880'],['cpm','CPM','€ 6,10']],
-  'CLICKS & CTR': [['linkClicks','Link-clicks','1.204'],['clicksOutbound','Outbound clicks','1.130'],['ctrLink','CTR (link)','2,9%'],['ctrOutbound','CTR (outbound)','2,7%'],['cpcLink','CPC (link)','€ 0,71'],['cpcOutbound','CPC (outbound)','€ 0,75']],
-  ENGAGEMENT: [['follows','Volgers','18'],['comments','Reacties','41'],['postEng','Post-engagement','2.310'],['engPct','Engagement %','1,1%'],['reactions','Reacties (likes)','196'],['shares','Shares','34'],['seeMore','“Meer weergeven”','88']],
-  FUNNEL: [['clickQuality','Klik-kwaliteit','goed'],['clickToAtc','Klik → ATC','12%'],['clickToPurchase','Klik → aankoop','4,8%'],['atcToPurchase','ATC → aankoop','40%']],
-  CONVERSIES: [['purchases','Aankopen','58'],['purchaseValue','Aankoopwaarde','€ 2.737'],['cpa','CPA','€ 14,52'],['atc','Add-to-cart','145'],['atcValue','ATC-waarde','€ 6.844'],['lpv','Landing-page-views','1.088']]
+  PERFORMANCE: [['spend','Uitgaven','€ …'],['aov','AOV','€ …'],['roas','ROAS','bv. 4,12'],['impressies','Impressies','…'],['cpm','CPM','€ …']],
+  'CLICKS & CTR': [['linkClicks','Link-clicks','…'],['clicksOutbound','Outbound clicks','…'],['ctrLink','CTR (link)','…%'],['ctrOutbound','CTR (outbound)','…%'],['cpcLink','CPC (link)','€ …'],['cpcOutbound','CPC (outbound)','€ …']],
+  ENGAGEMENT: [['follows','Volgers','…'],['comments','Reacties','…'],['postEng','Post-engagement','…'],['engPct','Engagement %','…%'],['reactions','Reacties (likes)','…'],['shares','Shares','…'],['seeMore','“Meer weergeven”','…']],
+  FUNNEL: [['clickQuality','Klik-kwaliteit','goed / matig'],['clickToAtc','Klik → ATC','…%'],['clickToPurchase','Klik → aankoop','…%'],['atcToPurchase','ATC → aankoop','…%']],
+  CONVERSIES: [['purchases','Aankopen','…'],['purchaseValue','Aankoopwaarde','€ …'],['cpa','CPA','€ …'],['atc','Add-to-cart','…'],['atcValue','ATC-waarde','€ …'],['lpv','Landing-page-views','…']]
 };
 var itrAxes = [
   { q:'Wat houden we vast?', opts:['De winnende hook','De headline','Het format'] },
@@ -1210,23 +1440,59 @@ var itrAxes = [
   { q:'Welke richting?', opts:['Andere persona','Nieuwe visual','Scherpere claim'] }
 ];
 function itrSet(k,v){ itr[k]=v; renderItereren(); }
-function itrAnalyze(){ itr.analyzed = true; itr.step = 0; renderItereren(); showToast('Rory analyseert de winner — kies per stap een richting'); }
-function itrPick(step, opt){ itr.picks[step] = opt; if (step < itrAxes.length-1) itr.step = step+1; renderItereren(); showToast('Rory reageert: ' + opt); }
-function itrGenerate(){ itr.generating = true; itr.results = false; renderItereren();
-  setTimeout(function(){ itr.generating=false; itr.results=true; renderItereren(); }, 2500); }
+function itrUpload(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  if (/^image\//.test(f.type)) { var fr = new FileReader(); fr.onload = function(){ itr.img = String(fr.result||''); renderItereren(); showToast('Winner ingeladen'); }; fr.readAsDataURL(f); }
+  else { var fr2 = new FileReader(); fr2.onload = function(){ itr.srcText = String(fr2.result||'').slice(0, 8000); renderItereren(); showToast('Script ingeladen'); }; fr2.readAsText(f); }
+}
+function itrReadMetrics(){
+  var out = [];
+  Object.keys(itrMetrics).forEach(function(cat){ itrMetrics[cat].forEach(function(m){
+    var el = document.getElementById('itm_' + m[0]);
+    if (el && el.value.trim()) out.push(m[1] + ': ' + el.value.trim());
+  }); });
+  return out;
+}
+function itrAnalyze(){ itr.metricsSnapshot = itrReadMetrics(); itr.analyzed = true; itr.step = 0; renderItereren(); showToast('Kies per stap een richting — Rory neemt je cijfers mee'); }
+function itrPick(step, opt){ itr.picks[step] = opt; if (step < itrAxes.length-1) itr.step = step+1; renderItereren(); }
+function itrGenerate(){
+  itr.metricsSnapshot = itrReadMetrics().length ? itrReadMetrics() : itr.metricsSnapshot;
+  itr.generating = true; itr.results = false; itr.errorMsg = ''; renderItereren();
+  if (!AI.ready) {
+    setTimeout(function(){ itr.generating=false; itr.results=true; itr.demo=true; itr.variants = genMockVariants(itr.product); renderItereren(); }, 900);
+    return;
+  }
+  var p = prodByName(itr.product);
+  var sys = EXPERTS.rory + '\n' + EXPERTS.theriot + '\n\nMERK-DNA (hier NOOIT van afwijken):\n' + brandText()
+    + '\n\nOPDRACHT: dit is een ITERATIE op een bewezen winnende ad. Gouden regel: verander precies ÉÉN variabele per variant; de winnende hook/boodschap is heilig, maar de nieuwe versie moet visueel duidelijk verschillen. Genereer 4 iteratie-varianten in het Nederlands (zelfde velden als altijd). Claims uitsluitend uit de productdata.';
+  var usr = 'ASSET-TYPE: ' + itr.asset + (itr.img ? ' (zie afbeelding van de winner)' : '') + (itr.srcText ? '\nWINNEND SCRIPT:\n' + itr.srcText : '')
+    + '\n\nITERATIE-KEUZES:\n- Vasthouden: ' + (itr.picks[0]||'—') + '\n- Te testen variabele: ' + (itr.picks[1]||'—') + '\n- Richting: ' + (itr.picks[2]||'—')
+    + '\n\nPRESTATIECIJFERS VAN DE WINNER:\n' + ((itr.metricsSnapshot && itr.metricsSnapshot.length) ? itr.metricsSnapshot.join('\n') : '(geen cijfers ingevuld)')
+    + '\n\n' + productBrief(p);
+  fable5({ system: sys, user: usr, image: itr.img || undefined, schema: SCHEMA_VARIANTS, maxTokens: 6000 })
+    .then(function(o){ itr.variants = (o.variants||[]).slice(0,4); itr.demo = false; itr.generating = false; itr.results = true; renderItereren(); })
+    .catch(function(e){ itr.generating = false; itr.results = false; itr.errorMsg = e.message; renderItereren(); });
+}
 function renderItereren() {
   var el = document.getElementById('screen-itereren');
   var assets = [['video','Video'],['static','Statische afbeelding'],['script','Script']];
+  genSyncDefaults();
   var assetTabs = '<div style="display:flex; gap:8px; margin-bottom:14px;">'
     + assets.map(function(a){ var on = itr.asset===a[0]; return '<div onclick="itrSet(\'asset\',\'' + a[0] + '\')" style="' + genPill(on) + '">' + a[1] + '</div>'; }).join('') + '</div>';
-  var dump = assetTabs + uploadZone('Upload de winnende ' + (itr.asset==='script'?'script':(itr.asset==='video'?'video':'afbeelding')), 'Rory leest de creative en koppelt hem aan de prestatiecijfers hieronder');
+  var dump = assetTabs
+    + uploadZone('Upload de winnende ' + (itr.asset==='script'?'script (.txt/.md)':(itr.asset==='video'?'video-still (afbeelding)':'afbeelding')), 'Rory bekijkt de creative écht en koppelt hem aan de cijfers hieronder', 'itrUpload(this)', itr.asset==='script' ? '.txt,.md,text/plain' : 'image/*')
+    + (itr.img ? '<div style="display:flex; align-items:center; gap:12px; margin-top:12px;"><img src="' + itr.img + '" style="width:84px; height:84px; object-fit:cover; border-radius:10px; border:1px solid rgba(201,169,97,0.3);"/><div style="font-size:12px; color:#4fe0a8;">✓ Winner ingeladen</div><span onclick="itr.img=\'\'; renderItereren();" style="cursor:pointer; color:#8d764a; font-size:12px;">✕</span></div>' : '')
+    + (itr.srcText ? '<div style="font-size:12px; color:#4fe0a8; margin-top:12px;">✓ Script ingeladen (' + itr.srcText.length + ' tekens)</div>' : '');
 
+  var prodRow = '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#e6cd92; margin-bottom:9px;">PRODUCT VAN DEZE WINNER</div>'
+    + '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">' + genProducts().map(function(p){ return '<div onclick="itrSet(\'product\',\'' + p.name.replace(/'/g,"\\'") + '\')" style="' + genPill(itr.product===p.name) + '">' + esc(p.name) + '</div>'; }).join('') + '</div>';
   var matrix = '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:14px; background:#0a0908; padding:18px 20px; margin-top:16px;">'
-    + '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;"><div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:15px; color:#f7f2e8;">Prestatie-matrix</div><button onclick="showToast(\'Screenshot van Ads Manager uploaden (mock)\')" style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#8d764a; background:transparent; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:6px 10px; cursor:pointer;">of upload screenshot</button></div>'
-    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#635c54; margin-bottom:16px;">WS - 160 - 1 · Laatste 30 dagen (2–31 mei 2026)</div>'
+    + '<div style="font-family:\'Fraunces\',serif; font-weight:600; font-size:15px; color:#f7f2e8; margin-bottom:4px;">Prestatie-matrix</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; color:#635c54; margin-bottom:16px;">Vul in wat je hebt uit Ads Manager — leeg laten mag; Rory gebruikt alleen ingevulde cijfers.</div>'
+    + prodRow
     + Object.keys(itrMetrics).map(function(cat){ return '<div style="margin-bottom:16px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#e6cd92; margin-bottom:9px;">' + cat + '</div>'
-      + '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">' + itrMetrics[cat].map(function(m){ return '<div style="background:#0d0c0a; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 11px;"><div style="font-size:10px; color:#635c54; margin-bottom:3px;">' + m[1] + '</div><input value="' + m[2] + '" style="width:100%; background:transparent; border:none; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:13px; padding:0;"/></div>'; }).join('') + '</div></div>'; }).join('')
-    + '<button onclick="itrAnalyze()" style="width:100%; margin-top:6px; padding:13px; border-radius:11px; border:1px solid rgba(201,169,97,0.4); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:700; font-size:13.5px; cursor:pointer;">⚡ Laat Rory de winner analyseren →</button>'
+      + '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">' + itrMetrics[cat].map(function(m){ return '<div style="background:#0d0c0a; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 11px;"><div style="font-size:10px; color:#635c54; margin-bottom:3px;">' + m[1] + '</div><input id="itm_' + m[0] + '" placeholder="' + m[2] + '" style="width:100%; background:transparent; border:none; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:13px; padding:0;"/></div>'; }).join('') + '</div></div>'; }).join('')
+    + '<button onclick="itrAnalyze()" style="width:100%; margin-top:6px; padding:13px; border-radius:11px; border:1px solid rgba(201,169,97,0.4); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:700; font-size:13.5px; cursor:pointer;">⚡ Naar de iteratie-stappen →</button>'
     + '</div>';
 
   var steps = '';
@@ -1243,12 +1509,10 @@ function renderItereren() {
       + (Object.keys(itr.picks).length === itrAxes.length ? primaryBtn(itr.generating?'Rory schrijft 4 iteraties…':'⚡ Genereer 4 iteraties →', 'itrGenerate()', itr.generating) : '')
       + '</div>';
   }
-  var results = itr.generating ? skeletonGrid() : (itr.results ? fourVariants('WS-160', '4 iteraties · kern vergrendeld · 1 variabele', [
-    { hook:'Zelfde hook', head:'"' + (itr.picks[2]||'Nieuwe setting') + ' — zelfde belofte."', roas:'4.4', ctr:'3,0%', hyp:'Winnende hook vast, alleen de setting vernieuwd. Laagste risico.' },
-    { hook:'Zelfde hook', head:'"Ander model, zelfde resultaat."', roas:'4.1', ctr:'2,8%', hyp:'Kern identiek, nieuw gezicht spreekt een tweede avatar aan.' },
-    { hook:'Zelfde hook', head:'"Eén element scherper."', roas:'3.9', ctr:'2,7%', hyp:'Minimale wijziging — test of de scherpere claim de CTR tilt.' },
-    { hook:'Zelfde hook', head:'"Frisse visual, oude winnaar."', roas:'3.8', ctr:'2,6%', hyp:'Voorkomt creative fatigue zonder de boodschap aan te raken.' }
-  ]) : '');
+  var results = '';
+  if (itr.generating) results = skeletonGrid();
+  else if (itr.errorMsg) results = aiErrorCard(itr.errorMsg, 'itrGenerate()');
+  else if (itr.results && itr.variants) results = variantsGrid(itr.variants, { product: itr.product, place: 'Feed 1:1', source: 'iteratie', key: 'iv', rerender: 'renderItereren', demo: itr.demo, subtitle: itr.variants.length + ' iteraties · kern vergrendeld · 1 variabele' });
 
   el.innerHTML = screenHeader('GENEREREN / ITEREREN', 'Itereren', 'Upload een bewezen winner met zijn prestatiecijfers; Rory bepaalt stapsgewijs de iteratie-assen. Eén variabele per keer — de winnende hook blijft heilig.')
     + dump + matrix + steps + results;
@@ -1257,43 +1521,75 @@ function renderItereren() {
 /* ================================================================
    ==================  SCHERM: AD TRANSFORMER  ===================
    ================================================================ */
-var trf = { uploaded: false, product: 'Groom Guard', funnel: 'TOF' };
+var trf = { img: '', product: '', funnel: 'TOF', analyzing: false, analysis: null, errorMsg: '' };
+var SCHEMA_TRANSFORM = {
+  type:'object', additionalProperties:false,
+  properties:{
+    subject:{type:'string'}, hookRead:{type:'string'}, brandFit:{type:'string'}, quality:{type:'string'},
+    advice:{type:'string'},
+    dirs:{ type:'array', items:{ type:'object', additionalProperties:false, properties:{ name:{type:'string'}, why:{type:'string'} }, required:['name','why'] } }
+  },
+  required:['subject','hookRead','brandFit','quality','advice','dirs']
+};
 function trfSet(k,v){ trf[k]=v; renderTransformer(); }
-function trfUpload(){ trf.uploaded = true; renderTransformer(); showToast('Rory leest het beeld…'); }
-function trfHandoff(dir){ gen.brief = 'Vanuit Ad transformer: ' + dir + ' voor ' + trf.product + ' (' + trf.funnel + ').'; gen.analyzed = false; renderGenerator(); setNav('nieuw'); showToast('Brief doorgezet naar de generator'); }
+function trfUpload(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){ trf.img = String(fr.result || ''); trf.analysis = null; trf.errorMsg = ''; renderTransformer(); trfAnalyze(); };
+  fr.readAsDataURL(f);
+}
+function trfAnalyze(){
+  if (!trf.img) return;
+  if (!AI.ready) { trf.errorMsg = 'Koppel Fable 5 in Instellingen (⚙) — Rory moet het beeld echt kunnen bekijken.'; renderTransformer(); return; }
+  trf.analyzing = true; trf.errorMsg = ''; renderTransformer();
+  var persLabels = genPersonas().map(function(x){ return x.label; }).join(' | ');
+  var sys = EXPERTS.rory + '\n' + EXPERTS.theriot + '\n' + brandText()
+    + '\nJe krijgt een foto (packshot, lifestyle/UGC of meme/trend). Lees het beeld en geef in het Nederlands: subject (onderwerp & objecten), hookRead (de emotionele hook die erin zit), brandFit (past het bij dit merk en welk product het dichtst ligt), quality (technische kwaliteit + waarvoor bruikbaar), advice (welke persona’s' + (persLabels ? ' — kies uit: ' + persLabels + ' —' : '') + ' en welke plaatsingen/kanalen) en exact 3 dirs: concrete advertentie-richtingen (name + why).';
+  fable5({ system: sys, user: 'Analyseer deze foto voor een nieuwe ad.', image: trf.img, schema: SCHEMA_TRANSFORM, maxTokens: 2500 })
+    .then(function(o){ trf.analysis = o; trf.analyzing = false; renderTransformer(); showToast('Rory heeft het beeld gelezen'); })
+    .catch(function(e){ trf.analyzing = false; trf.errorMsg = e.message; renderTransformer(); });
+}
+function trfHandoff(dir){ gen.brief = 'Vanuit Ad transformer: ' + dir + ' voor ' + trf.product + ' (' + trf.funnel + ').' + (trf.analysis ? ' Beeld-lezing: ' + trf.analysis.subject : ''); gen.analyzed = false; renderGenerator(); setNav('nieuw'); showToast('Brief doorgezet naar de generator'); }
 function renderTransformer() {
   var el = document.getElementById('screen-transformer');
-  if (!trf.uploaded) {
-    el.innerHTML = screenHeader('GENEREREN / TRANSFORMER', 'Ad transformer', 'Upload een foto — packshot, lifestyle-UGC of meme/trend. Rory leest het beeld, adviseert welke persona’s je ermee raakt en op welke kanalen, en zet door naar de generator.')
-      + uploadZone('Sleep of kies een afbeelding', 'Rory beschrijft wat hij ziet en bouwt er een advertentie-richting omheen')
-      + '<div style="text-align:center; margin-top:16px;">' + '<button onclick="trfUpload()" style="padding:12px 22px; border-radius:11px; border:1px solid rgba(201,169,97,0.4); background:rgba(201,169,97,0.08); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Voorbeeldbeeld gebruiken →</button></div>';
+  genSyncDefaults();
+  if (!trf.img) {
+    el.innerHTML = screenHeader('GENEREREN / TRANSFORMER', 'Ad transformer', 'Upload een foto — packshot, lifestyle-UGC of meme/trend. Rory leest het beeld écht, adviseert welke persona’s je ermee raakt en op welke kanalen, en zet door naar de generator.')
+      + uploadZone('Sleep of kies een afbeelding', 'Rory beschrijft wat hij ziet en bouwt er een advertentie-richting omheen', 'trfUpload(this)', 'image/*')
+      + (AI.ready ? '' : '<div style="margin-top:16px;">' + demoBanner() + '</div>');
     return;
   }
-  var reading = [
-    ['Onderwerp & objecten', 'Man, ochtendlicht, badkamer. Product prominent in de hand; handdoek en spiegel op de achtergrond.'],
-    ['Emotionele hook', 'Rust en controle — het “verzorgd de dag in” gevoel. Nodigt uit tot aspiratie, niet tot pijn.'],
-    ['Merk- & productfit', 'Sluit aan bij de Wellgroup-stijl: warm, premium, mannelijk. Product-in-gebruik is direct bruikbaar.'],
-    ['Kwaliteit / bruikbaarheid', 'Hoge kwaliteit, natuurlijk licht. Geschikt als hero voor lifestyle-formats; minder voor lo-fi/ugly ads.']
-  ];
-  var readBlock = reading.map(function(r){ return '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:12px; background:#0a0908; padding:14px 16px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.1em; color:#e6cd92; margin-bottom:6px;">' + r[0] + '</div><div style="font-size:12.5px; color:#d8d0c2; line-height:1.55;">' + r[1] + '</div></div>'; }).join('');
-  var dirs = [
-    ['Lifestyle-hero', 'Product Hero met deze foto als beeld; korte premium headline.'],
-    ['Before/After-context', 'Zet dit resultaat naast een “voor”-situatie voor solution aware publiek.'],
-    ['Persona callout', '“Voor mannen die verzorgd de dag in willen” — direct op De Expert.']
-  ];
+  var an = trf.analysis;
+  var readBlock;
+  if (trf.analyzing) {
+    readBlock = '<div style="grid-column:1/-1; display:flex; align-items:center; justify-content:center; border:1px dashed rgba(201,169,97,0.3); border-radius:12px; padding:40px; font-size:13px; color:#e6cd92;">Rory bekijkt het beeld…</div>';
+  } else if (trf.errorMsg) {
+    readBlock = '<div style="grid-column:1/-1;">' + aiErrorCard(trf.errorMsg, 'trfAnalyze()') + '</div>';
+  } else if (an) {
+    var reading = [
+      ['Onderwerp & objecten', an.subject],
+      ['Emotionele hook', an.hookRead],
+      ['Merk- & productfit', an.brandFit],
+      ['Kwaliteit / bruikbaarheid', an.quality]
+    ];
+    readBlock = reading.map(function(r){ return '<div style="border:1px solid rgba(255,255,255,0.07); border-radius:12px; background:#0a0908; padding:14px 16px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.1em; color:#e6cd92; margin-bottom:6px;">' + r[0] + '</div><div style="font-size:12.5px; color:#d8d0c2; line-height:1.55;">' + esc(r[1] || '—') + '</div></div>'; }).join('');
+  } else {
+    readBlock = '<div style="grid-column:1/-1; text-align:center; border:1px dashed rgba(201,169,97,0.3); border-radius:12px; padding:30px;"><button onclick="trfAnalyze()" style="padding:11px 20px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">⚡ Laat Rory het beeld lezen</button></div>';
+  }
+  var dirs = (an && an.dirs && an.dirs.length) ? an.dirs.map(function(d){ return [d.name, d.why]; }) : [];
   el.innerHTML = screenHeader('GENEREREN / TRANSFORMER', 'Ad transformer', 'Rory’s lezing van je beeld, plus welke persona’s en kanalen erbij passen.')
     + '<div style="display:grid; grid-template-columns:300px 1fr; gap:20px; margin-bottom:22px;">'
-    + '<div class="adthumb" style="height:280px; border-radius:14px; border:1px solid rgba(201,169,97,0.2);"><div class="adname" style="font-size:64px;">FOTO</div></div>'
+    + '<div style="height:280px; border-radius:14px; border:1px solid rgba(201,169,97,0.2); overflow:hidden; position:relative;"><img src="' + trf.img + '" style="width:100%; height:100%; object-fit:cover;"/><span onclick="trf.img=\'\'; trf.analysis=null; renderTransformer();" style="position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:8px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#f7f2e8; font-size:13px;">✕</span></div>'
     + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' + readBlock + '</div>'
     + '</div>'
     + '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px;">'
-    + '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px 18px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">GEDETECTEERDE CONTEXT · aanpasbaar</div>'
-    + '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px;">' + genProdData.map(function(p){ return '<div onclick="trfSet(\'product\',\'' + p.name + '\')" style="' + genPill(trf.product===p.name) + '">' + p.name + '</div>'; }).join('') + '</div>'
+    + '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px 18px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">CONTEXT · aanpasbaar</div>'
+    + '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px;">' + genProducts().map(function(p){ return '<div onclick="trfSet(\'product\',\'' + p.name.replace(/'/g,"\\'") + '\')" style="' + genPill(trf.product===p.name) + '">' + esc(p.name) + '</div>'; }).join('') + '</div>'
     + '<div style="display:flex; gap:6px;">' + genFunData.map(function(f){ return '<div onclick="trfSet(\'funnel\',\'' + f.key + '\')" style="' + genPill(trf.funnel===f.key) + '">' + f.key + '</div>'; }).join('') + '</div></div>'
-    + '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px 18px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">RORY’S ADVIES</div><div style="font-size:12.5px; color:#d8d0c2; line-height:1.6;">Richt op <b style="color:#e6cd92;">De Expert</b> (kwaliteitszoeker) en <b style="color:#e6cd92;">De Verzorger</b> — het beeld straalt zorg en controle uit. Kanalen: <b style="color:#e6cd92;">Instagram Feed & Stories</b> voor de aspiratie, minder geschikt voor lo-fi Reels.</div></div>'
+    + '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px 18px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:9px;">RORY’S ADVIES</div><div style="font-size:12.5px; color:#d8d0c2; line-height:1.6;">' + esc(an ? an.advice : 'Nog geen lezing — upload een beeld en laat Rory kijken.') + '</div></div>'
     + '</div>'
-    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:11px;">3 RICHTINGEN</div>'
-    + '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">' + dirs.map(function(d){ return '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px; display:flex; flex-direction:column; gap:10px;"><div><div style="font-size:13.5px; color:#f7f2e8; font-weight:600; margin-bottom:6px;">' + d[0] + '</div><div style="font-size:11.5px; color:#635c54; line-height:1.5;">' + d[1] + '</div></div><button onclick="trfHandoff(\'' + d[0] + '\')" style="margin-top:auto; padding:10px; border-radius:9px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;">→ Nieuwe ad</button></div>'; }).join('') + '</div>';
+    + (dirs.length ? '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:11px;">3 RICHTINGEN</div>'
+      + '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">' + dirs.map(function(d){ return '<div style="border:1px solid rgba(255,255,255,0.08); border-radius:13px; background:#0a0908; padding:16px; display:flex; flex-direction:column; gap:10px;"><div><div style="font-size:13.5px; color:#f7f2e8; font-weight:600; margin-bottom:6px;">' + esc(d[0]) + '</div><div style="font-size:11.5px; color:#635c54; line-height:1.5;">' + esc(d[1]) + '</div></div><button onclick="trfHandoff(\'' + esc(d[0]).replace(/'/g,"\\'") + '\')" style="margin-top:auto; padding:10px; border-radius:9px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;">→ Nieuwe ad</button></div>'; }).join('') + '</div>' : '');
 }
 
 /* ================================================================
@@ -1550,7 +1846,10 @@ var lib = { tab: 'ads', product: 'all', status: 'all', q: '' };
 function libSet(k,v){ lib[k]=v; renderBibliotheek(); }
 function libName(it){ return it.product + ' · ' + it.angle; }
 function libOpen(id){ var all = libAds.concat(libScripts); var it = all.find(function(x){ return x.id===id; }); state.modal = { _type:'lib', it: it, img: null }; renderModal(); if (it && it.hasImage) loadCreativeImage(it.id, function(b64){ if (state.modal && state.modal._type==='lib' && state.modal.it===it) { state.modal.img = b64; renderModal(); } }); }
-function libIterate(id){ var all = libAds.concat(libScripts); var x = all.find(function(y){ return y.id===id; }); closeModal(); state.panel = x ? x.product : true; renderPanel(); }
+function libIterate(id){ var all = libAds.concat(libScripts); var x = all.find(function(y){ return y.id===id; }); closeModal();
+  state.panelCtx = { product: x ? x.product : '', headline: x ? x.headline : '' };
+  state.panel = x ? x.product : 'concept'; state.chips = {}; state.panelResults = null; state.panelError = ''; state.panelBusy = false;
+  renderPanel(); }
 function renderBibliotheek() {
   var el = document.getElementById('screen-bibliotheek');
   var items = (lib.tab==='scripts' ? libScripts : libAds).filter(function(x){
@@ -1942,17 +2241,18 @@ function renderLibModal(it) {
    key is publiek-veilig (RLS beschermt de data). localStorage overschrijft. */
 var AI = {
   proxyUrl: '',
+  apiKey: '',
   sbUrl: 'https://bequyhghgkvekvibufhw.supabase.co',
   sbKey: 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv',
   ready: false, sbReady: false
 };
 try { var saved = localStorage.getItem('atelier_ai'); if (saved) { AI = Object.assign(AI, JSON.parse(saved)); } } catch(e){}
-AI.ready = !!AI.proxyUrl;
+AI.ready = !!(AI.apiKey || AI.proxyUrl);
 AI.sbReady = !!(AI.sbUrl && AI.sbKey);
 
 function aiSaveConfig() {
-  try { localStorage.setItem('atelier_ai', JSON.stringify({ proxyUrl: AI.proxyUrl, sbUrl: AI.sbUrl, sbKey: AI.sbKey })); } catch(e){}
-  AI.ready = !!AI.proxyUrl;
+  try { localStorage.setItem('atelier_ai', JSON.stringify({ proxyUrl: AI.proxyUrl, apiKey: AI.apiKey, sbUrl: AI.sbUrl, sbKey: AI.sbKey })); } catch(e){}
+  AI.ready = !!(AI.apiKey || AI.proxyUrl);
   AI.sbReady = !!(AI.sbUrl && AI.sbKey);
   aiRefreshStatus();
 }
@@ -2063,7 +2363,7 @@ function loadFromSupabase() {
         vsUs: r.vs_us||[], vsThem: r.vs_them||[], personaIdx: r.persona_ids||[], proof: r.proof||[],
         adCount: (r.best_ad_ids||[]).length, bestRoas: r.best_roas||'—', bestAdIds: r.best_ad_ids||[],
         forbidden: r.forbidden||'', appearance: r.appearance||'', target: r.target||'' }; });
-      renderProducten(); renderStatics();
+      genSyncDefaults(); renderProducten(); renderStatics(); renderGenerator(); renderKopieer(); renderItereren(); renderTransformer();
     }
   }).catch(function(e){ if (!sbLoadWarned) { sbLoadWarned = true; showToast('Kon data niet uit Supabase laden — voorbeeld getoond (' + e.message + ')'); } });
   // merkprofiel (voor Fable 5)
@@ -2075,7 +2375,7 @@ function loadFromSupabase() {
         dbId:r.id, name:r.name, alias:r.alias, initial:r.initial, age:r.age, role:r.role, niche:r.niche,
         driver:r.driver, quote:r.quote, demo:r.demo||[], wants:r.wants||[], fears:r.fears||[],
         objections:r.objections||[], failedAlts:r.failed_alts||[], benefits:r.benefits||[], stages:r.stages||[] }; });
-      persona.sel = 0; persona.stage = 0; renderPersonas(); renderStatics();
+      persona.sel = 0; persona.stage = 0; genSyncDefaults(); renderPersonas(); renderStatics(); renderGenerator();
     }
   }).catch(function(){});
   // bibliotheek (creatives) — alleen leesbaar voor ingelogde approved member; beeld laadt lazy
@@ -2085,7 +2385,7 @@ function loadFromSupabase() {
       libAds = rows.filter(function(r){ return r.source_type !== 'script'; }).map(mapCreative);
       libScripts = rows.filter(function(r){ return r.source_type === 'script'; }).map(mapCreative);
       dashRecent = libAds.slice(0, 4).map(function(a){ return { tag:a.tag, fontSize:'56px', headline:a.headline, product:a.product, persona:a.persona, roas:a.roas, cpc:'—', ctr:a.ctr, live:'—', id:a.id, hasImage:a.hasImage }; });
-      renderBibliotheek(); renderStatics();
+      renderBibliotheek(); renderStatics(); renderScriptsScreen();
     }
   }).catch(function(){});
   // Rory's dagelijkse check
@@ -2108,15 +2408,16 @@ var libReal = false;   // true zodra de bibliotheek uit Supabase geladen is (ook
 var dashRecent = null; // wat "Recent bewaard" toont (null = sample recentData)
 
 /* getoonde variaties (voor opslaan) */
-var SHOWN = { variants: [], product: '', source: 'static' };
+var SHOWN = { variants: [], product: '', source: 'static', persona: '' };
 function saveVariant(i) {
   var v = SHOWN.variants[i]; if (!v) return;
   if (!AI.sbReady) { showToast('Variant bewaard (demo — koppel Supabase om echt op te slaan)'); return; }
   if (!canWrite()) { showToast(session ? 'Je account is nog niet goedgekeurd' : 'Log in als teamlid om te bewaren (linksonder → Inloggen)'); return; }
+  var concept = [v.head, v.sub, '', v.primary, v.cta ? 'CTA: ' + v.cta : '', v.visual ? 'VISUAL: ' + v.visual : '', v.imgPrompt ? 'IMAGE-PROMPT: ' + v.imgPrompt : '', v.hyp ? 'HYPOTHESE: ' + v.hyp : ''].filter(function(x){ return x !== ''; }).join('\n');
   sbSaveCreative({
-    ad_name: v.head, product: SHOWN.product, creative_concept: v.head, hook_short: v.hook,
-    marketing_angle: v.angle || (typeof gen!=='undefined'? genAngleName(gen.angleType):''), persona: (typeof gen!=='undefined'?gen.persona:''),
-    roas: parseFloat(String(v.roas||'').replace(',','.'))||null, ctr: parseFloat(String(v.ctr||'').replace(',','.').replace('%',''))||null,
+    ad_name: v.head, product: SHOWN.product, creative_concept: concept, hook_short: v.hook,
+    marketing_angle: v.angle || (typeof gen!=='undefined'? genAngleName(gen.angleType):''), persona: SHOWN.persona || (typeof gen!=='undefined'?gen.persona:''),
+    roas: null, ctr: null,
     source_type: SHOWN.source, status: 'To Test'
   }).then(function(){ showToast('✓ Bewaard in de Bibliotheek'); loadFromSupabase(); })
     .catch(function(e){ showToast('Niet bewaard: ' + e.message); });
@@ -2353,35 +2654,78 @@ function renderBrandDnaModal() {
     + '</div></div>';
 }
 
-/* Kernaanroep: non-streaming Fable 5 via de proxy, met refusal-fallback. */
+/* Kernaanroep: non-streaming Fable 5 — direct via Anthropic API-key óf via de
+   team-proxy. Compatibiliteit eerst: standaard Messages-body, JSON via prompt +
+   robuuste extractie, refusal-retry op Opus, leesbare Nederlandse fouten. */
+function aiEndpoint(cfg) {
+  cfg = cfg || AI;
+  if (cfg.apiKey) return { url: 'https://api.anthropic.com/v1/messages', headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', 'x-api-key': cfg.apiKey, 'anthropic-dangerous-direct-browser-access': 'true' }, label: 'Anthropic API (direct)' };
+  if (cfg.proxyUrl) {
+    var u = cfg.proxyUrl.replace(/\/+$/, '');
+    if (!/\/anthropic$/.test(u) && !/\/v1\/messages$/.test(u)) u += '/anthropic';
+    return { url: u, headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }, label: 'team-proxy' };
+  }
+  return null;
+}
+function extractJson(txt) {
+  txt = String(txt || '').trim();
+  try { return JSON.parse(txt); } catch(e){}
+  var m = txt.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) { try { return JSON.parse(m[1].trim()); } catch(e){} }
+  var a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(txt.slice(a, b + 1)); } catch(e){} }
+  throw new Error('Het model gaf geen geldige JSON terug (begin: "' + txt.slice(0, 90) + '…")');
+}
 function fable5(opts) {
-  // opts: { system, user, effort, schema, maxTokens }
-  if (!AI.ready) return Promise.reject(new Error('AI niet gekoppeld'));
+  // opts: { system, user, image (dataURL), schema, maxTokens, effort (genegeerd — compat), _model, _cfg }
+  var ep = aiEndpoint(opts._cfg);
+  if (!ep) return Promise.reject(new Error('AI niet gekoppeld — open Instellingen (⚙)'));
+  var sys = opts.system || '';
+  if (opts.schema) sys += '\n\nBELANGRIJK OUTPUTFORMAT: antwoord met UITSLUITEND geldige JSON (geen markdown, geen tekst ervoor of erna) die exact voldoet aan dit JSON-schema:\n' + JSON.stringify(opts.schema);
+  var content = opts.user;
+  if (opts.image) {
+    var mm = String(opts.image).match(/^data:([^;]+);base64,(.*)$/);
+    if (mm) content = [ { type: 'image', source: { type: 'base64', media_type: mm[1], data: mm[2] } }, { type: 'text', text: opts.user } ];
+  }
   var body = {
-    model: 'claude-fable-5',
+    model: opts._model || 'claude-fable-5',
     max_tokens: opts.maxTokens || 4000,
-    output_config: { effort: opts.effort || 'high' },
-    fallbacks: [{ model: 'claude-opus-4-8' }],
-    system: opts.system,
-    messages: [{ role: 'user', content: opts.user }]
+    system: sys,
+    messages: [{ role: 'user', content: content }]
   };
-  if (opts.schema) body.output_config.format = { type: 'json_schema', schema: opts.schema };
-  return fetch(AI.proxyUrl.replace(/\/+$/,'') + '/anthropic', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'server-side-fallback-2026-06-01'
-    },
-    body: JSON.stringify(body)
-  }).then(function(r){ return r.json(); }).then(function(data){
-    if (data.error) throw new Error(data.error.message || 'API-fout');
-    if (data.stop_reason === 'refusal') throw new Error('Verzoek geweigerd door de veiligheidsclassifier');
-    var txt = '';
-    (data.content || []).forEach(function(b){ if (b.type === 'text') txt += b.text; });
-    if (opts.schema) { try { return JSON.parse(txt); } catch(e){ throw new Error('Ongeldige JSON van het model'); } }
-    return txt;
-  });
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 180000) : null;
+  return fetch(ep.url, { method: 'POST', headers: ep.headers, body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined })
+    .catch(function(e){
+      if (e && e.name === 'AbortError') throw new Error('Time-out: de AI antwoordde niet binnen 3 minuten');
+      throw new Error('Kan de ' + ep.label + ' niet bereiken (' + e.message + ') — controleer de URL en je internetverbinding in Instellingen (⚙)');
+    })
+    .then(function(r){
+      return r.text().then(function(t){
+        if (timer) clearTimeout(timer);
+        var looksHtml = /^\s*</.test(t);
+        if (looksHtml) throw new Error('De ' + ep.label + ' gaf een webpagina (HTML' + (r.ok ? '' : ', status ' + r.status) + ') terug in plaats van API-JSON. De URL wijst niet naar een Anthropic-endpoint — controleer Instellingen (⚙) en gebruik de Test-knop.');
+        var data;
+        try { data = JSON.parse(t); } catch(e){ throw new Error('Onleesbaar antwoord van de ' + ep.label + ' (status ' + r.status + '): "' + t.slice(0, 120) + '"'); }
+        if (!r.ok || data.error) {
+          var em = (data.error && data.error.message) ? data.error.message : ('status ' + r.status);
+          if (r.status === 401 || r.status === 403) em += ' — controleer je API-key/proxy-toegang in Instellingen (⚙)';
+          throw new Error(em);
+        }
+        return data;
+      });
+    })
+    .then(function(data){
+      if (data.stop_reason === 'refusal') {
+        if (!opts._retried) return fable5(Object.assign({}, opts, { _model: 'claude-opus-4-8', _retried: true }));
+        throw new Error('Verzoek geweigerd door de veiligheidsclassifier');
+      }
+      var txt = '';
+      (data.content || []).forEach(function(b){ if (b.type === 'text') txt += b.text; });
+      if (data.stop_reason === 'max_tokens') { /* mogelijk afgekapt — extractJson vangt het op of faalt leesbaar */ }
+      if (opts.schema) return extractJson(txt);
+      return txt;
+    });
 }
 
 /* ---- schema's voor gestructureerde output ---- */
@@ -2391,60 +2735,155 @@ var SCHEMA_ANALYSE = {
     funnel:{type:'string', enum:['TOF','MOF','BOF']},
     aware:{type:'string', enum:['unaware','problem','solution','product','most']},
     angleType:{type:'string', enum:['probleem','outcome','mechanisme','identity','vergelijking','offer','social','seizoen']},
-    mode:{type:'string'}, soph:{type:'integer'},
+    mode:{type:'string'}, soph:{type:'integer'}, persona:{type:'string'},
     suggestion:{type:'string'}
   },
-  required:['funnel','aware','angleType','mode','soph','suggestion']
+  required:['funnel','aware','angleType','mode','soph','persona','suggestion']
 };
 var SCHEMA_VARIANTS = {
   type:'object', additionalProperties:false,
   properties:{ variants:{ type:'array', items:{
     type:'object', additionalProperties:false,
-    properties:{ hook:{type:'string'}, head:{type:'string'}, hyp:{type:'string'}, roas:{type:'string'}, ctr:{type:'string'} },
-    required:['hook','head','hyp','roas','ctr'] } } },
+    properties:{
+      hook:{type:'string', description:'naam van het hook-type'},
+      head:{type:'string', description:'headline op het beeld, max ~8 woorden, NL'},
+      sub:{type:'string', description:'korte steunregel/subkop op het beeld, NL'},
+      primary:{type:'string', description:'Meta primary text, 2-4 zinnen, NL'},
+      cta:{type:'string', description:'knoptekst, bv Shop nu'},
+      visual:{type:'string', description:'beeldconcept: scène, compositie, sfeer — in het NL'},
+      imgPrompt:{type:'string', description:'complete Engelse image-generation prompt incl. ratio en stijl'},
+      hyp:{type:'string', description:'Rory’s toetsbare hypothese waarom deze variant wint'}
+    },
+    required:['hook','head','sub','primary','cta','visual','imgPrompt','hyp'] } } },
   required:['variants']
 };
 
-/* ---- flow-wrappers: echte Fable 5-call, val terug op mock bij fout ---- */
-function aiAnalyseBrief() {
-  var sys = EXPERTS.rory + '\n' + EXPERTS.theriot + '\n' + brandText() + '\nBepaal op basis van de brief de beste werkwijze. Kies mode uit de 42 formats waar mogelijk.';
-  var usr = 'Brief: "' + gen.brief + '". Product: ' + gen.product + '. Geef funnel, awareness, angle-type, format-mode, sophistication (1-5) en één zin toelichting.';
-  return fable5({ system: sys, user: usr, effort: 'medium', schema: SCHEMA_ANALYSE, maxTokens: 1200 })
-    .then(function(o){ gen.funnel=o.funnel; gen.aware=o.aware; gen.angleType=o.angleType; gen.mode=o.mode; gen.soph=o.soph; gen.aiSuggestion=o.suggestion; });
+/* ---- contextbouwers: ALLE instellingen + productdata + persona + merk-DNA ---- */
+function productBrief(p) {
+  if (!p) return 'Product: onbekend.';
+  var L = ['PRODUCT: ' + p.name + (p.price ? ' (' + p.price + ')' : '') + (p.niche ? ' · categorie: ' + p.niche : '') + '.'];
+  if (p.sell) L.push('Kernpitch: ' + p.sell);
+  if (p.usps && p.usps.length) L.push('USP’s: ' + p.usps.join(' | '));
+  if (p.features && p.features.length) L.push('Features: ' + p.features.map(function(f){ return f.name + (f.desc ? ' (' + f.desc + ')' : ''); }).join(' | '));
+  if (p.vsUs && p.vsUs.length) L.push('Wij winnen op: ' + p.vsUs.join(' | '));
+  if (p.vsThem && p.vsThem.length) L.push('De rest mist: ' + p.vsThem.join(' | '));
+  if (p.proof && p.proof.length) L.push('Bewijs: ' + p.proof.map(function(x){ return x.text; }).join(' | '));
+  if (p.rating) L.push('Rating: ' + p.rating + (p.reviews ? ' op ' + p.reviews + ' reviews' : ''));
+  if (p.target) L.push('Doelgroep-notitie: ' + p.target);
+  if (p.appearance) L.push('Uiterlijk product: ' + p.appearance);
+  if (p.forbidden) L.push('VERBODEN voor dit product (nooit claimen/tonen): ' + p.forbidden);
+  return L.join('\n');
 }
-function aiGenerateVariants() {
-  var sys = EXPERTS.rory + '\n' + EXPERTS.ogilvy + '\n' + EXPERTS.theriot + '\n' + brandText()
-    + '\nGenereer 4 statische ad-varianten. Elke variant: een ANDER hook-type, een scroll-stoppende Nederlandse headline (max ~10 woorden), en Rory\'s hypothese waarom deze wint. Geef ook een realistische ROAS-schatting (bv "3.6") en CTR (bv "2,7%").';
-  var usr = 'Product: ' + gen.product + '. Format: ' + gen.mode + '. Persona: ' + gen.persona + '. Funnel: ' + gen.funnel + '. Awareness: ' + genAwareLabel(gen.aware) + '. Angle: ' + genAngleName(gen.angleType) + '. Sophistication: S' + gen.soph + '. Brief: "' + gen.brief + '".';
-  return fable5({ system: sys, user: usr, effort: 'high', schema: SCHEMA_VARIANTS, maxTokens: 3000 })
-    .then(function(o){ gen.variants = o.variants; });
+var AWARE_TO_STAGE = { unaware: 0, problem: 1, solution: 2, product: 3, most: 4 };
+function personaBrief(pp, awareKey) {
+  if (!pp) return 'Persona: geen specifieke persona gekozen.';
+  var L = ['PERSONA: ' + pp.name + (pp.alias ? ' — ' + pp.alias : '') + (pp.age ? ', ' + pp.age + ' jaar' : '') + (pp.role ? ', ' + pp.role : '') + '.'];
+  if (pp.driver) L.push('Drijfveer: ' + pp.driver);
+  if (pp.quote) L.push('Typerende quote: "' + pp.quote + '"');
+  if (pp.wants && pp.wants.length) L.push('Wil: ' + pp.wants.join(' | '));
+  if (pp.fears && pp.fears.length) L.push('Vreest: ' + pp.fears.join(' | '));
+  if (pp.objections && pp.objections.length) L.push('Koopbezwaren: ' + pp.objections.join(' | '));
+  if (pp.failedAlts && pp.failedAlts.length) L.push('Eerder geprobeerd (faalde): ' + pp.failedAlts.join(' | '));
+  if (pp.benefits && pp.benefits.length) L.push('Overtuigende voordelen: ' + pp.benefits.join(' | '));
+  var si = AWARE_TO_STAGE[awareKey];
+  var st = (pp.stages || [])[si];
+  if (st && (st.mindset || (st.angles || []).length)) {
+    L.push('AWARENESS-STAGE "' + (st.label || '') + '": mindset: ' + (st.mindset || '—'));
+    (st.angles || []).slice(0, 5).forEach(function(a){ if (a && a.length) L.push('  Angle-optie: ' + a[0] + (a[1] ? ' — ' + a[1] : '') + (a[2] ? ' (emotie: ' + a[2] + ')' : '') + (a[3] ? ' (bezwaar: ' + a[3] + ')' : '')); });
+  }
+  return L.join('\n');
+}
+function checksBrief(checks) {
+  var L = [];
+  if (checks.hook) L.push('Elke variant gebruikt een ANDER hook-type.');
+  L.push(checks.feit ? 'Claims komen UITSLUITEND uit de meegeleverde product-/merkdata — verzin NIETS; geen cijfers of feiten die hierboven niet staan.' : 'Blijf geloofwaardig en Meta-compliant.');
+  if (checks.safe) L.push('Bij 9:16: houd tekst uit de bovenste 14% en onderste 20% (safe zones) — benoem dit in visual en imgPrompt.');
+  L.push(checks.merk ? 'Toon het merk-wordmark subtiel in het beeld (benoem in imgPrompt).' : 'Geen wordmark in het beeld nodig.');
+  return L.join('\n');
+}
+function genSettingsBrief() {
+  var fmt = genFmtDetail[gen.mode];
+  return [
+    'FORMAT: ' + gen.mode + (fmt ? ' — ' + fmt.what + ' Inzet: ' + fmt.how : ''),
+    'PLAATSING: ' + gen.place + ' (ratio ' + (placeAspect(gen.place).ar.replace(/\s/g,'')) + ').',
+    'BEELD-REFERENTIE: ' + gen.ref + '.',
+    'FUNNEL: ' + gen.funnel + ' · AWARENESS (Schwartz): ' + genAwareLabel(gen.aware) + ' · ANGLE-TYPE: ' + genAngleName(gen.angleType) + ' · SOPHISTICATION: S' + gen.soph + '.',
+    gen.brief ? 'BRIEF VAN DE MARKETEER: "' + gen.brief + '"' : ''
+  ].filter(Boolean).join('\n');
+}
+/* Checklist voor de UI: laat zien wat er daadwerkelijk is meegestuurd. */
+function buildGenContext(p, pp) {
+  var b = (brandProfiles && brandProfiles[activeBrand]) || null;
+  var bFields = b ? Object.keys(b).filter(function(k){ return b[k] && String(b[k]).trim(); }).length : 0;
+  return [
+    ['Merk', brandLabel(activeBrand) + (b ? ' · merk-DNA: ' + bFields + ' velden' : ' · merk-DNA nog leeg (standaardtoon)')],
+    ['Product', p ? p.name + ' · ' + (p.usps||[]).length + ' USP’s · ' + (p.features||[]).length + ' features' + (p.forbidden ? ' · verboden-lijst ✓' : '') : '—'],
+    ['Persona', pp ? pp.name + (pp.alias ? ' (' + pp.alias + ')' : '') + ((pp.stages||[]).length ? ' · stages ✓' : ' · nog geen stages') : '—'],
+    ['Format', gen.mode + ' · ' + gen.place],
+    ['Funnel & awareness', gen.funnel + ' · ' + genAwareLabel(gen.aware)],
+    ['Angle & scherpte', genAngleName(gen.angleType) + ' · S' + gen.soph],
+    ['Beeld-referentie', gen.ref],
+    ['Kwaliteitsregels', [gen.checks.hook?'hook-typen':null, gen.checks.feit?'alleen echte claims':null, gen.checks.safe?'safe zones':null, gen.checks.merk?'wordmark':null].filter(Boolean).join(' · ') || 'geen']
+  ];
 }
 
-/* override van de mock-acties zodat ze Fable 5 gebruiken indien gekoppeld */
+/* ---- flow-implementaties: echte Fable 5-calls ---- */
+function aiAnalyseBrief() {
+  var persList = genPersonas().map(function(x){ return x.label; });
+  var sys = EXPERTS.rory + '\n' + EXPERTS.theriot + '\n' + brandText()
+    + '\nBepaal op basis van de brief de beste werkwijze voor een statische Meta-ad. Kies "mode" uit deze formats: ' + genFormatCats.map(function(c){ return c.modes.map(function(m){ return m.name; }).join(', '); }).join(', ') + '.'
+    + (persList.length ? ' Kies "persona" uit exact deze lijst: ' + persList.join(' | ') + '.' : ' Laat persona leeg ("").');
+  var usr = 'Brief: "' + gen.brief + '".\n' + productBrief(prodByName(gen.product)) + '\nGeef funnel, awareness, angle-type, format-mode, sophistication (1-5), persona en één zin toelichting (suggestion) in het Nederlands.';
+  return fable5({ system: sys, user: usr, schema: SCHEMA_ANALYSE, maxTokens: 1500 })
+    .then(function(o){
+      gen.funnel = o.funnel; gen.aware = o.aware; gen.angleType = o.angleType;
+      gen.mode = o.mode; gen.soph = Math.min(5, Math.max(1, o.soph | 0)); gen.aiSuggestion = o.suggestion || '';
+      if (o.persona && genPersonas().find(function(x){ return x.label === o.persona; })) gen.persona = o.persona;
+    });
+}
+function aiGenerateVariants() {
+  var p = prodByName(gen.product);
+  var pp = personaByLabel(gen.persona);
+  var sys = EXPERTS.rory + '\n' + EXPERTS.ogilvy + '\n' + EXPERTS.theriot + '\n\nMERK-DNA (hier NOOIT van afwijken):\n' + brandText()
+    + '\n\nOPDRACHT: genereer exact 4 statische Meta-ad-varianten in het Nederlands, klaar voor productie. Per variant: hook-type (allemaal verschillend als dat gevraagd is), headline (max ~8 woorden, scroll-stoppend), subkop, primary text (2-4 zinnen, spreektaal, één belofte), CTA-knoptekst, een concreet visueel concept dat de BEELD-REFERENTIE-keuze volgt, een complete Engelse image-prompt (vermeld ratio, fotografiestijl uit het merk-DNA, en de gekozen beeld-referentie; het product moet kloppen met "uiterlijk product") en Rory’s toetsbare hypothese.\n\nKWALITEITSREGELS:\n' + checksBrief(gen.checks);
+  var usr = genSettingsBrief() + '\n\n' + productBrief(p) + '\n\n' + personaBrief(pp, gen.aware);
+  return fable5({ system: sys, user: usr, schema: SCHEMA_VARIANTS, maxTokens: 6000 })
+    .then(function(o){
+      gen.variants = (o.variants || []).slice(0, 4);
+      gen.context = buildGenContext(p, pp);
+      gen.demo = false;
+    });
+}
+
+/* override van de mock-acties: echte call indien gekoppeld; fout = fout tonen (géén stille mock) */
 var _genAnalyzeMock = genAnalyze;
 genAnalyze = function() {
   if (!gen.brief.trim()) { showToast('Typ eerst een korte brief voor Rory'); return; }
-  if (!AI.ready) { _genAnalyzeMock(); return; }
+  if (!AI.ready) { _genAnalyzeMock(); showToast('Demo-analyse — koppel Fable 5 (⚙) voor Rory’s echte keuze'); return; }
   showToast('Rory (Fable 5) analyseert…');
   aiAnalyseBrief().then(function(){ gen.analyzed = true; renderGenerator(); showToast('Rory heeft de werkwijze bepaald'); })
-    .catch(function(e){ _genAnalyzeMock(); showToast('Fable 5 onbereikbaar — voorbeeld getoond (' + e.message + ')'); });
+    .catch(function(e){ showToast('✕ ' + e.message); });
 };
 var _genGenerateMock = genGenerate;
 genGenerate = function() {
   if (!AI.ready) { _genGenerateMock(); return; }
-  gen.generating = true; gen.results = false; gen.variants = null; renderGenerator();
-  aiGenerateVariants().then(function(){ gen.generating=false; gen.results=true; renderGenerator();
+  if (!gen.product) { showToast('Kies eerst een product (of voeg er een toe onder Producten)'); return; }
+  gen.generating = true; gen.results = false; gen.variants = null; gen.errorMsg = ''; renderGenerator();
+  aiGenerateVariants().then(function(){ gen.generating = false; gen.results = true; renderGenerator();
       document.getElementById('main-scroll').scrollTop = document.getElementById('main-scroll').scrollHeight; })
-    .catch(function(e){ gen.generating=false; gen.results=true; gen.variants=null; renderGenerator(); showToast('Fable 5 onbereikbaar — voorbeeld getoond (' + e.message + ')'); });
+    .catch(function(e){ gen.generating = false; gen.results = false; gen.errorMsg = e.message; renderGenerator(); });
 };
 var _copGenerateMock = copGenerate;
 copGenerate = function() {
   if (!AI.ready) { _copGenerateMock(); return; }
-  cop.generating = true; cop.results = false; cop.variants = null; renderKopieer();
-  var sys = EXPERTS.rory + '\n' + EXPERTS.ogilvy + '\n' + brandText() + '\nBouw 4 merk-eigen varianten op fidelity-niveau "' + cop.fidelity + '" (kloon = zelfde structuur; variant = zelfde mechaniek, eigen hook; inspiratie = alleen het idee). Nooit letterlijke teksten of gezichten overnemen.';
-  fable5({ system: sys, user: 'Bron-ad: ' + (cop.src||'(geüpload voorbeeld)') + '. Maak 4 varianten met hook, headline, hypothese, ROAS, CTR.', effort:'high', schema: SCHEMA_VARIANTS, maxTokens: 3000 })
-    .then(function(o){ cop.variants = o.variants; cop.generating=false; cop.results=true; renderKopieer(); })
-    .catch(function(e){ cop.generating=false; cop.results=true; cop.variants=null; renderKopieer(); showToast('Fable 5 onbereikbaar — voorbeeld getoond (' + e.message + ')'); });
+  cop.generating = true; cop.results = false; cop.variants = null; cop.errorMsg = ''; renderKopieer();
+  var p = prodByName(cop.product);
+  var sys = EXPERTS.rory + '\n' + EXPERTS.ogilvy + '\n\nMERK-DNA (hier NOOIT van afwijken):\n' + brandText()
+    + '\n\nOPDRACHT: bouw 4 merk-eigen statische ad-varianten op fidelity-niveau "' + cop.fidelity + '" (kloon = zelfde structuur, merk-neutrale elementen vervangen; variant = zelfde mechaniek, eigen hook; inspiratie = alleen het onderliggende idee). Nooit letterlijke teksten, merknamen of gezichten uit de bron overnemen. Nederlands. Claims uitsluitend uit de productdata.';
+  var usr = 'BRON-AD' + (cop.img ? ' (zie afbeelding)' : '') + ': ' + (cop.srcAnalysis ? JSON.stringify(cop.srcAnalysis) : (cop.src || '(beschrijving ontbreekt)')) + '\n\n' + productBrief(p);
+  fable5({ system: sys, user: usr, image: cop.img || undefined, schema: SCHEMA_VARIANTS, maxTokens: 6000 })
+    .then(function(o){ cop.variants = (o.variants || []).slice(0, 4); cop.demo = false; cop.generating = false; cop.results = true; renderKopieer(); })
+    .catch(function(e){ cop.generating = false; cop.results = false; cop.errorMsg = e.message; renderKopieer(); });
 };
 
 /* ---- Rory genereert de 5 Schwartz-stages met angles uit de persona-data ---- */
@@ -2550,23 +2989,27 @@ function renderSettingsModal() {
     + '<div onclick="closeModal()" style="position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ada599; font-size:15px;">✕</div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; color:#8d764a; margin-bottom:8px;">INSTELLINGEN</div>'
     + '<div style="font-family:\'Fraunces\',Georgia,serif; font-weight:600; font-size:24px; color:#f7f2e8; line-height:1; margin-bottom:6px;">AI-motor · Claude Fable 5</div>'
-    + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:20px;">Alle reasoning, concepten en copy draaien op <b style="color:#e6cd92;">claude-fable-5</b> met Rory, Ogilvy en Theriot als experts. De aanroep loopt via de team-proxy zodat de API-sleutel server-side blijft.</div>'
-    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">TEAM-PROXY URL</div>'
+    + '<div style="font-size:12.5px; color:#9b9382; line-height:1.6; margin-bottom:20px;">Alle reasoning, concepten en copy draaien op <b style="color:#e6cd92;">claude-fable-5</b> met Rory, Ogilvy en Theriot als experts. Koppel via een <b style="color:#e6cd92;">Anthropic API-key</b> (simpelst) óf via de team-proxy.</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">ANTHROPIC API-KEY (AANRADER)</div>'
+    + '<input id="settingsApiKey" type="password" value="' + esc(AI.apiKey) + '" placeholder="sk-ant-…" autocomplete="off" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
+    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:16px;">Maak een key aan op <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">console.anthropic.com</span> → API keys. De key wordt alleen in de browser van dit apparaat bewaard (localStorage) — alleen op vertrouwde apparaten invullen.</div>'
+    + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">OF: TEAM-PROXY URL</div>'
     + '<input id="settingsProxy" value="' + esc(AI.proxyUrl) + '" placeholder="https://jouw-worker.workers.dev" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
-    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">Dezelfde Cloudflare Worker als de oude tool (endpoint <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">/anthropic</span>). De worker heeft <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">ANTHROPIC_KEY</span> als secret nodig.</div>'
+    + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">Cloudflare Worker die doorstuurt naar de Anthropic API (endpoint <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">/anthropic</span>). Als er ook een API-key is ingevuld, wint de key. Klik altijd even <b style="color:#e6cd92;">Test AI-verbinding</b> — die vertelt precies wat er mis is.</div>'
     + '<div style="border-top:1px solid rgba(255,255,255,0.07); margin:4px 0 20px;"></div>'
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8d764a; margin-bottom:8px;">SUPABASE · TEAM DATABASE</div>'
     + '<input id="settingsSbUrl" value="' + esc(AI.sbUrl) + '" placeholder="https://xxxx.supabase.co" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
     + '<input id="settingsSbKey" value="' + esc(AI.sbKey) + '" placeholder="anon public key" style="width:100%; background:#0d0c0a; border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#f7f2e8; font-family:\'JetBrains Mono\',monospace; font-size:12.5px; padding:12px 14px; margin-bottom:8px;"/>'
     + '<div style="font-size:11px; color:#635c54; line-height:1.5; margin-bottom:20px;">Vult producten, persona’s, bibliotheek en Rory’s dagelijkse check uit de team-database. Draai eerst <span style="font-family:\'JetBrains Mono\',monospace; color:#8d764a;">supabase-atelier-console.sql</span> in de SQL-editor.</div>'
     + '<div style="display:flex; gap:10px;">'
-    + '<button onclick="settingsTest()" style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Test proxy</button>'
+    + '<button id="settingsTestBtn" onclick="settingsTest()" style="flex:1; padding:12px; border-radius:10px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;">Test AI-verbinding</button>'
     + '<button onclick="settingsSave()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;">Opslaan</button>'
     + '</div>'
-    + '<div id="settingsMsg" style="font-size:12px; color:#635c54; margin-top:14px; min-height:16px;"></div>'
+    + '<div id="settingsMsg" style="font-size:12px; color:#635c54; margin-top:14px; min-height:16px; line-height:1.5;"></div>'
     + '</div></div>';
 }
 function settingsSave() {
+  AI.apiKey = (document.getElementById('settingsApiKey').value || '').trim();
   AI.proxyUrl = (document.getElementById('settingsProxy').value || '').trim();
   AI.sbUrl = (document.getElementById('settingsSbUrl').value || '').trim();
   AI.sbKey = (document.getElementById('settingsSbKey').value || '').trim();
@@ -2575,15 +3018,20 @@ function settingsSave() {
   if (AI.sbReady) loadFromSupabase();
   showToast(AI.ready ? (AI.sbReady ? 'Fable 5 + Supabase gekoppeld' : 'Fable 5 gekoppeld') : 'Opgeslagen');
 }
+/* Echte end-to-end test: stuurt een minivraag naar Fable 5 met de nú ingevulde
+   (nog niet opgeslagen) waarden en rapporteert exact wat er gebeurt. */
 function settingsTest() {
-  var url = (document.getElementById('settingsProxy').value || '').trim();
+  var cfg = {
+    apiKey: (document.getElementById('settingsApiKey').value || '').trim(),
+    proxyUrl: (document.getElementById('settingsProxy').value || '').trim()
+  };
   var msg = document.getElementById('settingsMsg');
-  if (!url) { msg.textContent = 'Vul eerst een proxy-URL in.'; return; }
-  msg.textContent = 'Testen…'; msg.style.color = '#8d764a';
-  fetch(url.replace(/\/+$/,'') + '/health').then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.ok) { msg.textContent = '✓ Proxy bereikbaar (' + (d.service||'ok') + ')'; msg.style.color = '#4fe0a8'; }
-    else { msg.textContent = 'Proxy antwoordde, maar niet ok.'; msg.style.color = '#e0705a'; }
-  }).catch(function(e){ msg.textContent = '✕ Niet bereikbaar: ' + e.message; msg.style.color = '#e0705a'; });
+  var ep = aiEndpoint(cfg);
+  if (!ep) { msg.textContent = 'Vul eerst een API-key of proxy-URL in.'; msg.style.color = '#e0705a'; return; }
+  msg.textContent = 'Testen via ' + ep.label + '… (echte mini-aanroep naar claude-fable-5)'; msg.style.color = '#8d764a';
+  fable5({ system: 'Antwoord met exact één woord.', user: 'Zeg: OK', maxTokens: 10, _cfg: cfg })
+    .then(function(t){ msg.textContent = '✓ Verbonden via ' + ep.label + ' — Fable 5 antwoordde: "' + String(t).trim().slice(0, 20) + '". Klik Opslaan om te gebruiken.'; msg.style.color = '#4fe0a8'; })
+    .catch(function(e){ msg.textContent = '✕ ' + e.message; msg.style.color = '#e0705a'; });
 }
 
 /* ====== init ====== */
@@ -2594,6 +3042,7 @@ renderNav();
 renderBrandSwitch();
 renderStatics();
 renderStubs();
+renderScriptsScreen();
 renderGenerator();
 renderKopieer();
 renderItereren();
