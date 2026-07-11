@@ -3,80 +3,80 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Wellshave — premium grooming voor mannen, van top tot teen. Precisietrimmers en scheerapparaten met SkinSafe™ keramische mesjes. Ontworpen in Helmond.">
+<meta name="description" content="Wellshave — premium grooming voor mannen, van top tot teen. Trimmers en scheerapparaten met SkinSafe™ keramische mesjes. Ontworpen in Helmond.">
 <title>Wellshave · Grooming van top tot teen</title>
 <style>
 /* =========================================================================
-   WELLSHAVE — homepage redesign
-   Design system: "De Standaard" — rustige premium (quiet luxury)
-   Self-contained: system font stack, inline SVG, no external requests.
+   WELLSHAVE — homepage redesign v2 · "De Standaard"
+   Rustige premium, licht-editorial. Echte productfotografie (Shopify CDN,
+   geoptimaliseerd), echte namen en prijzen uit de live catalogus.
+   Zelf-bevattend: system fonts, lokale assets, geen externe requests.
    ========================================================================= */
 
-/* ---- TOKENS: base = dark (the brand's committed world) ---- */
+/* ---- TOKENS: base = licht (linnen — de wereld waar de fotografie in valt) ---- */
 :root{
-  --bg:#14120f;
-  --bg-band:#100e0b;
-  --surface:#1d1a15;
-  --surface-2:#262118;
-  --hairline:#37312a;
-  --hairline-soft:#2a251f;
-  --text:#f3eee4;
-  --text-dim:#c0b9aa;
-  --text-mute:#8f887a;
-  --brass:#c8a24b;        /* eyebrows / links (theme-adjusted for contrast) */
-  --brass-hi:#e8cf88;
-  --brass-deep:#9c7c33;
-  --star:#e8cf88;
-  --shadow:0 24px 60px -28px rgba(0,0,0,.75);
-  --shadow-soft:0 12px 30px -18px rgba(0,0,0,.6);
+  --bg:#f2ede3;
+  --bg-band:#eae2d1;
+  --surface:#faf7f0;
+  --plate:#f1efec;          /* image plate: matcht de foto-achtergronden */
+  --text:#201b12;
+  --text-dim:#4d4634;
+  --text-mute:#7d735c;
+  --hairline:#dcd2ba;
+  --hairline-soft:#e5dcc8;
+  --brass:#8a6c22;
+  --brass-hi:#a8842c;
+  --star:#b8863a;
+  --shadow:0 26px 55px -30px rgba(62,48,18,.35);
+  --shadow-soft:0 14px 30px -18px rgba(62,48,18,.22);
 
-  /* elements that stay constant across themes (brand-committed) */
+  /* merk-constanten, gelijk in beide thema's */
   --btn-a:#d8b055;
-  --btn-b:#b98f37;
+  --btn-b:#b08432;
   --on-brass:#1c1608;
-  --product-a:#231e17;   /* product illustration blocks stay graphite */
-  --product-b:#15110c;
-  --product-line:#e6cd86;
+  --graphite:#16130e;       /* donkere accentbanden */
+  --graphite-2:#211c13;
+  --gold-on-dark:#e6cd86;
 
-  --maxw:1200px;
+  --maxw:1220px;
   --gutter:clamp(20px,5vw,56px);
-  --r:18px;
-  --r-sm:12px;
+  --r:20px;
+  --r-sm:13px;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"URW Palladio L","Book Antiqua",Georgia,"Times New Roman",serif;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
 }
-@media (prefers-color-scheme: light){
+@media (prefers-color-scheme: dark){
   :root{
-    --bg:#f4efe4;
-    --bg-band:#ece3d3;
-    --surface:#fbf8f1;
-    --surface-2:#f2ebdc;
-    --hairline:#ddd2bf;
-    --hairline-soft:#e7dece;
-    --text:#211d15;
-    --text-dim:#4c4736;
-    --text-mute:#7b7360;
-    --brass:#8a6d24;
-    --brass-hi:#a5842f;
-    --brass-deep:#6d5518;
-    --star:#b8863a;
-    --shadow:0 24px 55px -30px rgba(60,48,20,.35);
-    --shadow-soft:0 12px 26px -16px rgba(60,48,20,.22);
+    --bg:#15120d;
+    --bg-band:#100e09;
+    --surface:#1e1a13;
+    --plate:#edeae4;        /* fotoplaten blijven licht: galerij-passe-partout */
+    --text:#f3eee2;
+    --text-dim:#c2bba9;
+    --text-mute:#8f8672;
+    --hairline:#372f22;
+    --hairline-soft:#2a2418;
+    --brass:#c9a24b;
+    --brass-hi:#e6cd86;
+    --star:#e6cd86;
+    --shadow:0 26px 60px -28px rgba(0,0,0,.8);
+    --shadow-soft:0 14px 30px -18px rgba(0,0,0,.62);
   }
 }
-/* explicit toggle overrides (host/user stamps data-theme on <html>) */
-:root[data-theme="dark"]{
-  --bg:#14120f;--bg-band:#100e0b;--surface:#1d1a15;--surface-2:#262118;
-  --hairline:#37312a;--hairline-soft:#2a251f;--text:#f3eee4;--text-dim:#c0b9aa;
-  --text-mute:#8f887a;--brass:#c8a24b;--brass-hi:#e8cf88;--brass-deep:#9c7c33;
-  --star:#e8cf88;--shadow:0 24px 60px -28px rgba(0,0,0,.75);--shadow-soft:0 12px 30px -18px rgba(0,0,0,.6);
-}
 :root[data-theme="light"]{
-  --bg:#f4efe4;--bg-band:#ece3d3;--surface:#fbf8f1;--surface-2:#f2ebdc;
-  --hairline:#ddd2bf;--hairline-soft:#e7dece;--text:#211d15;--text-dim:#4c4736;
-  --text-mute:#7b7360;--brass:#8a6d24;--brass-hi:#a5842f;--brass-deep:#6d5518;
-  --star:#b8863a;--shadow:0 24px 55px -30px rgba(60,48,20,.35);--shadow-soft:0 12px 26px -16px rgba(60,48,20,.22);
+  --bg:#f2ede3;--bg-band:#eae2d1;--surface:#faf7f0;--plate:#f1efec;
+  --text:#201b12;--text-dim:#4d4634;--text-mute:#7d735c;
+  --hairline:#dcd2ba;--hairline-soft:#e5dcc8;
+  --brass:#8a6c22;--brass-hi:#a8842c;--star:#b8863a;
+  --shadow:0 26px 55px -30px rgba(62,48,18,.35);--shadow-soft:0 14px 30px -18px rgba(62,48,18,.22);
+}
+:root[data-theme="dark"]{
+  --bg:#15120d;--bg-band:#100e09;--surface:#1e1a13;--plate:#edeae4;
+  --text:#f3eee2;--text-dim:#c2bba9;--text-mute:#8f8672;
+  --hairline:#372f22;--hairline-soft:#2a2418;
+  --brass:#c9a24b;--brass-hi:#e6cd86;--star:#e6cd86;
+  --shadow:0 26px 60px -28px rgba(0,0,0,.8);--shadow-soft:0 14px 30px -18px rgba(0,0,0,.62);
 }
 
 /* ---- RESET / BASE ---- */
@@ -93,10 +93,11 @@ body{
   overflow-x:hidden;
 }
 img,svg{display:block;max-width:100%}
+img{height:auto}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:3px}
-::selection{background:var(--brass);color:var(--on-brass)}
+::selection{background:var(--brass);color:#fdf9ee}
 
 .wrap{max-width:var(--maxw);margin:0 auto;padding-inline:var(--gutter)}
 .serif{font-family:var(--serif)}
@@ -106,31 +107,26 @@ button{font-family:inherit;cursor:pointer}
 .eyebrow{
   display:inline-flex;align-items:center;gap:10px;
   font-size:12px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;
-  color:var(--brass);margin-bottom:22px;
+  color:var(--brass);margin-bottom:20px;
 }
 .eyebrow .arc{width:34px;height:11px;flex:0 0 auto}
-.eyebrow .arc path{fill:none;stroke:var(--brass);stroke-width:1.4}
+.eyebrow .arc path{fill:none;stroke:currentColor;stroke-width:1.4}
 h2.h{
   font-family:var(--serif);
   font-weight:600;
-  font-size:clamp(30px,4.4vw,50px);
-  line-height:1.06;
+  font-size:clamp(30px,4.6vw,52px);
+  line-height:1.05;
   letter-spacing:-.015em;
   text-wrap:balance;
 }
 h2.h em{font-style:italic;color:var(--brass-hi)}
-.lede{
-  color:var(--text-dim);
-  font-size:clamp(16px,1.5vw,18.5px);
-  max-width:60ch;
-  margin-top:18px;
-}
+.lede{color:var(--text-dim);font-size:clamp(16px,1.5vw,18.5px);max-width:58ch;margin-top:16px}
 
 /* ---- BUTTONS ---- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:9px;
   padding:15px 28px;border-radius:100px;font-size:15px;font-weight:600;
-  border:1px solid transparent;transition:transform .18s ease,box-shadow .2s ease,background .2s ease,color .2s ease;
+  border:1px solid transparent;transition:transform .18s ease,box-shadow .2s ease,background .2s ease,color .2s ease,border-color .2s ease;
   white-space:nowrap;
 }
 .btn .ar{transition:transform .2s ease}
@@ -138,34 +134,31 @@ h2.h em{font-style:italic;color:var(--brass-hi)}
 .btn-primary{
   background:linear-gradient(135deg,var(--btn-a),var(--btn-b));
   color:var(--on-brass);
-  box-shadow:0 10px 26px -12px rgba(184,143,55,.7);
+  box-shadow:0 10px 26px -12px rgba(176,132,50,.75);
 }
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 34px -12px rgba(184,143,55,.85)}
-.btn-ghost{
-  background:transparent;color:var(--text);border-color:var(--hairline);
-}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 34px -12px rgba(176,132,50,.9)}
+.btn-ghost{background:transparent;color:var(--text);border-color:var(--hairline)}
 .btn-ghost:hover{border-color:var(--brass);color:var(--brass)}
+.btn-ink{background:var(--graphite);color:#f2e9d2}
+.btn-ink:hover{transform:translateY(-2px);box-shadow:0 14px 30px -14px rgba(0,0,0,.5)}
 .btn-block{width:100%}
 
-/* ---- STARS (honest fractional rating) ---- */
+/* ---- STARS ---- */
 .stars{position:relative;display:inline-block;font-size:14px;letter-spacing:2px;line-height:1;font-family:Arial,sans-serif}
 .stars .base{color:var(--hairline)}
 .stars .fill{position:absolute;inset:0;color:var(--star);overflow:hidden;white-space:nowrap;width:var(--pct,90%)}
 
 /* ===================== ANNOUNCEMENT ===================== */
-.announce{
-  background:var(--bg-band);border-bottom:1px solid var(--hairline-soft);
-  color:var(--text-mute);font-size:12.5px;letter-spacing:.02em;
-}
+.announce{background:var(--graphite);color:#c9bfa6;font-size:12.5px;letter-spacing:.02em}
 .announce .wrap{display:flex;justify-content:center;gap:26px;padding:9px var(--gutter);flex-wrap:wrap;text-align:center}
-.announce b{color:var(--text-dim);font-weight:600}
+.announce b{color:#f0e7d1;font-weight:600}
 
 /* ===================== NAV ===================== */
-nav.bar{position:sticky;top:0;z-index:60;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(14px) saturate(1.1);border-bottom:1px solid transparent;transition:border-color .25s,background .25s}
+nav.bar{position:sticky;top:0;z-index:60;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(14px) saturate(1.1);border-bottom:1px solid transparent;transition:border-color .25s,background .25s}
 nav.bar.scrolled{border-color:var(--hairline);background:color-mix(in srgb,var(--bg) 94%,transparent)}
-nav.bar .wrap{display:flex;align-items:center;gap:24px;height:70px}
+nav.bar .wrap{display:flex;align-items:center;gap:24px;height:72px}
 .wordmark{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.02em}
-.wordmark .mono-mark{width:26px;height:26px;flex:0 0 auto}
+.wordmark .mono-mark{width:27px;height:27px;flex:0 0 auto}
 .wordmark b{color:var(--brass);font-weight:600}
 .navlinks{display:flex;gap:28px;margin-left:18px;font-size:14.5px;color:var(--text-dim)}
 .navlinks a{position:relative;padding:6px 0;transition:color .2s}
@@ -176,149 +169,156 @@ nav.bar .wrap{display:flex;align-items:center;gap:24px;height:70px}
 .icon-btn{width:42px;height:42px;display:grid;place-items:center;border-radius:100px;border:1px solid transparent;background:transparent;color:var(--text-dim);transition:.2s;position:relative}
 .icon-btn:hover{color:var(--text);border-color:var(--hairline)}
 .icon-btn svg{width:20px;height:20px}
-.cart-count{position:absolute;top:4px;right:4px;min-width:17px;height:17px;padding:0 4px;border-radius:100px;background:var(--brass);color:var(--on-brass);font-size:10.5px;font-weight:700;display:grid;place-items:center;font-family:var(--sans);transform:scale(0);transition:transform .2s cubic-bezier(.3,1.5,.5,1)}
+.cart-count{position:absolute;top:4px;right:4px;min-width:17px;height:17px;padding:0 4px;border-radius:100px;background:var(--brass);color:#fdf9ee;font-size:10.5px;font-weight:700;display:grid;place-items:center;transform:scale(0);transition:transform .2s cubic-bezier(.3,1.5,.5,1)}
 .cart-count.show{transform:scale(1)}
 .nav-cta{display:inline-flex}
 .burger{display:none}
-@media(max-width:900px){
+@media(max-width:940px){
   .navlinks{display:none}
   .nav-cta .btn{display:none}
   .burger{display:grid}
 }
 
-/* mobile menu */
+/* mobiel menu */
 .mobile-menu{position:fixed;inset:0 0 0 auto;width:min(84vw,340px);background:var(--surface);border-left:1px solid var(--hairline);transform:translateX(100%);transition:transform .3s ease;z-index:100;padding:88px 26px 26px;display:flex;flex-direction:column;gap:6px}
 .mobile-menu.open{transform:none}
 .mobile-menu a{padding:14px 4px;font-size:18px;border-bottom:1px solid var(--hairline-soft);font-family:var(--serif)}
 .mobile-menu .btn{margin-top:18px}
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s;z-index:90}
+.scrim{position:fixed;inset:0;background:rgba(15,11,4,.5);opacity:0;pointer-events:none;transition:opacity .3s;z-index:90}
 .scrim.open{opacity:1;pointer-events:auto}
 .mclose{position:absolute;top:22px;right:22px}
 
 /* ===================== TRUST BAR ===================== */
 .trust{border-bottom:1px solid var(--hairline);background:var(--bg-band)}
 .trust .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
-.trust .item{display:flex;align-items:center;gap:11px;padding:16px 20px;font-size:13.5px;color:var(--text-dim);border-left:1px solid var(--hairline-soft)}
+.trust .item{display:flex;align-items:center;gap:11px;padding:15px 20px;font-size:13.5px;color:var(--text-dim);border-left:1px solid var(--hairline-soft)}
 .trust .item:first-child{border-left:none}
 .trust .item svg{width:20px;height:20px;color:var(--brass);flex:0 0 auto}
 .trust .item b{color:var(--text);font-weight:600}
-.trust .item .stars{margin-right:2px}
 @media(max-width:820px){
   .trust .wrap{grid-template-columns:repeat(2,1fr)}
   .trust .item:nth-child(odd){border-left:none}
   .trust .item:nth-child(n+3){border-top:1px solid var(--hairline-soft)}
 }
-@media(max-width:460px){.trust .item{font-size:12.5px;padding:13px 14px;gap:8px}}
+@media(max-width:460px){.trust .item{font-size:12.5px;padding:12px 14px;gap:8px}}
 
 /* ===================== HERO ===================== */
 .hero{position:relative;overflow:hidden}
-.hero::before{content:"";position:absolute;top:-10%;right:-8%;width:min(720px,70vw);height:min(720px,70vw);background:radial-gradient(circle,color-mix(in srgb,var(--brass) 20%,transparent),transparent 62%);pointer-events:none;z-index:0}
-.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,4vw,64px);align-items:center;padding-block:clamp(48px,7vw,92px)}
+.hero::before{content:"";position:absolute;top:-16%;right:-10%;width:min(760px,74vw);height:min(760px,74vw);background:radial-gradient(circle,color-mix(in srgb,var(--brass) 16%,transparent),transparent 62%);pointer-events:none}
+.hero .bigarc{position:absolute;right:-4%;top:6%;width:56%;height:auto;pointer-events:none;opacity:.5}
+.hero .bigarc path{fill:none;stroke:var(--brass);stroke-width:1;opacity:.55}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.02fr .98fr;gap:clamp(28px,4.5vw,72px);align-items:center;padding-block:clamp(46px,7vw,92px)}
 .hero-copy{max-width:600px}
-.hero h1{font-family:var(--serif);font-weight:600;font-size:clamp(38px,6vw,70px);line-height:1.02;letter-spacing:-.02em;text-wrap:balance}
-.hero h1 .u{position:relative;white-space:nowrap;color:var(--brass-hi)}
-:root[data-theme="light"] .hero h1 .u{color:var(--brass)}
-@media (prefers-color-scheme: light){.hero h1 .u{color:var(--brass)}}
-.hero h1 .u svg{position:absolute;left:0;right:0;bottom:-.14em;width:100%;height:.28em}
+.hero h1{font-family:var(--serif);font-weight:600;font-size:clamp(40px,6.4vw,76px);line-height:1.0;letter-spacing:-.02em;text-wrap:balance}
+.hero h1 .u{position:relative;white-space:nowrap;font-style:italic;color:var(--brass-hi)}
+.hero h1 .u svg{position:absolute;left:0;right:0;bottom:-.12em;width:100%;height:.26em}
 .hero h1 .u svg path{fill:none;stroke:var(--brass);stroke-width:3;stroke-linecap:round}
 .hero p.sub{color:var(--text-dim);font-size:clamp(16px,1.7vw,19px);margin-top:24px;max-width:46ch}
-.hero-cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
-.hero-proof{display:flex;align-items:center;gap:12px;margin-top:26px;font-size:14px;color:var(--text-mute)}
+.hero-cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
+.hero-proof{display:flex;align-items:center;gap:12px;margin-top:26px;font-size:14px;color:var(--text-mute);flex-wrap:wrap}
 .hero-proof b{color:var(--text);font-weight:600}
-.hero-proof .divider{width:1px;height:18px;background:var(--hairline)}
 
-/* product stage */
-.stage{position:relative;aspect-ratio:1/1.04;border-radius:26px;overflow:hidden;background:radial-gradient(120% 100% at 30% 15%,var(--product-a),var(--product-b));border:1px solid var(--hairline);box-shadow:var(--shadow)}
-.stage::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 55% at 68% 78%,rgba(232,207,134,.14),transparent 70%)}
-.stage .device{position:absolute;inset:0;margin:auto;width:58%;z-index:2}
-.stage .device path,.stage .device circle,.stage .device rect,.stage .device line{vector-effect:non-scaling-stroke}
-.badge-award{position:absolute;top:20px;left:20px;z-index:3;display:flex;align-items:center;gap:9px;background:color-mix(in srgb,var(--bg) 55%,transparent);backdrop-filter:blur(6px);border:1px solid color-mix(in srgb,var(--product-line) 35%,transparent);color:#f1e7cf;padding:8px 13px;border-radius:100px;font-size:12px;font-weight:600;letter-spacing:.02em}
-.badge-award svg{width:16px;height:16px;color:var(--product-line)}
-.badge-chip{position:absolute;bottom:20px;right:20px;z-index:3;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:#e9dcbe;background:rgba(20,16,10,.55);border:1px solid color-mix(in srgb,var(--product-line) 26%,transparent);padding:7px 12px;border-radius:9px}
-.stage .ring{position:absolute;z-index:1;border-radius:50%;border:1px solid color-mix(in srgb,var(--product-line) 16%,transparent)}
-.stage .ring.r1{inset:14%}
-.stage .ring.r2{inset:26%}
-
-@media(max-width:860px){
-  .hero .wrap{grid-template-columns:1fr;gap:36px}
-  .hero-visual{order:-1;max-width:420px;width:100%;margin-inline:auto}
+/* fotoplaat */
+.stage{position:relative}
+.stage .plate{position:relative;aspect-ratio:1/1.06;border-radius:26px;overflow:hidden;background:var(--plate);border:1px solid var(--hairline);box-shadow:var(--shadow)}
+.stage .plate img{width:100%;height:100%;object-fit:cover}
+.stage .chip{position:absolute;z-index:3;display:flex;align-items:center;gap:9px;background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:blur(8px);border:1px solid var(--hairline);color:var(--text);padding:10px 14px;border-radius:14px;font-size:12.5px;font-weight:600;box-shadow:var(--shadow-soft)}
+.stage .chip svg{width:17px;height:17px;color:var(--brass);flex:0 0 auto}
+.stage .chip .sub{display:block;font-weight:400;color:var(--text-mute);font-size:11.5px;margin-top:1px}
+.stage .chip.c1{top:20px;left:-14px}
+.stage .chip.c2{bottom:88px;right:-14px}
+.stage .chip.c3{bottom:-16px;left:26px}
+.stage .price-tag{position:absolute;top:20px;right:20px;z-index:3;font-family:var(--serif);background:var(--graphite);color:var(--gold-on-dark);padding:10px 16px;border-radius:100px;font-size:15px;box-shadow:var(--shadow-soft)}
+.stage .price-tag s{color:#9a8f76;font-size:12.5px;margin-left:7px;font-family:var(--sans)}
+@media(max-width:880px){
+  .hero .wrap{grid-template-columns:1fr;gap:40px}
+  .hero-visual{max-width:460px;width:100%;margin-inline:auto}
   .hero-copy{max-width:none}
+  .stage .chip.c1{left:10px}
+  .stage .chip.c2{right:10px}
 }
 
-/* ===================== LOGO STRIP ===================== */
+/* ===================== PRESS ===================== */
 .press{border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);background:var(--bg-band)}
-.press .wrap{display:flex;align-items:center;gap:clamp(20px,4vw,52px);padding-block:22px;flex-wrap:wrap;justify-content:center}
+.press .wrap{display:flex;align-items:center;gap:clamp(20px,4vw,52px);padding-block:20px;flex-wrap:wrap;justify-content:center}
 .press .label{font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
 .press .logos{display:flex;align-items:center;gap:clamp(22px,4vw,46px);flex-wrap:wrap;justify-content:center}
-.press .logos span{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.03em;color:var(--text-dim);opacity:.82;transition:opacity .2s,color .2s}
+.press .logos span{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.03em;color:var(--text-dim);opacity:.8;transition:.2s}
 .press .logos span:hover{opacity:1;color:var(--text)}
-.press .logos .caps{font-family:var(--sans);font-weight:700;letter-spacing:.18em;font-size:14px;text-transform:uppercase}
+.press .logos .caps{font-family:var(--sans);font-weight:700;letter-spacing:.18em;font-size:13.5px;text-transform:uppercase}
 
 /* ===================== SECTION SHELL ===================== */
-section.block{padding-block:clamp(64px,9vw,110px);border-bottom:1px solid var(--hairline)}
-.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:clamp(34px,5vw,54px)}
-.sec-head .lede{margin-top:14px}
+section.block{padding-block:clamp(64px,9vw,112px)}
+section.block + section.block{padding-top:0}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:clamp(32px,5vw,52px)}
 .sec-head .side-link{font-size:14px;color:var(--brass);font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .sec-head .side-link svg{width:15px;height:15px;transition:transform .2s}
 .sec-head .side-link:hover svg{transform:translateX(4px)}
 
-/* ===================== PRODUCT GRID ===================== */
-.products{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-@media(max-width:900px){.products{grid-template-columns:repeat(2,1fr)}}
+/* ===================== PRODUCT CARDS ===================== */
+.products{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:920px){.products{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.products{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:transform .22s ease,box-shadow .22s ease,border-color .22s}
-.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-soft);border-color:color-mix(in srgb,var(--brass) 45%,var(--hairline))}
-.card .pic{position:relative;aspect-ratio:4/3.3;background:radial-gradient(120% 100% at 30% 12%,var(--product-a),var(--product-b));display:grid;place-items:center;border-bottom:1px solid var(--hairline)}
-.card .pic .device{width:52%}
-.card .pic .flag{position:absolute;top:13px;left:13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:7px;background:color-mix(in srgb,var(--brass) 88%,#fff 4%);color:var(--on-brass)}
-.card .pic .flag.soft{background:rgba(20,16,10,.5);color:#ecdfc2;border:1px solid color-mix(in srgb,var(--product-line) 30%,transparent);backdrop-filter:blur(4px)}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-soft);border-color:color-mix(in srgb,var(--brass) 40%,var(--hairline))}
+.card .pic{position:relative;aspect-ratio:1/1;background:var(--plate);overflow:hidden;border-bottom:1px solid var(--hairline-soft)}
+.card .pic img{width:100%;height:100%;object-fit:cover;transition:transform .45s ease}
+.card:hover .pic img{transform:scale(1.045)}
+.card .pic .flag{position:absolute;top:13px;left:13px;z-index:2;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:100px;background:var(--graphite);color:var(--gold-on-dark)}
+.card .pic .flag.brass{background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--on-brass)}
 .card .body{padding:20px 20px 22px;display:flex;flex-direction:column;gap:9px;flex:1}
 .card .rateline{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-mute)}
 .card h3{font-family:var(--serif);font-size:20px;font-weight:600;line-height:1.15}
 .card h3 sup{font-size:.5em;top:-.9em;color:var(--brass);font-family:var(--sans)}
 .card .benefit{font-size:14px;color:var(--text-dim);line-height:1.5}
 .card .foot{margin-top:auto;padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.price{display:flex;align-items:baseline;gap:9px;font-family:var(--serif)}
+.price{display:flex;align-items:baseline;gap:9px;font-family:var(--serif);font-variant-numeric:tabular-nums}
 .price .now{font-size:23px;font-weight:600}
 .price .was{font-size:14px;color:var(--text-mute);text-decoration:line-through;font-family:var(--sans)}
 .add{display:inline-flex;align-items:center;gap:7px;padding:11px 17px;border-radius:100px;border:1px solid var(--hairline);background:transparent;color:var(--text);font-size:13.5px;font-weight:600;transition:.18s}
 .add svg{width:15px;height:15px}
 .add:hover{background:linear-gradient(135deg,var(--btn-a),var(--btn-b));color:var(--on-brass);border-color:transparent}
 
-/* ===================== CATEGORIES ===================== */
-.cats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-@media(max-width:820px){.cats{grid-template-columns:1fr}}
-.cat{position:relative;border-radius:var(--r);overflow:hidden;min-height:300px;display:flex;flex-direction:column;justify-content:flex-end;padding:26px;color:#f4ecd8;background:radial-gradient(130% 110% at 75% 10%,var(--product-a),var(--product-b));border:1px solid var(--hairline);isolation:isolate}
-.cat::before{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,8,5,.78),transparent 62%);z-index:1}
-.cat .art{position:absolute;top:-6%;right:-6%;width:64%;opacity:.9;z-index:0}
-.cat .art path,.cat .art circle,.cat .art rect,.cat .art line{vector-effect:non-scaling-stroke}
-.cat .txt{position:relative;z-index:2}
-.cat .k{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--product-line);margin-bottom:8px}
-.cat h3{font-family:var(--serif);font-size:26px;font-weight:600;line-height:1.1}
-.cat p{font-size:14px;color:#d9cfba;margin-top:8px;max-width:34ch}
-.cat .go{margin-top:16px;font-size:13.5px;font-weight:600;color:var(--product-line);display:inline-flex;gap:7px;align-items:center}
-.cat .go svg{width:15px;height:15px;transition:transform .2s}
-.cat:hover .go svg{transform:translateX(4px)}
+/* ===================== STANDAARD (lifestyle band) ===================== */
+.standard{position:relative;color:#f2ead6;overflow:hidden}
+.standard .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.standard::before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,rgba(12,9,4,.9) 0%,rgba(12,9,4,.72) 45%,rgba(12,9,4,.35) 100%);z-index:1}
+.standard .wrap{position:relative;z-index:2;padding-block:clamp(70px,10vw,130px)}
+.standard .eyebrow{color:var(--gold-on-dark)}
+.standard h2{font-family:var(--serif);font-size:clamp(30px,4.4vw,50px);font-weight:600;line-height:1.06;letter-spacing:-.015em;max-width:15ch;text-wrap:balance}
+.standard h2 em{font-style:italic;color:var(--gold-on-dark)}
+.standard p.sub{color:#cfc4a9;margin-top:16px;max-width:46ch;font-size:16.5px}
+.specs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:clamp(30px,4vw,46px)}
+@media(max-width:900px){.specs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.specs{grid-template-columns:1fr}}
+.spec{background:rgba(18,13,6,.55);backdrop-filter:blur(8px);border:1px solid rgba(230,205,134,.22);border-radius:var(--r-sm);padding:20px}
+.spec .val{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;color:var(--gold-on-dark);font-variant-numeric:tabular-nums}
+.spec h3{font-family:var(--serif);font-size:18px;font-weight:600;margin-top:6px;color:#f6efdc}
+.spec p{font-size:13px;color:#bfb49a;line-height:1.55;margin-top:6px}
 
-/* ===================== DE STANDAARD (tech) ===================== */
-.standard{background:var(--bg-band)}
-.std-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-@media(max-width:900px){.std-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:520px){.std-grid{grid-template-columns:1fr}}
-.spec{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:24px 22px}
-.spec .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--brass) 14%,transparent);color:var(--brass);margin-bottom:18px}
-.spec .ic svg{width:24px;height:24px}
-.spec .val{font-family:var(--mono);font-size:13px;letter-spacing:.06em;color:var(--brass);margin-bottom:6px;font-variant-numeric:tabular-nums}
-.spec h3{font-family:var(--serif);font-size:19px;font-weight:600;margin-bottom:7px}
-.spec p{font-size:13.5px;color:var(--text-dim);line-height:1.55}
+/* ===================== BUNDELS ===================== */
+.bundles{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:920px){.bundles{grid-template-columns:1fr;max-width:560px;margin-inline:auto}}
+.bundle{position:relative;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:transform .22s,box-shadow .22s,border-color .22s}
+.bundle:hover{transform:translateY(-4px);box-shadow:var(--shadow-soft);border-color:color-mix(in srgb,var(--brass) 40%,var(--hairline))}
+.bundle .pic{aspect-ratio:4/3;background:var(--plate);overflow:hidden;border-bottom:1px solid var(--hairline-soft)}
+.bundle .pic img{width:100%;height:100%;object-fit:cover;transition:transform .45s ease}
+.bundle:hover .pic img{transform:scale(1.045)}
+.bundle .body{padding:22px;display:flex;flex-direction:column;gap:10px;flex:1}
+.bundle h3{font-family:var(--serif);font-size:22px;font-weight:600}
+.bundle .inside{font-size:13.5px;color:var(--text-dim);line-height:1.6}
+.bundle .save{align-self:flex-start;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--brass);border:1px solid color-mix(in srgb,var(--brass) 45%,transparent);padding:4px 11px;border-radius:100px}
+.bundle .foot{margin-top:auto;padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 
 /* ===================== OVER ONS ===================== */
-.about .wrap{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(30px,5vw,72px);align-items:center}
-@media(max-width:860px){.about .wrap{grid-template-columns:1fr;gap:36px}}
-.about-visual{position:relative;aspect-ratio:4/4.4;border-radius:var(--r);overflow:hidden;background:radial-gradient(120% 100% at 35% 12%,var(--product-a),var(--product-b));border:1px solid var(--hairline);box-shadow:var(--shadow)}
-.about-visual .device{position:absolute;inset:0;margin:auto;width:52%}
-.about-visual .stamp{position:absolute;bottom:22px;left:22px;font-family:var(--serif);font-style:italic;font-size:17px;color:#efe4cb}
-.about-visual .stamp small{display:block;font-family:var(--mono);font-style:normal;font-size:11px;letter-spacing:.14em;color:var(--product-line);margin-top:4px}
+.about .wrap{display:grid;grid-template-columns:.94fr 1.06fr;gap:clamp(30px,5vw,72px);align-items:center}
+@media(max-width:880px){.about .wrap{grid-template-columns:1fr;gap:36px}}
+.about-visual{position:relative}
+.about-visual .plate{aspect-ratio:4/4.6;border-radius:var(--r);overflow:hidden;border:1px solid var(--hairline);box-shadow:var(--shadow)}
+.about-visual .plate img{width:100%;height:100%;object-fit:cover}
+.about-visual .stamp{position:absolute;bottom:-18px;right:-12px;background:var(--graphite);color:#efe4cb;border-radius:16px;padding:14px 20px;font-family:var(--serif);font-style:italic;font-size:16px;box-shadow:var(--shadow-soft)}
+.about-visual .stamp small{display:block;font-family:var(--mono);font-style:normal;font-size:10.5px;letter-spacing:.14em;color:var(--gold-on-dark);margin-top:4px}
+@media(max-width:880px){.about-visual .stamp{right:10px}}
 .about p.body{color:var(--text-dim);font-size:16.5px;margin-top:18px}
 .about p.body b{color:var(--text);font-weight:600}
 .about .facts{display:flex;gap:34px;margin-top:32px;flex-wrap:wrap}
@@ -326,30 +326,27 @@ section.block{padding-block:clamp(64px,9vw,110px);border-bottom:1px solid var(--
 .about .facts .f .l{font-size:13px;color:var(--text-mute);margin-top:7px;max-width:16ch}
 
 /* ===================== RISK BAND ===================== */
-.risk{background:linear-gradient(135deg,#1a1610,#231d13);border-bottom:1px solid var(--hairline)}
-:root[data-theme="light"] .risk{background:linear-gradient(135deg,#1c1810,#241d12)}
-@media (prefers-color-scheme: light){.risk{background:linear-gradient(135deg,#1c1810,#241d12)}}
-.risk .wrap{padding-block:clamp(46px,6vw,68px)}
+.risk{background:linear-gradient(135deg,var(--graphite),var(--graphite-2))}
+.risk .wrap{padding-block:clamp(48px,6vw,72px)}
 .risk .top{text-align:center;max-width:680px;margin:0 auto clamp(30px,4vw,44px)}
-.risk .top .eyebrow{color:var(--product-line);justify-content:center}
-.risk .top .eyebrow .arc path{stroke:var(--product-line)}
+.risk .top .eyebrow{color:var(--gold-on-dark);justify-content:center}
 .risk .top h2{font-family:var(--serif);color:#f6efdd;font-size:clamp(26px,3.6vw,40px);font-weight:600;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
 .risk .top p{color:#cdc2aa;margin-top:14px;font-size:16px}
 .risk .rrow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 @media(max-width:820px){.risk .rrow{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:460px){.risk .rrow{grid-template-columns:1fr}}
 .ritem{text-align:center;padding:26px 18px;border:1px solid rgba(230,205,134,.2);border-radius:var(--r-sm);background:rgba(255,255,255,.02)}
-.ritem svg{width:30px;height:30px;color:var(--product-line);margin:0 auto 14px}
+.ritem svg{width:30px;height:30px;color:var(--gold-on-dark);margin:0 auto 14px}
 .ritem b{display:block;font-family:var(--serif);font-size:19px;color:#f4ecd7;font-weight:600}
 .ritem span{display:block;font-size:13px;color:#b6ac95;margin-top:6px}
 
 /* ===================== REVIEWS ===================== */
 .reviews .head-row{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:34px}
-.tp-badge{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:12px 18px}
+.tp-badge{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--hairline);border-radius:14px;padding:12px 18px}
 .tp-badge .score{font-family:var(--serif);font-size:26px;font-weight:600;line-height:1}
 .tp-badge .meta{font-size:12.5px;color:var(--text-mute);line-height:1.4}
 .tp-badge .meta b{color:var(--text)}
-.rev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.rev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 @media(max-width:900px){.rev-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.rev-grid{grid-template-columns:1fr}}
 .review{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-sm);padding:22px;display:flex;flex-direction:column;gap:12px}
@@ -358,33 +355,37 @@ section.block{padding-block:clamp(64px,9vw,110px);border-bottom:1px solid var(--
 .review q::before{content:open-quote;color:var(--brass);margin-right:1px}
 .review q::after{content:close-quote;color:var(--brass)}
 .review .who{display:flex;align-items:center;gap:11px;margin-top:auto}
-.review .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--surface-2),var(--product-b));display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--brass);font-size:15px;border:1px solid var(--hairline)}
+.review .av{width:38px;height:38px;border-radius:50%;background:var(--graphite);display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--gold-on-dark);font-size:15px}
 .review .who .nm{font-size:14px;font-weight:600}
 .review .who .vf{font-size:12px;color:var(--text-mute);display:flex;align-items:center;gap:5px}
 .review .who .vf svg{width:13px;height:13px;color:var(--brass)}
 .review .when{font-size:12px;color:var(--text-mute);margin-left:auto}
 
-/* ===================== SUBSCRIBE / AOV ===================== */
-.subscribe .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,4vw,56px);align-items:center;background:var(--surface);border:1px solid var(--hairline);border-radius:24px;padding:clamp(30px,4vw,52px);box-shadow:var(--shadow-soft)}
-@media(max-width:820px){.subscribe .wrap{grid-template-columns:1fr;gap:30px}}
+/* ===================== ABONNEMENT ===================== */
+.subscribe .inner{display:grid;grid-template-columns:1.06fr .94fr;gap:clamp(28px,4vw,56px);align-items:center;background:var(--surface);border:1px solid var(--hairline);border-radius:26px;padding:clamp(28px,4vw,52px);box-shadow:var(--shadow-soft)}
+@media(max-width:860px){.subscribe .inner{grid-template-columns:1fr;gap:30px}}
 .subscribe h2{font-family:var(--serif);font-size:clamp(26px,3.4vw,38px);font-weight:600;line-height:1.08;letter-spacing:-.01em;text-wrap:balance}
 .subscribe p{color:var(--text-dim);margin-top:14px;max-width:44ch}
 .subscribe .perks{list-style:none;margin-top:24px;display:grid;gap:12px}
 .subscribe .perks li{display:flex;gap:11px;align-items:flex-start;font-size:15px}
 .subscribe .perks li svg{width:20px;height:20px;color:var(--brass);flex:0 0 auto;margin-top:2px}
-.sub-card{background:radial-gradient(120% 100% at 70% 0%,var(--product-a),var(--product-b));border:1px solid var(--hairline);border-radius:18px;padding:28px;color:#f2e9d4;position:relative;overflow:hidden}
-.sub-card .tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--product-line)}
-.sub-card .plan{display:flex;align-items:baseline;gap:8px;margin-top:16px}
-.sub-card .plan .amt{font-family:var(--serif);font-size:40px;font-weight:600;line-height:1}
+.sub-card{background:var(--graphite);border-radius:20px;overflow:hidden;color:#f2e9d4}
+.sub-card .photo{aspect-ratio:16/9;background:var(--plate);overflow:hidden}
+.sub-card .photo img{width:100%;height:100%;object-fit:cover}
+.sub-card .inner2{padding:26px}
+.sub-card .tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--gold-on-dark)}
+.sub-card .plan{display:flex;align-items:baseline;gap:8px;margin-top:12px}
+.sub-card .plan .amt{font-family:var(--serif);font-size:38px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .sub-card .plan .per{font-size:14px;color:#c4b99f}
-.sub-card .save{display:inline-block;margin-top:12px;font-size:12.5px;font-weight:600;color:var(--on-brass);background:var(--product-line);padding:4px 10px;border-radius:100px}
-.sub-card .flist{list-style:none;margin-top:20px;display:grid;gap:10px;font-size:13.5px;color:#d7ccb4}
+.sub-card .plan s{color:#9a8f76;font-size:15px}
+.sub-card .save{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--on-brass);background:linear-gradient(135deg,var(--btn-a),var(--btn-b));padding:4px 11px;border-radius:100px}
+.sub-card .flist{list-style:none;margin-top:16px;display:grid;gap:9px;font-size:13.5px;color:#d7ccb4}
 .sub-card .flist li{display:flex;gap:9px}
-.sub-card .flist li::before{content:"—";color:var(--product-line)}
-.sub-card .btn{margin-top:22px}
+.sub-card .flist li::before{content:"—";color:var(--gold-on-dark)}
+.sub-card .btn{margin-top:20px}
 
 /* ===================== FOOTER ===================== */
-footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
+footer.site{background:var(--bg-band);border-top:1px solid var(--hairline);padding-block:clamp(52px,6vw,72px) 30px}
 .foot-top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:32px}
 @media(max-width:820px){.foot-top{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.foot-top{grid-template-columns:1fr}}
@@ -397,13 +398,13 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
 .pay{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .pay .p{height:26px;padding:0 9px;border-radius:5px;border:1px solid var(--hairline);display:grid;place-items:center;font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--text-dim);background:var(--surface)}
 
-/* ===================== REVEAL ANIM ===================== */
+/* ===================== REVEAL ===================== */
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
 .reveal.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){
   *{scroll-behavior:auto!important}
   .reveal{opacity:1;transform:none;transition:none}
-  .btn,.card,.add{transition:none}
+  .btn,.card,.bundle,.add,.card .pic img,.bundle .pic img{transition:none}
 }
 </style>
 </head>
@@ -431,7 +432,7 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
     <div class="navlinks">
       <a href="#bestsellers">Scheren</a>
       <a href="#bestsellers">Trimmen</a>
-      <a href="#cats">Baard &amp; Body</a>
+      <a href="#bundels">Bundels</a>
       <a href="#abonnement">Mesjes</a>
       <a href="#over">Over ons</a>
     </div>
@@ -451,7 +452,7 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   </div>
 </nav>
 
-<!-- mobile menu -->
+<!-- mobiel menu -->
 <div class="scrim" id="scrim"></div>
 <aside class="mobile-menu" id="mmenu" aria-hidden="true">
   <button class="icon-btn mclose" id="mclose" aria-label="Menu sluiten">
@@ -459,7 +460,7 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   </button>
   <a href="#bestsellers">Scheren</a>
   <a href="#bestsellers">Trimmen</a>
-  <a href="#cats">Baard &amp; Body</a>
+  <a href="#bundels">Bundels</a>
   <a href="#abonnement">Mesjes</a>
   <a href="#over">Over ons</a>
   <a class="btn btn-primary" href="#bestsellers">Shop nu</a>
@@ -489,15 +490,16 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
 
 <!-- ============ HERO ============ -->
 <header class="hero">
+  <svg class="bigarc" viewBox="0 0 600 380" aria-hidden="true"><path d="M-20 370 A 480 480 0 0 1 610 180"/><path d="M-20 330 A 430 430 0 0 1 590 120" opacity=".5"/></svg>
   <div class="wrap">
     <div class="hero-copy reveal">
       <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Premium grooming &middot; ontworpen in Helmond</span>
       <h1>Scherp verzorgd, van
         <span class="u">top tot teen<svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 C 40 3, 160 3, 198 8"/></svg></span>.</h1>
-      <p class="sub">Precisietrimmers en scheerapparaten met SkinSafe™ keramische mesjes. Gebouwd om te presteren — dag na dag, jaar na jaar. Geen gedoe, geen botte mesjes, gewoon een strakke look.</p>
+      <p class="sub">Trimmers en scheerapparaten met SkinSafe™ keramische mesjes. Gebouwd om te presteren — dag na dag, jaar na jaar. Geen gedoe, geen botte mesjes, gewoon een strakke look.</p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#bestsellers">Ontdek de collectie <svg class="ar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-        <a class="btn btn-ghost" href="#bestsellers">Bekijk bestsellers</a>
+        <a class="btn btn-ghost" href="#bundels">Bekijk bundels</a>
       </div>
       <div class="hero-proof">
         <span class="stars" style="--pct:90%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span>
@@ -507,36 +509,22 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
 
     <div class="hero-visual reveal">
       <div class="stage">
-        <span class="ring r1"></span><span class="ring r2"></span>
-        <span class="badge-award">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="9" r="5.2"/><path d="M8.4 13.4L7 21l5-2.4L17 21l-1.4-7.6" stroke-linejoin="round"/></svg>
-          Bestseller 2026
+        <div class="plate">
+          <img src="assets/gentleman-shaver.jpg" alt="The Gentleman Shaver™ — zwart met gouden accenten" width="900" height="954" fetchpriority="high">
+        </div>
+        <span class="price-tag">€&thinsp;49,95 <s>€&thinsp;85,65</s></span>
+        <span class="chip c1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="9" r="5.2"/><path d="M8.4 13.4L7 21l5-2.4L17 21l-1.4-7.6" stroke-linejoin="round"/></svg>
+          <span>Bestseller 2026<span class="sub">The Gentleman Shaver™</span></span>
         </span>
-        <span class="badge-chip">SkinSafe™ · IPX7</span>
-        <!-- Foil shaver: The Gentleman Shaver™ -->
-        <svg class="device" viewBox="0 0 200 340" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="Wellshave scheerapparaat">
-          <defs><linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#2c261c"/><stop offset="1" stop-color="#191510"/></linearGradient></defs>
-          <!-- head -->
-          <rect x="52" y="26" width="96" height="40" rx="16" fill="url(#body)"/>
-          <line x1="66" y1="34" x2="66" y2="58"/><line x1="82" y1="32" x2="82" y2="60"/>
-          <line x1="100" y1="31" x2="100" y2="61"/><line x1="118" y1="32" x2="118" y2="60"/>
-          <line x1="134" y1="34" x2="134" y2="58"/>
-          <!-- neck -->
-          <path d="M64 66 h72 l-6 24 h-60 z" fill="url(#body)"/>
-          <!-- grip body -->
-          <rect x="60" y="90" width="80" height="216" rx="26" fill="url(#body)"/>
-          <!-- power button -->
-          <circle cx="100" cy="150" r="13"/>
-          <path d="M100 143 v10" stroke-linecap="round"/>
-          <!-- LED strip -->
-          <line x1="86" y1="196" x2="114" y2="196" stroke-linecap="round"/>
-          <line x1="88" y1="208" x2="112" y2="208" stroke-linecap="round" opacity=".7"/>
-          <line x1="90" y1="220" x2="110" y2="220" stroke-linecap="round" opacity=".45"/>
-          <!-- brand ring -->
-          <circle cx="100" cy="276" r="15"/>
-          <path d="M93 271 l3.4 9 3.6-6 3.6 6 3.4-9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <span class="chip c2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z" stroke-linejoin="round"/></svg>
+          <span>IPX6 waterdicht<span class="sub">gebruik &amp; spoel onder de douche</span></span>
+        </span>
+        <span class="chip c3">
+          <span class="stars" style="--pct:96%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span>
+          <span>4,8 &middot; door mannen zoals jij</span>
+        </span>
       </div>
     </div>
   </div>
@@ -564,154 +552,101 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
       <div>
         <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>De favorieten</span>
         <h2 class="h">Waar <em>180.000 mannen</em> mee scheren</h2>
-        <p class="lede">Onze best verkochte toestellen. Elk met keramische mesjes, waterdicht tot IPX7 en morgen bij je thuis.</p>
+        <p class="lede">Onze best verkochte toestellen. Elk met SkinSafe™ mesjes, waterdicht en morgen bij je thuis.</p>
       </div>
-      <a class="side-link" href="#bestsellers">Bekijk de hele collectie <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="side-link" href="#bundels">Bekijk ook de bundels <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </div>
 
     <div class="products">
-      <!-- Flex Guard -->
       <article class="card reveal">
         <div class="pic">
-          <span class="flag">Bestseller</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="Flex Guard trimmer">
-            <rect x="70" y="14" width="60" height="30" rx="7" fill="#241f17"/>
-            <line x1="78" y1="14" x2="78" y2="8"/><line x1="90" y1="14" x2="90" y2="6"/><line x1="102" y1="14" x2="102" y2="6"/><line x1="114" y1="14" x2="114" y2="6"/><line x1="122" y1="14" x2="122" y2="8"/>
-            <rect x="74" y="44" width="52" height="182" rx="22" fill="#241f17"/>
-            <circle cx="100" cy="96" r="11"/><path d="M100 90v9" stroke-linecap="round"/>
-            <line x1="88" y1="132" x2="112" y2="132" stroke-linecap="round"/>
-            <line x1="90" y1="144" x2="110" y2="144" stroke-linecap="round" opacity=".6"/>
-            <circle cx="100" cy="196" r="12"/><path d="M94 192l3 7 3-5 3 5 3-7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span class="flag brass">Bestseller</span>
+          <img src="assets/flex-guard.jpg" alt="Flex Guard™ 3-in-1 met oplaadstation en opzetstukken" loading="lazy" width="640" height="640">
         </div>
         <div class="body">
           <div class="rateline"><span class="stars" style="--pct:92%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,6 · 412 reviews</div>
           <h3>Flex Guard<sup>™</sup> 3-in-1</h3>
           <p class="benefit">Trimmen, stylen en scheren met één toestel. Flexibele kop die elke lijn volgt.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;41</span><span class="was">€&thinsp;59</span></span>
+            <span class="price"><span class="now">€&thinsp;54,95</span><span class="was">€&thinsp;85,65</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </article>
 
-      <!-- Groom Guard PRO -->
       <article class="card reveal">
         <div class="pic">
           <span class="flag">Meest verkocht</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="Groom Guard PRO scheerapparaat">
-            <rect x="60" y="16" width="80" height="34" rx="14" fill="#241f17"/>
-            <line x1="74" y1="22" x2="74" y2="44"/><line x1="90" y1="20" x2="90" y2="46"/><line x1="110" y1="20" x2="110" y2="46"/><line x1="126" y1="22" x2="126" y2="44"/>
-            <rect x="66" y="50" width="68" height="176" rx="24" fill="#241f17"/>
-            <circle cx="100" cy="104" r="12"/><path d="M100 98v9" stroke-linecap="round"/>
-            <rect x="84" y="138" width="32" height="7" rx="3.5"/>
-            <circle cx="100" cy="198" r="12"/><path d="M94 194l3 7 3-5 3 5 3-7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/groom-guard-pro.jpg" alt="Groom Guard™ PRO bodygroomer op standaard met foil-scheerkop" loading="lazy" width="640" height="640">
         </div>
         <div class="body">
           <div class="rateline"><span class="stars" style="--pct:94%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,7 · 588 reviews</div>
           <h3>Groom Guard<sup>™</sup> PRO</h3>
-          <p class="benefit">Onze krachtigste motor. Ceramische foil-kop voor een gladde scheerbeurt zonder irritatie.</p>
+          <p class="benefit">Onze krachtigste bodygroomer. Gladde scheerbeurt zonder irritatie, ook onder de douche.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;44</span><span class="was">€&thinsp;69</span></span>
+            <span class="price"><span class="now">€&thinsp;59,95</span><span class="was">€&thinsp;85,65</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </article>
 
-      <!-- The Gentleman Shaver -->
       <article class="card reveal">
         <div class="pic">
-          <span class="flag soft">Nieuw</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="The Gentleman Shaver">
-            <rect x="72" y="12" width="56" height="26" rx="12" fill="#241f17"/>
-            <line x1="84" y1="17" x2="84" y2="33"/><line x1="100" y1="15" x2="100" y2="35"/><line x1="116" y1="17" x2="116" y2="33"/>
-            <path d="M78 38h44l-5 18h-34z" fill="#241f17"/>
-            <rect x="80" y="56" width="40" height="170" rx="20" fill="#241f17"/>
-            <circle cx="100" cy="108" r="10"/><path d="M100 103v8" stroke-linecap="round"/>
-            <line x1="90" y1="140" x2="110" y2="140" stroke-linecap="round"/><line x1="92" y1="150" x2="108" y2="150" stroke-linecap="round" opacity=".6"/>
-            <circle cx="100" cy="200" r="11"/><path d="M95 196l2.6 6.5 2.4-4.5 2.4 4.5 2.6-6.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <img src="assets/gentleman-shaver.jpg" alt="The Gentleman Shaver™ roterend scheerapparaat, zwart met goud" loading="lazy" width="900" height="954">
         </div>
         <div class="body">
           <div class="rateline"><span class="stars" style="--pct:96%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,8 · 96 reviews</div>
           <h3>The Gentleman Shaver<sup>™</sup></h3>
-          <p class="benefit">Foil-scheerapparaat voor de gladste finish. Rustig, fluisterstil, onmiskenbaar premium.</p>
+          <p class="benefit">3D-scheerkop die de contouren van je gezicht volgt. Met travellock en LED-display.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;54</span></span>
+            <span class="price"><span class="now">€&thinsp;49,95</span><span class="was">€&thinsp;85,65</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </article>
 
-      <!-- Men Shaper Supreme -->
       <article class="card reveal">
         <div class="pic">
-          <span class="flag soft">6-in-1</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="Men Shaper Supreme">
-            <rect x="66" y="16" width="68" height="26" rx="9" fill="#241f17"/>
-            <line x1="66" y1="16" x2="66" y2="8"/><line x1="80" y1="14" x2="80" y2="6"/><line x1="94" y1="14" x2="94" y2="6"/><line x1="108" y1="14" x2="108" y2="6"/><line x1="122" y1="14" x2="122" y2="6"/><line x1="134" y1="16" x2="134" y2="8"/>
-            <rect x="72" y="42" width="56" height="184" rx="23" fill="#241f17"/>
-            <circle cx="100" cy="100" r="11"/><path d="M100 94v9" stroke-linecap="round"/>
-            <line x1="88" y1="136" x2="112" y2="136" stroke-linecap="round"/><line x1="88" y1="147" x2="112" y2="147" stroke-linecap="round" opacity=".6"/><line x1="90" y1="158" x2="110" y2="158" stroke-linecap="round" opacity=".4"/>
-            <circle cx="100" cy="200" r="12"/><path d="M94 196l3 7 3-5 3 5 3-7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span class="flag">6-in-1</span>
+          <img src="assets/men-shaper-supreme.jpg" alt="Men Shaper Supreme™ 6-in-1 set met opzetstukken in houder" loading="lazy" width="640" height="640">
         </div>
         <div class="body">
           <div class="rateline"><span class="stars" style="--pct:90%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,5 · 274 reviews</div>
-          <h3>Men Shaper Supreme<sup>™</sup></h3>
+          <h3>Men Shaper Supreme<sup>™</sup> 6-in-1</h3>
           <p class="benefit">Zes opzetstukken, één toestel. Van neushaar tot neklijn — compleet verzorgd.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;33</span><span class="was">€&thinsp;49</span></span>
+            <span class="price"><span class="now">€&thinsp;39,95</span><span class="was">€&thinsp;71,35</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </article>
 
-      <!-- Head Shaver Deluxe -->
       <article class="card reveal">
         <div class="pic">
-          <span class="flag soft">Voor het hoofd</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-label="Head Shaver Deluxe">
-            <path d="M58 60 a42 30 0 0 1 84 0 v6 a42 22 0 0 1 -84 0 z" fill="#241f17"/>
-            <circle cx="80" cy="56" r="10"/><circle cx="120" cy="56" r="10"/><circle cx="100" cy="70" r="10"/><circle cx="78" cy="78" r="8" opacity=".8"/><circle cx="122" cy="78" r="8" opacity=".8"/>
-            <rect x="78" y="86" width="44" height="140" rx="20" fill="#241f17"/>
-            <circle cx="100" cy="132" r="11"/><path d="M100 127v8" stroke-linecap="round"/>
-            <line x1="90" y1="164" x2="110" y2="164" stroke-linecap="round"/>
-            <circle cx="100" cy="200" r="11"/><path d="M95 196l2.6 6.5 2.4-4.5 2.4 4.5 2.6-6.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span class="flag">Voor het hoofd</span>
+          <img src="assets/head-shaver-deluxe.jpg" alt="Head Shaver Deluxe met 7D scheerkop en accessoires" loading="lazy" width="640" height="640">
         </div>
         <div class="body">
           <div class="rateline"><span class="stars" style="--pct:92%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,6 · 158 reviews</div>
           <h3>Head Shaver Deluxe</h3>
-          <p class="benefit">Vijf roterende koppen die de contouren van je hoofd volgen. Inclusief reisetui.</p>
+          <p class="benefit">Roterende koppen die de contouren van je hoofd volgen. Inclusief opzetstukken.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;50</span><span class="was">€&thinsp;75</span></span>
+            <span class="price"><span class="now">€&thinsp;59,95</span><span class="was">€&thinsp;89,92</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
       </article>
 
-      <!-- Bundle -->
       <article class="card reveal">
         <div class="pic">
-          <span class="flag">Bundel · bespaar 25%</span>
-          <svg class="device" viewBox="0 0 200 240" fill="none" stroke="var(--product-line)" stroke-width="2.2" aria-label="De Complete Set bundel">
-            <rect x="44" y="70" width="42" height="150" rx="16" fill="#241f17"/>
-            <circle cx="65" cy="112" r="8"/><line x1="55" y1="150" x2="75" y2="150" stroke-linecap="round"/>
-            <rect x="94" y="52" width="44" height="168" rx="18" fill="#241f17"/>
-            <circle cx="116" cy="100" r="9"/><line x1="105" y1="140" x2="127" y2="140" stroke-linecap="round"/>
-            <rect x="146" y="86" width="34" height="134" rx="14" fill="#241f17"/>
-            <circle cx="163" cy="124" r="7"/>
-            <path d="M40 42h150" stroke-dasharray="4 6" stroke-linecap="round" opacity=".6"/>
-          </svg>
+          <img src="assets/groom-guard.jpg" alt="Groom Guard™ bodygroomer op oplaadstandaard" loading="lazy" width="640" height="640">
         </div>
         <div class="body">
-          <div class="rateline"><span class="stars" style="--pct:96%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,8 · 203 reviews</div>
-          <h3>De Complete Set</h3>
-          <p class="benefit">Groom Guard™ PRO + Men Shaper Supreme™ + reisetui. Alles voor top tot teen.</p>
+          <div class="rateline"><span class="stars" style="--pct:92%" aria-hidden="true"><span class="base">★★★★★</span><span class="fill">★★★★★</span></span> 4,6 · 237 reviews</div>
+          <h3>Groom Guard<sup>™</sup></h3>
+          <p class="benefit">De klassieker. Veilig trimmen en scheren onder de gordel, zonder nicks.</p>
           <div class="foot">
-            <span class="price"><span class="now">€&thinsp;89</span><span class="was">€&thinsp;118</span></span>
+            <span class="price"><span class="now">€&thinsp;44,95</span><span class="was">€&thinsp;71,35</span></span>
             <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
           </div>
         </div>
@@ -720,85 +655,90 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   </div>
 </section>
 
-<!-- ============ CATEGORIES ============ -->
-<section class="block" id="cats">
+<!-- ============ DE STANDAARD (lifestyle band) ============ -->
+<section class="standard" id="standaard">
+  <img class="bgimg" src="assets/lifestyle-tap.jpg" alt="" width="1200" height="1200" loading="lazy">
   <div class="wrap">
-    <div class="sec-head reveal">
-      <div>
-        <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Van top tot teen</span>
-        <h2 class="h">Eén merk voor je <em>hele</em> routine</h2>
-        <p class="lede">Geen losse gadgets van vijf verschillende merken. Eén samenhangend systeem — voor je gezicht, je hoofd en de rest.</p>
-      </div>
+    <div class="reveal">
+      <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>De Wellshave-standaard</span>
+      <h2>Techniek die je <em>voelt</em>, niet leest</h2>
+      <p class="sub">Elke Wellshave draait op dezelfde vier beloftes. Spoel hem schoon onder de kraan — hij kan ertegen.</p>
     </div>
-
-    <div class="cats">
-      <a class="cat reveal" href="#bestsellers">
-        <svg class="art" viewBox="0 0 200 200" fill="none" stroke="var(--product-line)" stroke-width="2" aria-hidden="true"><rect x="70" y="20" width="46" height="22" rx="6"/><rect x="76" y="42" width="34" height="120" rx="15"/><circle cx="93" cy="84" r="8"/></svg>
-        <div class="txt">
-          <div class="k">01 — GEZICHT</div>
-          <h3>Gezicht &amp; Baard</h3>
-          <p>Trimmers en scheerapparaten voor een strakke baardlijn en een gladde scheerbeurt.</p>
-          <span class="go">Ontdek <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </div>
-      </a>
-      <a class="cat reveal" href="#bestsellers">
-        <svg class="art" viewBox="0 0 200 200" fill="none" stroke="var(--product-line)" stroke-width="2" aria-hidden="true"><path d="M50 60 a40 26 0 0 1 80 0z"/><circle cx="72" cy="56" r="8"/><circle cx="108" cy="56" r="8"/><rect x="72" y="66" width="36" height="96" rx="16"/></svg>
-        <div class="txt">
-          <div class="k">02 — HOOFD</div>
-          <h3>Hoofd &amp; Kruin</h3>
-          <p>Roterende hoofdscheerders die elke contour volgen. Bald done right.</p>
-          <span class="go">Ontdek <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </div>
-      </a>
-      <a class="cat reveal" href="#bestsellers">
-        <svg class="art" viewBox="0 0 200 200" fill="none" stroke="var(--product-line)" stroke-width="2" aria-hidden="true"><rect x="66" y="24" width="52" height="18" rx="5"/><rect x="74" y="42" width="36" height="118" rx="16"/><line x1="84" y1="86" x2="100" y2="86" stroke-linecap="round"/></svg>
-        <div class="txt">
-          <div class="k">03 — BODY</div>
-          <h3>Body &amp; Intiem</h3>
-          <p>Waterdichte body-groomers met SkinSafe™ mesjes. Veilig, ook op gevoelige plekken.</p>
-          <span class="go">Ontdek <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </div>
-      </a>
+    <div class="specs">
+      <div class="spec reveal">
+        <div class="val">SkinSafe™</div>
+        <h3>Keramische mesjes</h3>
+        <p>Worden niet heet en botten niet af zoals staal. Zero irritatie, ook dagelijks.</p>
+      </div>
+      <div class="spec reveal">
+        <div class="val">IPX6</div>
+        <h3>Waterdicht</h3>
+        <p>Scheer onder de douche, spoel schoon onder de kraan. Klaar in seconden.</p>
+      </div>
+      <div class="spec reveal">
+        <div class="val">LED + 1 KNOP</div>
+        <h3>Zelfslijpende RVS-mesjes</h3>
+        <p>Batterij- en olie-indicator op het display. Bediening met één knop.</p>
+      </div>
+      <div class="spec reveal">
+        <div class="val">USB-C</div>
+        <h3>Snelladen</h3>
+        <p>Vijf minuten laden voor één beurt. Vol in 90 minuten, via elke USB-C.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ============ DE STANDAARD (tech/material) ============ -->
-<section class="block standard" id="standaard">
+<!-- ============ BUNDELS ============ -->
+<section class="block" id="bundels" style="padding-top:clamp(64px,9vw,112px)">
   <div class="wrap">
     <div class="sec-head reveal">
       <div>
-        <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>De Wellshave-standaard</span>
-        <h2 class="h">Techniek die je <em>voelt</em>, niet leest</h2>
-        <p class="lede">We bouwen geen wegwerpapparaten. Elke Wellshave draait op dezelfde vier beloftes — hier is waarom dat verschil maakt.</p>
+        <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Complete je routine</span>
+        <h2 class="h">Meer routine, <em>minder</em> betalen</h2>
+        <p class="lede">Stel je complete verzorging in één keer samen. Bundels besparen je tientallen euro's op de losse prijzen.</p>
       </div>
     </div>
 
-    <div class="std-grid">
-      <div class="spec reveal">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 14l7-9 2 4 3-1-2 6 5-2-6 8H8z" stroke-linejoin="round"/></svg></div>
-        <div class="val">SkinSafe™</div>
-        <h3>Keramische mesjes</h3>
-        <p>Keramiek wordt niet heet en bot niet af zoals staal. Zero irritatie, ook bij dagelijks gebruik.</p>
-      </div>
-      <div class="spec reveal">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z" stroke-linejoin="round"/></svg></div>
-        <div class="val">IPX7</div>
-        <h3>100% waterdicht</h3>
-        <p>Scheer onder de douche, spoel schoon onder de kraan. Getest tot 1 meter onderdompeling.</p>
-      </div>
-      <div class="spec reveal">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z" stroke-linejoin="round"/></svg></div>
-        <div class="val">7.200 RPM</div>
-        <h3>Krachtige motor</h3>
-        <p>Trekt nooit aan je haren. De borstelloze motor houdt vermogen vast tot de laatste haar.</p>
-      </div>
-      <div class="spec reveal">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="7" width="10" height="10" rx="2"/><path d="M15 10h3l3 3v4h-6z" stroke-linejoin="round"/><path d="M9 3v2M12 3v2" stroke-linecap="round"/></svg></div>
-        <div class="val">90 MIN</div>
-        <h3>Snelladen &amp; USB-C</h3>
-        <p>Vijf minuten laden voor één scheerbeurt. Volledig vol in 90 minuten, via elke USB-C.</p>
-      </div>
+    <div class="bundles">
+      <article class="bundle reveal">
+        <div class="pic"><img src="assets/barber-bundel.jpg" alt="Barber Bundel 1.0 — scheerapparaat en tondeuse in zwart en goud" loading="lazy" width="640" height="640"></div>
+        <div class="body">
+          <span class="save">Bespaar €&thinsp;42,85</span>
+          <h3>Barber Bundel 1.0</h3>
+          <p class="inside">The Gentleman Shaver™ + Tondeuse Deluxe™. De volledige kapperservaring, thuis.</p>
+          <div class="foot">
+            <span class="price"><span class="now">€&thinsp;99,95</span><span class="was">€&thinsp;142,80</span></span>
+            <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="bundle reveal">
+        <div class="pic"><img src="assets/flex-line-bundel.jpg" alt="Flex-line Bundel — trimmer, bodygroomer en opzetstukken" loading="lazy" width="640" height="640"></div>
+        <div class="body">
+          <span class="save">Bespaar €&thinsp;66,65</span>
+          <h3>Flex-line Bundel</h3>
+          <p class="inside">Flex Guard™ 3-in-1 + Groom Guard™ + opzetstukken. Body &amp; baard, van top tot teen.</p>
+          <div class="foot">
+            <span class="price"><span class="now">€&thinsp;89,95</span><span class="was">€&thinsp;156,60</span></span>
+            <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="bundle reveal">
+        <div class="pic"><img src="assets/shave-package-ultimate.jpg" alt="Shave Package Ultimate™ — complete set met washbag en trimmers" loading="lazy" width="640" height="640"></div>
+        <div class="body">
+          <span class="save">Bespaar €&thinsp;52,85</span>
+          <h3>Shave Package Ultimate™</h3>
+          <p class="inside">Bodygroomer, neustrimmer, detailtrimmer én The Washbag™. Alles-in-één cadeau-klaar.</p>
+          <div class="foot">
+            <span class="price"><span class="now">€&thinsp;89,95</span><span class="was">€&thinsp;142,80</span></span>
+            <button class="add" data-add>In wagen <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -807,21 +747,16 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
 <section class="block about" id="over">
   <div class="wrap">
     <div class="about-visual reveal">
-      <svg class="device" viewBox="0 0 200 300" fill="none" stroke="var(--product-line)" stroke-width="2.4" aria-hidden="true">
-        <rect x="66" y="20" width="68" height="34" rx="14" fill="#241f17"/>
-        <line x1="80" y1="26" x2="80" y2="48"/><line x1="100" y1="24" x2="100" y2="50"/><line x1="120" y1="26" x2="120" y2="48"/>
-        <rect x="72" y="54" width="56" height="216" rx="24" fill="#241f17"/>
-        <circle cx="100" cy="120" r="13"/><path d="M100 113v10" stroke-linecap="round"/>
-        <line x1="86" y1="164" x2="114" y2="164" stroke-linecap="round"/><line x1="88" y1="178" x2="112" y2="178" stroke-linecap="round" opacity=".6"/>
-        <circle cx="100" cy="238" r="16"/><path d="M92 232l4 11 4-7 4 7 4-11" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <div class="plate">
+        <img src="assets/lifestyle-shower.jpg" alt="Man gebruikt Wellshave bodygroomer onder de douche" loading="lazy" width="800" height="1000">
+      </div>
       <div class="stamp">Ontworpen in Helmond<small>SINDS 2019 · NEDERLAND</small></div>
     </div>
     <div class="about-copy reveal">
       <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Over Wellshave</span>
       <h2 class="h">Begonnen in Helmond, met <em>één irritatie</em></h2>
       <p class="body">Scheerapparaten die na een half jaar bot waren. Mesjes die je huid opvraten. En een prijskaartje alsof je een auto kocht. Dat kon beter.</p>
-      <p class="body">Sinds 2019 bouwen we in <b>Helmond</b> grooming-toestellen die presteren zoals ze eruitzien. Keramische SkinSafe™ mesjes die niet afbotten, waterdichte motoren die jaren meegaan, en een <b>2 jaar garantie</b> die we ook echt menen. Inmiddels scheren meer dan 180.000 mannen met Wellshave.</p>
+      <p class="body">Sinds 2019 bouwen we in <b>Helmond</b> grooming-toestellen die presteren zoals ze eruitzien. SkinSafe™ keramische mesjes die niet afbotten, waterdichte motoren die jaren meegaan, en een <b>2 jaar garantie</b> die we ook echt menen. Inmiddels scheren meer dan 180.000 mannen met Wellshave.</p>
       <div class="facts">
         <div class="f"><div class="n">2019</div><div class="l">opgericht in Helmond</div></div>
         <div class="f"><div class="n">180K+</div><div class="l">mannen scheren met ons</div></div>
@@ -861,7 +796,7 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
 </section>
 
 <!-- ============ REVIEWS ============ -->
-<section class="block reviews" id="reviews">
+<section class="block reviews" id="reviews" style="padding-top:clamp(64px,9vw,112px)">
   <div class="wrap">
     <div class="head-row reveal">
       <div>
@@ -895,29 +830,34 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   </div>
 </section>
 
-<!-- ============ ABONNEMENT / AOV ============ -->
+<!-- ============ ABONNEMENT ============ -->
 <section class="block subscribe" id="abonnement">
-  <div class="wrap reveal">
-    <div>
-      <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Mesjes-abonnement</span>
-      <h2>Nooit meer een bot mesje</h2>
-      <p>Verse SkinSafe™ mesjes en opzetstukken, automatisch bezorgd wanneer je ze nodig hebt. Jij bepaalt het ritme, wij regelen de rest.</p>
-      <ul class="perks">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Bespaar 20%</b> op elke levering, voor altijd</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Pauzeer, wijzig of stop wanneer je wilt</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Altijd gratis verzending, geen verrassingen</span></li>
-      </ul>
-    </div>
-    <div class="sub-card">
-      <div class="tag">MESJES · ELKE 3 MAANDEN</div>
-      <div class="plan"><span class="amt">€&thinsp;12</span><span class="per">/ levering</span></div>
-      <span class="save">Bespaar €3 per set</span>
-      <ul class="flist">
-        <li>2 keramische SkinSafe™ mesjes</li>
-        <li>Reinigingsborstel + olie</li>
-        <li>Gratis bezorgd, elk kwartaal</li>
-      </ul>
-      <a class="btn btn-primary btn-block" href="#abonnement">Start abonnement</a>
+  <div class="wrap">
+    <div class="inner reveal">
+      <div>
+        <span class="eyebrow"><svg class="arc" viewBox="0 0 34 11" aria-hidden="true"><path d="M1 10 A 40 40 0 0 1 33 10"/></svg>Mesjes-abonnement</span>
+        <h2>Nooit meer een bot mesje</h2>
+        <p>Verse SkinSafe™ mesjes automatisch bezorgd wanneer je ze nodig hebt. Jij bepaalt het ritme, wij regelen de rest.</p>
+        <ul class="perks">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Bespaar 20%</b> op elke levering, voor altijd</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Pauzeer, wijzig of stop wanneer je wilt</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Altijd gratis verzending, geen verrassingen</span></li>
+        </ul>
+      </div>
+      <div class="sub-card">
+        <div class="photo"><img src="assets/blades-trio.jpg" alt="Groom Guard™ Blade Trio Pack — drie vervangmesjes" loading="lazy" width="640" height="640"></div>
+        <div class="inner2">
+          <div class="tag">GROOM GUARD™ BLADE · TRIO PACK · ELKE 3 MAANDEN</div>
+          <div class="plan"><span class="amt">€&thinsp;19,95</span><span class="per">/ levering</span><s>€&thinsp;24,95</s></div>
+          <span class="save">Abonnees besparen 20%</span>
+          <ul class="flist">
+            <li>3 verse SkinSafe™ mesjes per levering</li>
+            <li>Past op Groom Guard™ en Groom Guard™ PRO</li>
+            <li>Gratis bezorgd, elk kwartaal</li>
+          </ul>
+          <a class="btn btn-primary btn-block" href="#abonnement">Start abonnement</a>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -937,14 +877,14 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
         <h4>Shop</h4>
         <a href="#bestsellers">Scheerapparaten</a>
         <a href="#bestsellers">Trimmers</a>
-        <a href="#cats">Body &amp; intiem</a>
+        <a href="#bestsellers">Body &amp; intiem</a>
         <a href="#abonnement">Mesjes &amp; onderdelen</a>
-        <a href="#bestsellers">Bundels</a>
+        <a href="#bundels">Bundels</a>
       </div>
       <div class="foot-col">
         <h4>Service</h4>
         <a href="#standaard">Verzending &amp; retour</a>
-        <a href="#risk">Garantie</a>
+        <a href="#over">Garantie</a>
         <a href="#reviews">Reviews</a>
         <a href="#over">Over ons</a>
         <a href="#top">Contact</a>
@@ -971,7 +911,7 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   "use strict";
   var root=document.documentElement;
 
-  /* theme toggle (host may also stamp data-theme; this stays compatible) */
+  /* thema-toggle (host mag ook data-theme stempelen; blijft compatibel) */
   var tt=document.getElementById('themeToggle');
   if(tt){tt.addEventListener('click',function(){
     var cur=root.getAttribute('data-theme');
@@ -979,12 +919,12 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
     root.setAttribute('data-theme', cur==='dark'?'light':'dark');
   });}
 
-  /* nav shadow on scroll */
+  /* nav-rand bij scroll */
   var nav=document.getElementById('nav');
   var onScroll=function(){ nav.classList.toggle('scrolled', window.scrollY>8); };
   onScroll(); window.addEventListener('scroll',onScroll,{passive:true});
 
-  /* mobile menu */
+  /* mobiel menu */
   var burger=document.getElementById('burger'),
       menu=document.getElementById('mmenu'),
       scrim=document.getElementById('scrim'),
@@ -1001,16 +941,15 @@ footer.site{background:var(--bg-band);padding-block:clamp(52px,6vw,72px) 30px}
   if(scrim){scrim.addEventListener('click',function(){setMenu(false);});}
   menu.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){setMenu(false);});});
 
-  /* cart demo counter */
+  /* winkelwagen-demo */
   var count=0, badge=document.getElementById('cartCount');
   document.querySelectorAll('[data-add]').forEach(function(b){
     b.addEventListener('click',function(){
       count++; badge.textContent=count; badge.classList.add('show');
-      b.classList.add('added');
     });
   });
 
-  /* scroll reveal */
+  /* scroll-reveal */
   var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   var items=document.querySelectorAll('.reveal');
   if(reduce || !('IntersectionObserver' in window)){
