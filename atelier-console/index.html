@@ -2705,6 +2705,8 @@ function fable5(opts) {
         if (timer) clearTimeout(timer);
         var looksHtml = /^\s*</.test(t);
         if (looksHtml) throw new Error('De ' + ep.label + ' gaf een webpagina (HTML' + (r.ok ? '' : ', status ' + r.status) + ') terug in plaats van API-JSON. De URL wijst niet naar een Anthropic-endpoint — controleer Instellingen (⚙) en gebruik de Test-knop.');
+        if (!r.ok && (r.status === 404 || r.status === 405)) throw new Error('De ' + ep.label + ' antwoordde met status ' + r.status + ' op ' + ep.url + ' — daar draait geen Anthropic-endpoint. Snelste fix: vul in Instellingen (⚙) een Anthropic API-key in (console.anthropic.com → API keys); die wint altijd van de proxy-URL.');
+        if (!r.ok && !t.trim()) throw new Error('De ' + ep.label + ' gaf een leeg antwoord (status ' + r.status + '). Controleer de URL in Instellingen (⚙) of gebruik een Anthropic API-key.');
         var data;
         try { data = JSON.parse(t); } catch(e){ throw new Error('Onleesbaar antwoord van de ' + ep.label + ' (status ' + r.status + '): "' + t.slice(0, 120) + '"'); }
         if (!r.ok || data.error) {
