@@ -1,14 +1,17 @@
 /* ============================================================
  * Wellgroup team-proxy (Cloudflare Worker)  —  BEVEILIGDE VERSIE
  *
- * LET OP: dit is de GEDEELDE productie-worker (bol OS, notify-relay,
- * nightly, OpenAI). Deze repo-kopie is de huidige productie-code met
- * exact TWEE toevoegingen voor de Atelier Console, gemarkeerd met
- * [ATELIER-PATCH]:
- *   1. ALLOWED_ORIGINS + wellshave-adgen.netlify.app (en lokale dev-poort)
- *   2. verifyTeam accepteert ook logins van het Atelier-Supabase-project
- *      (zelfde e-maildomein-check; security onveranderd)
- * Al het overige (bol, notify, nightly, OpenAI, admin) is ONGEWIJZIGD.
+ * ⚠️ NIET BLIND OVER DE LIVE WORKER HEEN PLAKKEN. Dit is een
+ * referentie-MIRROR van de code zoals Dustin die op 11 jul 2026 deelde,
+ * met twee [ATELIER-PATCH]-toevoegingen verwerkt. De live worker kan
+ * inmiddels nieuwer/uitgebreider zijn. Volg voor het live zetten de
+ * hand-edit-instructies in ATELIER-PATCH.md (2 kleine toevoegingen,
+ * nul verwijderingen) — dan kunnen de andere systemen (bol OS,
+ * notify-relay, nightly, OpenAI) nooit geraakt worden.
+ *
+ *   [ATELIER-PATCH 1] ALLOWED_ORIGINS + wellshave-adgen.netlify.app
+ *   [ATELIER-PATCH 2] verifyTeam accepteert ook logins van het
+ *      Atelier-Supabase-project (zelfde e-maildomein-check)
  *
  * De sleutels staan hier als secret, niet in de browser van teamleden.
  * Data-endpoints (/anthropic, /openai, /bol) vereisen nu een geldige
