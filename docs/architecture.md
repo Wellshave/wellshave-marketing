@@ -71,9 +71,30 @@ op voor analyse; de uitkomst voedt de volgende hypothese-ronde van Nova.
 | Trendtrack | ✅ werkt — Wellgroup, professional |
 | Foreplay, Slack, Notion, Gmail, Higgsfield, Netlify, Cloudflare | ✅ verbonden |
 | Supabase | ✅ werkt — project "Wellgroup ad generator" |
-| Shopify | ⚠️ vereist autorisatie in claude.ai connector-instellingen — nodig voor echte omzet/ROAS |
+| Shopify | ✅ aangekoppeld aan de ochtendcyclus-Routine (autorisatie in deze sessie nog open) |
 | Google Ads | ❌ geen connector; API-token bij Google aanvragen (doorlooptijd weken) |
 | ElevenLabs (spraak) | 📋 fase 3 — bestaande API/MCP gebruiken, geen eigen API bouwen |
+
+## Data-toegang: connectors, API-keys en de browser
+
+**Principe: connectors halen, Supabase serveert, de browser leest.**
+
+1. **Agents (Routines) zijn de enige die naar buiten reiken.** Zij gebruiken de
+   claude.ai-connectors (Meta Ads, Klaviyo, Trendtrack, Foreplay, Shopify,
+   Slack, Notion) en schrijven alle opgehaalde data naar het
+   `marketing_hq`-schema. De Routine "Marketing HQ — Ochtendcyclus" heeft de
+   connectors expliciet aangekoppeld via de claude.ai Routines-UI.
+2. **Het Pulse-dashboard (in de browser) praat uitsluitend met Supabase** —
+   via de publieke anon key + Row Level Security, en Supabase Realtime voor
+   live agent-status. Er staan dus nooit Meta/Klaviyo/Trendtrack-keys in
+   browsercode; die zouden daar direct te stelen zijn.
+3. **Acties vanuit het dashboard** (approvals, opdrachten aan agents) worden
+   als rijen in Supabase gezet (`approvals`, `agent_messages`); agents voeren
+   ze uit bij hun volgende run, binnen de guardrails.
+4. **Eigen API-keys** (Meta system-user token, Klaviyo private key) komen pas
+   in beeld als iets búiten Claude-sessies om data moet ophalen. Dan:
+   server-side in Supabase Edge Function-secrets — nooit in de repo, nooit in
+   de browser.
 
 ## Fasering
 
