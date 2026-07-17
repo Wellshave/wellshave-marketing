@@ -4,8 +4,12 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag
-*Nog geen cyclus gedraaid — de eerste ochtendcyclus vult dit blok.*
+## Vandaag — 17 juli 2026
+- 📊 [[Reports/Daily/2026-07-17|Dagrapport]]: gisteren €122 spend, blended
+  ROAS ≈ 1,19 (voorlopig) — onder het 7d-gemiddelde van ≈ 1,43.
+- ⚠️ Atlas signaleert een ROAS-dip op Wellshave® (1,98 → 0,98 in drie dagen)
+  en heeft Nova gebrieft. Morgen herbeoordelen na attributie-correctie.
+- 🖥️ Pulse-dashboard v1 is live gezet in `dashboard/` (read-only, teamlogin).
 
 ## Het team
 | Agent | Rol | Status |
