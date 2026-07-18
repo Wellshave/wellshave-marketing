@@ -84,8 +84,8 @@ op voor analyse; de uitkomst voedt de volgende hypothese-ronde van Nova.
    Slack, Notion) en schrijven alle opgehaalde data naar het
    `marketing_hq`-schema. De Routine "Marketing HQ — Ochtendcyclus" heeft de
    connectors expliciet aangekoppeld via de claude.ai Routines-UI.
-2. **Het Pulse-dashboard** is live op
-   https://bequyhghgkvekvibufhw.supabase.co/functions/v1/pulse/ en
+2. **Het Pulse-dashboard** (live op https://wellshave-pulse.netlify.app,
+   deploy via drag&drop van `dashboard/` in het Netlify-project)
    **praat uitsluitend met Supabase** —
    via de publieke anon key + Row Level Security, en Supabase Realtime voor
    live agent-status. Er staan dus nooit Meta/Klaviyo/Trendtrack-keys in

@@ -6,12 +6,15 @@ approvals. Ververst zichzelf elke 30 seconden.
 
 ## Openen
 
-**Live (voor het team):** https://bequyhghgkvekvibufhw.supabase.co/functions/v1/pulse/
+**Live (voor het team):** https://wellshave-pulse.netlify.app — deployen
+gaat door de inhoud van deze map (zonder README) als zip/map in het
+Netlify-project `wellshave-pulse` te slepen (Deploys-tab).
 
-Gehost als Supabase Edge Function (`supabase/functions/pulse/`); de assets
-staan in `marketing_hq.dashboard_assets` (zie `db/migrations/0003`).
-Dashboard updaten = de rijen in die tabel upserten met de inhoud van deze
-map (gehoste `index.html` laadt supabase-js via CDN i.p.v. `vendor/`).
+Let op: hosten via Supabase Edge Functions op het gedeelde supabase.co-domein
+werkt NIET voor de HTML zelf — de Supabase-gateway herschrijft text/html
+bewust naar text/plain (anti-phishing). De edge-functie `pulse` en de
+assets-tabel (`db/migrations/0003`) blijven bestaan voor het geval er later
+een eigen domein aan het Supabase-project hangt.
 
 Lokaal: `npx serve dashboard` (ES-modules werken niet via `file://`).
 
