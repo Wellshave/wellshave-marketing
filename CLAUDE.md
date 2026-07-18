@@ -49,6 +49,14 @@ Jhelarie = U0AEAUF1QLS, Dustin = U03JNJZA3ED.
 De ad-generator "Atelier Console" is één single-file HTML-app. Bewerk bij elke
 wijziging ALTIJD hetzelfde bestand in-place — nooit nieuwe of versienummer-kopieën
 maken.
+
+BESLUIT DUSTIN (11 jul 2026): de ORIGINELE volledige tool ("oude werkwijze",
+~7 MB, met Scriptwriter/recipes/wireframe/rollen/logboek/Creative Strategy) is
+weer de canonieke app — aangesloten op de eigen worker
+`marketing-ads.dustin-9ff.workers.dev` (/anthropic + /v1 OpenAI, team-login
+vereist; token-injectie zit in `fetchJsonWithRetry`, patches gemarkeerd met
+`[MARKETING-ADS]`). De redesign-versie staat in
+`archief/atelier-console-redesign-v2.html` (niet gepubliceerd door Netlify).
 - Canoniek (bron van waarheid): `atelier-console/index.html` in deze repo, branch
   `claude/atelier-console-redesign-u07czk`. Commit + push elke wijziging.
 - Google Drive-werkmap (door Dustin aangewezen, 11 jul 2026): folderId

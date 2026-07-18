@@ -34,7 +34,7 @@ function corsHeaders(request) {
   return {
     'Access-Control-Allow-Origin': ORIGINS.includes(o) ? o : ORIGINS[0],
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version, anthropic-beta',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
   };
@@ -75,11 +75,10 @@ export default {
     if (path === '/anthropic' && request.method === 'POST') {
       if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
       const body = await request.text();
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01' },
-        body
-      });
+      const h = { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01' };
+      const beta = request.headers.get('anthropic-beta');
+      if (beta) h['anthropic-beta'] = beta;
+      const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: h, body });
       return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/json', ...cors } });
     }
 

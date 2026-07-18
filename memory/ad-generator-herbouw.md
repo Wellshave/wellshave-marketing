@@ -1,4 +1,24 @@
-# Atelier Console — projectgeheugen (ad generator herbouw)
+# Atelier Console — projectgeheugen (ad generator)
+
+> **BESLUIT 11 jul 2026 (Dustin): de ORIGINELE tool is weer canoniek.**
+> Dustin uploadde de volledige oude app (~7 MB, "de oude werkwijze werkt een
+> heel stuk beter"): Scriptwriter met Plan-een-test + spar-knop, recipes,
+> wireframe, beeldgeneratie met text-overlay/safe-zones, rollen (admin/member/
+> guest), logboek, ranglijsten, Creative Strategy-tabel, 109 ingebakken
+> productfoto's, Supabase Auth met team-goedkeuring (zelfde project
+> bequyhghgkvekvibufhw). Deze staat nu — met 3 `[MARKETING-ADS]`-patches — als
+> `atelier-console/index.html` in de repo:
+> 1. `PROXY_BASE` → `https://marketing-ads.dustin-9ff.workers.dev` (dekt
+>    Claude ÉN beeld: alle calls lopen via PROXY_BASE + `fetchJsonWithRetry`).
+> 2. `fetchJsonWithRetry` injecteert `window.__WG_TOKEN` (Supabase-token) als
+>    Authorization op alle marketing-ads-calls (overschrijft evt. OpenAI-key).
+> 3. `routeUser()` zet `window.__WG_TOKEN` bij login/refresh (onAuthStateChange).
+> De worker kreeg anthropic-beta-passthrough (brandbook-PDF-flow,
+> `pdfs-2024-09-25`). De redesign-app (334 KB, hieronder beschreven) is
+> GEARCHIVEERD in `archief/atelier-console-redesign-v2.html` — de secties
+> hieronder over die redesign zijn historie/naslagwerk; herbruikbare ideeën:
+> robuuste foutmeldingen, Test AI-verbinding-knop, merk-switch, demo-labels.
+
 
 > Doel van dit bestand: de volledige, gedistilleerde context van de Atelier
 > Console zodat een sessie dit leest/query't i.p.v. de hele chat over te lezen
