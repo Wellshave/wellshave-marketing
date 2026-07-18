@@ -54,9 +54,14 @@ maken.
 - Google Drive-werkmap (door Dustin aangewezen, 11 jul 2026): folderId
   `10wWP0VTtvPvEvWoqmjAgyvuUr3WE_xgO` — hier "werken we in". Inhoud: `index.html`
   (mirror van de live app) + `atelier-proxy.js` (Cloudflare-workercode).
-  Na elke grote wijziging bijwerken zodat repo en Drive gelijklopen — bewerk dan
-  ditzelfde bestand in Drive (Versies beheren → Nieuwe versie), geen nieuwe kopie.
-  FileId's van de bestanden in die map nog vastleggen zodra de Drive-connector
-  geautoriseerd is (claude.ai → Connectors → Google Drive).
+- **VASTE AFSPRAAK (Dustin, 11 jul 2026): na ELKE wijziging aan
+  `atelier-console/index.html` automatisch óók het bestand in de Drive-werkmap
+  bijwerken** — zodra de Google Drive-connector in de sessie beschikbaar is:
+  zoek `index.html` in folder `10wWP0VTtvPvEvWoqmjAgyvuUr3WE_xgO`, VERVANG de
+  inhoud van dat bestaande bestand (update op fileId = nieuwe versie; nooit een
+  kopie/nieuw bestand ernaast; bestaat het nog niet, maak het dan éénmalig aan
+  en leg de fileId hier vast). Is de connector niet gekoppeld: bestand via chat
+  naar Dustin sturen (SendUserFile) én melden dat de Drive-sync is overgeslagen.
+  Zelfde geldt voor `atelier-proxy.js` bij worker-wijzigingen.
 - Live op Netlify: site `wellshave-adgen` → https://wellshave-adgen.netlify.app.
 - Volledige deploy-/redeploy-instructies staan in `DEPLOY.md`.
