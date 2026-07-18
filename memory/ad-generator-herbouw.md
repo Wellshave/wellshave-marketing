@@ -14,10 +14,11 @@ maken met Rory (Fable 5) als AI-motor.
 - **Bron van waarheid:** `atelier-console/index.html` in deze repo, branch
   `claude/atelier-console-redesign-u07czk`. ALTIJD ditzelfde bestand in-place
   bewerken — nooit een nieuwe/versienummer-kopie. Commit + push elke wijziging.
-- **Google Drive-mirror:** `index.html` in map `4. CLAUDE / Ad generator / Nieuw
-  design` (Dustin verving het oude `atelier-console-v0.1.html`, fileId
-  `1J0ytUcbjBfuvR96o-2Vj1mQhrZuAIdkc`, nu verwijderd; nieuwe fileId nog te
-  verversen zodra de Drive-connector terug is).
+- **Google Drive-werkmap:** folderId `10wWP0VTtvPvEvWoqmjAgyvuUr3WE_xgO`
+  (door Dustin aangewezen op 11 jul 2026: "we gaan hierin werken"). Daarin:
+  `index.html` (mirror van de live app; bijwerken via Versies beheren → Nieuwe
+  versie, nooit een kopie) + `atelier-proxy.js` (workercode). FileId's van de
+  bestanden nog vastleggen zodra de Drive-connector geautoriseerd is.
 - **Deliver-flow nu:** Netlify- en Drive-connectoren zijn deze periode vaak
   offline. Werkwijze: wijziging in de repo → verifiëren → commit/push → het
   bestand via chat naar Dustin sturen; hij zet het op Netlify (drag-drop) en Drive
