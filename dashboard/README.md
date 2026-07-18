@@ -6,8 +6,14 @@ approvals. Ververst zichzelf elke 30 seconden.
 
 ## Openen
 
-Statische site, geen build-stap. Lokaal: `npx serve dashboard` (of open
-`index.html` via een webserver; ES-modules werken niet via `file://`).
+**Live (voor het team):** https://bequyhghgkvekvibufhw.supabase.co/functions/v1/pulse/
+
+Gehost als Supabase Edge Function (`supabase/functions/pulse/`); de assets
+staan in `marketing_hq.dashboard_assets` (zie `db/migrations/0003`).
+Dashboard updaten = de rijen in die tabel upserten met de inhoud van deze
+map (gehoste `index.html` laadt supabase-js via CDN i.p.v. `vendor/`).
+
+Lokaal: `npx serve dashboard` (ES-modules werken niet via `file://`).
 
 ## Toegang & beveiliging
 
