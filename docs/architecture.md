@@ -8,8 +8,9 @@ brein en dagelijks rapporteren.
 
 1. **Supabase is de motor, Obsidian is het venster.** Alle operationele staat
    (agent-status, runs, berichten, pipeline, metrics, approvals) leeft in het
-   `marketing_hq`-schema van Supabase-project "Wellgroup ad generator"
-   (`bequyhghgkvekvibufhw`). De markdown-vault in `brain/` wordt door de agents
+   `marketing_hq`-schema van het eigen Supabase-project
+   "wellshave-marketing-hq" (`srjpulfodxakbyulwhki`, sinds 18 juli; daarvoor
+   gedeeld met de ad generator). De markdown-vault in `brain/` wordt door de agents
    bijgewerkt en is leesbaar in Obsidian — inclusief wie er werkt en wat er
    gecommuniceerd wordt.
 2. **Analyseren en klaarzetten mag autonoom; uitvoeren vereist akkoord.**
@@ -70,7 +71,7 @@ op voor analyse; de uitkomst voedt de volgende hypothese-ronde van Nova.
 | Klaviyo | ✅ werkt — Wellshave BV |
 | Trendtrack | ✅ werkt — Wellgroup, professional |
 | Foreplay, Slack, Notion, Gmail, Higgsfield, Netlify, Cloudflare | ✅ verbonden |
-| Supabase | ✅ werkt — project "Wellgroup ad generator" |
+| Supabase | ✅ werkt — eigen project "wellshave-marketing-hq" (`srjpulfodxakbyulwhki`) |
 | Shopify | ✅ aangekoppeld aan de ochtendcyclus-Routine (autorisatie in deze sessie nog open) |
 | Google Ads | ❌ geen connector; API-token bij Google aanvragen (doorlooptijd weken) |
 | ElevenLabs (spraak) | 📋 fase 3 — bestaande API/MCP gebruiken, geen eigen API bouwen |
