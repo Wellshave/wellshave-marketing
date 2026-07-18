@@ -601,7 +601,7 @@ function renderPanel() {
   } else if (state.panelError) {
     body = '<div style="border:1px solid rgba(224,112,90,0.4); background:rgba(224,112,90,0.06); border-radius:12px; padding:16px;"><div style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.12em; color:#e0705a; margin-bottom:7px;">✕ FABLE 5-FOUT</div><div style="font-size:12.5px; color:#f7f2e8; line-height:1.55; margin-bottom:12px;">' + esc(state.panelError) + '</div><button onclick="generateVariants()" style="padding:9px 14px; border-radius:8px; border:1px solid #c9a961; background:linear-gradient(135deg,#e6cd92,#c9a961); color:#1a1408; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer;">↻ Probeer opnieuw</button></div>';
   } else if (state.panelResults) {
-    SHOWN = { variants: state.panelResults, product: ctx.product, source: 'iteratie', persona: '' };
+    SHOWN = { variants: state.panelResults, product: ctx.product, source: 'iteratie', persona: '', place: 'Feed 1:1', rerender: 'renderPanel' };
     body = (state.panelDemo ? demoBanner() : '')
       + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.16em; color:#8d764a; margin:6px 0 12px;">' + state.panelResults.length + ' ITERATIES</div>'
       + state.panelResults.map(function(v, i){
@@ -1228,6 +1228,40 @@ function iterFromShown(i) {
   state.chips = {}; state.panelResults = null;
   renderPanel();
 }
+/* ---- Beeldgeneratie (gpt-image-1 via de team-proxy /openai-route) ---- */
+function aiOpenAiBase() {
+  if (!AI.proxyUrl) return null;
+  var u = AI.proxyUrl.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u.replace(/\/anthropic$/, '');
+}
+function rerenderShown() { if (SHOWN.rerender) { try { window[SHOWN.rerender](); } catch(e){} } }
+function genVariantImage(i) {
+  var v = SHOWN.variants[i]; if (!v || v._imgBusy) return;
+  var base = aiOpenAiBase();
+  if (!base) { showToast('Beeldgeneratie loopt via de team-proxy (OpenAI) — vul de proxy-URL in bij ⚙ Instellingen'); return; }
+  if (!v.imgPrompt) { showToast('Deze variant heeft geen image-prompt'); return; }
+  v._imgBusy = true; rerenderShown();
+  var size = /9:16|4:5/.test(SHOWN.place || '') ? '1024x1536' : '1024x1024';
+  var headers = { 'Content-Type': 'application/json' };
+  if (typeof session !== 'undefined' && session && session.token) headers['Authorization'] = 'Bearer ' + session.token;
+  fetch(base + '/openai/images/generations', { method: 'POST', headers: headers, body: JSON.stringify({ model: 'gpt-image-1', prompt: v.imgPrompt, size: size, n: 1 }) })
+    .then(function(r){ return r.text().then(function(t){
+      var d;
+      try { d = JSON.parse(t); } catch(e){ throw new Error(/^\s*</.test(t) ? 'De proxy gaf een webpagina terug — controleer de proxy-URL (⚙)' : 'Onleesbaar antwoord van de beeld-route (status ' + r.status + ')'); }
+      if (!r.ok || d.error) {
+        var m = (d.error && d.error.message) ? d.error.message : (typeof d.error === 'string' ? d.error : ('status ' + r.status));
+        if (d.hint) m += ' — ' + d.hint;
+        if (/OPENAI_KEY/.test(m)) m += ' (zet de OPENAI_KEY-secret op de worker voor beeldgeneratie)';
+        throw new Error(m);
+      }
+      var b64 = d.data && d.data[0] && d.data[0].b64_json;
+      if (!b64) throw new Error('Geen beeld in het antwoord van OpenAI');
+      v._img = 'data:image/png;base64,' + b64;
+    }); })
+    .then(function(){ v._imgBusy = false; rerenderShown(); showToast('🖼 Beeld gegenereerd — Bewaar om hem in de Bibliotheek te zetten'); })
+    .catch(function(e){ v._imgBusy = false; rerenderShown(); showToast('✕ Beeld mislukt: ' + e.message); });
+}
 function demoBanner() {
   return '<div style="display:flex; align-items:center; gap:10px; border:1px solid rgba(224,112,90,0.35); background:rgba(224,112,90,0.07); border-radius:11px; padding:11px 15px; margin:18px 0 4px;">'
     + '<span style="font-family:\'JetBrains Mono\',monospace; font-size:9.5px; letter-spacing:0.1em; color:#e0705a; border:1px solid rgba(224,112,90,0.5); border-radius:6px; padding:2px 7px;">DEMO</span>'
@@ -1266,7 +1300,9 @@ function adPreview(v, i, opts) {
     loadProductImages(p.id, function(){ delete _imgLoading[p.id]; if (opts.rerender) { try { window[opts.rerender](); } catch(e){} } });
   }
   var asp = placeAspect(opts.place);
-  var photo = imgs.length ? '<img src="' + imgSrc(imgs[i % imgs.length]) + '" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"/>' : '';
+  var photo = v._img
+    ? '<img src="' + v._img + '" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"/>'
+    : (imgs.length ? '<img src="' + imgSrc(imgs[i % imgs.length]) + '" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"/>' : '');
   var tag = (p && p.tag) || (opts.product || 'AD').slice(0, 5).toUpperCase();
   var brand = (brandProfiles && brandProfiles[activeBrand]) || {};
   var accent = brand.colorPrimary || '#c9a961';
@@ -1305,12 +1341,13 @@ function variantCard(v, i, opts) {
     + (v.hyp ? '<div style="font-size:11.5px; color:#8d764a; line-height:1.5; background:rgba(201,169,97,0.05); border-left:2px solid rgba(201,169,97,0.4); padding:8px 11px; border-radius:0 8px 8px 0; margin-top:11px;"><b style="color:#e6cd92;">Rory’s hypothese:</b> ' + esc(v.hyp) + '</div>' : '')
     + '<div style="display:flex; gap:8px; margin-top:13px; padding-top:2px;">'
     + '<button onclick="saveVariant(' + i + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(201,169,97,0.3); background:rgba(201,169,97,0.06); color:#e6cd92; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Bewaar</button>'
+    + '<button onclick="genVariantImage(' + i + ')" ' + (v._imgBusy ? 'disabled' : '') + ' style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(255,255,255,0.12); background:' + (v._imgBusy ? 'rgba(201,169,97,0.08)' : 'transparent') + '; color:' + (v._imgBusy ? '#e6cd92' : '#ada599') + '; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">' + (v._imgBusy ? 'Bezig…' : (v._img ? '🖼 Opnieuw' : '🖼 Beeld')) + '</button>'
     + '<button onclick="iterFromShown(' + i + ')" style="flex:1; padding:9px; border-radius:9px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#ada599; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;">Itereer</button>'
     + '</div></div></div>';
 }
 function variantsGrid(variants, opts) {
   opts = opts || {};
-  SHOWN = { variants: variants, product: opts.product || '', source: opts.source || 'static', persona: opts.persona || '' };
+  SHOWN = { variants: variants, product: opts.product || '', source: opts.source || 'static', persona: opts.persona || '', place: opts.place || 'Feed 1:1', rerender: opts.rerender || '' };
   return (opts.demo ? demoBanner() : '')
     + (opts.context ? contextChecklist(opts.context) : '')
     + '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#8d764a; margin:22px 0 12px;">' + esc(opts.subtitle || variants.length + ' variaties') + '</div>'
@@ -2414,12 +2451,14 @@ function saveVariant(i) {
   if (!AI.sbReady) { showToast('Variant bewaard (demo — koppel Supabase om echt op te slaan)'); return; }
   if (!canWrite()) { showToast(session ? 'Je account is nog niet goedgekeurd' : 'Log in als teamlid om te bewaren (linksonder → Inloggen)'); return; }
   var concept = [v.head, v.sub, '', v.primary, v.cta ? 'CTA: ' + v.cta : '', v.visual ? 'VISUAL: ' + v.visual : '', v.imgPrompt ? 'IMAGE-PROMPT: ' + v.imgPrompt : '', v.hyp ? 'HYPOTHESE: ' + v.hyp : ''].filter(function(x){ return x !== ''; }).join('\n');
-  sbSaveCreative({
+  var rec = {
     ad_name: v.head, product: SHOWN.product, creative_concept: concept, hook_short: v.hook,
     marketing_angle: v.angle || (typeof gen!=='undefined'? genAngleName(gen.angleType):''), persona: SHOWN.persona || (typeof gen!=='undefined'?gen.persona:''),
     roas: null, ctr: null,
     source_type: SHOWN.source, status: 'To Test'
-  }).then(function(){ showToast('✓ Bewaard in de Bibliotheek'); loadFromSupabase(); })
+  };
+  if (v._img) { rec.image_b64 = v._img; rec.has_image = true; }
+  sbSaveCreative(rec).then(function(){ showToast('✓ Bewaard in de Bibliotheek' + (v._img ? ' (met beeld)' : '')); loadFromSupabase(); })
     .catch(function(e){ showToast('Niet bewaard: ' + e.message); });
 }
 function aiRefreshStatus() {

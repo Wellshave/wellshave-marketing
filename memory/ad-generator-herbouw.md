@@ -80,6 +80,14 @@ maken met Rory (Fable 5) als AI-motor.
   beeld-referentie, funnel/awareness/angle/sophistication, brief) en
   `checksBrief()` (kwaliteits-checkboxen). UI toont na generatie een
   "🔍 Wat Rory meekreeg"-checklist (`buildGenContext`).
+- **Beeldgeneratie (jul 2026):** knop "🖼 Beeld" per variant → `genVariantImage(i)`
+  POST `<proxy>/openai/images/generations` (gpt-image-1, size 1024x1024 of
+  1024x1536 o.b.v. plaatsing, login-token mee). Resultaat komt als data-URL in
+  de preview (`v._img`) en gaat bij Bewaar mee als `image_b64`+`has_image`.
+  Vereist de OpenAI-route op de proxy (zit in de gedeelde worker én in
+  `cloudflare-worker/atelier-proxy.js`) + `OPENAI_KEY`-secret. Dustin koos
+  optie B: een EIGEN losse worker `atelier-proxy` (volledige isolatie van de
+  gedeelde bol-OS-worker; die blijft onaangeraakt op versie 340b397a).
 - Output-schema per variant: hook/head/sub/primary/cta/visual/imgPrompt(EN)/hyp
   — GEEN verzonnen ROAS/CTR meer. Kaarten (`variantsGrid`/`variantCard`):
   ratio-preview (1:1/4:5/9:16, echte productfoto indien geladen, wordmark- en

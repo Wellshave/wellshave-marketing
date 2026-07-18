@@ -7,11 +7,19 @@
  * 1. dash.cloudflare.com → Workers & Pages → Create → Worker,
  *    naam bv. "atelier-proxy" → Deploy.
  * 2. Edit code → alles vervangen door dit bestand → Deploy.
- * 3. Settings → Variables & Secrets → Add → type Secret:
- *    ANTHROPIC_KEY = een sk-ant-… key (console.anthropic.com → API keys;
- *    maak gerust een nieuwe aan — bestaande secrets zijn niet uitleesbaar).
+ * 3. Settings → Variables & Secrets → Add → type Secret (allebei):
+ *    ANTHROPIC_KEY = een sk-ant-… key (console.anthropic.com → API keys)
+ *    OPENAI_KEY    = een sk-… key    (platform.openai.com → API keys)
+ *    (bestaande secrets van andere workers zijn niet uitleesbaar — maak
+ *    gerust nieuwe keys aan.)
  * 4. In de Atelier Console (⚙): API-key veld LEEG, team-proxy URL =
  *    https://atelier-proxy.<jouw-subdomein>.workers.dev → Test → Opslaan.
+ *
+ * Endpoints:
+ *   GET   /health            -> health (open)
+ *   POST  /anthropic         -> Claude (copy/concepten)   (login vereist)
+ *   POST  /openai/<rest>     -> OpenAI (beeldgeneratie)   (login vereist)
+ *   POST  /v1/<rest>         -> OpenAI (alias)            (login vereist)
  *
  * Beveiliging: alleen ingelogde, door een admin GOEDGEKEURDE leden van de
  * Atelier Console (team_members.status = 'approved') mogen genereren.
@@ -61,15 +69,37 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     const path = new URL(request.url).pathname.replace(/\/+$/, '');
     if (path === '' || path === '/health') return json({ ok: true, service: 'atelier-proxy' });
-    if (path !== '/anthropic' || request.method !== 'POST') return json({ error: { message: 'Gebruik POST /anthropic (of GET /health).' } }, 404);
     if (!(await approvedMember(request))) return json({ ok: false, error: 'unauthorized', hint: 'Log in in de Atelier Console met een goedgekeurd teamaccount.' }, 401);
-    if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
-    const body = await request.text();
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01' },
-      body
-    });
-    return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/json', ...cors } });
+
+    // ---- Anthropic (Claude): copy, concepten, analyses ----
+    if (path === '/anthropic' && request.method === 'POST') {
+      if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
+      const body = await request.text();
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01' },
+        body
+      });
+      return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/json', ...cors } });
+    }
+
+    // ---- OpenAI (beeldgeneratie), body GEBUFFERD doorgeven ----
+    let oaPath = null;
+    if (path.startsWith('/v1/')) oaPath = path.slice(1);
+    else if (path.startsWith('/openai/')) oaPath = path.slice('/openai/'.length);
+    if (oaPath !== null) {
+      if (!env.OPENAI_KEY) return json({ error: 'OPENAI_KEY secret ontbreekt op deze worker' }, 500);
+      const target = oaPath.startsWith('v1/') ? ('https://api.openai.com/' + oaPath) : ('https://api.openai.com/v1/' + oaPath);
+      const headers = { 'Authorization': 'Bearer ' + env.OPENAI_KEY };
+      const ct = request.headers.get('content-type');
+      if (ct) headers['Content-Type'] = ct;
+      let body;
+      if (request.method !== 'GET' && request.method !== 'HEAD') body = await request.arrayBuffer();
+      const r = await fetch(target, { method: request.method, headers, body });
+      const out = await r.arrayBuffer();
+      return new Response(out, { status: r.status, headers: { 'Content-Type': r.headers.get('content-type') || 'application/json', ...cors } });
+    }
+
+    return json({ error: { message: 'Gebruik POST /anthropic of /openai/… (of GET /health).' } }, 404);
   }
 };
