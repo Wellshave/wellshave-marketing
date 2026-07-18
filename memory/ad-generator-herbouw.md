@@ -87,8 +87,11 @@ maken met Rory (Fable 5) als AI-motor.
   de preview (`v._img`) en gaat bij Bewaar mee als `image_b64`+`has_image`.
   Vereist de OpenAI-route op de proxy (zit in de gedeelde worker én in
   `cloudflare-worker/atelier-proxy.js`) + `OPENAI_KEY`-secret. Dustin koos
-  optie B: een EIGEN losse worker `atelier-proxy` (volledige isolatie van de
-  gedeelde bol-OS-worker; die blijft onaangeraakt op versie 340b397a).
+  optie B: een EIGEN losse worker, live op
+  **https://marketing-ads.dustin-9ff.workers.dev** (code = atelier-proxy.js;
+  health-service-naam 'atelier-proxy'). Geprobed 11 jul: /health ok, 401-gate
+  op /anthropic én /openai, CORS voor wellshave-adgen ✓. De gedeelde
+  bol-OS-worker blijft onaangeraakt op versie 340b397a.
 - Output-schema per variant: hook/head/sub/primary/cta/visual/imgPrompt(EN)/hyp
   — GEEN verzonnen ROAS/CTR meer. Kaarten (`variantsGrid`/`variantCard`):
   ratio-preview (1:1/4:5/9:16, echte productfoto indien geladen, wordmark- en
