@@ -33,6 +33,8 @@ function showAuth() {
   });
   async function act(action) {
     const email = $('auth-email').value.trim(), password = $('auth-pass').value;
+    if (!email) { msg.textContent = 'Vul eerst je e-mailadres in.'; return; }
+    if (action !== 'magic' && !password) { msg.textContent = 'Vul ook een wachtwoord in (minimaal 6 tekens).'; return; }
     msg.textContent = 'Bezig…';
     try {
       if (action === 'signin') {
