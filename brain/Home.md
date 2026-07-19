@@ -4,15 +4,17 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 18 juli 2026
-- 📊 [[Reports/Daily/2026-07-18|Dagrapport]]: gisteren €118 spend, ROAS
-  hoofdaccount **4,19** (voorlopig) — de dip van 16/7 is omgeslagen.
-  Advertorial-funnel 5,89; GroomGuard CBO gaf €29 uit zonder aankopen.
-- 📡 [[Briefings/2026-07-18|Trendbriefing]]: 302 nieuwe concurrent-ads in
-  24u; bundels, UGC-creators en advertorials domineren.
-- 🎬 Nova vulde de [[Pipeline/Board|pipeline]] met 3 concepten en zette
-  **2 acties klaar voor akkoord** in [[Inbox/Approvals|Approvals]].
-- 📧 E-mailkanaal stil sinds 12 juni; 5 SGL-drafts liggen klaar.
+## Vandaag — 19 juli 2026
+- 📊 [[Reports/Daily/2026-07-19|Dagrapport]]: gisteren €105 spend, ROAS
+  hoofdaccount **1,55** (voorlopig) — volatiele dag: Advertorial €34,58
+  zonder gemeten aankopen, GroomGuard juist **4,51**. 17/7 bevestigd op 4,18.
+- ⚠️ Atlas plaatst een **kanttekening bij approval #1**: het
+  advertorial-budgetbesluit toetsen op een 3-daags gemiddelde, niet op
+  dagbasis.
+- 📡 [[Briefings/2026-07-19|Trendbriefing]]: 225 nieuwe concurrent-ads;
+  BALZY-bundels schalen door → **bundel-test naar Hypothese**; nieuw idee:
+  testimonial-statics (cf. Meridian).
+- 📧 E-mailkanaal stil sinds 12 juni; approval #2 (SGL-mail) wacht op akkoord.
 
 ## Het team
 | Agent | Rol | Status |
