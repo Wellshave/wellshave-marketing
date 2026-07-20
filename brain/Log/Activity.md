@@ -4,6 +4,14 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-20** · Nova · Testimonial-statics → Hypothese (2 dagen
+  bevestiging); advertorial-caveat aangescherpt: 3d-gemiddelde 2,93 < 3,0.
+- **2026-07-20** · Radar · Marktscan: rustige dag (60 nieuwe ads);
+  Meridian-testimonial rank 13, BALZY-influencer 192k reach (75 credits,
+  9.577 resterend).
+- **2026-07-20** · Atlas · Ochtendcyclus: herstel 19/7 (blended 1,96;
+  Advertorial 2,72, GroomGuard 2,18); 18/7-advertorial blijft op nul;
+  16/7 definitief 0,98; Klaviyo-stilte bevestigd.
 - **2026-07-19** · Nova · Bundel-test → Hypothese; nieuw idee
   testimonial-statics; kanttekening van Atlas verwerkt in approval #1.
 - **2026-07-19** · Radar · Marktscan: 225 nieuwe ads/24u; BALZY-bundel

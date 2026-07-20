@@ -4,17 +4,18 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 19 juli 2026
-- 📊 [[Reports/Daily/2026-07-19|Dagrapport]]: gisteren €105 spend, ROAS
-  hoofdaccount **1,55** (voorlopig) — volatiele dag: Advertorial €34,58
-  zonder gemeten aankopen, GroomGuard juist **4,51**. 17/7 bevestigd op 4,18.
-- ⚠️ Atlas plaatst een **kanttekening bij approval #1**: het
-  advertorial-budgetbesluit toetsen op een 3-daags gemiddelde, niet op
-  dagbasis.
-- 📡 [[Briefings/2026-07-19|Trendbriefing]]: 225 nieuwe concurrent-ads;
-  BALZY-bundels schalen door → **bundel-test naar Hypothese**; nieuw idee:
-  testimonial-statics (cf. Meridian).
-- 📧 E-mailkanaal stil sinds 12 juni; approval #2 (SGL-mail) wacht op akkoord.
+## Vandaag — 20 juli 2026
+- 📊 [[Reports/Daily/2026-07-20|Dagrapport]]: gisteren €144 totaal spend,
+  hoofdaccount ROAS **1,96** (voorlopig) — herstel na 1,54. Advertorial
+  terug op 2,72, maar 18/7 blijft definitief op nul.
+- ⚠️ **Advertorial-drempel nét niet gehaald:** het 3-daags gewogen
+  gemiddelde staat op **2,93** (< 3,0). De toets uit Atlas' kanttekening
+  zou de budgetverhoging van approval #1 vandaag dus tegenhouden.
+- 📡 [[Briefings/2026-07-20|Trendbriefing]]: rustigere dag (60 nieuwe ads);
+  Meridian-testimonial klimt 2e dag → **testimonial-statics naar Hypothese**;
+  BALZY-influencer-video op 192k reach.
+- 📧 E-mailkanaal: dag 38 zonder verzending (Klaviyo bevestigd); approval #2
+  wacht op akkoord.
 
 ## Het team
 | Agent | Rol | Status |
