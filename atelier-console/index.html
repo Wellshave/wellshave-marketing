@@ -9288,6 +9288,21 @@ function updateApiStatus() {
 // ============================================================
 // RETRY HELPER & PROXY STATUS
 // ============================================================
+/* [MARKETING-ADS] Haal veilig de tekst uit een (proxy-)Claude-antwoord.
+   Voorkomt de cryptische 'Cannot read properties of undefined (reading trim)'
+   en toont in plaats daarvan de echte fout van de teamserver. */
+function wgClaudeText(data){
+  var t = data && data.content && data.content[0] && data.content[0].text;
+  if (typeof t === 'string' && t.length) return t;
+  var e = '';
+  if (data){
+    if (data.error) e = (typeof data.error === 'string') ? data.error : (data.error.message || '');
+    if (!e && data.hint) e = data.hint;
+    if (!e && data.message) e = data.message;
+  }
+  if (e) throw new Error('AI-fout: ' + e);
+  throw new Error('Leeg antwoord van de teamserver. Ben je ingelogd als goedgekeurd teamlid, en heeft de worker de ANTHROPIC_KEY-secret?');
+}
 async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) {
   /* [MARKETING-ADS] de worker vereist een team-login (Supabase-token van een
      goedgekeurd lid). Zet/overschrijf de Authorization-header voor alle calls
@@ -9311,7 +9326,10 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
 
       if (response.ok) return data;
 
-      const msg = (data.error && data.error.message) || `API fout (status ${response.status})`;
+      let msg = (data && data.error && (data.error.message || (typeof data.error === 'string' ? data.error : null)))
+                || (data && data.message) || `API fout (status ${response.status})`;
+      if (data && data.hint && String(msg).indexOf(data.hint) < 0) msg += ' — ' + data.hint;
+      if (response.status === 401 || response.status === 403) msg += ' (log in als goedgekeurd teamlid; de sleutels staan op de worker)';
       const lower = msg.toLowerCase();
       const retryable = (response.status >= 500 && response.status < 600) ||
                         response.status === 429 ||
@@ -11468,7 +11486,7 @@ async function analyzeBrainDump() {
       })
     });
 
-    const text = data.content[0].text.trim();
+    const text = wgClaudeText(data).trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Geen JSON gevonden in Claude response');
     const parsed = JSON.parse(jsonMatch[0]);
@@ -12082,7 +12100,7 @@ async function extractIterateDataFromImage(b64, mimeType) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s = text.indexOf('{'); const e = text.lastIndexOf('}');
     if (s === -1 || e === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(s, e + 1));
@@ -12320,7 +12338,7 @@ async function generateFromIterateMode() {
         messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userPrompt } ] }]
       })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{'); const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
     const parsed = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
@@ -12442,7 +12460,7 @@ async function generateFromCopyMode() {
       })
     });
 
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
@@ -13040,7 +13058,7 @@ async function tfAssessPhoto() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1200, system: TF_ASSESS_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.transformerPhoto.mimeType, data: state.transformerPhoto.b64 } }, { type: 'text', text: 'Beoordeel deze foto en vul het concept in volgens het output-format.' } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const res = JSON.parse(text.substring(a, b + 1));
@@ -13097,7 +13115,7 @@ async function adTransformerRun(){
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: Math.min(8000, 1800 + count * 1600), system: SYSTEM_PROMPT + '\n\n' + TRANSFORMER_SYSTEM_ADDITIONS + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.transformerPhoto.mimeType, data: state.transformerPhoto.b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a2 = text.indexOf('{'); const b2 = text.lastIndexOf('}');
     if (a2 === -1 || b2 === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(a2, b2 + 1));
@@ -14435,7 +14453,7 @@ async function checkSafezone(varIndex) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: 600, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: 'image/png', data: current.b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s = text.indexOf('{'); const e = text.lastIndexOf('}');
     if (s === -1 || e === -1) throw new Error('geen JSON');
     const parsed = JSON.parse(text.substring(s, e + 1));
@@ -14807,7 +14825,7 @@ async function generateOgilvyCopy(varIndex) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 2500, system: OGILVY_COPY_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const copy = JSON.parse(text.substring(a, b + 1));
@@ -14929,7 +14947,7 @@ async function cwAnalyze() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1200, system: CW_ANALYSE_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.cwPhoto.mimeType, data: state.cwPhoto.b64 } }, { type: 'text', text: u } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     state.cwAnalysis = JSON.parse(text.substring(a, b + 1));
@@ -14979,7 +14997,7 @@ async function cwWriteCopy() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 2500, system: OGILVY_COPY_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.cwPhoto.mimeType, data: state.cwPhoto.b64 } }, { type: 'text', text: u } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s2 = text.indexOf('{'); const e2 = text.lastIndexOf('}');
     if (s2 === -1 || e2 === -1) throw new Error('geen JSON in respons');
     const copy = JSON.parse(text.substring(s2, e2 + 1));
