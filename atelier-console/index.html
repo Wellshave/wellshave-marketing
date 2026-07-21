@@ -5837,6 +5837,7 @@ input:focus, select:focus, textarea:focus {
 // ===== TEAM-SERVER CONFIG (gedeelde proxy + database) =====
 // Fase 1: alle AI-calls lopen via deze Worker (keys staan op de server).
 const PROXY_BASE = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING-ADS] eigen ad-generator-worker: /anthropic + /v1 (OpenAI), team-login vereist */
+window.__WG_TEAMSERVER = /^https:\/\//i.test(PROXY_BASE) && !/(localhost|127\.0\.0\.1)/i.test(PROXY_BASE); /* [MARKETING-ADS] sleutels staan server-side op de worker -> key-veld niet vereist */
 // Fase 2 (Supabase data-sync) gebruikt deze twee:
 const SUPABASE_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -9258,8 +9259,8 @@ function updateApiStatus() {
     if (_oT) _oT.textContent = 'OpenAI via teamserver';
     return;
   }
-  const aKey = document.getElementById('anthropic-key').value.trim();
-  const oKey = document.getElementById('openai-key').value.trim();
+  const aKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
+  const oKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
 
   const aDot = document.getElementById('anthropic-status');
   const aText = document.getElementById('anthropic-status-text');
@@ -11429,7 +11430,7 @@ async function analyzeBrainDump() {
     toast('Type eerst een brain dump', true);
     return;
   }
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) {
     toast('Eerst Anthropic API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -11752,7 +11753,7 @@ function ingestBrandbook(file) {
 }
 var BRAND_EXTRACT_SYSTEM_PROMPT = 'Je bent Rory, een merkstrateeg. Je leest een brandbook (PDF of afbeelding) en haalt de merkgegevens eruit. Geef UITSLUITEND een JSON-object terug, geen uitleg, geen code-fences. Onbekende velden laat je als lege string. Gebruik exact deze sleutels: brand_name, website, location, positioning, gold, gold_light, dark, grey, color_ratio, font_display, font_body, trustpilot_score, trustpilot_count, google_score, google_count, customer_count, since_year, guarantee, delivery, media, tone, claims, forbidden. Kleuren als hex (#RRGGBB). trustpilot_score als bijvoorbeeld "4,5/5". Aantallen in korte notatie zoals "800+" of "184.000+". media als komma-gescheiden lijst. tone, claims en forbidden als korte Nederlandse tekst.';
 async function autofillFromBrandbook() {
-  var apiKey = document.getElementById('anthropic-key').value.trim();
+  var apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { if (typeof toast === 'function') toast('Stel eerst je Anthropic API-key in', true); return; }
   if (!state._brandbook) { if (typeof toast === 'function') toast('Upload eerst een brandbook', true); return; }
   var status = document.getElementById('bp-extract-status');
@@ -12065,7 +12066,7 @@ function handleIterateDataUpload(e) {
 }
 
 async function extractIterateDataFromImage(b64, mimeType) {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   const status = document.getElementById('iterate-extract-status');
   const btn = document.getElementById('iterate-extract-btn');
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
@@ -12222,7 +12223,7 @@ function applyRoryPlan(parsed) {
   if (typeof toast === 'function') toast('Theriot koos de testdimensies: ' + chosen.join(', '));
 }
 async function analyzeWinningAd() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.sourceAd) { toast('Upload eerst je winnende ad', true); return; }
   const collected = collectIterateData(); const perfData = collected.text;
@@ -12284,7 +12285,7 @@ async function analyzeWinningAd() {
 }
 
 async function generateFromIterateMode() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.sourceAd) { toast('Upload eerst je winnende ad', true); return; }
   const productId = document.getElementById('product-select').value;
@@ -12370,7 +12371,7 @@ function dispatchGenerate() {
 // GENERATE FROM COPY MODE
 // ============================================================
 async function generateFromCopyMode() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) {
     toast('Eerst je Anthropic API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -12642,7 +12643,7 @@ function buildCopyModeUserPrompt({ product, placement, concept, num, offer, mode
 }
 
 async function generate() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) {
     toast('Eerst je Anthropic API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -13025,7 +13026,7 @@ function setSelectIfValid(id, value) {
 }
 
 async function tfAssessPhoto() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.transformerPhoto) { toast('Upload eerst een foto', true); return; }
   const model = document.getElementById('anthropic-model').value;
@@ -13059,7 +13060,7 @@ async function tfAssessPhoto() {
 }
 
 async function adTransformerRun(){
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.transformerPhoto) { toast('Upload eerst een foto', true); return; }
   const direction = document.getElementById('tf-direction').value.trim();
@@ -13123,7 +13124,7 @@ async function adTransformerRun(){
 }
 
 async function generateImage(varIndex) {
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -13734,7 +13735,7 @@ async function runUnifiedDirect(varIndex) {
   const promptText = (ta.value || '').trim();
   if (!promptText) { toast('Beschrijf eerst de wijziging, of klik een snelkeuze', true); return; }
 
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -13830,7 +13831,7 @@ function renderEditSteps(varIndex) {
 async function applyCombinedEdits(varIndex) {
   const steps = (state.pendingEdits && state.pendingEdits[varIndex]) || [];
   if (steps.length === 0) { toast('Voeg eerst minstens een stap toe', true); return; }
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) { toast('Vul eerst je OpenAI API-key in', true); return; }
   const imgState = state.generatedImages[varIndex];
   if (!imgState || !imgState.versions || imgState.versions.length === 0) return;
@@ -13910,7 +13911,7 @@ async function editImage(varIndex) {
     return;
   }
 
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -14022,7 +14023,7 @@ async function editLayout(varIndex) {
     return;
   }
 
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -14119,7 +14120,7 @@ async function editStrip(varIndex) {
     return;
   }
 
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -14215,7 +14216,7 @@ async function editAdd(varIndex) {
     return;
   }
 
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
@@ -14414,7 +14415,7 @@ function toggleSafezone(varIndex) {
 }
 
 async function checkSafezone(varIndex) {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   const status = document.getElementById(`safezone-status-${varIndex}`);
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   const imgState = state.generatedImages[varIndex];
@@ -14461,7 +14462,7 @@ async function checkSafezone(varIndex) {
 }
 
 async function reformatImage(varIndex, targetKey) {
-  const apiKey = document.getElementById('openai-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) { toast('Eerst OpenAI API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   const imgState = state.generatedImages[varIndex];
   if (!imgState || !imgState.versions || imgState.versions.length === 0) return;
@@ -14769,7 +14770,7 @@ function copyOgilvyText(btn) {
 }
 
 async function generateOgilvyCopy(varIndex) {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.lastGenerated || !state.lastGenerated.variations[varIndex]) return;
   const v = state.lastGenerated.variations[varIndex];
@@ -14911,7 +14912,7 @@ function renderCwAnalysis(a) {
 }
 
 async function cwAnalyze() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   if (!state.cwPhoto) { toast('Upload eerst een advertentie', true); return; }
   const model = document.getElementById('anthropic-model').value;
@@ -14944,7 +14945,7 @@ async function cwAnalyze() {
 }
 
 async function cwWriteCopy() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); return; }
   if (!state.cwPhoto || !state.cwAnalysis) { toast('Analyseer eerst de advertentie', true); return; }
   const model = document.getElementById('anthropic-model').value;
@@ -15196,7 +15197,7 @@ function handleSwIterUpload(e) {
   }).catch(function(err) { toast('Kon afbeelding niet verwerken: ' + err.message, true); });
 }
 async function extractSwIterFromImage(b64, mimeType) {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   const status = document.getElementById('sw-iter-extract-status');
   const btn = document.getElementById('sw-iter-extract-btn');
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
@@ -15234,7 +15235,7 @@ async function extractSwIterFromImage(b64, mimeType) {
   } finally { if (btn) btn.disabled = false; }
 }
 async function swIterateScript() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   const scriptText = document.getElementById('sw-iter-script').value.trim();
   if (!scriptText) { toast('Plak eerst het script dat je wilt itereren', true); return; }
@@ -15351,7 +15352,7 @@ const SW_SETUP_TOOL = {
   }
 };
 async function swAnalyzeIdea() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   const idea = document.getElementById('sw-idea').value.trim();
   if (!idea) { toast('Type eerst je idee', true); return; }
@@ -15394,7 +15395,7 @@ async function swAnalyzeIdea() {
   } finally { if (btn) btn.disabled = false; }
 }
 async function swWriteScript() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
   const direction = document.getElementById('sw-direction').value.trim();
   if (!direction) { toast('Geef eerst richting: waar dient het script voor', true); return; }
@@ -16717,7 +16718,7 @@ updateConceptFieldContext();
 // CONCEPT SUGGESTER
 // ============================================================
 async function generateConceptSuggestions() {
-  const apiKey = document.getElementById('anthropic-key').value.trim();
+  const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) {
     toast('Eerst Anthropic API key invullen', true);
     document.getElementById('settings-panel').classList.add('open');
