@@ -1,12 +1,16 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-20 · ochtendcyclus
-**Huidige taak:** klaar; volgende run morgen 07:00
+**Laatste run:** 2026-07-21 · ochtendcyclus
+**Huidige taak:** klaar; Wellshine-campagne-analyse staat klaar voor de
+volgende run
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-21** · [[../Reports/Daily/2026-07-21|Dagrapport]]: zwakke dag
+  (0,88 / 0,90); advertorial 3-daags gemiddelde naar **1,24** → advies
+  approval #1 afwijzen; Wellshine-spend-signaal naar [[Nova]].
 - **2026-07-20** · [[../Reports/Daily/2026-07-20|Dagrapport]]: herstel naar
   1,96; advertorial 3-daags gewogen op **2,93** (nét onder drempel #1);
   16/7 definitief op 0,98; Klaviyo-stilte bevestigd (dag 38).
