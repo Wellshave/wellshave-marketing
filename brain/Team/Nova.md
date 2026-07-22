@@ -1,13 +1,16 @@
 # Nova — Creative Director & Strategie
 
 **Status:** 🟡 wacht op akkoord (2 approvals)
-**Laatste run:** 2026-07-21 · ochtendcyclus
-**Huidige taak:** wacht op besluit — advies is approval #1 af te wijzen
-(3d-gemiddelde 1,24); SGL-mail (#2) wacht op akkoord
+**Laatste run:** 2026-07-22 · ochtendcyclus
+**Huidige taak:** advies bij approval #1 bijgesteld (afwachten tot 2-3 dagen
+boven 3,0); SGL-mail (#2) wacht op akkoord
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-22** · Advertorial-advies bijgesteld na herstel 21/7 (nu
+  afwachten i.p.v. afwijzen); testimonial-static-hypothese sterker
+  (Meridian rank 6); hoofd-scheerapparaat-LP-idee blijft staan.
 - **2026-07-21** · Advertorial-advies aangescherpt (**afwijzen** in huidige
   vorm; eerst creative/LP verversen); nieuw idee **dedicated
   hoofd-scheerapparaat-LP**; Wellshine-analyse aangevraagd bij [[Atlas]].

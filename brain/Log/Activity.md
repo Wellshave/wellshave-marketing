@@ -4,6 +4,13 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-22** · Nova · Advertorial-advies bijgesteld (afwachten i.p.v.
+  afwijzen na herstel 3,61); testimonial-hypothese sterker (Meridian rank 6).
+- **2026-07-22** · Radar · Marktscan: 80 nieuwe ads; Meridian-testimonial
+  rank 6 (4e dag); BALZY-influencer 447k reach (75 credits, 9.427 resterend).
+- **2026-07-22** · Atlas · Ochtendcyclus: sterke ommekeer 21/7 (blended
+  3,61, alle campagnes mee); advertorial 3-daags ~2,07; Wellshine onder 1,0;
+  18/7 definitief 1,54; Klaviyo dag 40 stil.
 - **2026-07-21** · Nova · Advies approval #1: afwijzen (3d-gem. 1,24);
   nieuw idee dedicated hoofd-scheerapparaat-LP; Wellshine-analyse
   aangevraagd.

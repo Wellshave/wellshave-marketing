@@ -4,18 +4,18 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 21 juli 2026
-- 📊 [[Reports/Daily/2026-07-21|Dagrapport]]: zwakke dag — hoofdaccount
-  **0,88** op €87,49, Wellshine **0,90** op €66,86 (spend daar in 3 dagen
-  verdrievoudigd). 17/7 definitief op 4,18.
-- ⚠️ **Advies: approval #1 afwijzen.** Het advertorial-momentum is weg:
-  3-daags gewogen gemiddelde **1,24** (0 / 2,72 / 0,77). Eerst creative/LP
-  verversen, dan pas over budget praten.
-- 📡 [[Briefings/2026-07-21|Trendbriefing]]: 116 nieuwe ads; **Meridian
-  lanceerde 42 ads + 3 UGC-partners in één dag**; BALZY-influencer op 440k
-  reach; nieuw idee: **dedicated hoofd-scheerapparaat-LP** (cf. Brothers in
-  Style, 167 dagen live).
-- 📧 E-mailkanaal: dag 39 zonder verzending; approval #2 wacht op akkoord.
+## Vandaag — 22 juli 2026
+- 📊 [[Reports/Daily/2026-07-22|Dagrapport]]: **sterke ommekeer** —
+  hoofdaccount ROAS **3,61** op €89,71, de eerste dag boven 3,0 sinds 17/7.
+  Alle drie campagnes mee: GroomGuard 4,48, Interests 3,94, Advertorial 2,76.
+- 🔄 **Advertorial-momentum keert:** 3-daags gewogen van 1,24 → **≈ 2,07** en
+  stijgend. Advies bij approval #1 bijgesteld: nog niet uitvoeren, maar
+  2-3 dagen structureel boven 3,0 afwachten (niet meer botweg afwijzen).
+- ⚠️ Wellshine blijft de zorg: €70,53 spend, structureel onder 1,0.
+- 📡 [[Briefings/2026-07-22|Trendbriefing]]: 80 nieuwe ads;
+  **Meridian-testimonial-static nu rank 6** (4e dag stijgend) → sterkste
+  bewijs voor onze testimonial-hypothese; BALZY-influencer op 447k reach.
+- 📧 E-mailkanaal: dag 40 zonder verzending; approval #2 wacht op akkoord.
 
 ## Het team
 | Agent | Rol | Status |

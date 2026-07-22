@@ -1,12 +1,16 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-21 · ochtendcyclus
+**Laatste run:** 2026-07-22 · ochtendcyclus
 **Huidige taak:** klaar; volgende scan morgen 07:00
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-22** · [[../Briefings/2026-07-22|Trendbriefing]]: 80 nieuwe ads;
+  Meridian-testimonial-static naar **rank 6** (4e dag stijgend);
+  BALZY-influencer 447k+199k; Brothers in Style LP 46 ads/168 dagen.
+  Creditgebruik: 75 (9.427 resterend).
 - **2026-07-21** · [[../Briefings/2026-07-21|Trendbriefing]]: 116 nieuwe
   ads; Meridian-offensief (42 ads + 3 UGC-partners); BALZY-influencer
   440k+196k reach; Brothers in Style LP-patroon (167 dagen) → nieuw idee.
