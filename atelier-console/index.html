@@ -8483,7 +8483,7 @@ function wgpBd(){
     method:'POST', headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01'},
     body: JSON.stringify({ model: wgpModel(), max_tokens: 400, system: sys+brandProfileBlock(), messages:[{role:'user',content:txt}] })
   }).then(function(data){
-    var t=(data&&data.content&&data.content[0]&&data.content[0].text)||'';
+    var t=wgClaudeTextOrNull(data)||'';
     var a=t.indexOf('{'); var b=t.lastIndexOf('}');
     if(a===-1||b===-1) throw new Error('geen JSON in antwoord');
     var p=JSON.parse(t.substring(a,b+1));
@@ -8616,7 +8616,7 @@ function wgpAsk(userText,isKickoff){
     body: JSON.stringify({ model:wgpModel(), max_tokens:500, system:WGP_FABLE_BASIS+brandProfileBlock()+'\n\nSTAP-INSTRUCTIE: '+(WGP_COACH[wgp.step]||''), messages:msgs })
   }).then(function(data){
     wgp.chats[wgp.step]=wgp.chats[wgp.step].filter(function(m){return m.role!=='think';});
-    var text=(data&&data.content&&data.content[0]&&data.content[0].text)?data.content[0].text.trim():null;
+    var text=(wgClaudeTextOrNull(data)||'').trim()||null;
     if(!text) throw new Error('leeg antwoord');
     wgpPush('assistant',text);
   }).catch(function(err){
@@ -9291,9 +9291,18 @@ function updateApiStatus() {
 /* [MARKETING-ADS] Haal veilig de tekst uit een (proxy-)Claude-antwoord.
    Voorkomt de cryptische 'Cannot read properties of undefined (reading trim)'
    en toont in plaats daarvan de echte fout van de teamserver. */
+function wgClaudeTextOrNull(data){
+  var blocks = data && data.content;
+  if (Array.isArray(blocks)){
+    // fable-5 kan een 'thinking'-block vooraan zetten; pak het eerste ECHTE text-block
+    for (var i=0;i<blocks.length;i++){ var b=blocks[i]; if (b && b.type==='text' && typeof b.text==='string' && b.text.length) return b.text; }
+    for (var j=0;j<blocks.length;j++){ var c=blocks[j]; if (c && typeof c.text==='string' && c.text.length) return c.text; }
+  }
+  return null;
+}
 function wgClaudeText(data){
-  var t = data && data.content && data.content[0] && data.content[0].text;
-  if (typeof t === 'string' && t.length) return t;
+  var t = wgClaudeTextOrNull(data);
+  if (t != null) return t;
   var e = '';
   if (data){
     if (data.error) e = (typeof data.error === 'string') ? data.error : (data.error.message || '');
@@ -11790,7 +11799,7 @@ async function autofillFromBrandbook() {
       method: 'POST', headers: headers,
       body: JSON.stringify({ model: model, max_tokens: 1500, system: BRAND_EXTRACT_SYSTEM_PROMPT, messages: [{ role: 'user', content: [ docBlock, { type: 'text', text: 'Lees dit brandbook en geef het JSON-object met de merkgegevens.' } ] }] })
     });
-    var text = (data.content[0].text || '').trim();
+    var text = (wgClaudeTextOrNull(data) || '').trim();
     var m = text.match(/\{[\s\S]*\}/); if (m) text = m[0];
     var parsed = JSON.parse(text);
     var merged = Object.assign({}, getBrandProfileMerged());
@@ -15231,7 +15240,7 @@ async function extractSwIterFromImage(b64, mimeType) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1800, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64 } }, { type: 'text', text: userText } ] }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(a, b + 1));
@@ -15278,7 +15287,7 @@ async function swIterateScript() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 4000, system: SW_SCRIPT_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const sc = JSON.parse(text.substring(a, b + 1));
@@ -15465,7 +15474,7 @@ async function swWriteScript() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 3500, system: SW_SCRIPT_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const script = JSON.parse(text.substring(a, b + 1));
@@ -16887,7 +16896,7 @@ async function generateConceptSuggestions() {
       })
     });
 
-    let text = data.content[0].text.trim();
+    let text = wgClaudeText(data).trim();
     // Robust JSON extraction: handle code-fences or extra prose
     const jsonMatch = text.match(/\{[\s\S]*"concepts"[\s\S]*?\]\s*\}/);
     if (jsonMatch) text = jsonMatch[0];
