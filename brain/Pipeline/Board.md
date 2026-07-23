@@ -22,9 +22,10 @@
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. Stand 22/7:
-  momentum keert, 3-daags gewogen ≈ **2,07** (2,72 / 0,77 / 2,76) en stijgend.
-  Advies: nog niet uitvoeren; eerst 2-3 dagen structureel boven 3,0 afwachten*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. Stand 23/7:
+  3-daags gewogen ≈ **2,30** (0,77 / 2,76 / 3,42), 3 dagen stijgend met de
+  laatste twee boven 3,0. Advies: nog niet uitvoeren; groen licht overwegen
+  zodra het 3-daags gemiddelde de 3,0 raakt en vasthoudt*
 
 ## Script
 *leeg*
