@@ -4,19 +4,19 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 23 juli 2026
-- 📊 [[Reports/Daily/2026-07-23|Dagrapport]]: gisteren €148 totaal spend,
-  hoofdaccount ROAS **2,20** (voorlopig) — terug na de topdag, maar
-  Advertorial deed opnieuw boven 3,0 (**3,42**, tweede goede dag).
-- 🎯 **Advertorial-drempel komt in zicht:** 3-daags gewogen klimt naar
-  **≈ 2,30** (0,77 / 2,76 / 3,42), 3 dagen stijgend. Advies bij approval #1:
-  nog niet uitvoeren — groen licht overwegen zodra het 3-daags gemiddelde de
-  3,0 raakt en vasthoudt. We zijn er bijna.
-- ✅ Wellshine stuurt bij: spend daalt naar €57,20 (was €70,63).
-- 📡 [[Briefings/2026-07-23|Trendbriefing]]: 67 nieuwe ads;
-  BALZY-influencer 455k reach; Cloud Nine July Sale explodeert (rankDelta
-  478); Meridian +2 UGC-partners, testimonial-static rank 10.
-- 📧 E-mailkanaal: dag 41 zonder verzending; approval #2 wacht op akkoord.
+## Vandaag — 24 juli 2026
+- ✅ **Wellshine flipte positief:** gisteren **2,25** op €53,30 — na weken
+  onder 1,0 de eerste sterke dag, met netjes teruggebrachte spend. De
+  discipline werpt vruchten af.
+- 📊 [[Reports/Daily/2026-07-24|Dagrapport]]: hoofdaccount ROAS **1,76**
+  (voorlopig) op €91,02; GroomGuard en Interests beide 2,06, maar Advertorial
+  zakte terug naar **1,38**.
+- ⚠️ **Advertorial blijft te grillig om te scalen:** dagwaarden 2,76 → 3,42
+  → 1,38, 3-daags gewogen 2,53. Advies bij approval #1 ongewijzigd: eerst
+  funnel/creative verversen, dan pas budget.
+- 📡 [[Briefings/2026-07-24|Trendbriefing]]: 184 nieuwe ads — **Meridian
+  dumpte er 133 in één dag** (creative-explosie); BALZY-influencer 461k reach.
+- 📧 E-mailkanaal: dag 42 zonder verzending; approval #2 wacht op akkoord.
 
 ## Het team
 | Agent | Rol | Status |

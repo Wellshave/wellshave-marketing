@@ -1,12 +1,15 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-23 · ochtendcyclus
+**Laatste run:** 2026-07-24 · ochtendcyclus
 **Huidige taak:** klaar; volgende scan morgen 07:00
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-24** · [[../Briefings/2026-07-24|Trendbriefing]]: 184 nieuwe ads;
+  **Meridian dumpte 133 ads in 1 dag** (creative-explosie); BALZY-influencer
+  461k reach; Cloud Nine July Sale 107k. 75 credits (9.277 resterend).
 - **2026-07-23** · [[../Briefings/2026-07-23|Trendbriefing]]: 67 nieuwe ads;
   BALZY-influencer 455k reach; Cloud Nine July Sale rankDelta 478 (83k);
   Meridian +2 UGC-partners, testimonial-static rank 10. 75 credits (9.352

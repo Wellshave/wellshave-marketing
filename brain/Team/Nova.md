@@ -1,13 +1,16 @@
 # Nova — Creative Director & Strategie
 
 **Status:** 🟡 wacht op akkoord (2 approvals)
-**Laatste run:** 2026-07-23 · ochtendcyclus
-**Huidige taak:** approval #1 afwachten (3d-gemiddelde 2,30, drempel in
-zicht); SGL-mail (#2) wacht op akkoord
+**Laatste run:** 2026-07-24 · ochtendcyclus
+**Huidige taak:** approval #1 afwachten (3d-gem. 2,53 maar te volatiel);
+SGL-mail (#2) wacht op akkoord
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-24** · Advertorial-advies ongewijzigd (te volatiel om te scalen,
+  eerst creative verversen); Meridian-creative-explosie versterkt urgentie
+  testimonial-static-productie; Wellshine-ommekeer als positief signaal.
 - **2026-07-23** · Advertorial-advies ongewijzigd (afwachten tot 3-daags de
   3,0 raakt en vasthoudt; nu 2,30 en stijgend); Wellshine-spenddaling als
   positief signaal genoteerd; testimonial-static blijft productie-prioriteit.
