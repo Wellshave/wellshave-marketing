@@ -12,9 +12,11 @@
 
 ## Hypothese
 - **Testimonial-statics uit bestaande reviews** · static · Nova
-  *Sterker bevestigd 22/7: Meridian-static klom naar **rank 6** (4e dag
-  stijgend, van rank 76 op 19/7). Echte reviews als hook, product +
-  quote-overlay — CTR boven accountgemiddelde over 7 dagen; goedkoop te testen*
+  *Prioriteit ↑↑ (25/7): BALZY's echte-klant-hooks zijn de topschalers van de
+  dag — Rick Dekker-UGC +186 (**218k reach**) en review-static +177
+  ("200.000+ mannen gingen je voor"). De echte-review-hook schaalt nú het
+  hardst in onze markt. Echte reviews als hook, product + quote-overlay —
+  CTR boven accountgemiddelde over 7 dagen; goedkoop te testen*
 - **Bundel-test: Wellshave Complete Set** · static · Nova
   *Gepromoveerd 19/7 na twee dagen marktbevestiging (BALZY-bundel schaalt
   door: 61k + 33k reach). Formule: 2 producten + gratis extra + bundelkorting*
@@ -22,10 +24,10 @@
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. Stand 24/7:
-  3-daags gewogen **2,53** (2,76 / 3,42 / 1,38), maar de dagwaarden zwabberen
-  te sterk voor een stabiele lijn boven 3,0. Advies: nog niet uitvoeren;
-  eerst funnel/creative verversen*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. Stand 25/7:
+  3-daags gewogen **1,93** (3,40 / 1,37 / 0,92) — nu **3 dagen dalend**, geen
+  volatiliteit maar een neerwaartse lijn. Advies verhardt: **níét uitvoeren**;
+  eerst de funnel/creative vernieuwen (cf. Ace & Taylor mechanisme-hook)*
 
 ## Script
 *leeg*

@@ -4,19 +4,23 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 24 juli 2026
-- ✅ **Wellshine flipte positief:** gisteren **2,25** op €53,30 — na weken
-  onder 1,0 de eerste sterke dag, met netjes teruggebrachte spend. De
-  discipline werpt vruchten af.
-- 📊 [[Reports/Daily/2026-07-24|Dagrapport]]: hoofdaccount ROAS **1,76**
-  (voorlopig) op €91,02; GroomGuard en Interests beide 2,06, maar Advertorial
-  zakte terug naar **1,38**.
-- ⚠️ **Advertorial blijft te grillig om te scalen:** dagwaarden 2,76 → 3,42
-  → 1,38, 3-daags gewogen 2,53. Advies bij approval #1 ongewijzigd: eerst
-  funnel/creative verversen, dan pas budget.
-- 📡 [[Briefings/2026-07-24|Trendbriefing]]: 184 nieuwe ads — **Meridian
-  dumpte er 133 in één dag** (creative-explosie); BALZY-influencer 461k reach.
-- 📧 E-mailkanaal: dag 42 zonder verzending; approval #2 wacht op akkoord.
+## Vandaag — 25 juli 2026
+- 📊 [[Reports/Daily/2026-07-25|Dagrapport]]: hoofdaccount blended **1,12**
+  (voorlopig) op €132,59 — maar dat is vooral een **spend-effect**: een
+  nieuwe GroomGuard-testcampagne (€45,77, nog geen aankopen) drukt de blended.
+  De bestaande GroomGuard-CBO deed juist **3,85**.
+- 🔻 **Advertorial daalt nu 3 dagen op rij:** 3,40 → 1,37 → 0,92; 3-daags
+  gewogen zakt naar **1,93**. Geen ruis meer maar een lijn omlaag. Advies
+  approval #1 wordt harder: **niet uitvoeren** — eerst funnel/creative
+  vernieuwen.
+- ⚠️ **Wellshine-flip hield één dag:** 23/7 blijft 2,24, maar 24/7 nog geen
+  gemeten aankopen terwijl de spend terug omhoog ging (€53 → €62). Houd spend
+  laag tot 24/7 zich bewijst.
+- 📡 [[Briefings/2026-07-25|Trendbriefing]]: 161 nieuwe ads — Meridian
+  opnieuw **120 in één dag** (+2 nieuwe partners); **BALZY-influencer 218k
+  reach** is de topschaler → steun voor testimonial-static.
+- 📧 E-mailkanaal: dag 43 stil (laatste verzending 11 juni). De SGL-draft
+  van approval #2 staat kant-en-klaar in Klaviyo.
 
 ## Het team
 | Agent | Rol | Status |

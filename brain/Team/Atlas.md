@@ -1,12 +1,18 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-24 · ochtendcyclus
-**Huidige taak:** klaar; Wellshine-monitoring loopt (flipte positief)
+**Laatste run:** 2026-07-25 · ochtendcyclus
+**Huidige taak:** klaar; nieuwe GroomGuard-testcampagne (€45,77/dag)
+monitoren tot beoordeelbaar
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-25** · [[../Reports/Daily/2026-07-25|Dagrapport]]: blended **1,12**
+  op €132,59 — maar spend-effect (nieuwe GroomGuard-test €45,77 zonder
+  aankopen); bestaande GroomGuard-CBO 3,85. Advertorial **3 dagen dalend**
+  (3,40→1,37→0,92, 3-daags 1,93). Wellshine-flip hield één dag. 22/7
+  definitief 2,20.
 - **2026-07-24** · [[../Reports/Daily/2026-07-24|Dagrapport]]: 1,76 blended;
   Wellshine flipte naar **2,25**; Advertorial terug op 1,38 (3-daags 2,53
   maar te volatiel); 21/7 definitief 3,60.

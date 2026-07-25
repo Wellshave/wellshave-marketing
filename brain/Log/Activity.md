@@ -4,6 +4,16 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-25** · Nova · Advertorial-advies verhard naar **níét uitvoeren**
+  (3 dagen dalend, 3d-gem. 1,93); testimonial-static → prioriteit ↑↑ na
+  BALZY-topschalers (218k reach).
+- **2026-07-25** · Radar · Marktscan: 161 nieuwe ads; Meridian opnieuw 120 in
+  1 dag + 2 partners; BALZY-influencer 218k reach topschaler; Cloud Nine July
+  Sale +499 (75 credits, 9.251 resterend).
+- **2026-07-25** · Atlas · Ochtendcyclus: 24/7 blended 1,12 (spend-effect:
+  nieuwe GroomGuard-test €45,77 zonder aankopen); Advertorial 3 dagen dalend
+  (0,92, 3-daags 1,93); Wellshine-flip hield 1 dag; 22/7 definitief 2,20;
+  Klaviyo dag 43 stil.
 - **2026-07-24** · Nova · Advertorial-advies ongewijzigd (te volatiel om te
   scalen); Meridian-explosie versterkt urgentie testimonial-static.
 - **2026-07-24** · Radar · Marktscan: 184 nieuwe ads; Meridian dumpte 133 ads
