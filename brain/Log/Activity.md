@@ -4,6 +4,16 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-26** · Nova · **Approval #3 aangemaakt**: GroomGuard-testcampagne
+  001 pauzeren/cappen (€106/dag @ 0,56); advertorial-advies ongewijzigd
+  (3d-gem. 1,24); Wellshine-discipline-hypothese bevestigd.
+- **2026-07-26** · Radar · Marktscan: 88 nieuwe ads (rustiger); Meridian koelde
+  af naar 28 + IPL-laser-hoek; BALZY-influencer schaalt dag na dag door
+  (VECHTERSBAZEN15 +173); Ace & Taylor mechanisme-hook breed (75 credits,
+  9.289 resterend).
+- **2026-07-26** · Atlas · Ochtendcyclus: Wellshave® blended 0,61 op €187,97
+  door runaway GroomGuard-test (€106 @ 0,56); Wellshine 4,23 op laagste spend;
+  advertorial 3-daags 1,24; 22/7 def 2,20, 23/7 def 1,75; Klaviyo dag 44 stil.
 - **2026-07-25** · Nova · Advertorial-advies verhard naar **níét uitvoeren**
   (3 dagen dalend, 3d-gem. 1,93); testimonial-static → prioriteit ↑↑ na
   BALZY-topschalers (218k reach).

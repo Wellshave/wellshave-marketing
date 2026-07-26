@@ -1,13 +1,18 @@
 # Nova — Creative Director & Strategie
 
 **Status:** 🟡 wacht op akkoord (2 approvals)
-**Laatste run:** 2026-07-25 · ochtendcyclus
-**Huidige taak:** approval #1 afwachten (advies verhardt: níét uitvoeren,
-3d-gem. 1,93 dalend); SGL-mail (#2) wacht op akkoord
+**Laatste run:** 2026-07-26 · ochtendcyclus
+**Huidige taak:** 3 approvals openstaand (#1 advertorial-budget, #2 SGL-mail,
+#3 nieuw: GroomGuard-testcampagne pauzeren/cappen)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-26** · **Approval #3 aangemaakt**: runaway GroomGuard-testcampagne
+  (€106/dag @ 0,56) pauzeren/cappen. Advertorial-advies ongewijzigd (3d-gem.
+  1,24); advertorial-vernieuwing gekoppeld aan Ace & Taylor mechanisme-hook.
+  Testimonial-static blijft prioriteit ↑↑ (BALZY schaalt door). Wellshine-
+  spend-discipline als hypothese bevestigd.
 - **2026-07-25** · Advertorial-advies **verhard naar níét uitvoeren** (3 dagen
   dalend, 3d-gem. 1,93); testimonial-static gepromoot naar **prioriteit ↑↑**
   na BALZY-topschalers (218k reach echte-klant-hook); Ace & Taylor

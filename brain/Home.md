@@ -4,23 +4,22 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 25 juli 2026
-- 📊 [[Reports/Daily/2026-07-25|Dagrapport]]: hoofdaccount blended **1,12**
-  (voorlopig) op €132,59 — maar dat is vooral een **spend-effect**: een
-  nieuwe GroomGuard-testcampagne (€45,77, nog geen aankopen) drukt de blended.
-  De bestaande GroomGuard-CBO deed juist **3,85**.
-- 🔻 **Advertorial daalt nu 3 dagen op rij:** 3,40 → 1,37 → 0,92; 3-daags
-  gewogen zakt naar **1,93**. Geen ruis meer maar een lijn omlaag. Advies
-  approval #1 wordt harder: **niet uitvoeren** — eerst funnel/creative
-  vernieuwen.
-- ⚠️ **Wellshine-flip hield één dag:** 23/7 blijft 2,24, maar 24/7 nog geen
-  gemeten aankopen terwijl de spend terug omhoog ging (€53 → €62). Houd spend
-  laag tot 24/7 zich bewijst.
-- 📡 [[Briefings/2026-07-25|Trendbriefing]]: 161 nieuwe ads — Meridian
-  opnieuw **120 in één dag** (+2 nieuwe partners); **BALZY-influencer 218k
-  reach** is de topschaler → steun voor testimonial-static.
-- 📧 E-mailkanaal: dag 43 stil (laatste verzending 11 juni). De SGL-draft
-  van approval #2 staat kant-en-klaar in Klaviyo.
+## Vandaag — 26 juli 2026
+- 🔴 **Nieuwe GroomGuard-testcampagne loopt uit de hand:** `001 – CBO –
+  GroomGuard – 23-07` schaalde in 2 dagen naar **€106,15/dag @ 0,56 ROAS**
+  (57% van de accountspend) en trok de blended van Wellshave® naar **0,61**
+  op €187,97. Nieuw voorstel **approval #3: pauzeer/cap deze campagne**.
+- ✅ **Wellshine bewijst de spend-discipline:** 23/7 €53→2,24; 24/7 €62→niets;
+  25/7 €45→**4,23** (beste dag ooit, op de laagste spend). Advies: houd
+  Wellshine bewust rond €45–50/dag.
+- 🔻 **Advertorial** veerde iets terug (1,42), maar 3-daags gewogen **1,24** —
+  ver onder 3,0. Approval #1-advies ongewijzigd: niet uitvoeren, eerst
+  funnel/creative vernieuwen.
+- 📡 [[Briefings/2026-07-26|Trendbriefing]]: rustiger (88 nieuwe ads);
+  **BALZY-influencer schaalt dag na dag door** (testimonial-static blijft #1
+  signaal); Ace & Taylor mechanisme-hook = blauwdruk advertorial-vernieuwing.
+- 📧 E-mailkanaal: dag 44 stil (niets ingepland sinds 15 juni). SGL-draft
+  van approval #2 staat klaar.
 
 ## Het team
 | Agent | Rol | Status |

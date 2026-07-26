@@ -1,12 +1,17 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-25 · ochtendcyclus
+**Laatste run:** 2026-07-26 · ochtendcyclus
 **Huidige taak:** klaar; volgende scan morgen 07:00
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-26** · [[../Briefings/2026-07-26|Trendbriefing]]: rustiger (88
+  nieuwe ads); Meridian koelde af naar 28 + test nieuwe IPL-laser-hoek;
+  **BALZY-influencer schaalt dag na dag door** (VECHTERSBAZEN15 +173) →
+  testimonial-static blijft #1; Ace & Taylor mechanisme-hook schaalt breed.
+  75 credits (9.289 resterend).
 - **2026-07-25** · [[../Briefings/2026-07-25|Trendbriefing]]: 161 nieuwe ads;
   **Meridian opnieuw 120 ads in 1 dag** + 2 nieuwe partners;
   **BALZY-influencer (Rick Dekker) 218k reach** is topschaler → testimonial-
