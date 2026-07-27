@@ -4,22 +4,21 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 26 juli 2026
-- 🔴 **Nieuwe GroomGuard-testcampagne loopt uit de hand:** `001 – CBO –
-  GroomGuard – 23-07` schaalde in 2 dagen naar **€106,15/dag @ 0,56 ROAS**
-  (57% van de accountspend) en trok de blended van Wellshave® naar **0,61**
-  op €187,97. Nieuw voorstel **approval #3: pauzeer/cap deze campagne**.
-- ✅ **Wellshine bewijst de spend-discipline:** 23/7 €53→2,24; 24/7 €62→niets;
-  25/7 €45→**4,23** (beste dag ooit, op de laagste spend). Advies: houd
-  Wellshine bewust rond €45–50/dag.
-- 🔻 **Advertorial** veerde iets terug (1,42), maar 3-daags gewogen **1,24** —
-  ver onder 3,0. Approval #1-advies ongewijzigd: niet uitvoeren, eerst
-  funnel/creative vernieuwen.
-- 📡 [[Briefings/2026-07-26|Trendbriefing]]: rustiger (88 nieuwe ads);
-  **BALZY-influencer schaalt dag na dag door** (testimonial-static blijft #1
-  signaal); Ace & Taylor mechanisme-hook = blauwdruk advertorial-vernieuwing.
-- 📧 E-mailkanaal: dag 44 stil (niets ingepland sinds 15 juni). SGL-draft
-  van approval #2 staat klaar.
+## Vandaag — 27 juli 2026
+- ↗ **GroomGuard-test hersteld:** `001 – CBO – GroomGuard – 23-07` deed
+  gisteren **1,39** (was 0,56). Acute bloeden gestopt; approval #3 gaat van
+  "acuut pauzeren" naar **strak monitoren** (cap alleen als 'ie niet boven
+  ~2,0 komt). Blended Wellshave® terug op **1,89** (€198,18).
+- ✅ **Advertorial knalde terug naar 3,57** (beste dag sinds 17/7) op €48,93;
+  3-daags gewogen omhoog naar **2,12** (0,92 → 1,42 → 3,57). Trend eindelijk
+  omhoog — nog niet scalen, maar één bevestiging van kanteling.
+- ⚠️ **Wellshine liet de discipline weer los:** spend €45 → **€86,78**, nog
+  geen gemeten aankopen. Zelfde patroon als 24/7. Advies: spend terug naar
+  ~€45–50.
+- 📡 [[Briefings/2026-07-27|Trendbriefing]]: erg rustig (27 nieuwe ads);
+  **Brothers in Style hoofd-scheerapparaat-LP = 173 dagen / 128k impressies**
+  → hoofd-scheerapparaat-LP-idee gepromoot naar hypothese.
+- 📧 E-mailkanaal: dag 45 stil. SGL-draft van approval #2 staat klaar.
 
 ## Het team
 | Agent | Rol | Status |

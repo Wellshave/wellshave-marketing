@@ -1,12 +1,17 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-26 · ochtendcyclus
+**Laatste run:** 2026-07-27 · ochtendcyclus
 **Huidige taak:** klaar; volgende scan morgen 07:00
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-27** · [[../Briefings/2026-07-27|Trendbriefing]]: erg rustig (27
+  nieuwe ads); **Brothers in Style hoofd-scheerapparaat-LP = 173 dagen / 128k
+  impressies** (grootste LP) → hoofd-scheerapparaat-LP naar hypothese;
+  BALZY-influencer blijft schalen; Meridian koelt af. 75 credits (9.214
+  resterend).
 - **2026-07-26** · [[../Briefings/2026-07-26|Trendbriefing]]: rustiger (88
   nieuwe ads); Meridian koelde af naar 28 + test nieuwe IPL-laser-hoek;
   **BALZY-influencer schaalt dag na dag door** (VECHTERSBAZEN15 +173) →

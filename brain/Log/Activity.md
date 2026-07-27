@@ -4,6 +4,17 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-27** · Nova · Approval #3 gede-escaleerd (GroomGuard-test hersteld
+  1,39 → monitoren); advertorial kantelt (3d-gem. 2,12 ↗); hoofd-
+  scheerapparaat-LP naar Hypothese.
+- **2026-07-27** · Radar · Marktscan: erg rustig (27 nieuwe ads); Brothers in
+  Style hoofd-scheerapparaat-LP 173 dagen/128k impressies (grootste LP);
+  BALZY-influencer blijft schalen; Meridian koelt af (75 credits, 9.214
+  resterend).
+- **2026-07-27** · Atlas · Ochtendcyclus: Wellshave® blended 1,89 op €198,18;
+  GroomGuard-test hersteld naar 1,39; advertorial 3,57 (beste sinds 17/7,
+  3-daags 2,12 ↗); Wellshine liet discipline los (€86,78, geen return); 24/7
+  def 1,11; Klaviyo dag 45 stil.
 - **2026-07-26** · Nova · **Approval #3 aangemaakt**: GroomGuard-testcampagne
   001 pauzeren/cappen (€106/dag @ 0,56); advertorial-advies ongewijzigd
   (3d-gem. 1,24); Wellshine-discipline-hypothese bevestigd.

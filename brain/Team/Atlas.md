@@ -1,12 +1,18 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-26 · ochtendcyclus
-**Huidige taak:** klaar; GroomGuard-testcampagne 001 rood gemeld (approval #3)
+**Laatste run:** 2026-07-27 · ochtendcyclus
+**Huidige taak:** klaar; GroomGuard-test 001 monitoren (hersteld naar 1,39);
+advertorial-kanteling volgen
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-27** · [[../Reports/Daily/2026-07-27|Dagrapport]]: Wellshave®
+  blended **1,89** op €198,18. GroomGuard-test hersteld naar **1,39** (was
+  0,56) → approval #3 gede-escaleerd. Advertorial knalde naar **3,57** (beste
+  sinds 17/7), 3-daags 2,12 stijgend. Wellshine liet discipline los (€86,78,
+  nog geen return). 23/7 def, 24/7 def 1,11.
 - **2026-07-26** · [[../Reports/Daily/2026-07-26|Dagrapport]]: Wellshave®
   blended **0,61** op €187,97 door runaway GroomGuard-test (€106,15 @ 0,56,
   57% van spend) → approval #3. Wellshine **4,23** op laagste spend (€45) —
