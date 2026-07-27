@@ -25,6 +25,30 @@ persona's en productdata, aangedreven door Claude Fable 5.
 - **Worker:** plak `worker/atelier-proxy.worker.js` in de Cloudflare-worker **`marketing-ads`**.
   Secrets: `ANTHROPIC_KEY`, `OPENAI_KEY`.
 
+## ⚠️ Openstaande bugfix op branch `atelier-console-redesign`
+
+Die branch (30 commits, 21-22 juli, oorspronkelijk kwijtgeraakt in `claude-routines`)
+bevat een fix die **nog niet in de live versie zit**.
+
+**Het probleem:** `app/index.html` leest Claude's antwoord op **18 plekken** uit als
+`data.content[0].text.trim()`. Fable 5 zet een *thinking*-blok vooraan, dus `content[0]`
+is dan geen tekst → `Cannot read properties of undefined (reading trim)`.
+
+**De fix op de branch:** `wgClaudeText()` / `wgClaudeTextOrNull()` scannen naar het eerste
+échte text-block. Daar staan 0 blinde `content[0].text`-leesacties meer.
+
+**Waarom niet gewoon mergen:** het zijn uit elkaar gegroeide takken, geen oud-vs-nieuw.
+
+| | branch (22 jul) | main / live (23 jul) |
+|---|---|---|
+| omvang | 6,98 MB | 7,07 MB |
+| Fable 5-fix | ✅ | ❌ |
+| nieuwer werk | ❌ | ✅ (~90 KB) |
+
+Mergen overschrijft dus werk, welke kant je ook op gaat. De juiste aanpak is de fix
+**gericht overzetten**: de 18 plekken in `app/index.html` vervangen door de veilige
+uitleesfunctie van de branch.
+
 ## Productfoto's staan hier NIET in
 
 De 80 originele productfoto's (293 MB, tot 18 MB per bestand) zijn bewust buiten git
