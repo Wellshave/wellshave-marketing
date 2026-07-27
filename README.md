@@ -11,7 +11,9 @@ brein en dagelijkse rapportages.
 | [`docs/architecture.md`](docs/architecture.md) | Systeemarchitectuur, fasering, connectorstatus |
 | [`agents/`](agents/README.md) | Het team: identiteit + guardrails per agent |
 | [`brain/`](brain/Home.md) | Het brein — open als Obsidian-vault |
+| [`dashboard/`](dashboard/README.md) | **Pulse** — het read-only mission-control dashboard (live op wellshave-pulse.netlify.app) |
 | [`db/migrations/`](db/migrations/) | Supabase-schema (`marketing_hq`) |
+| [`supabase/functions/pulse/`](supabase/functions/pulse/) | Edge-functie voor Pulse (niet in gebruik voor de HTML zelf — zie dashboard-README) |
 | `.claude/skills/` | Design- en UI-skills die de agents gebruiken |
 
 ## Hoe het werkt

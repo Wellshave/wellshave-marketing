@@ -1,8 +1,8 @@
 {
-  "name": "wellshave-systems",
+  "name": "wellshave-marketing-hq",
   "version": "0.1.0",
   "private": true,
-  "description": "Internal systems and tooling for Wellshave",
+  "description": "Wellshave Marketing HQ — AI agent team, brain and Pulse dashboard",
   "scripts": {
     "skillui": "skillui"
   },
