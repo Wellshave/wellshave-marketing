@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier Console — Wireframes: Vandaag &amp; Testpagina (low-fi)</title>
+<style>
+  /* ── Bewust low-fi: grijstinten, systeemfont, geen visueel design ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font: 13px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:#e8e8e8; color:#222; padding: 24px; }
+  .wf-intro { max-width: 1180px; margin: 0 auto 28px; background:#fff; border:1px solid #bbb; padding:16px 20px; }
+  .wf-intro h1 { font-size:17px; margin-bottom:6px; }
+  .wf-intro p { color:#444; }
+  .wf-intro .legend { margin-top:10px; font-size:12px; color:#555; }
+  .frame { max-width: 1180px; margin: 0 auto 48px; background:#fff; border:2px solid #888; box-shadow: 4px 4px 0 #ccc; }
+  .frame-title { background:#444; color:#fff; padding:8px 14px; font-size:13px; font-weight:600; letter-spacing:.3px; }
+  .frame-title small { font-weight:400; color:#ccc; margin-left:8px; }
+
+  /* annotaties */
+  .a { display:inline-block; min-width:18px; height:18px; line-height:18px; text-align:center; background:#222; color:#fff; border-radius:50%; font-size:11px; font-weight:700; margin-right:4px; vertical-align:middle; }
+  .notes { padding:14px 20px 18px; border-top:2px dashed #aaa; background:#fafafa; columns:2; column-gap:32px; }
+  .notes div { break-inside:avoid; margin-bottom:8px; font-size:12px; color:#333; }
+  .notes b { font-weight:700; }
+
+  /* schil-layout */
+  .app { display:flex; min-height:640px; }
+  .rail { width:176px; background:#f2f2f2; border-right:1px solid #bbb; padding:12px 10px; display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+  .brand-switch { border:1px solid #999; background:#fff; padding:7px 9px; font-weight:700; font-size:12px; display:flex; justify-content:space-between; margin-bottom:10px; }
+  .brand-switch span.car { color:#888; font-weight:400; }
+  .nav-item { padding:7px 9px; border:1px solid transparent; color:#333; display:flex; justify-content:space-between; align-items:center; }
+  .nav-item.active { background:#ddd; border-color:#999; font-weight:700; }
+  .badge { background:#222; color:#fff; border-radius:9px; font-size:11px; padding:0 7px; line-height:17px; }
+  .rail .spacer { flex:1; }
+  .health { font-size:11px; color:#666; border-top:1px dashed #bbb; padding-top:8px; }
+  .health .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#999; border:1px solid #666; margin-right:5px; }
+  .searchbox { border:1px solid #aaa; background:#fff; color:#888; padding:6px 9px; margin-bottom:10px; font-size:12px; }
+
+  .main { flex:1; padding:18px 22px; min-width:0; }
+
+  /* generieke wireframe-bouwstenen */
+  .zone { border:1px solid #999; margin-bottom:16px; }
+  .zone-h { background:#eee; border-bottom:1px solid #bbb; padding:7px 12px; font-weight:700; font-size:12px; letter-spacing:.4px; text-transform:uppercase; color:#333; display:flex; justify-content:space-between; align-items:center; }
+  .zone-h .muted { font-weight:400; text-transform:none; color:#777; letter-spacing:0; }
+  .card { border-bottom:1px solid #ddd; padding:10px 12px; display:flex; gap:14px; align-items:flex-start; }
+  .card:last-child { border-bottom:none; }
+  .tag { display:inline-block; border:1px solid #888; padding:1px 7px; font-size:11px; font-weight:700; background:#f5f5f5; text-transform:uppercase; letter-spacing:.3px; }
+  .tag.dark { background:#333; color:#fff; border-color:#333; }
+  .tag.outline { background:#fff; font-weight:400; text-transform:none; }
+  .grow { flex:1; min-width:0; }
+  .metrics { display:flex; gap:14px; font-size:12px; color:#333; margin-top:4px; flex-wrap:wrap; }
+  .metrics b { font-size:13px; }
+  .btnrow { display:flex; gap:6px; flex-shrink:0; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .btn { border:1px solid #555; background:#fff; padding:5px 11px; font-size:12px; white-space:nowrap; }
+  .btn.primary { background:#333; color:#fff; }
+  .btn.ghost { border-color:#aaa; color:#666; }
+  .reason { margin-top:8px; border:1px dashed #aaa; background:#fafafa; padding:8px 10px; font-size:12px; color:#444; }
+  .reason .src { margin-top:6px; color:#777; font-size:11px; }
+  .linklike { text-decoration:underline; color:#222; }
+  .row-title { font-weight:700; font-size:13px; }
+  .sub { color:#666; font-size:12px; }
+  .kicker { font-size:12px; color:#555; margin-bottom:14px; border:1px solid #bbb; background:#f7f7f7; padding:8px 12px; }
+  .collapsed { color:#777; font-size:12px; padding:9px 12px; }
+  .empty-hint { padding:9px 12px; color:#777; font-style:italic; font-size:12px; }
+
+  /* testpagina-specifiek */
+  .crumb { font-size:12px; color:#666; margin-bottom:10px; }
+  .t-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px; }
+  .t-head h2 { font-size:16px; }
+  .t-meta { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; align-items:center; }
+  .statusflow { font-size:11px; color:#888; margin-top:6px; }
+  .statusflow b { color:#111; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { border:1px solid #999; background:#f6f6f6; padding:6px 10px; font-size:12px; }
+  .chip small { display:block; color:#777; font-size:10px; text-transform:uppercase; letter-spacing:.4px; }
+  .chip .linklike { font-weight:700; }
+  .cols { display:flex; gap:16px; }
+  .cols > * { flex:1; min-width:0; }
+  .creative { border:1px solid #aaa; width:150px; flex-shrink:0; }
+  .thumb { height:96px; background:repeating-linear-gradient(45deg,#eee,#eee 8px,#f8f8f8 8px,#f8f8f8 16px); border-bottom:1px solid #ccc; display:flex; align-items:center; justify-content:center; color:#999; font-size:11px; }
+  .creative .cinfo { padding:6px 8px; font-size:11px; }
+  .strip { display:flex; gap:10px; padding:12px; overflow-x:auto; }
+  table.wf { width:100%; border-collapse:collapse; font-size:12px; }
+  table.wf th, table.wf td { border:1px solid #ddd; padding:5px 8px; text-align:right; }
+  table.wf th:first-child, table.wf td:first-child { text-align:left; }
+  table.wf th { background:#f0f0f0; font-size:11px; text-transform:uppercase; letter-spacing:.3px; }
+  .chartbox { border:1px dashed #999; background:#fafafa; height:110px; display:flex; align-items:center; justify-content:center; color:#999; font-size:12px; margin-bottom:10px; }
+  .audit { font-size:12px; }
+  .audit .item { border-left:3px solid #bbb; padding:6px 10px; margin:0 12px 8px; }
+  .audit .item.human { border-left-color:#333; }
+  .tree { font-family:ui-monospace, "SF Mono", Consolas, monospace; font-size:12px; padding:12px 16px; color:#333; white-space:pre; overflow-x:auto; }
+  .learnbox { padding:12px; }
+  .learnbox .quote { border:1px solid #999; background:#f6f6f6; padding:10px 12px; font-size:13px; }
+  .learnbox .sub { margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="wf-intro">
+  <h1>Wireframes (low-fi) — Vandaag &amp; de canonieke testpagina</h1>
+  <p>Bewust grijstinten en blokken: dit toont <b>informatieplaatsing en hiërarchie</b>, geen visueel design. Voorbeeldinhoud is realistisch (Wellshave) om dichtheid te kunnen beoordelen. Genummerde stippen <span class="a">1</span> verwijzen naar de aantekeningen onder elk frame; die verwijzen op hun beurt naar de IA-regels (document ATELIER-CONSOLE-INFORMATIEARCHITECTUUR, §A/§B).</p>
+  <p class="legend">Gearceerde vlakken = beeldplaceholders · gestippelde kaders = AI-redenering/diagram-placeholder · alle knoppen tonen rolgedrag zoals geannoteerd.</p>
+</div>
+
+<!-- ═══════════════════════ FRAME 1: VANDAAG ═══════════════════════ -->
+<div class="frame">
+  <div class="frame-title">FRAME 1 — Vandaag (rol: Strategist) <small>route: /vandaag · IA §B1</small></div>
+  <div class="app">
+
+    <div class="rail">
+      <div class="brand-switch"><span><span class="a">1</span> WELLSHAVE</span> <span class="car">▾</span></div>
+      <div class="searchbox">⌕ Zoek in alles…</div>
+      <div class="nav-item active">Vandaag <span class="badge">6</span></div>
+      <div class="nav-item">Studio</div>
+      <div class="nav-item">Testlab</div>
+      <div class="nav-item">Brein</div>
+      <div class="nav-item">Archief</div>
+      <div class="spacer"></div>
+      <div class="health"><span class="dot"></span><span class="a">2</span> Meta-data: vannacht 02:14<br>2 accounts · alles actueel</div>
+    </div>
+
+    <div class="main">
+      <div class="kicker"><span class="a">3</span> <b>Dinsdag 28 juli.</b> 3 verdicts, 1 bevestiging, 2 gaten — grootste geldimpact: <span class="linklike">Scheerolie · Vader &amp; Zoon v3</span> (€412 spend sinds vrijdag).</div>
+
+      <!-- ZONE 1 -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">4</span> Verdicts — De Analist</span> <span class="muted">gesorteerd op geldimpact</span></div>
+
+        <!-- verdictkaart: uitgeklapt -->
+        <div class="card">
+          <span class="tag dark">KILL</span>
+          <div class="grow">
+            <div class="row-title">Wellshine · Trustpilot-strip 4:5 <span class="sub">— quick · 6 dagen live</span></div>
+            <div class="metrics"><span>CPA <b>€41,20</b> <span class="sub">(doel €19)</span></span><span>ROAS <b>0,9</b></span><span>Spend <b>€287</b></span><span class="sub">confidence: hoog</span></div>
+            <div class="reason"><span class="a">5</span> <b>Redenering:</b> CTR is gezond (1,4%) maar de conversie blijft 4 dagen achter — het probleem zit ná de klik, niet in de creative. Verdere iteratie op deze creative lost dat niet op; budget lekt.
+              <div class="src">Gebaseerd op: 6 snapshots (22–27 jul) · learning L-031 "social proof-formats dragen geen koud verkeer bij Wellshine" · familieboom T-118 ▸ <span class="linklike">bekijk</span></div>
+            </div>
+          </div>
+          <div class="btnrow">
+            <button class="btn primary"><span class="a">6</span> Overnemen: kill</button>
+            <button class="btn">Afwijken…</button>
+            <button class="btn ghost">Uitstellen…</button>
+          </div>
+        </div>
+
+        <!-- verdictkaart: ingeklapt -->
+        <div class="card">
+          <span class="tag dark">SCALE</span>
+          <div class="grow">
+            <div class="row-title">Scheerolie · Vader &amp; Zoon v3 <span class="sub">— strategic · 5 dagen live</span></div>
+            <div class="metrics"><span>ROAS <b>3,1</b> <span class="sub">(breakeven 1,6)</span></span><span>CPA <b>€11,40</b></span><span>Spend <b>€412</b></span><span class="sub">confidence: hoog</span></div>
+          </div>
+          <div class="btnrow"><button class="btn primary">Overnemen: scale</button><button class="btn">Afwijken…</button><button class="btn ghost">Uitstellen…</button></div>
+        </div>
+
+        <div class="card">
+          <span class="tag">ITERATE</span>
+          <div class="grow">
+            <div class="row-title">Baardolie · Angst-hook irritatie <span class="sub">— quick · 8 dagen live</span></div>
+            <div class="metrics"><span>Hook rate <b>38%</b></span><span>CTR <b>0,6%</b></span><span>CPA <b>€24,80</b></span><span class="sub">confidence: middel</span></div>
+            <div class="sub"><span class="a">7</span> Voorstel: hook werkt, belofte niet — varieer headline/CTA, niet de opening.</div>
+          </div>
+          <div class="btnrow"><button class="btn primary">Overnemen → Studio</button><button class="btn">Afwijken…</button><button class="btn ghost">Uitstellen…</button></div>
+        </div>
+      </div>
+
+      <!-- ZONE 2 -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">8</span> Wachtend op mensen</span> <span class="muted">jouw items eerst</span></div>
+        <div class="card">
+          <span class="tag outline">Learning open</span>
+          <div class="grow"><div class="row-title">T-131 · Bundel-aanbieding killed — learningvoorstel wacht op jou</div><div class="sub">3 dagen open · De Analist stelt voor: "Prijs-hooks falen bij koud publiek voor bundels (2e bevestiging)"</div></div>
+          <div class="btnrow"><button class="btn primary">Beoordeel learning</button></div>
+        </div>
+        <div class="card">
+          <span class="tag outline">Bevestiging</span>
+          <div class="grow"><div class="row-title">2 drafts klaar voor Meta-push — wacht op Dustin (admin)</div><div class="sub"><span class="a">9</span> Klaargezet door Emma · pre-flight: 0 rode vlaggen · account: WS-Prospecting</div></div>
+          <div class="btnrow"><button class="btn ghost">Bekijk (geen rechten)</button></div>
+        </div>
+        <div class="card">
+          <span class="tag outline">Productie</span>
+          <div class="grow"><div class="row-title">UGC-video "Eerste keer scheren" — 9 dagen with_creator</div><div class="sub">Langer dan drempel (7 d) · creator: extern</div></div>
+          <div class="btnrow"><button class="btn">Open test</button></div>
+        </div>
+      </div>
+
+      <!-- ZONE 3 -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">10</span> Gaten &amp; kansen</span> <span class="muted">top 2 van 7 · op verwachte impact</span></div>
+        <div class="card">
+          <span class="tag outline">Gat</span>
+          <div class="grow"><div class="row-title">Sensitive Skin-persona: 3 weken zonder test</div><div class="sub">Hero-product scheergel heeft hier 0 actieve angles · aangrenzend bewezen: angst-framing in stadium 2 (L-014)</div></div>
+          <div class="btnrow"><button class="btn primary">Start test → Studio</button><button class="btn ghost"><span class="a">11</span> Afwijzen…</button></div>
+        </div>
+        <div class="card">
+          <span class="tag outline">Winner-opvolging</span>
+          <div class="grow"><div class="row-title">Vader &amp; Zoon v3 heeft nog geen iteraties</div><div class="sub">Familieboom stopt bij de winner · 2 dimensievoorstellen klaar</div></div>
+          <div class="btnrow"><button class="btn primary">Bekijk voorstellen</button><button class="btn ghost">Afwijzen…</button></div>
+        </div>
+      </div>
+
+      <!-- ZONE 4 -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">12</span> De week</span> <span class="muted">ingeklapt — maandag prominent</span></div>
+        <div class="collapsed">▸ Weekbeeld: 4 beslist (2 winners) · 3 learnings geoogst · dekking +2 cellen · <span class="linklike">open weekplanning</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="notes">
+    <div><span class="a">1</span> <b>Merkschakelaar</b> = omgevingsschakelaar, geen filter (§A2). Wisselen ververst álles. "Beide merken"-stand bestaat alleen hier, alleen voor admin.</div>
+    <div><span class="a">2</span> <b>Datagezondheid</b>: stil zolang actueel; wordt pas prominent (bovenin de main, blokkeert verdicts) bij &gt;24u oud (§A2·4, Flow 1-fout 1).</div>
+    <div><span class="a">3</span> <b>De dagzin</b> is de inhoudsopgave, geen begroetingstheater (§B1·1). Elke genoemde entiteit is een link naar zijn canonieke pagina.</div>
+    <div><span class="a">4</span> <b>Zone-volgorde = urgentie</b>, binnen zone 1 op geldimpact; kill/scale boven iterate (§B1·2). Lege zones verdwijnen volledig.</div>
+    <div><span class="a">5</span> <b>Voorstel-vorm</b> (§A3): conclusie + dragende cijfers + uitklapbare redenering + "Gebaseerd op…" altijd herleidbaar (snapshots, learnings, familieboom).</div>
+    <div><span class="a">6</span> <b>Overnemen</b> schrijft een Decision met followed_verdict=true. <b>Afwijken</b> vraagt verplicht een reden (trainingsdata). Kill toont hierna de handmatige pauzeer-checklist zolang Meta-fase 3 uit staat.</div>
+    <div><span class="a">7</span> Bij iterate reist het <b>dimensievoorstel</b> mee naar de Studio-winner-ingang (§C) — de overgang begint nooit leeg.</div>
+    <div><span class="a">8</span> <b>Zone 2 groepeert op wie aan zet is</b>, eigen items eerst (§B1·3). Dit is het volledige "notificatiecentrum" van het systeem (§D2).</div>
+    <div><span class="a">9</span> <b>Rolgedrag</b> (§A6): de strategist ziet de bevestigingswachtrij wél (zelfde waarheid) maar de knop is uitgeschakeld — alleen can_publish bevestigt.</div>
+    <div><span class="a">10</span> <b>Top-N, nooit alles</b> (Flow 2-fout 1): "top 2 van 7" met doorklik voorkomt gaten-spam.</div>
+    <div><span class="a">11</span> <b>Afwijzen mét reden</b>; het gat komt dan niet terug (Recommendation → dismissed, reden opgeslagen).</div>
+    <div><span class="a">12</span> <b>Weekbeeld</b> alleen maandag uitgeklapt (§B1·5); door de week één regel. Geen permanente cijfermuur (§D1).</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ FRAME 2: TESTPAGINA ═══════════════════════ -->
+<div class="frame">
+  <div class="frame-title">FRAME 2 — Canonieke testpagina <small>route: /testlab/tests/T-127 · IA §B3 · zelfde pagina vanuit elke werkruimte</small></div>
+  <div class="app">
+
+    <div class="rail">
+      <div class="brand-switch"><span>WELLSHAVE</span> <span class="car">▾</span></div>
+      <div class="searchbox">⌕ Zoek in alles…</div>
+      <div class="nav-item">Vandaag <span class="badge">6</span></div>
+      <div class="nav-item">Studio</div>
+      <div class="nav-item active">Testlab</div>
+      <div class="nav-item">Brein</div>
+      <div class="nav-item">Archief</div>
+      <div class="spacer"></div>
+      <div class="health"><span class="dot"></span> Meta-data: vannacht 02:14</div>
+    </div>
+
+    <div class="main">
+      <div class="crumb">Testlab ▸ Live ▸ <b>T-127</b></div>
+
+      <!-- 1. identiteit -->
+      <div class="t-head">
+        <div>
+          <h2><span class="a">1</span> T-127 · Scheerolie — Vader &amp; Zoon v3</h2>
+          <div class="t-meta">
+            <span class="tag dark">LIVE · DECIDING</span>
+            <span class="tag outline">strategic</span>
+            <span class="tag outline">static</span>
+            <span class="tag outline">meta</span>
+            <span class="sub">owner: Emma · ingang: winner-iteratie · uit: <span class="linklike">REC-88 (winner-opvolging)</span></span>
+          </div>
+          <div class="statusflow"><span class="a">2</span> draft → ready → <b>live</b> → <b>deciding</b> → decided → archived</div>
+        </div>
+        <div class="btnrow">
+          <button class="btn primary">Beslis…</button>
+          <button class="btn">Itereer → Studio</button>
+        </div>
+      </div>
+
+      <!-- 2. hypothese -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">3</span> Hypothese &amp; uitkomst</span> <span class="muted">HYP-127 · bron: winner_iteration</span></div>
+        <div class="card"><div class="grow">
+          <div style="font-size:14px;">"Een <b>generatie-moment</b> (vader leert zoon scheren) verslaat de solo-productshot op ROAS bij het Gift Buyer-persona, omdat de aankoopreden emotioneel is, niet functioneel."</div>
+          <div class="sub" style="margin-top:6px;">Verwacht: ROAS ↑ t.o.v. parent T-104 (2,1) · Uitkomst: <b>nog open</b> — huidige stand 3,1 na 5 dagen</div>
+        </div></div>
+      </div>
+
+      <!-- 3. context -->
+      <div class="zone">
+        <div class="zone-h">Context</div>
+        <div class="card"><div class="chips">
+          <div class="chip"><small>Product</small> <span class="linklike">Scheerolie Original</span></div>
+          <div class="chip"><small>Persona</small> <span class="linklike">De Gift Buyer</span></div>
+          <div class="chip"><small><span class="a">4</span> Angle · stadium 3</small> <span class="linklike">"Het cadeau dat een ritueel wordt"</span> <span class="sub">(testing)</span></div>
+          <div class="chip"><small>Format</small> <span class="linklike">B-07 Lifestyle-moment</span> <span class="sub">(winrate 44% · n=9)</span></div>
+          <div class="chip"><small>Funnel</small> koud · aware-3 · soph-2</div>
+        </div></div>
+      </div>
+
+      <!-- 4. creatives -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">5</span> Creatives &amp; varianten</span> <span class="muted">1 creative · 3 varianten · 2 gepubliceerd</span></div>
+        <div class="strip">
+          <div class="creative"><div class="thumb">1:1 beeld</div><div class="cinfo"><b>V1 · basis</b><br><span class="sub">published · ad 2384…91</span></div></div>
+          <div class="creative"><div class="thumb">4:5 beeld</div><div class="cinfo"><b>V2 · hook-variant</b><br><span class="sub">published · ad 2384…92</span></div></div>
+          <div class="creative"><div class="thumb">9:16 beeld</div><div class="cinfo"><b>V3 · stories</b><br><span class="sub">approved · niet gepusht</span></div></div>
+        </div>
+      </div>
+
+      <!-- 5. cijfers -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">6</span> Cijfers</span> <span class="muted">bron: meta_api · laatste snapshot vannacht 02:14</span></div>
+        <div style="padding:12px;">
+          <div class="chartbox">[ verlooplijn spend / ROAS / CPA per dag — 5 snapshots ]</div>
+          <table class="wf">
+            <tr><th>Dag</th><th>Spend</th><th>Impr.</th><th>CTR</th><th>CPC</th><th>ATC</th><th>Purch.</th><th>CPA</th><th>ROAS</th></tr>
+            <tr><td>27 jul</td><td>€96</td><td>21.4k</td><td>1,9%</td><td>€0,24</td><td>31</td><td>9</td><td>€10,70</td><td>3,3</td></tr>
+            <tr><td>26 jul</td><td>€88</td><td>19.8k</td><td>1,8%</td><td>€0,25</td><td>27</td><td>8</td><td>€11,00</td><td>3,1</td></tr>
+            <tr><td colspan="9" style="text-align:center;color:#999;">… 3 eerdere dagen …</td></tr>
+          </table>
+          <div class="reason" style="margin-top:10px;"><span class="a">7</span> <b>Funnel-lezing (De Analist):</b> sterk over de hele linie; CTR én CVR boven merkgemiddelde. Het concept draagt — niet alleen de hook. Zwakste schakel: Stories-placement ontbreekt nog (V3 niet gepusht).</div>
+        </div>
+      </div>
+
+      <div class="cols">
+        <!-- 6. audittrail -->
+        <div class="zone">
+          <div class="zone-h"><span><span class="a">8</span> Verdicts &amp; beslissingen</span></div>
+          <div class="audit" style="padding-top:10px;">
+            <div class="item"><b>Verdict · SCALE</b> — De Analist · vandaag 02:20 · confidence hoog · <span class="tag outline">open</span><br><span class="sub">"ROAS 3,1 stabiel over 5 dagen; schaal en push V3 voor Stories."</span></div>
+            <div class="item human"><b>Decision · CONTINUE</b> — Dustin · 25 jul · volgde verdict ✓<br><span class="sub">"Nog 3 dagen data vóór scale-besluit."</span></div>
+            <div class="item"><b>Verdict · CONTINUE</b> — De Analist · 25 jul · <span class="tag outline">accepted</span></div>
+          </div>
+        </div>
+
+        <!-- 7. familie -->
+        <div class="zone">
+          <div class="zone-h"><span><span class="a">9</span> Familie</span></div>
+          <div class="tree">T-089  Solo productshot          ● kill
+  └─ T-104  + gezicht/model       ◐ winner (2,1)
+       └─ <b>T-127  generatie-moment   ◉ live — deze test</b>
+            ├─ (voorstel) achtergrond-variant
+            └─ (voorstel) persona: Vader zelf</div>
+          <div class="empty-hint">takken tonen de gevarieerde dimensie · voorstellen komen uit het open verdict</div>
+        </div>
+      </div>
+
+      <!-- 8. learning -->
+      <div class="zone">
+        <div class="zone-h"><span><span class="a">10</span> Learning</span> <span class="muted">wordt geoogst bij afsluiten</span></div>
+        <div class="learnbox">
+          <div class="quote" style="border-style:dashed; color:#888;">Nog geen learning — verschijnt bij de beslissing winner/kill. Verwante bestaande learning: <span class="linklike">L-014 "emotionele aankoopreden verslaat functionele bij gift-persona's"</span> (strength: single_test — deze test kan hem bevestigen).</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="notes">
+    <div><span class="a">1</span> <b>Eén canonieke pagina</b> (§A1): Vandaag, Studio, Testlab en Archief openen allemaal exact deze pagina. Er bestaat geen tweede weergave met andere informatie.</div>
+    <div><span class="a">2</span> <b>Statustaal</b> (§A7): het volledige statuspad is altijd zichtbaar — waar-ben-ik is schilinformatie op objectniveau (§A2·4).</div>
+    <div><span class="a">3</span> <b>Hypothese bovenaan</b> (§B3): de leesbril voor alles eronder. Verwachting en huidige stand naast elkaar; de uitkomst wordt pas ingevuld door een Decision, nooit door de UI zelf.</div>
+    <div><span class="a">4</span> <b>Context als kennis, niet als metadata</b>: elke chip linkt naar de canonieke pagina en toont zijn trackrecord (angle-status, format-winrate mét n — onder n=5 zou hier "te weinig data" staan, §B4 kamer 4).</div>
+    <div><span class="a">5</span> <b>Varianten tonen hun publicatiestaat</b> per stuk — V3 approved-maar-niet-gepusht is precies het soort kloof dat zichtbaar moet zijn (Flow 5-fout 2: het systeem volgt de werkelijkheid).</div>
+    <div><span class="a">6</span> <b>Cijfers zijn append-only snapshots</b> met bronlabel (meta_api/manual/legacy). Alleen metrics passend bij het outputtype (hook/hold rate zou hier alleen bij video staan).</div>
+    <div><span class="a">7</span> <b>De funnel-lezing</b> is een voorstel-vorm (§A3): uitklapbaar, herleidbaar, nooit een losse chat.</div>
+    <div><span class="a">8</span> <b>Audittrail</b>: verdicts (AI) en decisions (mens, dikke rand) strikt gescheiden en chronologisch — het followed_verdict-trackrecord is hier letterlijk leesbaar.</div>
+    <div><span class="a">9</span> <b>De familieboom</b> beantwoordt "waarom werkt deze ad" over generaties; iterate-knop erft deze kennis mee naar de Studio (§C).</div>
+    <div><span class="a">10</span> <b>De learning-plek bestaat al vóór er een learning is</b> — de lege toestand toont de verwante learning die deze test kan bevestigen (Flow 6: strength verhogen i.p.v. dupliceren).</div>
+  </div>
+</div>
+
+</body>
+</html>
