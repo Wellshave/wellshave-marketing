@@ -7,12 +7,21 @@ agent-team met zijn brein en dashboard, en de bijbehorende skills.
 
 | Map | Wat |
 |---|---|
+| [`platform/`](platform/README.md) | **Marketing OS** — het fundament waarop de twee systemen samenkomen: agent-runtime, gedeeld schema, blauwdruk. Nog niet live. |
 | [`ad-generator/`](ad-generator/README.md) | **Atelier Console** — ad-creatie met Claude Fable 5. Live op wellshave-adgen.netlify.app, eigen Supabase (`bequyhghgkvekvibufhw`), eigen Worker (`marketing-ads`). |
 | [`marketing-hq/`](marketing-hq/README.md) | **Marketing HQ** — 9 AI-agents, Obsidian-brein, Pulse-dashboard. Live op wellshave-pulse.netlify.app, eigen Supabase (`srjpulfodxakbyulwhki`). |
 | `.claude/skills/` | Design- en UI-skills die de agents gebruiken. Moet op de root staan om te werken. |
 
 Beide systemen houden hun eigen Supabase-project en eigen deploy — samenvoegen ging
 over de **code**, niet over de infrastructuur. Er is dus niets aan live omgevingen veranderd.
+
+## Waar we heen gaan
+
+`platform/` is de omslag van ad-generator naar één levend systeem voor het hele
+marketingteam: creatie blijft, e-mailmarketing (Klaviyo) en Meta-analyse komen
+erbij, en de agents draaien server-side op cron in plaats van via een
+claude.ai-Routine. Zie [`platform/docs/ARCHITECTUUR.md`](platform/docs/ARCHITECTUUR.md)
+voor de blauwdruk en de volgorde. Er is nog niets live veranderd.
 
 ## Branches — nog niet verwerkt werk
 

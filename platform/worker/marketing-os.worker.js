@@ -1,0 +1,1064 @@
+/* ============================================================
+ * Marketing OS — Cloudflare Worker
+ *
+ * Superset van atelier-proxy: alle bestaande endpoints doen exact wat ze deden,
+ * en daar bovenop draait de agent-runtime. Dit bestand vervangt
+ * ad-generator/worker/atelier-proxy.worker.js in de worker `marketing-ads`.
+ *
+ * Endpoints (ongewijzigd):
+ *   GET   /health                 health (open)
+ *   POST  /anthropic              Claude          (login vereist)
+ *   POST  /openai/<rest>          OpenAI-beeld    (login vereist)
+ *   POST  /v1/<rest>              OpenAI (alias)  (login vereist)
+ *
+ * Endpoints (nieuw, allemaal login vereist):
+ *   GET   /agents/status          agents + lopende jobs + laatste events
+ *   GET   /agents/jobs            de wachtrij
+ *   POST  /agents/run             werk in de rij zetten
+ *   POST  /agents/jobs/<id>/cancel
+ *   POST  /agents/tick            handmatig een cyclus draaien (om te testen)
+ *
+ * Cron (wrangler.toml → [triggers] crons):
+ *   elke 5 minuten → scheduled() → planning omzetten in jobs + rij afwerken
+ *
+ * Secrets:
+ *   ANTHROPIC_KEY          verplicht — Claude
+ *   OPENAI_KEY             verplicht — beeldgeneratie
+ *   SUPABASE_SERVICE_KEY   verplicht voor de runtime — schrijft in marketing_hq
+ *   META_ACCESS_TOKEN      optioneel — zonder dit werkt meta_insights niet
+ *   META_AD_ACCOUNT_ID     optioneel — bv. act_242238038391551
+ *   KLAVIYO_API_KEY        optioneel — zonder dit werken de klaviyo-tools niet
+ *
+ * Guardrail die in de code zit, niet in de prompt: er bestaat geen tool die
+ * geld uitgeeft of iets verstuurt. Alles naar buiten loopt via request_approval
+ * en wacht op een mens. Een agent kan daar niet omheen praten.
+ * ============================================================ */
+
+const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
+const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
+const ORIGINS = ['https://wellshave-adgen.netlify.app', 'http://localhost:8823', 'http://127.0.0.1:8823'];
+
+const MODEL = 'claude-fable-5';
+const FALLBACK_MODEL = 'claude-opus-4-8';
+const META_API = 'https://graph.facebook.com/v21.0';
+const KLAVIYO_API = 'https://a.klaviyo.com/api';
+const KLAVIYO_REVISION = '2025-07-15';
+
+/* Hoeveel werk één cron-tick doet. Een Worker-invocatie heeft beperkte tijd;
+   liever drie jobs per tick dan één tick die halverwege wordt afgekapt. */
+const JOBS_PER_TICK = 3;
+const MAX_AGENT_STEPS = 12;      // tool-rondes per run
+const JOB_TIMEOUT_MIN = 15;      // daarna geldt een job als vastgelopen
+
+/* ============================================================
+ * 1. Supabase — server-side, met de service key
+ * ============================================================ */
+
+function sbHeaders(env, extra) {
+  const key = env.SUPABASE_SERVICE_KEY;
+  return Object.assign({
+    'apikey': key,
+    'Authorization': 'Bearer ' + key,
+    'Content-Type': 'application/json'
+  }, extra || {});
+}
+
+/* PostgREST spreekt alleen public aan; marketing_hq is bereikbaar via de
+   hq_*-views uit 0002/0004/0005. Schrijven gaat rechtstreeks op het schema
+   met de Accept-Profile/Content-Profile-headers. */
+async function sbSelect(env, table, query) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query || ''}`, {
+    headers: sbHeaders(env, { 'Accept-Profile': 'marketing_hq' })
+  });
+  if (!r.ok) throw new Error(`select ${table}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function sbInsert(env, table, rows, opts) {
+  const prefer = ['return=representation'];
+  if (opts && opts.onConflict) prefer.push('resolution=merge-duplicates');
+  const url = `${SB_URL}/rest/v1/${table}` +
+    (opts && opts.onConflict ? `?on_conflict=${opts.onConflict}` : '');
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: sbHeaders(env, { 'Content-Profile': 'marketing_hq', 'Prefer': prefer.join(',') }),
+    body: JSON.stringify(Array.isArray(rows) ? rows : [rows])
+  });
+  if (!r.ok) throw new Error(`insert ${table}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function sbUpdate(env, table, query, patch) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query}`, {
+    method: 'PATCH',
+    headers: sbHeaders(env, { 'Content-Profile': 'marketing_hq', 'Prefer': 'return=representation' }),
+    body: JSON.stringify(patch)
+  });
+  if (!r.ok) throw new Error(`update ${table}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function sbRpc(env, fn, args) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: sbHeaders(env, { 'Content-Profile': 'marketing_hq' }),
+    body: JSON.stringify(args || {})
+  });
+  if (!r.ok) throw new Error(`rpc ${fn}: ${r.status} ${await r.text()}`);
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+
+/* Publieke tabellen van de console (creatives, products, personas, …). */
+async function sbPublic(env, table, query) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${query || ''}`, { headers: sbHeaders(env) });
+  if (!r.ok) throw new Error(`select public.${table}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+/* ============================================================
+ * 2. De agents
+ *
+ * Identiteit en guardrails staan in marketing-hq/agents/*.md — dat blijft de
+ * bron van waarheid voor het team. Hieronder staat de werkinstructie zoals de
+ * runtime hem meegeeft: korter, en met wat de agent in deze omgeving mag.
+ * ============================================================ */
+
+const HUISREGELS = `
+Je werkt voor Wellshave (scheerapparaten, DTC) en het zustermerk Wellshine.
+Je bent onderdeel van een team van AI-agents met een gedeelde database.
+
+Vaste regels:
+- Analyseren en klaarzetten mag je zelfstandig. Uitvoeren nooit. Budget wijzigen,
+  een campagne live zetten of een e-mail versturen loopt altijd via
+  request_approval en wacht op een mens.
+- Meta-attributie druppelt tot 72 uur na. Cijfers van gisteren zijn voorlopig;
+  zeg dat erbij in plaats van ze als definitief te presenteren.
+- Schrijf Nederlands, zakelijk en zonder opsmuk. Geen superlatieven.
+- Onderbouw met getallen uit de tools. Weet je iets niet, zeg dat dan; verzin
+  geen cijfers.
+- Rond je run af met precies één samenvatting van maximaal drie zinnen: wat je
+  hebt gedaan en wat het betekent.
+`.trim();
+
+const AGENTS = {
+  atlas: {
+    naam: 'Atlas',
+    rol: 'Data-analyst',
+    tools: ['db_query', 'meta_insights', 'write_report', 'send_message', 'request_approval'],
+    prompt: `Je bent Atlas, de data-analist. Jij bepaalt wat er werkelijk gebeurt in de cijfers.
+
+Bij kind = daily_report:
+1. Haal met meta_insights de cijfers op van gisteren én de drie dagen daarvoor
+   (attributie loopt na, dus corrigeer die dagen).
+2. Kijk naar spend, ROAS, CPA, CTR, CPM en frequentie op accountniveau, en
+   daarna naar de campagnes die het meest bewegen.
+3. Schrijf met write_report een dagrapport: wat is er veranderd, waardoor, en
+   wat is het één ding dat vandaag aandacht nodig heeft. Geen opsomming van
+   alle getallen — een oordeel, onderbouwd met de getallen die ertoe doen.
+4. Zie je iets dat om actie vraagt (een campagne die wegloopt, een ad die
+   opeens instort), stuur dan send_message naar bolt of nova.`
+  },
+
+  bolt: {
+    naam: 'Bolt',
+    rol: 'Performance Marketeer',
+    tools: ['db_query', 'meta_insights', 'write_recommendation', 'write_report', 'send_message', 'request_approval'],
+    prompt: `Je bent Bolt, de performance marketeer. Jij oordeelt per advertentie.
+
+Bij kind = creative_scorecard:
+1. Haal met meta_insights de ads op over het gevraagde venster (default 7 dagen).
+2. Beoordeel elke ad die genoeg data heeft op drie signalen tegelijk: ROAS,
+   CTR tegen de accountbenchmark, en de Meta-kwaliteitsrangschikking. Eén
+   signaal is nooit genoeg voor een oordeel.
+3. Onder de 1.000 impressies of onder 50 euro spend: verdict onvoldoende_data,
+   actie wait. Niet gokken.
+4. Leg per ad met write_recommendation je oordeel vast: winner/test/loser en
+   één actie (scale/iterate/copy/new/pause), met een onderbouwing van maximaal
+   twee zinnen die naar de cijfers verwijst.
+5. Budgetwijzigingen en pauzeren zet je klaar met request_approval, met het
+   bedrag en de verwachte impact erbij. Je voert ze niet uit.`
+  },
+
+  echo: {
+    naam: 'Echo',
+    rol: 'E-mailmarketeer',
+    tools: ['db_query', 'klaviyo_read', 'email_draft', 'write_report', 'send_message', 'request_approval'],
+    prompt: `Je bent Echo, de e-mailmarketeer. Jij haalt omzet uit de lijst zonder hem te vermoeien.
+
+Bij kind = flow_audit:
+1. Lees met klaviyo_read de flows (welcome, abandoned cart, browse abandon,
+   post-purchase, winback) en hun prestaties.
+2. Beoordeel per flow: staat er wat er hoort te staan, klopt de timing, en waar
+   lekt omzet weg. Vergelijk met de campagnes uit dezelfde periode.
+3. Schrijf je bevindingen met write_report, met per flow één concrete
+   verbetering en waarom die het meeste oplevert.
+
+Bij kind = campaign_plan:
+1. Kijk met db_query naar wat er live staat in de creatie-pipeline en naar
+   Atlas' laatste rapport, zodat e-mail en advertenties hetzelfde zeggen.
+2. Stel een kalender voor de gevraagde periode voor en leg elke mail vast met
+   email_draft: onderwerp, preview, segment, hoek en de hypothese erachter.
+3. Bewaak frequentie. Meer dan drie touches per segment per week is een
+   waarschuwing, geen plan.
+
+Verzenden doe je nooit. Een concept blijft een concept tot een mens akkoord
+geeft; pas daarna zet iemand het in Klaviyo.`
+  },
+
+  radar: {
+    naam: 'Radar',
+    rol: 'Trend- & Concurrentiescout',
+    tools: ['db_query', 'write_report', 'send_message'],
+    prompt: `Je bent Radar, de trend- en concurrentiescout. Jij ziet wat er buiten gebeurt.
+
+Bij kind = trend_scan: schrijf een briefing over wat er beweegt in de markt
+(scheren, grooming, DTC) en wat concurrenten doen. Wees eerlijk over wat je
+niet kunt zien: zolang Trendtrack nog niet server-side gekoppeld is, werk je
+met wat er in de database staat en met wat het team heeft aangeleverd. Verzin
+geen concurrentiedata.`
+  },
+
+  nova: {
+    naam: 'Nova',
+    rol: 'Creative Director & Strategie',
+    tools: ['db_query', 'update_pipeline', 'write_report', 'send_message', 'request_approval'],
+    prompt: `Je bent Nova, creative director. Jij vertaalt cijfers naar de volgende creatieve zet.
+
+Bij kind = pipeline_sync:
+1. Lees Atlas' laatste rapport, de open aanbevelingen van Bolt en de huidige
+   pipeline-items.
+2. Werk de pipeline bij met update_pipeline: wat is klaar voor de volgende
+   stap, wat ligt stil, en wat moet erbij op basis van wat werkt.
+3. Formuleer per nieuw item één hypothese in de vorm "als we X, dan Y, omdat Z".
+4. Brief het contentteam met send_message: quill voor copy, pixel voor beeld.`
+  }
+};
+
+/* ============================================================
+ * 3. Tools — smal, en per agent beperkt
+ * ============================================================ */
+
+/* Wat een agent mag lezen. Alles daarbuiten geeft een nette weigering terug in
+   plaats van een fout, zodat de agent het zelf kan oplossen. */
+const LEESBAAR_HQ = ['agents', 'agent_runs', 'agent_messages', 'pipeline_items',
+  'pipeline_events', 'reports', 'metrics_daily', 'approvals',
+  'meta_insights_daily', 'meta_recommendations', 'email_drafts', 'email_performance'];
+const LEESBAAR_PUBLIC = ['creatives', 'products', 'personas', 'brand_profile', 'ad_results'];
+
+const TOOLS = {
+  db_query: {
+    schema: {
+      name: 'db_query',
+      description: 'Lees rijen uit de database. Alleen lezen. Gebruik dit om te weten wat het team maakt (creatives, products, personas) en wat het systeem eerder concludeerde (reports, meta_recommendations, pipeline_items).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          table: { type: 'string', description: `Een van: ${LEESBAAR_HQ.concat(LEESBAAR_PUBLIC).join(', ')}` },
+          select: { type: 'string', description: 'Kolommen, komma-gescheiden. Default *' },
+          filter: { type: 'string', description: 'PostgREST-filter, bv. "status=eq.live" of "created_at=gte.2026-07-01". Meerdere met &.' },
+          order: { type: 'string', description: 'bv. "created_at.desc"' },
+          limit: { type: 'integer', description: 'Max 200, default 50' }
+        },
+        required: ['table']
+      }
+    },
+    async run(env, ctx, input) {
+      const t = String(input.table || '').replace(/[^a-z_]/g, '');
+      const isHq = LEESBAAR_HQ.includes(t);
+      const isPub = LEESBAAR_PUBLIC.includes(t);
+      if (!isHq && !isPub) {
+        return { error: `tabel "${t}" staat niet op de leeslijst`, toegestaan: LEESBAAR_HQ.concat(LEESBAAR_PUBLIC) };
+      }
+      const q = [];
+      q.push('select=' + encodeURIComponent(input.select || '*'));
+      if (input.filter) q.push(input.filter);
+      if (input.order) q.push('order=' + encodeURIComponent(input.order));
+      q.push('limit=' + Math.min(Number(input.limit) || 50, 200));
+      const rows = isHq ? await sbSelect(env, t, q.join('&')) : await sbPublic(env, t, q.join('&'));
+      return { rows: rows, aantal: rows.length };
+    }
+  },
+
+  meta_insights: {
+    schema: {
+      name: 'meta_insights',
+      description: 'Haal Meta Ads-cijfers op. Alleen lezen. Schrijft de opgehaalde dagen ook weg naar de database, zodat het team ze in de console ziet.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          level: { type: 'string', enum: ['account', 'campaign', 'adset', 'ad'], description: 'Detailniveau' },
+          days: { type: 'integer', description: 'Aantal dagen terug, 1-30. Default 7.' },
+          breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen in plaats van één totaal over de periode' }
+        },
+        required: ['level']
+      }
+    },
+    async run(env, ctx, input) {
+      if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
+        return { error: 'Meta is niet gekoppeld op deze worker (META_ACCESS_TOKEN / META_AD_ACCOUNT_ID ontbreekt). Werk verder met wat er in meta_insights_daily staat.' };
+      }
+      const days = Math.min(Math.max(Number(input.days) || 7, 1), 30);
+      const rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day);
+      if (rows.length) {
+        try {
+          await sbInsert(env, 'meta_insights_daily', rows, { onConflict: 'insight_date,account_id,level,entity_id' });
+        } catch (e) {
+          await logEvent(env, ctx, 'warn', 'Meta-cijfers ophalen lukte, wegschrijven niet', { fout: String(e) });
+        }
+      }
+      return { periode_dagen: days, niveau: input.level, aantal: rows.length, rijen: rows.slice(0, 60) };
+    }
+  },
+
+  klaviyo_read: {
+    schema: {
+      name: 'klaviyo_read',
+      description: 'Lees uit Klaviyo. Alleen lezen: flows, campagnes, lijsten, segmenten en hun prestaties.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          resource: { type: 'string', enum: ['flows', 'campaigns', 'lists', 'segments', 'metrics'] },
+          limit: { type: 'integer', description: 'Max 50, default 20' }
+        },
+        required: ['resource']
+      }
+    },
+    async run(env, ctx, input) {
+      if (!env.KLAVIYO_API_KEY) {
+        return { error: 'Klaviyo is niet gekoppeld op deze worker (KLAVIYO_API_KEY ontbreekt).' };
+      }
+      const limit = Math.min(Number(input.limit) || 20, 50);
+      const res = String(input.resource);
+      let path = res;
+      // Campagnes vereisen een filter op kanaal; zonder dat geeft Klaviyo een 400.
+      if (res === 'campaigns') path = `campaigns?filter=equals(messages.channel,'email')&page[size]=${limit}`;
+      else path = `${res}?page[size]=${limit}`;
+      const r = await fetch(`${KLAVIYO_API}/${path}`, {
+        headers: {
+          'Authorization': 'Klaviyo-API-Key ' + env.KLAVIYO_API_KEY,
+          'revision': KLAVIYO_REVISION,
+          'accept': 'application/vnd.api+json'
+        }
+      });
+      const txt = await r.text();
+      if (!r.ok) return { error: `Klaviyo ${r.status}`, detail: txt.slice(0, 500) };
+      const data = JSON.parse(txt);
+      const items = (data.data || []).map(d => ({ id: d.id, type: d.type, ...(d.attributes || {}) }));
+      return { resource: res, aantal: items.length, items: items };
+    }
+  },
+
+  write_report: {
+    schema: {
+      name: 'write_report',
+      description: 'Leg een rapport vast. Dit is hoe je conclusie het team bereikt.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['daily', 'trend_briefing', 'deep_dive', 'competitor'] },
+          title: { type: 'string' },
+          body_md: { type: 'string', description: 'Markdown. Begin met de conclusie, daarna de onderbouwing.' },
+          report_date: { type: 'string', description: 'JJJJ-MM-DD, default vandaag' }
+        },
+        required: ['kind', 'title', 'body_md']
+      }
+    },
+    async run(env, ctx, input) {
+      const row = {
+        report_date: input.report_date || vandaag(),
+        kind: input.kind,
+        title: input.title,
+        author_agent: ctx.agentId,
+        body_md: input.body_md
+      };
+      const out = await sbInsert(env, 'reports', row, { onConflict: 'report_date,kind,title' });
+      return { ok: true, report_id: out[0] && out[0].id };
+    }
+  },
+
+  write_recommendation: {
+    schema: {
+      name: 'write_recommendation',
+      description: 'Leg je oordeel over één advertentie vast. Eén aanroep per advertentie.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ad_id: { type: 'string' },
+          ad_name: { type: 'string' },
+          verdict: { type: 'string', enum: ['winner', 'test', 'loser', 'onvoldoende_data'] },
+          action: { type: 'string', enum: ['scale', 'iterate', 'copy', 'new', 'pause', 'wait'] },
+          confidence: { type: 'number', description: '0 tot 1' },
+          reasoning: { type: 'string', description: 'Maximaal twee zinnen, met de cijfers erin.' },
+          metrics_snapshot: { type: 'object', description: 'De cijfers waar je op oordeelde' },
+          window_days: { type: 'integer' }
+        },
+        required: ['ad_id', 'verdict', 'action', 'reasoning']
+      }
+    },
+    async run(env, ctx, input) {
+      const row = {
+        account_id: env.META_AD_ACCOUNT_ID || 'onbekend',
+        ad_id: String(input.ad_id),
+        ad_name: input.ad_name || null,
+        verdict: input.verdict,
+        action: input.action,
+        confidence: input.confidence != null ? Number(input.confidence) : null,
+        reasoning: input.reasoning,
+        metrics_snapshot: input.metrics_snapshot || null,
+        window_days: Number(input.window_days) || 7,
+        agent_id: ctx.agentId,
+        run_id: ctx.runId
+      };
+      const out = await sbInsert(env, 'meta_recommendations', row);
+      return { ok: true, id: out[0] && out[0].id };
+    }
+  },
+
+  email_draft: {
+    schema: {
+      name: 'email_draft',
+      description: 'Leg een e-mailconcept vast. Het blijft een concept: dit verstuurt niets en zet niets in Klaviyo.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['campaign', 'flow_message'] },
+          title: { type: 'string', description: 'Interne naam' },
+          subject: { type: 'string' },
+          preview_text: { type: 'string' },
+          body_md: { type: 'string' },
+          segment: { type: 'string', description: 'Wie moet dit krijgen, in woorden' },
+          planned_for: { type: 'string', description: 'JJJJ-MM-DD' },
+          angle: { type: 'string' },
+          hypothesis: { type: 'string', description: 'Als we X, dan Y, omdat Z' },
+          flow_ref: { type: 'string' }
+        },
+        required: ['kind', 'title', 'subject']
+      }
+    },
+    async run(env, ctx, input) {
+      const row = {
+        kind: input.kind,
+        title: input.title,
+        subject: input.subject,
+        preview_text: input.preview_text || null,
+        body_md: input.body_md || null,
+        segment: input.segment || null,
+        planned_for: input.planned_for || null,
+        angle: input.angle || null,
+        hypothesis: input.hypothesis || null,
+        flow_ref: input.flow_ref || null,
+        author_agent: ctx.agentId,
+        run_id: ctx.runId
+      };
+      const out = await sbInsert(env, 'email_drafts', row);
+      return { ok: true, draft_id: out[0] && out[0].id, status: 'concept' };
+    }
+  },
+
+  update_pipeline: {
+    schema: {
+      name: 'update_pipeline',
+      description: 'Maak een pipeline-item aan of verplaats er een. Elke statuswijziging wordt gelogd.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          item_id: { type: 'integer', description: 'Leeg laten om een nieuw item te maken' },
+          title: { type: 'string' },
+          type: { type: 'string', enum: ['ugc_video', 'static', 'email', 'landing_page', 'script', 'campaign'] },
+          status: { type: 'string', enum: ['idea', 'hypothesis', 'script', 'with_creator', 'filming', 'editing', 'ready_for_launch', 'live', 'analyzed', 'archived'] },
+          hypothesis: { type: 'string' },
+          angle: { type: 'string' },
+          notes: { type: 'string' },
+          owner_agent: { type: 'string' }
+        }
+      }
+    },
+    async run(env, ctx, input) {
+      if (input.item_id) {
+        const huidig = await sbSelect(env, 'pipeline_items', `id=eq.${Number(input.item_id)}&select=status`);
+        const van = huidig[0] && huidig[0].status;
+        const patch = { updated_at: new Date().toISOString() };
+        ['title', 'type', 'status', 'hypothesis', 'angle', 'notes', 'owner_agent'].forEach(k => {
+          if (input[k] != null) patch[k] = input[k];
+        });
+        await sbUpdate(env, 'pipeline_items', `id=eq.${Number(input.item_id)}`, patch);
+        if (input.status && input.status !== van) {
+          await sbInsert(env, 'pipeline_events', {
+            item_id: Number(input.item_id), from_status: van, to_status: input.status,
+            by_agent: ctx.agentId, note: input.notes || null
+          });
+        }
+        return { ok: true, item_id: Number(input.item_id), van_status: van, naar_status: input.status || van };
+      }
+      if (!input.title || !input.type) return { error: 'title en type zijn verplicht voor een nieuw item' };
+      const out = await sbInsert(env, 'pipeline_items', {
+        title: input.title, type: input.type, status: input.status || 'idea',
+        owner_agent: input.owner_agent || ctx.agentId,
+        hypothesis: input.hypothesis || null, angle: input.angle || null, notes: input.notes || null
+      });
+      const id = out[0] && out[0].id;
+      await sbInsert(env, 'pipeline_events', {
+        item_id: id, from_status: null, to_status: input.status || 'idea', by_agent: ctx.agentId
+      });
+      return { ok: true, item_id: id, aangemaakt: true };
+    }
+  },
+
+  send_message: {
+    schema: {
+      name: 'send_message',
+      description: 'Stuur een bericht aan een andere agent. Die leest het bij zijn volgende run.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          to_agent: { type: 'string', description: 'nova, atlas, radar, quill, pixel, echo, bolt, sage of vector' },
+          subject: { type: 'string' },
+          body: { type: 'string' },
+          ref_pipeline_item: { type: 'integer' }
+        },
+        required: ['to_agent', 'subject', 'body']
+      }
+    },
+    async run(env, ctx, input) {
+      await sbInsert(env, 'agent_messages', {
+        from_agent: ctx.agentId,
+        to_agent: String(input.to_agent).toLowerCase(),
+        subject: input.subject,
+        body: input.body,
+        ref_pipeline_item: input.ref_pipeline_item || null
+      });
+      return { ok: true };
+    }
+  },
+
+  request_approval: {
+    schema: {
+      name: 'request_approval',
+      description: 'Zet een actie klaar die naar buiten werkt: budget wijzigen, campagne live zetten, e-mail versturen. Een mens beslist. Dit voert niets uit.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          action_type: { type: 'string', description: 'bv. budget_change, campaign_launch, email_send, ad_pause' },
+          description: { type: 'string', description: 'Wat, waarom, en wat je verwacht dat het oplevert. Eén alinea.' },
+          payload: { type: 'object', description: 'De concrete parameters, zodat een mens het kan uitvoeren zonder terug te zoeken.' }
+        },
+        required: ['action_type', 'description']
+      }
+    },
+    async run(env, ctx, input) {
+      const out = await sbInsert(env, 'approvals', {
+        requested_by: ctx.agentId,
+        action_type: input.action_type,
+        description: input.description,
+        payload: input.payload || null
+      });
+      return { ok: true, approval_id: out[0] && out[0].id, status: 'wacht op een mens' };
+    }
+  }
+};
+
+/* ============================================================
+ * 4. Meta Ads
+ * ============================================================ */
+
+function metaActie(acties, naam) {
+  if (!Array.isArray(acties)) return null;
+  const a = acties.find(x => x.action_type === naam);
+  return a ? Number(a.value) : null;
+}
+
+async function metaInsights(env, level, days, perDag) {
+  const account = env.META_AD_ACCOUNT_ID;
+  const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
+    'ctr', 'cpc', 'cpm', 'actions', 'action_values', 'purchase_roas',
+    'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
+    'video_3_sec_watched_actions'];
+  if (level !== 'account') velden.push(level + '_id', level + '_name');
+
+  const p = new URLSearchParams({
+    access_token: env.META_ACCESS_TOKEN,
+    level: level,
+    fields: velden.join(','),
+    date_preset: 'last_' + days + 'd',
+    limit: '200'
+  });
+  if (perDag) p.set('time_increment', '1');
+
+  const r = await fetch(`${META_API}/${account}/insights?${p}`);
+  const data = await r.json();
+  if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
+
+  return (data.data || []).map(row => {
+    const acties = row.actions || [];
+    const waarden = row.action_values || [];
+    const aankopen = metaActie(acties, 'purchase') || metaActie(acties, 'omni_purchase');
+    const omzet = metaActie(waarden, 'purchase') || metaActie(waarden, 'omni_purchase');
+    const spend = Number(row.spend) || 0;
+    const roasVeld = Array.isArray(row.purchase_roas) && row.purchase_roas[0]
+      ? Number(row.purchase_roas[0].value) : null;
+    return {
+      insight_date: row.date_start || vandaag(),
+      account_id: account,
+      level: level,
+      entity_id: row[level + '_id'] || account,
+      entity_name: row[level + '_name'] || null,
+      spend: spend,
+      impressions: Number(row.impressions) || 0,
+      reach: Number(row.reach) || null,
+      frequency: row.frequency != null ? Number(row.frequency) : null,
+      clicks: Number(row.clicks) || null,
+      link_clicks: Number(row.inline_link_clicks) || null,
+      ctr: row.ctr != null ? Number(row.ctr) : null,
+      cpc: row.cpc != null ? Number(row.cpc) : null,
+      cpm: row.cpm != null ? Number(row.cpm) : null,
+      purchases: aankopen,
+      purchase_value: omzet,
+      roas: roasVeld != null ? roasVeld : (spend > 0 && omzet ? Number((omzet / spend).toFixed(3)) : null),
+      add_to_cart: metaActie(acties, 'add_to_cart') || metaActie(acties, 'omni_add_to_cart'),
+      initiate_checkout: metaActie(acties, 'initiate_checkout') || metaActie(acties, 'omni_initiated_checkout'),
+      landing_page_views: metaActie(acties, 'landing_page_view'),
+      video_3s: metaActie(row.video_3_sec_watched_actions, 'video_view'),
+      quality_ranking: row.quality_ranking || null,
+      engagement_rate_ranking: row.engagement_rate_ranking || null,
+      conversion_rate_ranking: row.conversion_rate_ranking || null,
+      /* Meta corrigeert tot ~72 uur terug; alles binnen dat venster is voorlopig. */
+      is_final: dagenGeleden(row.date_start) > 3
+    };
+  });
+}
+
+/* ============================================================
+ * 5. De agent-loop
+ * ============================================================ */
+
+/* Fable 5 kan een thinking-blok vooraan zetten; blind content[0].text lezen
+   crasht dan. Zelfde aanpak als wgClaudeText() in de console. */
+function claudeText(data) {
+  const blocks = data && data.content;
+  if (Array.isArray(blocks)) {
+    for (const b of blocks) if (b && b.type === 'text' && typeof b.text === 'string' && b.text.length) return b.text;
+    for (const b of blocks) if (b && typeof b.text === 'string' && b.text.length) return b.text;
+  }
+  return '';
+}
+
+async function claude(env, body) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': env.ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'server-side-fallback-2026-06-01'
+    },
+    body: JSON.stringify(Object.assign({
+      model: MODEL,
+      fallbacks: [{ model: FALLBACK_MODEL }]
+    }, body))
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(`Claude ${r.status}: ${(data.error && data.error.message) || JSON.stringify(data).slice(0, 300)}`);
+  return data;
+}
+
+async function logEvent(env, ctx, level, message, data) {
+  try {
+    await sbInsert(env, 'agent_events', {
+      job_id: ctx.jobId || null,
+      run_id: ctx.runId || null,
+      agent_id: ctx.agentId,
+      level: level,
+      message: message,
+      data: data || null
+    });
+  } catch (e) {
+    console.error('agent_events schrijven mislukt:', e);
+  }
+}
+
+async function runAgent(env, job) {
+  const agent = AGENTS[job.agent_id];
+  if (!agent) throw new Error(`agent "${job.agent_id}" heeft nog geen runtime-instructie`);
+
+  const ctx = { agentId: job.agent_id, jobId: job.id, runId: null };
+
+  const run = (await sbInsert(env, 'agent_runs', {
+    agent_id: job.agent_id, job_id: job.id, status: 'running', model: MODEL
+  }))[0];
+  ctx.runId = run.id;
+
+  await sbUpdate(env, 'agents', `id=eq.${job.agent_id}`, {
+    status: 'working', current_task: job.kind, last_run_at: new Date().toISOString()
+  });
+  await logEvent(env, ctx, 'info', `${agent.naam} begint aan ${job.kind}`, { payload: job.payload });
+
+  const toolSchemas = agent.tools.filter(t => TOOLS[t]).map(t => TOOLS[t].schema);
+  const systeem = `${agent.prompt}\n\n${HUISREGELS}\n\nVandaag is ${vandaag()}.`;
+
+  const opdracht = [
+    `Opdracht: ${job.kind}`,
+    Object.keys(job.payload || {}).length ? `Parameters: ${JSON.stringify(job.payload)}` : '',
+    '',
+    'Voer deze opdracht nu uit. Gebruik je tools om aan echte data te komen; werk niet op aannames.'
+  ].filter(Boolean).join('\n');
+
+  const messages = [{ role: 'user', content: opdracht }];
+  let inTokens = 0, outTokens = 0, samenvatting = '', stappen = 0;
+
+  while (stappen < MAX_AGENT_STEPS) {
+    stappen++;
+    const antwoord = await claude(env, {
+      max_tokens: 8000,
+      output_config: { effort: 'medium' },
+      system: systeem,
+      tools: toolSchemas,
+      messages: messages
+    });
+
+    inTokens += (antwoord.usage && antwoord.usage.input_tokens) || 0;
+    outTokens += (antwoord.usage && antwoord.usage.output_tokens) || 0;
+
+    if (antwoord.stop_reason === 'refusal') throw new Error('Claude weigerde de opdracht');
+
+    messages.push({ role: 'assistant', content: antwoord.content });
+
+    const toolCalls = (antwoord.content || []).filter(b => b.type === 'tool_use');
+    if (!toolCalls.length) {
+      samenvatting = claudeText(antwoord);
+      break;
+    }
+
+    const resultaten = [];
+    for (const call of toolCalls) {
+      const tool = TOOLS[call.name];
+      let resultaat;
+      if (!tool || !agent.tools.includes(call.name)) {
+        resultaat = { error: `${agent.naam} heeft geen toegang tot de tool "${call.name}"` };
+      } else {
+        try {
+          resultaat = await tool.run(env, ctx, call.input || {});
+          await logEvent(env, ctx, 'info', `${call.name}`, { input: call.input, ok: !resultaat.error });
+        } catch (e) {
+          resultaat = { error: String(e && e.message || e) };
+          await logEvent(env, ctx, 'warn', `${call.name} mislukte`, { fout: resultaat.error });
+        }
+      }
+      resultaten.push({
+        type: 'tool_result',
+        tool_use_id: call.id,
+        content: JSON.stringify(resultaat).slice(0, 40000),
+        is_error: !!resultaat.error
+      });
+    }
+    messages.push({ role: 'user', content: resultaten });
+  }
+
+  if (stappen >= MAX_AGENT_STEPS && !samenvatting) {
+    samenvatting = `Afgekapt na ${MAX_AGENT_STEPS} tool-rondes zonder afronding.`;
+    await logEvent(env, ctx, 'warn', samenvatting, null);
+  }
+
+  /* Ruwe schatting, alleen om dagkosten zichtbaar te maken in de console. */
+  const kosten = Number(((inTokens / 1e6) * 5 + (outTokens / 1e6) * 25).toFixed(4));
+
+  await sbUpdate(env, 'agent_runs', `id=eq.${run.id}`, {
+    status: 'done', finished_at: new Date().toISOString(),
+    summary: samenvatting, input_tokens: inTokens, output_tokens: outTokens, cost_usd: kosten
+  });
+  await sbUpdate(env, 'agents', `id=eq.${job.agent_id}`, { status: 'idle', current_task: null });
+  await logEvent(env, ctx, 'info', `${agent.naam} is klaar`, { samenvatting: samenvatting, stappen: stappen, kosten_usd: kosten });
+
+  return { summary: samenvatting, steps: stappen, input_tokens: inTokens, output_tokens: outTokens, cost_usd: kosten };
+}
+
+/* ============================================================
+ * 6. Planning en wachtrij
+ * ============================================================ */
+
+function vandaag() { return new Date().toISOString().slice(0, 10); }
+
+function dagenGeleden(datum) {
+  if (!datum) return 0;
+  return Math.floor((Date.now() - new Date(datum + 'T00:00:00Z').getTime()) / 86400000);
+}
+
+/* Nederland loopt op UTC+1, of UTC+2 in de zomertijd (laatste zondag maart tot
+   laatste zondag oktober). De schedules staan in UTC; deze functie zegt of we
+   nu in de zomertijd zitten, zodat 07:00 NL het hele jaar 07:00 NL blijft. */
+function isZomertijdNL(d) {
+  const jaar = d.getUTCFullYear();
+  /* Laatste zondag van de maand, om 01:00 UTC — het EU-omschakelmoment. */
+  const laatsteZondag = (maand) => {
+    const laatsteDag = new Date(Date.UTC(jaar, maand + 1, 0));
+    const datum = laatsteDag.getUTCDate() - laatsteDag.getUTCDay();
+    return new Date(Date.UTC(jaar, maand, datum, 1, 0, 0));
+  };
+  return d >= laatsteZondag(2) && d < laatsteZondag(9);   // maart t/m oktober
+}
+
+/* Minimale cron-match: minuut uur dag maand weekdag. Ondersteunt sterretje,
+   lijstjes met komma's, reeksen met een streepje en stappen (sterretje-slash-n). */
+function cronMatch(cron, d) {
+  const delen = String(cron).trim().split(/\s+/);
+  if (delen.length !== 5) return false;
+  const waarden = [d.getUTCMinutes(), d.getUTCHours(), d.getUTCDate(), d.getUTCMonth() + 1, d.getUTCDay()];
+  return delen.every((deel, i) => {
+    if (deel === '*') return true;
+    return deel.split(',').some(stuk => {
+      const stap = stuk.match(/^\*\/(\d+)$/);
+      if (stap) return waarden[i] % Number(stap[1]) === 0;
+      const reeks = stuk.match(/^(\d+)-(\d+)$/);
+      if (reeks) return waarden[i] >= Number(reeks[1]) && waarden[i] <= Number(reeks[2]);
+      return Number(stuk) === waarden[i];
+    });
+  });
+}
+
+/* Zet wat nu aan de beurt is in de wachtrij. De cron draait elke 5 minuten,
+   dus we kijken of het geplande moment in het afgelopen kwartier lag én er
+   vandaag nog niet gevuurd is — zo mist een schedule niet als één tick faalt. */
+async function planningNaarJobs(env) {
+  const nu = new Date();
+  const zomer = isZomertijdNL(nu);
+  const schedules = await sbSelect(env, 'schedules', 'enabled=eq.true&select=*');
+  let gezet = 0;
+
+  for (const s of schedules) {
+    const delen = String(s.cron).trim().split(/\s+/);
+    if (delen.length === 5 && !zomer && /^\d+$/.test(delen[1])) {
+      delen[1] = String((Number(delen[1]) + 1) % 24);   // wintertijd: een uur later in UTC
+    }
+    const cron = delen.join(' ');
+
+    let raak = false;
+    for (let m = 0; m < 15; m++) {
+      if (cronMatch(cron, new Date(nu.getTime() - m * 60000))) { raak = true; break; }
+    }
+    if (!raak) continue;
+    if (s.last_fired_at && (nu - new Date(s.last_fired_at)) < 6 * 3600 * 1000) continue;
+
+    await sbInsert(env, 'agent_jobs', {
+      agent_id: s.agent_id, kind: s.kind, payload: s.payload || {},
+      source: 'cron', schedule_id: s.id, priority: 3
+    });
+    await sbUpdate(env, 'schedules', `id=eq.${s.id}`, { last_fired_at: nu.toISOString() });
+    gezet++;
+  }
+  return gezet;
+}
+
+async function werkRijAf(env, workerId, maxJobs) {
+  const gedaan = [];
+  for (let i = 0; i < maxJobs; i++) {
+    const job = await sbRpc(env, 'claim_job', { p_worker: workerId });
+    if (!job || !job.id) break;
+    try {
+      const resultaat = await runAgent(env, job);
+      await sbUpdate(env, 'agent_jobs', `id=eq.${job.id}`, {
+        status: 'done', result: resultaat, finished_at: new Date().toISOString(), locked_by: null
+      });
+      gedaan.push({ id: job.id, agent: job.agent_id, kind: job.kind, status: 'done' });
+    } catch (e) {
+      const fout = String(e && e.message || e);
+      const opnieuw = job.attempts < job.max_attempts;
+      await sbUpdate(env, 'agent_jobs', `id=eq.${job.id}`, {
+        status: opnieuw ? 'queued' : 'failed',
+        error: fout,
+        locked_at: null, locked_by: null,
+        /* backoff: 5, 20, 45 minuten */
+        scheduled_for: new Date(Date.now() + Math.pow(job.attempts, 2) * 5 * 60000).toISOString(),
+        finished_at: opnieuw ? null : new Date().toISOString()
+      });
+      await sbUpdate(env, 'agents', `id=eq.${job.agent_id}`, { status: 'idle', current_task: null });
+      await logEvent(env, { agentId: job.agent_id, jobId: job.id }, 'error',
+        opnieuw ? 'Run mislukt, wordt opnieuw geprobeerd' : 'Run definitief mislukt', { fout: fout });
+      gedaan.push({ id: job.id, agent: job.agent_id, kind: job.kind, status: opnieuw ? 'requeued' : 'failed', error: fout });
+    }
+  }
+  return gedaan;
+}
+
+async function tick(env, workerId) {
+  const vrijgegeven = await sbRpc(env, 'reap_stuck_jobs', { p_timeout: `${JOB_TIMEOUT_MIN} minutes` });
+  const gepland = await planningNaarJobs(env);
+  const gedaan = await werkRijAf(env, workerId, JOBS_PER_TICK);
+  return { vrijgegeven: vrijgegeven, gepland: gepland, verwerkt: gedaan };
+}
+
+/* ============================================================
+ * 7. Toegang
+ * ============================================================ */
+
+function corsHeaders(request) {
+  const o = request.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ORIGINS.includes(o) ? o : ORIGINS[0],
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version, anthropic-beta',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin'
+  };
+}
+
+const _cache = new Map(); // token -> { exp, ok, email, role }
+async function lid(request) {
+  const t = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!t) return null;
+  const now = Date.now();
+  const c = _cache.get(t);
+  if (c && c.exp > now) return c.ok ? c : null;
+  let uit = { exp: now + 60000, ok: false, email: null, role: null };
+  try {
+    const r = await fetch(SB_URL + '/auth/v1/user', { headers: { 'Authorization': 'Bearer ' + t, 'apikey': SB_ANON } });
+    if (r.ok) {
+      const u = await r.json();
+      if (u && u.id) {
+        const r2 = await fetch(SB_URL + '/rest/v1/team_members?id=eq.' + u.id + '&select=status,role', {
+          headers: { 'Authorization': 'Bearer ' + t, 'apikey': SB_ANON }
+        });
+        if (r2.ok) {
+          const rows = await r2.json();
+          if (rows && rows[0] && rows[0].status === 'approved') {
+            uit = { exp: now + 60000, ok: true, email: u.email || null, role: rows[0].role || 'member' };
+          }
+        }
+      }
+    }
+  } catch (e) { }
+  _cache.set(t, uit);
+  return uit.ok ? uit : null;
+}
+
+/* ============================================================
+ * 8. Worker
+ * ============================================================ */
+
+export default {
+  async scheduled(event, env, ctx) {
+    if (!env.SUPABASE_SERVICE_KEY) { console.error('SUPABASE_SERVICE_KEY ontbreekt — runtime staat stil'); return; }
+    const workerId = 'cron-' + event.scheduledTime;
+    ctx.waitUntil(tick(env, workerId).then(
+      r => console.log('tick', JSON.stringify(r)),
+      e => console.error('tick mislukt', e)
+    ));
+  },
+
+  async fetch(request, env) {
+    const cors = corsHeaders(request);
+    const json = (obj, status) => new Response(JSON.stringify(obj), {
+      status: status || 200, headers: { 'Content-Type': 'application/json', ...cors }
+    });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, '');
+
+    if (path === '' || path === '/health') {
+      return json({
+        ok: true,
+        service: 'marketing-os',
+        runtime: env.SUPABASE_SERVICE_KEY ? 'actief' : 'uit (SUPABASE_SERVICE_KEY ontbreekt)',
+        koppelingen: {
+          claude: !!env.ANTHROPIC_KEY,
+          openai: !!env.OPENAI_KEY,
+          meta: !!(env.META_ACCESS_TOKEN && env.META_AD_ACCOUNT_ID),
+          klaviyo: !!env.KLAVIYO_API_KEY
+        }
+      });
+    }
+
+    const gebruiker = await lid(request);
+    if (!gebruiker) return json({ ok: false, error: 'unauthorized', hint: 'Log in in de Atelier Console met een goedgekeurd teamaccount.' }, 401);
+
+    /* ---- Agent-API ---- */
+    if (path.startsWith('/agents')) {
+      if (!env.SUPABASE_SERVICE_KEY) return json({ error: 'SUPABASE_SERVICE_KEY ontbreekt op deze worker' }, 500);
+
+      if (path === '/agents/status' && request.method === 'GET') {
+        const [agents, jobs, events] = await Promise.all([
+          sbSelect(env, 'agents', 'select=*&order=phase,name'),
+          sbSelect(env, 'agent_jobs', 'status=in.(queued,running)&select=*&order=priority,scheduled_for&limit=50'),
+          sbSelect(env, 'agent_events', 'select=*&order=created_at.desc&limit=40')
+        ]);
+        return json({ agents, jobs, events });
+      }
+
+      if (path === '/agents/jobs' && request.method === 'GET') {
+        const status = url.searchParams.get('status');
+        const q = ['select=*', 'order=created_at.desc', 'limit=' + Math.min(Number(url.searchParams.get('limit')) || 50, 200)];
+        if (status) q.push('status=eq.' + status);
+        return json({ jobs: await sbSelect(env, 'agent_jobs', q.join('&')) });
+      }
+
+      if (path === '/agents/run' && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const agentId = String(body.agent_id || '').toLowerCase();
+        if (!AGENTS[agentId]) {
+          return json({ error: `onbekende agent "${agentId}"`, beschikbaar: Object.keys(AGENTS) }, 400);
+        }
+        if (!body.kind) return json({ error: 'kind is verplicht' }, 400);
+        const rij = (await sbInsert(env, 'agent_jobs', {
+          agent_id: agentId,
+          kind: String(body.kind),
+          payload: body.payload || {},
+          source: 'console',
+          requested_by: gebruiker.email,
+          priority: 1                     // wat een mens vraagt gaat voor op cron
+        }))[0];
+        return json({ ok: true, job: rij });
+      }
+
+      const cancel = path.match(/^\/agents\/jobs\/(\d+)\/cancel$/);
+      if (cancel && request.method === 'POST') {
+        const uit = await sbUpdate(env, 'agent_jobs', `id=eq.${cancel[1]}&status=in.(queued,running)`, {
+          status: 'cancelled', finished_at: new Date().toISOString(), error: 'geannuleerd door ' + gebruiker.email
+        });
+        return json({ ok: uit.length > 0, job: uit[0] || null });
+      }
+
+      if (path === '/agents/tick' && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') return json({ error: 'alleen een admin kan handmatig een cyclus draaien' }, 403);
+        return json(await tick(env, 'handmatig-' + gebruiker.email));
+      }
+
+      return json({ error: 'onbekend agent-endpoint' }, 404);
+    }
+
+    /* ---- Anthropic (ongewijzigd) ---- */
+    if (path === '/anthropic' && request.method === 'POST') {
+      if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
+      const body = await request.text();
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.ANTHROPIC_KEY,
+          'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01',
+          ...(request.headers.get('anthropic-beta') ? { 'anthropic-beta': request.headers.get('anthropic-beta') } : {})
+        },
+        body
+      });
+      return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/json', ...cors } });
+    }
+
+    /* ---- OpenAI (ongewijzigd) ---- */
+    let oaPath = null;
+    if (path.startsWith('/v1/')) oaPath = path.slice(1);
+    else if (path.startsWith('/openai/')) oaPath = path.slice('/openai/'.length);
+    if (oaPath !== null) {
+      if (!env.OPENAI_KEY) return json({ error: 'OPENAI_KEY secret ontbreekt op deze worker' }, 500);
+      const target = oaPath.startsWith('v1/') ? ('https://api.openai.com/' + oaPath) : ('https://api.openai.com/v1/' + oaPath);
+      const headers = { 'Authorization': 'Bearer ' + env.OPENAI_KEY };
+      const ct = request.headers.get('content-type');
+      if (ct) headers['Content-Type'] = ct;
+      let body;
+      if (request.method !== 'GET' && request.method !== 'HEAD') body = await request.arrayBuffer();
+      const r = await fetch(target, { method: request.method, headers, body });
+      const out = await r.arrayBuffer();
+      return new Response(out, { status: r.status, headers: { 'Content-Type': r.headers.get('content-type') || 'application/json', ...cors } });
+    }
+
+    return json({ error: { message: 'Gebruik /agents/*, POST /anthropic of /openai/… (of GET /health).' } }, 404);
+  }
+};
