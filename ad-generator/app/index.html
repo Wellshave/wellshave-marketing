@@ -5808,6 +5808,32 @@ input:focus, select:focus, textarea:focus {
   <div class="toast" id="toast"></div>
 
 <script>
+
+/* [FABLE5-FIX] Haal veilig de tekst uit een Claude-antwoord.
+   Fable 5 zet soms een 'thinking'-block vooraan; blind content[0].text lezen
+   geeft dan 'Cannot read properties of undefined (reading trim)' of stilzwijgend
+   een lege tekst. Deze helpers pakken het eerste ECHTE text-block. */
+function wgClaudeTextOrNull(data){
+  var blocks = data && data.content;
+  if (Array.isArray(blocks)){
+    for (var i=0;i<blocks.length;i++){ var b=blocks[i]; if (b && b.type==='text' && typeof b.text==='string' && b.text.length) return b.text; }
+    for (var j=0;j<blocks.length;j++){ var c=blocks[j]; if (c && typeof c.text==='string' && c.text.length) return c.text; }
+  }
+  return null;
+}
+function wgClaudeText(data){
+  var t = wgClaudeTextOrNull(data);
+  if (t != null) return t;
+  var e = '';
+  if (data){
+    if (data.error) e = (typeof data.error === 'string') ? data.error : (data.error.message || '');
+    if (!e && data.hint) e = data.hint;
+    if (!e && data.message) e = data.message;
+  }
+  if (e) throw new Error('AI-fout: ' + e);
+  throw new Error('Leeg antwoord van de teamserver. Ben je ingelogd als goedgekeurd teamlid, en heeft de worker de ANTHROPIC_KEY-secret?');
+}
+
 // ============================================================
 // CHANGELOG (nieuwste bovenaan, voeg toe bij elke versie-bump)
 // ============================================================
@@ -8544,7 +8570,7 @@ function wgpBd(){
     method:'POST', headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01'},
     body: JSON.stringify({ model: wgpModel(), max_tokens: 400, system: sys+brandProfileBlock(), messages:[{role:'user',content:txt}] })
   }).then(function(data){
-    var t=(data&&data.content&&data.content[0]&&data.content[0].text)||'';
+    var t=wgClaudeTextOrNull(data)||'';
     var a=t.indexOf('{'); var b=t.lastIndexOf('}');
     if(a===-1||b===-1) throw new Error('geen JSON in antwoord');
     var p=JSON.parse(t.substring(a,b+1));
@@ -8677,7 +8703,7 @@ function wgpAsk(userText,isKickoff){
     body: JSON.stringify({ model:wgpModel(), max_tokens:500, system:WGP_FABLE_BASIS+brandProfileBlock()+'\n\nSTAP-INSTRUCTIE: '+(WGP_COACH[wgp.step]||''), messages:msgs })
   }).then(function(data){
     wgp.chats[wgp.step]=wgp.chats[wgp.step].filter(function(m){return m.role!=='think';});
-    var text=(data&&data.content&&data.content[0]&&data.content[0].text)?data.content[0].text.trim():null;
+    var text=(wgClaudeTextOrNull(data)||'').trim()||null;
     if(!text) throw new Error('leeg antwoord');
     wgpPush('assistant',text);
   }).catch(function(err){
@@ -11855,7 +11881,7 @@ async function analyzeBrainDump() {
       })
     });
 
-    const text = data.content[0].text.trim();
+    const text = wgClaudeText(data).trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Geen JSON gevonden in Claude response');
     const parsed = JSON.parse(jsonMatch[0]);
@@ -12162,7 +12188,7 @@ async function autofillFromBrandbook() {
       method: 'POST', headers: headers,
       body: JSON.stringify({ model: model, max_tokens: 1500, system: BRAND_EXTRACT_SYSTEM_PROMPT, messages: [{ role: 'user', content: [ docBlock, { type: 'text', text: 'Lees dit brandbook en geef het JSON-object met de merkgegevens.' } ] }] })
     });
-    var text = (data.content[0].text || '').trim();
+    var text = (wgClaudeTextOrNull(data) || '').trim();
     var m = text.match(/\{[\s\S]*\}/); if (m) text = m[0];
     var parsed = JSON.parse(text);
     var merged = Object.assign({}, getBrandProfileMerged());
@@ -12472,7 +12498,7 @@ async function extractIterateDataFromImage(b64, mimeType) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: 1500, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s = text.indexOf('{'); const e = text.lastIndexOf('}');
     if (s === -1 || e === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(s, e + 1));
@@ -12710,7 +12736,7 @@ async function generateFromIterateMode() {
         messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userPrompt } ] }]
       })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{'); const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
     const parsed = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
@@ -12832,7 +12858,7 @@ async function generateFromCopyMode() {
       })
     });
 
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
@@ -13432,7 +13458,7 @@ async function tfAssessPhoto() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1200, system: TF_ASSESS_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.transformerPhoto.mimeType, data: state.transformerPhoto.b64 } }, { type: 'text', text: 'Beoordeel deze foto en vul het concept in volgens het output-format.' } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const res = JSON.parse(text.substring(a, b + 1));
@@ -13489,7 +13515,7 @@ async function adTransformerRun(){
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: Math.min(8000, 1800 + count * 1600), system: SYSTEM_PROMPT + '\n\n' + TRANSFORMER_SYSTEM_ADDITIONS + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.transformerPhoto.mimeType, data: state.transformerPhoto.b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a2 = text.indexOf('{'); const b2 = text.lastIndexOf('}');
     if (a2 === -1 || b2 === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(a2, b2 + 1));
@@ -14827,7 +14853,7 @@ async function checkSafezone(varIndex) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: 600, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: 'image/png', data: current.b64 } }, { type: 'text', text: userText } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s = text.indexOf('{'); const e = text.lastIndexOf('}');
     if (s === -1 || e === -1) throw new Error('geen JSON');
     const parsed = JSON.parse(text.substring(s, e + 1));
@@ -15199,7 +15225,7 @@ async function generateOgilvyCopy(varIndex) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 2500, system: OGILVY_COPY_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const copy = JSON.parse(text.substring(a, b + 1));
@@ -15321,7 +15347,7 @@ async function cwAnalyze() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1200, system: CW_ANALYSE_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.cwPhoto.mimeType, data: state.cwPhoto.b64 } }, { type: 'text', text: u } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     state.cwAnalysis = JSON.parse(text.substring(a, b + 1));
@@ -15371,7 +15397,7 @@ async function cwWriteCopy() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 2500, system: OGILVY_COPY_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.cwPhoto.mimeType, data: state.cwPhoto.b64 } }, { type: 'text', text: u } ] }] })
     });
-    const text = data.content[0].text;
+    const text = wgClaudeText(data);
     const s2 = text.indexOf('{'); const e2 = text.lastIndexOf('}');
     if (s2 === -1 || e2 === -1) throw new Error('geen JSON in respons');
     const copy = JSON.parse(text.substring(s2, e2 + 1));
@@ -15605,7 +15631,7 @@ async function extractSwIterFromImage(b64, mimeType) {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 1800, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64 } }, { type: 'text', text: userText } ] }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const parsed = JSON.parse(text.substring(a, b + 1));
@@ -15652,7 +15678,7 @@ async function swIterateScript() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 4000, system: SW_SCRIPT_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const sc = JSON.parse(text.substring(a, b + 1));
@@ -15839,7 +15865,7 @@ async function swWriteScript() {
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model, max_tokens: 3500, system: SW_SCRIPT_SYSTEM_PROMPT + brandProfileBlock(), messages: [{ role: 'user', content: u }] })
     });
-    let text = (data.content[0].text || '').replace(/```json/gi, '').replace(/```/g, '');
+    let text = (wgClaudeTextOrNull(data) || '').replace(/```json/gi, '').replace(/```/g, '');
     const a = text.indexOf('{'); const b = text.lastIndexOf('}');
     if (a === -1 || b === -1) throw new Error('geen JSON in respons');
     const script = JSON.parse(text.substring(a, b + 1));
@@ -17506,7 +17532,7 @@ async function generateConceptSuggestions() {
       })
     });
 
-    let text = data.content[0].text.trim();
+    let text = wgClaudeText(data).trim();
     // Robust JSON extraction: handle code-fences or extra prose
     const jsonMatch = text.match(/\{[\s\S]*"concepts"[\s\S]*?\]\s*\}/);
     if (jsonMatch) text = jsonMatch[0];
