@@ -19363,6 +19363,29 @@ select { appearance: none; -webkit-appearance: none; padding-right: 34px !import
   --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
   --t-fast: 140ms;
   --t-med: 260ms;
+
+  /* Contrast op AA-niveau: de stilste tekstlaag en het amber-accent
+     haalden 2.67:1 en 4.48:1 op het canvas — nu 4.79:1 en 5.09:1,
+     zonder dat de hiërarchie visueel verschuift. */
+  --ink-faint: #6f6a5b;
+  --text-faint: #6f6a5b;
+  --amber-deep: #7f6210;
+}
+
+/* ---------- AANRAAK EN INVOER ---------- */
+button, .btn, [data-go], [data-libid], .dash-rec, .dash-strip,
+.changelog-item.wg-clampable, .library-item, .slib-item { cursor: pointer; }
+button, .btn, a, select, .wgsel-field { touch-action: manipulation; }
+@media (max-width: 768px) {
+  /* 16px voorkomt de automatische zoom van iOS; 44px is de minimale
+     aanraakmaat, ook voor de zijbalk-items op een telefoon. */
+  input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="url"], textarea, select, .wgsel-field {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+  .ws-nav-item { padding: 12px 12px !important; min-height: 44px; }
+  .btn { min-height: 44px; }
 }
 
 /* ---------- CANVAS: van vlek naar licht ----------
@@ -19729,11 +19752,18 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
       });
     });
   }
+  /* Toasts melden zich bij de screenreader zonder de focus te stelen */
+  function stampToasts() {
+    document.querySelectorAll('.toast, .done-toast').forEach(function (t) {
+      if (!t.hasAttribute('aria-live')) { t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); }
+    });
+  }
   try {
-    new MutationObserver(function () { upgradeEmpties(); updateNavCounts(); })
+    new MutationObserver(function () { upgradeEmpties(); updateNavCounts(); stampToasts(); })
       .observe(document.body, { childList: true, subtree: true });
   } catch (e) {}
   upgradeEmpties();
+  stampToasts();
 
   /* ---------- Wijzigingen: lange teksten klembaar maken ---------- */
   function upgradeChangelog() {
@@ -19743,12 +19773,22 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
       var desc = item.querySelector('.changelog-desc'); if (!desc) return;
       if (desc.textContent.length < 420) return;
       item.classList.add('wg-clampable');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('role', 'button');
+      item.setAttribute('aria-expanded', 'false');
       var more = document.createElement('span');
       more.className = 'wg-cl-more'; more.innerHTML = '<span class="wg-cl-more-t"></span>';
       desc.after(more);
+      function toggle() {
+        var open = item.classList.toggle('open');
+        item.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
       item.addEventListener('click', function (e) {
         if (e.target.closest('a, button')) return;
-        item.classList.toggle('open');
+        toggle();
+      });
+      item.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
       });
     });
   }
