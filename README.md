@@ -31,22 +31,20 @@ omdat dat bestaand werk zou overschrijven.
 De `from-routines/`-branches komen uit `claude-routines`, waar ze per ongeluk waren
 beland doordat die repo aan de standaard cloud-omgeving hing.
 
-## ⚠️ Openstaande Fable 5-bugfix
+## ✅ Fable 5-bugfix doorgevoerd (28 juli)
 
-`ad-generator/app/index.html` leest Claude's antwoord op **18 plekken** uit als
-`data.content[0].text.trim()`. Fable 5 zet een *thinking*-blok vooraan, dus `content[0]`
-is dan geen tekst → `Cannot read properties of undefined (reading trim)`.
+`ad-generator/app/index.html` las Claude's antwoord op **18 plekken** uit als
+`data.content[0].text`. Fable 5 zet soms een *thinking*-blok vooraan → crash
+(`Cannot read properties of undefined (reading 'trim')`) of stilzwijgend lege tekst.
 
-De fix staat op `atelier-console-redesign`: `wgClaudeText()` / `wgClaudeTextOrNull()`
-scannen naar het eerste échte text-block.
+Alle 18 plekken gebruiken nu `wgClaudeText()` / `wgClaudeTextOrNull()`, die naar het
+eerste échte text-block scannen. Foutmeldingen van de teamserver komen nu leesbaar door.
 
-**Niet mergen.** De takken zijn uiteengegroeid:
+Geverifieerd in de browser met een thinking-block-payload: vóór de fix crash, erna de
+juiste tekst. Normale antwoorden werken ongewijzigd.
 
-| | branch (22 jul) | main / live (23 jul) |
-|---|---|---|
-| omvang | 6,98 MB | 7,07 MB |
-| Fable 5-fix | ✅ | ❌ |
-| nieuwer werk | ❌ | ✅ (~90 KB) |
+**Deploy:** `ad-generator/app/index.html` naar de Netlify-deploymap kopiëren als
+`index.html` en die map naar het `wellshave-adgen`-project slepen.
 
-De juiste aanpak is de fix **gericht overzetten**: die 18 plekken vervangen door de
-veilige uitleesfunctie.
+De branch `atelier-console-redesign` blijft staan: daar zit nog ánder werk uit die
+periode dat níet in main zit. Nog steeds niet mergen — de takken zijn uiteengegroeid.
