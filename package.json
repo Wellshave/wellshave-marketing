@@ -1,8 +1,8 @@
 {
-  "name": "wellshave-marketing-hq",
+  "name": "wellshave-marketing",
   "version": "0.1.0",
   "private": true,
-  "description": "Wellshave Marketing HQ — AI agent team, brain and Pulse dashboard",
+  "description": "Wellshave Marketing — ad generator, agent team, brain and Pulse dashboard",
   "scripts": {
     "skillui": "skillui"
   },
