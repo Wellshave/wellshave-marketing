@@ -5852,6 +5852,12 @@ const SUPABASE_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
 const CHANGELOG = [
   {
+    version: '7.1',
+    date: '2026-07-28',
+    title: 'Studio: het Statics-werkscherm als creative workspace',
+    desc: 'Het werkscherm van Statics (en dus ook Kopieer ad en Itereren, die in hetzelfde scherm draaien) is omgebouwd van een lang formulier naar een studio met drie zones. Links staat alleen nog configuratie in accordions: product en plaatsing (met de productkaart), doelgroep en funnel, en de API-instellingen — dichtgeklapt met een samenvatting van je keuze, zodat je nooit alle instellingen tegelijk ziet. Het midden is het creatieve hart: de brain dump van Rory als donker AI-paneel bovenaan, het interview, en daaronder de format-kiezer met grotere, rustigere kaarten en de invalshoek. De genereer-knop plakt onderaan in beeld. Rechts is de lege ruimte een inspiratiepaneel geworden: een live-previewvak waar de variaties landen, het gekozen product groot in beeld met zijn USP\'s, en de drie checkpoints van Theriot. Bovenaan plakt een werkbalk met je keuzes als klikbare chips, een compleetheidsmeter en een directe genereer-knop. Alle velden, IDs en logica zijn onaangeraakt — de bestaande onderdelen zijn alleen herschikt. De productfoto\'s uit Producten worden nu ook op het dashboard correct herkend.'
+  },
+  {
     version: '7.0',
     date: '2026-07-28',
     title: 'Cockpit: het dashboard als bento-werkruimte',
@@ -20025,6 +20031,17 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
     if (im.dataUrl) return im.dataUrl;
     return null;
   }
+  /* Productfoto's leven in product.references (product/lifestyle/packaging) */
+  function prodHero(p) {
+    if (!p) return null;
+    try {
+      var n = (typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : (p.references || {});
+      var hero = (n.product && n.product[0]) || (n.lifestyle && n.lifestyle[0]) || (n.packaging && n.packaging[0]);
+      if (hero) return imgUrl(hero);
+    } catch (e) {}
+    return imgUrl(p.images && p.images[0]);
+  }
+  window._wgProdHero = prodHero;
   var DAY = 86400000;
 
   function renderCockpit() {
@@ -20063,7 +20080,7 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
       : week > 0 ? 'Gelijk aan vorige week.' : 'Nog geen output deze week. De cockpit staat klaar.';
 
     /* -- volgende actie, berekend -- */
-    var noPhoto = prods.filter(function (p) { return !(p.images && p.images.length); }).length;
+    var noPhoto = prods.filter(function (p) { return !prodHero(p); }).length;
     var noAngles = pers.filter(function (p) { return !(p.angles && p.angles.length); }).length;
     var noImg = lib.filter(function (it) { return !(it.image && it.image.b64); }).length;
     var next;
@@ -20078,9 +20095,9 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
     var spot = null, spotAds = 0;
     prods.forEach(function (p) {
       var n = byProd[p.name] || 0;
-      if (!spot || n > spotAds || (n === spotAds && !imgUrl(spot.images && spot.images[0]) && imgUrl(p.images && p.images[0]))) { spot = p; spotAds = n; }
+      if (!spot || n > spotAds || (n === spotAds && !prodHero(spot) && prodHero(p))) { spot = p; spotAds = n; }
     });
-    var spotImg = spot ? imgUrl(spot.images && spot.images[0]) : null;
+    var spotImg = prodHero(spot);
 
     /* -- pipeline -- */
     var withImg = lib.length - noImg;
@@ -20270,6 +20287,7 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
   /* De cockpit vervangt de vorige dashboard-render volledig. De oudere
      tabwissel-wrapper roept zijn eigen closure-lokale renderer aan, dus
      we haken ook op de tabwissel in zodat de cockpit als laatste wint. */
+  window._ws7RenderCockpit = renderCockpit;
   window.wgRenderDashboard = renderCockpit;
   if (typeof window.switchMainTab === 'function' && !window._wgV7Wrapped) {
     window._wgV7Wrapped = true;
@@ -20280,6 +20298,355 @@ body.brand-wellshine, html:has(body.brand-wellshine) {
     };
   }
   try { var dv = document.getElementById('main-tab-dashboard'); if (dv && dv.style.display !== 'none') renderCockpit(); } catch (e) {}
+})();
+</script>
+
+<style id="atelier-v8-studio">
+/* ============================================================
+   ATELIER CONSOLE v8 — "STUDIO"
+   Het Statics-werkscherm als creative workspace: drie zones
+   (configuratie links, creatief hart in het midden, output en
+   inspiratie rechts) met een vaste werkbalk erboven. De laag
+   verplaatst bestaande DOM-knopen — IDs, listeners en logica
+   blijven onaangeraakt. Geldt ook voor Kopieer ad en Itereren,
+   die in hetzelfde werkscherm draaien.
+   ============================================================ */
+
+/* De oudere twee-koloms werkscherm-grid wijkt voor de studio-shell */
+@media (min-width: 1280px) {
+  #main-tab-generator:not([style*="none"]) { display: block !important; }
+  #main-tab-generator #results { grid-column: auto; grid-row: auto; position: static; }
+}
+#main-tab-generator .form-grid { display: none !important; }
+#main-tab-generator { zoom: 1 !important; }
+
+/* ---------- vaste werkbalk ---------- */
+.ws8-header {
+  position: sticky; top: calc(var(--console-titlebar-h, 38px) + var(--ws-topbar-h, 76px) + 6px);
+  z-index: 40;
+  max-width: 1780px; margin: 0 auto 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: rgba(255, 253, 248, 0.88);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(22, 21, 15, 0.08);
+  border-radius: 16px; padding: 10px 16px;
+  box-shadow: 0 8px 26px rgba(32, 27, 16, 0.08);
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+.ws8-h-title { font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 600; color: var(--ink); }
+.ws8-h-mode { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #1d1c22; color: #ffd75e; }
+.ws8-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.ws8-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 210px;
+  font-size: 12px; font-weight: 600; color: var(--ink-soft);
+  background: #f2efe5; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.ws8-chip b { color: var(--ink); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.ws8-chip:hover { border-color: rgba(var(--gold-rgb), 0.5); background: var(--amber-wash); }
+.ws8-chip.empty b { color: var(--ink-faint); font-weight: 500; }
+.ws8-done { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.ws8-done-bar { width: 66px; height: 6px; border-radius: 4px; background: #e9e4d6; overflow: hidden; }
+.ws8-done-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e4b32e, #f2c53d); border-radius: 4px; transition: width 0.4s cubic-bezier(0.22, 0.8, 0.3, 1); }
+.ws8-h-generate {
+  border: none; cursor: pointer; touch-action: manipulation;
+  font: 700 13.5px 'Hanken Grotesk', sans-serif;
+  background: #f2c53d; color: #241d0a; border-radius: 999px; padding: 10px 20px;
+  box-shadow: 0 6px 16px rgba(242, 197, 61, 0.35);
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+.ws8-h-generate:hover { background: #ffd75e; }
+.ws8-h-generate:active { transform: translateY(1px); }
+
+/* ---------- drie zones ---------- */
+.ws8-grid {
+  max-width: 1780px; margin: 0 auto;
+  display: grid; grid-template-columns: 296px minmax(0, 1fr) 372px;
+  gap: 14px; align-items: start;
+}
+.ws8-left, .ws8-center, .ws8-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+/* ---------- linkerkolom: configuratie-accordions ---------- */
+.ws8-zone-lbl { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); padding: 2px 4px 0; }
+.ws8-left .ws8-acc, .ws8-left .settings-panel {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 14px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 0 !important; margin: 0 !important; overflow: hidden;
+}
+.ws8-acc-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 16px; cursor: pointer; user-select: none;
+}
+.ws8-acc-head:hover { background: #f8f5ec; }
+.ws8-acc-t { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.ws8-acc-sum { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws8-acc-chev { flex: none; transition: transform 0.2s ease; color: var(--ink-faint); font-size: 12px; }
+.ws8-acc.open .ws8-acc-chev { transform: rotate(180deg); }
+.ws8-acc-body { padding: 2px 16px 16px; display: none; }
+.ws8-acc.open .ws8-acc-body { display: block; }
+.ws8-acc-body .field { margin-bottom: 12px; }
+/* Genummerde koppen van de oude formulier-secties verbergen in de accordion */
+.ws8-acc-body .form-section-head { display: none; }
+/* In het midden geen dubbele nummering: de Stap-markers leiden */
+.ws8-center .form-section-num { display: none !important; }
+.ws8-acc-body .form-section { border: none !important; background: transparent !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+.ws8-left .settings-panel .settings-toggle { padding: 13px 16px; }
+
+/* ---------- middenkolom: creatief hart ---------- */
+.ws8-center .mode-tabs { margin: 0 !important; }
+.ws8-card, .ws8-center .brain-dump-card, .ws8-center .form-section,
+.ws8-center #source-ad-section, .ws8-center .iw-launch {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 16px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 20px 22px; margin: 0 !important;
+}
+.ws8-center .brain-dump-card {
+  background: linear-gradient(165deg, #23222a 0%, #17161b 70%) !important;
+  border: none !important; color: #f3efe6;
+  box-shadow: 0 18px 40px rgba(20, 17, 8, 0.18);
+}
+.ws8-center .brain-dump-card .brain-dump-title { color: #ffe9a3 !important; font-family: 'Fraunces', Georgia, serif; font-size: 19px !important; }
+.ws8-center .brain-dump-card .brain-dump-hint { color: rgba(243, 239, 230, 0.62) !important; }
+.ws8-center .brain-dump-card textarea {
+  background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f3efe6 !important; border-radius: 12px;
+}
+.ws8-center .brain-dump-card textarea::placeholder { color: rgba(243, 239, 230, 0.4) !important; }
+.ws8-center .brain-dump-card .brain-dump-toggle-help { background: rgba(255, 255, 255, 0.08) !important; color: #f3efe6 !important; border-color: transparent !important; }
+.ws8-center .brain-dump-card .brain-dump-help { background: rgba(255, 255, 255, 0.05) !important; color: rgba(243, 239, 230, 0.8) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+.ws8-step { display: flex; align-items: baseline; gap: 10px; margin: 4px 2px 0; }
+.ws8-step b { font-family: 'Fraunces', serif; font-size: 15px; color: var(--amber-deep); }
+.ws8-step span { font-size: 13px; font-weight: 700; color: var(--ink); }
+.ws8-step small { font-size: 12px; color: var(--ink-faint); font-weight: 500; }
+
+/* Formats: grotere, rustigere kaarten */
+#fmt-grid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important; gap: 10px !important; }
+.fmt-card {
+  background: #fbf8f0 !important; border: 1px solid rgba(22, 21, 15, 0.08) !important;
+  border-radius: 14px !important; padding: 15px 16px !important; cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.22, 0.8, 0.3, 1), box-shadow 0.2s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.fmt-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(32, 27, 16, 0.1); border-color: rgba(var(--gold-rgb), 0.45) !important; }
+.fmt-card.on { background: var(--amber-wash) !important; border-color: rgba(var(--gold-rgb), 0.75) !important; box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.4); }
+.fmt-name { font-size: 13.5px !important; font-weight: 700 !important; }
+.fmt-desc { font-size: 11.5px !important; line-height: 1.5 !important; }
+
+/* Genereer-rij onderaan het midden, plakt in beeld */
+.ws8-center .generate-row {
+  position: sticky; bottom: 12px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: rgba(29, 28, 34, 0.96); color: #f3efe6;
+  border-radius: 16px; padding: 14px 18px; margin: 0 !important;
+  box-shadow: 0 16px 40px rgba(20, 17, 8, 0.3);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.ws8-center .generate-row .meta { color: rgba(243, 239, 230, 0.55) !important; font-size: 11.5px !important; }
+.ws8-center .generate-row .btn-generate {
+  background: #f2c53d !important; color: #241d0a !important; border: none !important;
+  border-radius: 999px !important; font-weight: 700 !important; box-shadow: 0 6px 18px rgba(242, 197, 61, 0.4);
+}
+.ws8-center .generate-row .btn-generate:hover { background: #ffd75e !important; }
+
+/* ---------- rechterkolom: output & inspiratie ---------- */
+.ws8-right { position: sticky; top: calc(var(--console-titlebar-h, 38px) + var(--ws-topbar-h, 76px) + 78px); max-height: calc(100vh - var(--console-titlebar-h, 38px) - var(--ws-topbar-h, 76px) - 92px); overflow-y: auto; scrollbar-width: thin; border-radius: 16px; }
+.ws8-insp-card {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 16px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 16px 18px;
+}
+.ws8-insp-t { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.ws8-live-ph {
+  border: 1.5px dashed rgba(22, 21, 15, 0.14); border-radius: 12px;
+  min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: #f8f5ec; text-align: center; padding: 18px;
+}
+.ws8-live-ph b { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--ink); }
+.ws8-live-ph span { font-size: 12px; color: var(--ink-faint); line-height: 1.5; max-width: 30ch; }
+.ws8-prod-img { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; background: #1d1c22 center/cover; position: relative; overflow: hidden; }
+.ws8-prod-img .ph {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(-45deg, #201f26 0 12px, #24232b 12px 24px);
+  font-family: 'Fraunces', serif; font-size: 54px; font-weight: 600; color: rgba(242, 197, 61, 0.28);
+}
+.ws8-prod-cap { font-size: 12px; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; }
+.ws8-tip { display: flex; gap: 10px; padding: 7px 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+.ws8-tip b { color: var(--amber-deep); font-family: 'Fraunces', serif; flex: none; }
+.ws8-right.has-results .ws8-inspire { display: none; }
+.ws8-right #results { min-width: 0; }
+
+/* ---------- responsief ---------- */
+@media (max-width: 1420px) { .ws8-grid { grid-template-columns: 272px minmax(0, 1fr) 330px; } }
+@media (max-width: 1180px) {
+  .ws8-grid { grid-template-columns: 1fr; }
+  .ws8-center { order: 1; } .ws8-left { order: 2; } .ws8-right { order: 3; position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 768px) {
+  .ws8-header { top: calc(var(--console-titlebar-h, 38px) + 6px); }
+  .ws8-chips { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fmt-card, .fmt-card:hover { transform: none; transition: none; }
+  .ws8-done-bar i { transition: none; }
+}
+</style>
+
+<script id="wg-v8-studio">
+(function () {
+  'use strict';
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var gen = document.getElementById('main-tab-generator');
+  var formGrid = gen && gen.querySelector('.form-grid');
+  if (!gen || !formGrid || gen.querySelector('.ws8-grid')) return;
+
+  /* ---------- shell ---------- */
+  var header = el('div', 'ws8-header');
+  var grid = el('div', 'ws8-grid');
+  var left = el('div', 'ws8-left'), center = el('div', 'ws8-center'), right = el('div', 'ws8-right');
+  grid.appendChild(left); grid.appendChild(center); grid.appendChild(right);
+
+  /* ---------- accordion-hulpjes ---------- */
+  function makeAcc(title, open) {
+    var acc = el('div', 'ws8-acc' + (open ? ' open' : ''));
+    var head = el('div', 'ws8-acc-head',
+      '<div><div class="ws8-acc-t">' + esc(title) + '</div><div class="ws8-acc-sum"></div></div><span class="ws8-acc-chev">▾</span>');
+    var body = el('div', 'ws8-acc-body');
+    acc.appendChild(head); acc.appendChild(body);
+    head.addEventListener('click', function () { acc.classList.toggle('open'); });
+    head.setAttribute('tabindex', '0'); head.setAttribute('role', 'button');
+    head.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); acc.classList.toggle('open'); } });
+    return { acc: acc, body: body, sum: head.querySelector('.ws8-acc-sum') };
+  }
+  var accBasis = makeAcc('Product & plaatsing', true);
+  var accDoel = makeAcc('Doelgroep & funnel', false);
+
+  /* ---------- bestaande knopen herverdelen (IDs en listeners blijven) ----------
+     De formulier-secties leven deels in .form-grid en deels als directe
+     kinderen van het tabblad; we routeren daarom op inhoud, niet op plek. */
+  var kids = Array.prototype.slice.call(formGrid.children);
+  kids.forEach(function (node) {
+    if (node.classList && (node.classList.contains('field') || node.id === 'bundle-field')) accBasis.body.appendChild(node);
+  });
+  var order = ['.mode-tabs', '#brain-dump-card', '.iw-launch', '#source-ad-section'];
+  order.forEach(function (sel) { var n = gen.querySelector(sel); if (n) center.appendChild(n); });
+  function sectionTitle(sec) { var t = sec.querySelector('.form-section-title'); return t ? t.textContent : ''; }
+  Array.prototype.slice.call(gen.querySelectorAll('.form-section')).forEach(function (sec) {
+    if (accDoel.body.contains(sec) || center.contains(sec)) return;
+    var t = sectionTitle(sec);
+    if (/doelgroep/i.test(t)) { accDoel.body.appendChild(sec); return; }
+    if (/format/i.test(t)) center.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 2</b><span>Kies het format</span><small>de creatieve opzet, 42 mogelijkheden</small>'));
+    if (/invalshoek/i.test(t)) center.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 3</b><span>Scherp de invalshoek aan</span><small>archetype en concept-richting, of laat Rory het invullen</small>'));
+    center.appendChild(sec);
+  });
+  /* Restanten in .form-grid (copy-opties, iterate-blokken) in bronvolgorde mee */
+  Array.prototype.slice.call(formGrid.children).forEach(function (node) { center.appendChild(node); });
+
+  /* Links: basis, doelgroep, API */
+  left.appendChild(el('div', 'ws8-zone-lbl', 'Configuratie'));
+  left.appendChild(accBasis.acc);
+  left.appendChild(accDoel.acc);
+  var settings = document.getElementById('settings-panel');
+  if (settings) left.appendChild(settings);
+
+  /* Rechts: inspiratie + output */
+  /* Losse tabblad-kinderen (waarschuwingen, genereer-rij, iterate-blokken)
+     mee naar het midden, in bronvolgorde; shell-elementen slaan we over */
+  Array.prototype.slice.call(gen.children).forEach(function (node) {
+    if (node === formGrid || node === header || node === grid) return;
+    if (node.id === 'results' || node.id === 'settings-panel') return;
+    if (node.classList && (node.classList.contains('ws8-header') || node.classList.contains('ws8-grid'))) return;
+    center.appendChild(node);
+  });
+
+  var inspire = el('div', 'ws8-inspire');
+  inspire.innerHTML =
+      '<div class="ws8-insp-card" style="margin-bottom:12px;"><div class="ws8-insp-t">Live preview</div>'
+    + '<div class="ws8-live-ph"><b>Je variaties landen hier</b><span>Drie concepten per generatie, elk met beeld, headline, copy en hypothese.</span></div></div>'
+    + '<div class="ws8-insp-card" style="margin-bottom:12px;"><div class="ws8-insp-t">Product in beeld</div>'
+    + '<div class="ws8-prod-img" id="ws8-prod-img"><div class="ph">W</div></div>'
+    + '<div class="ws8-prod-cap" id="ws8-prod-cap">Kies links een product; de foto en USP’s verschijnen hier als referentie tijdens het bouwen.</div></div>'
+    + '<div class="ws8-insp-card"><div class="ws8-insp-t">Waar Theriot op let</div>'
+    + '<div class="ws8-tip"><b>01</b><span>De eerste 0,3 seconde wint: één beeld, één claim, geen drukte.</span></div>'
+    + '<div class="ws8-tip"><b>02</b><span>Show, don’t tell — laat het resultaat zien in plaats van het te beweren.</span></div>'
+    + '<div class="ws8-tip"><b>03</b><span>Match de sophistication: hoe verzadigder de markt, hoe harder mechanisme en bewijs moeten werken.</span></div></div>';
+  right.appendChild(inspire);
+  var results = document.getElementById('results');
+  if (results) right.appendChild(results);
+
+  /* ---------- werkbalk ---------- */
+  header.innerHTML =
+      '<span class="ws8-h-title">Statics</span><span class="ws8-h-mode" id="ws8-mode">Nieuw</span>'
+    + '<div class="ws8-chips">'
+    + '<span class="ws8-chip" data-open="basis">Product<b id="ws8-c-prod">—</b></span>'
+    + '<span class="ws8-chip" data-open="fmt">Format<b id="ws8-c-fmt">—</b></span>'
+    + '<span class="ws8-chip" data-open="doel">Funnel<b id="ws8-c-fun">—</b></span>'
+    + '<span class="ws8-chip" data-open="doel">Persona<b id="ws8-c-per">—</b></span>'
+    + '</div>'
+    + '<div class="ws8-done"><span id="ws8-done-txt">0/5</span><div class="ws8-done-bar"><i id="ws8-done-bar" style="width:0%"></i></div></div>'
+    + '<button class="ws8-h-generate" type="button" onclick="dispatchGenerate()">Genereer</button>';
+  gen.insertBefore(header, gen.firstChild);
+  gen.appendChild(grid);
+  header.querySelectorAll('.ws8-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var t = chip.getAttribute('data-open');
+      var target = t === 'basis' ? accBasis.acc : t === 'doel' ? accDoel.acc : sections[0];
+      if (t !== 'fmt' && target && !target.classList.contains('open')) target.classList.add('open');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  /* ---------- synchronisatie: chips, samenvattingen, compleetheid ---------- */
+  function selText(id) { var s = document.getElementById(id); if (!s || !s.value) return ''; var o = s.options[s.selectedIndex]; return o ? o.text : ''; }
+  function radioVal(nm) { var r = document.querySelector('input[name="' + nm + '"]:checked'); return r ? r.value : ''; }
+  function setChip(id, v) { var e = document.getElementById(id); if (!e) return; e.textContent = v || 'kies'; e.parentNode.classList.toggle('empty', !v); }
+  function sync() {
+    var prod = selText('product-select'), per = selText('persona-select');
+    var fun = radioVal('funnel'), arch = radioVal('archetype');
+    var fmtEl = document.querySelector('.fmt-card.on .fmt-name');
+    var fmt = fmtEl ? fmtEl.textContent : '';
+    setChip('ws8-c-prod', prod && prod.split(',')[0]);
+    setChip('ws8-c-fmt', fmt);
+    setChip('ws8-c-fun', fun && fun.toUpperCase());
+    setChip('ws8-c-per', per && per.split(',')[0].split('(')[0].trim());
+    var mode = (typeof state !== 'undefined' && state.generatorMode) || 'scratch';
+    var mEl = document.getElementById('ws8-mode');
+    if (mEl) mEl.textContent = mode === 'copy' ? 'Kopieer ad' : mode === 'iterate' ? 'Itereren' : 'Nieuw';
+    var parts = [prod, fmt, fun, arch, per], n = parts.filter(Boolean).length;
+    var dt = document.getElementById('ws8-done-txt'), db = document.getElementById('ws8-done-bar');
+    if (dt) dt.textContent = n + '/5';
+    if (db) db.style.width = Math.round(n / 5 * 100) + '%';
+    accBasis.sum.textContent = [prod && prod.split(',')[0], selText('placement-select')].filter(Boolean).join(' · ') || 'nog niets gekozen';
+    accDoel.sum.textContent = [per && per.split(',')[0].split('(')[0].trim(), fun && fun.toUpperCase()].filter(Boolean).join(' · ') || 'persona, funnel, aantal';
+    /* productfoto in het inspiratiepaneel */
+    try {
+      var sel = document.getElementById('product-select');
+      var p = (state.products || []).find(function (x) { return x.id === sel.value || x.name === (sel.options[sel.selectedIndex] || {}).text; });
+      var img = document.getElementById('ws8-prod-img'), cap = document.getElementById('ws8-prod-cap');
+      if (img && p) {
+        var url = (typeof window._wgProdHero === 'function') ? window._wgProdHero(p) : null;
+        if (url) { img.style.backgroundImage = "url('" + url + "')"; img.innerHTML = ''; }
+        else { img.style.backgroundImage = ''; img.innerHTML = '<div class="ph">' + esc((p.name || 'W').charAt(0)) + '</div>'; }
+        if (cap) cap.innerHTML = '<strong>' + esc(p.name) + '</strong>' + (p.usps && p.usps.length ? ' · ' + esc(p.usps.slice(0, 2).join(' · ')) : '') + (url ? '' : ' · nog geen foto');
+      }
+    } catch (e) {}
+  }
+  gen.addEventListener('change', function () { setTimeout(sync, 50); });
+  gen.addEventListener('click', function () { setTimeout(sync, 120); });
+  if (typeof window.setMode === 'function') {
+    var prevSetMode = window.setMode;
+    window.setMode = function (m) { prevSetMode.apply(this, arguments); try { sync(); } catch (e) {} };
+  }
+  var t0 = 0, iv = setInterval(function () { t0++; sync(); if (t0 > 8) clearInterval(iv); }, 500);
+
+  /* Preview-placeholder wijkt zodra er echte resultaten staan */
+  if (results) {
+    try {
+      new MutationObserver(function () {
+        right.classList.toggle('has-results', results.childElementCount > 0);
+      }).observe(results, { childList: true });
+    } catch (e) {}
+  }
 })();
 </script>
 
