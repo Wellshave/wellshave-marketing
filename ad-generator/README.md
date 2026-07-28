@@ -6,6 +6,28 @@ persona's en productdata, aangedreven door Claude Fable 5.
 **Live:** https://wellshave-adgen.netlify.app
 **Database:** Supabase-project `bequyhghgkvekvibufhw` (eigen project, los van Bol OS)
 
+## Designsysteem — "Daylight" (v6.0)
+
+De console draaide op een donker goud-thema. Sinds v6.0 is dat een lichte, warme
+werkomgeving: gradient-canvas, zwevende antraciet zijbalk, witte kaarten met
+haarlijn, amber als accent, en pills voor knoppen en chips.
+
+De omzetting zit in twee lagen in `app/index.html`:
+
+1. **Kleuren.** Alle vaste kleuren in de bestaande CSS en in de door JavaScript
+   gegenereerde inline-stijlen zijn per rol omgezet: `background`/`border` gingen
+   van donker naar licht, `color` ging van licht naar inkt, en goud werd amber —
+   donker genoeg om op een lichte ondergrond te lezen. Tekst die op een
+   accentvlak staat (zwart op geel) is bewust donker gebleven.
+2. **`<style id="atelier-v6-daylight">`**, als laatste blok in het document. Daar
+   staan de tokens, de shell (zijbalk, topbar, canvas) en de componenten
+   (kaarten, knoppen, velden, pills, tabellen, pop-ups, voortgangsbalken). Omdat
+   het blok als laatste staat wint het van de eerdere skins; er is niets in de
+   oude CSS verwijderd.
+
+Wellshave en Wellshine draaien dezelfde console; Wellshine heeft een koelere
+champagne-gloed op het canvas, zodat zichtbaar is in welk merk je werkt.
+
 ## Structuur
 
 | Pad | Wat |
