@@ -4,6 +4,30 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-29** · Systeem · Supabase-schrijftoegang (`marketing_hq.agent_runs`,
+  `.metrics_daily`, `.reports`, `.pipeline_items`, `.approvals`) niet
+  beschikbaar deze sessie — geen Supabase-connector gekoppeld aan deze
+  Claude-sessie. Alleen het brein (`brain/`) is bijgewerkt; Supabase loopt
+  hierdoor tijdelijk uit sync met de vault. Volgende sessie met
+  Supabase-connector moet dit gat inhalen.
+- **2026-07-29** · Nova · Approval #4 aangemaakt (Wellshine
+  pauzeren/onderzoeken — 3 nuldagen op rij ondanks spend terug in de
+  "goede" zone, spend-disciplinehypothese weerlegd); approval #3
+  bijgewerkt (GroomGuard-test boven 2,0-drempel, 2,34 op 28/7); approval #1
+  ongewijzigd (advertorial-kanteling niet bevestigd, terug naar 1,00);
+  hoofd-scheerapparaat-LP extra bevestigd (Brothers in Style, 1,3M reach).
+- **2026-07-29** · Radar · Marktscan: 149 nieuwe ads (grotendeels Cloud
+  Nine, mogelijk dataglitch); Brothers in Style hoofd-scheerapparaat-video
+  1,3M reach (sterkste signaal tot nu toe); Ace & Taylor curler-hook beste
+  rank van de scan; BALZY testimonial-topschaler + 3 nieuwe
+  creator-partnerships; Sansbeauté SansStraight ontdekt (261 dagen, langst
+  lopende LP). 107 credits (9.107 resterend).
+- **2026-07-29** · Atlas · Ochtendcyclus (haalde ontbrekend 28/7-rapport
+  in): Wellshave® herstelt naar 2,11 op €159,07 (beste sinds 23/7);
+  Wellshine derde nuldag op rij (26/7–28/7) — discipline-hypothese
+  weerlegd; GroomGuard-test boven 2,0 (2,34); Advertorial terug naar 1,00;
+  25/7 en 26/7 definitief, 27/7 voorlopig; Klaviyo dag 47 stil
+  (verzenddatum gecorrigeerd naar 12 juni).
 - **2026-07-27** · Nova · Approval #3 gede-escaleerd (GroomGuard-test hersteld
   1,39 → monitoren); advertorial kantelt (3d-gem. 2,12 ↗); hoofd-
   scheerapparaat-LP naar Hypothese.

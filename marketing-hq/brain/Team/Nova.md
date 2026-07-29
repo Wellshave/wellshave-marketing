@@ -1,13 +1,22 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (2 approvals)
-**Laatste run:** 2026-07-27 · ochtendcyclus
-**Huidige taak:** 3 approvals openstaand (#1 advertorial ↗ kantelt, #2 SGL-mail,
-#3 GroomGuard-test hersteld → monitoren)
+**Status:** 🟡 wacht op akkoord (4 approvals)
+**Laatste run:** 2026-07-29 · ochtendcyclus
+**Huidige taak:** 4 approvals openstaand (#1 advertorial 🔻 kanteling niet
+bevestigd, #2 SGL-mail, #3 GroomGuard-test boven 2,0-drempel, #4 nieuw:
+Wellshine-onderzoek/pauze)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-29** · **Approval #4 aangemaakt**: Wellshine-campagnes
+  pauzeren/onderzoeken na 3 nuldagen op rij ondanks spend terug in de
+  "goede" zone — spend-disciplinehypothese weerlegd. Approval #3
+  bijgewerkt: GroomGuard-test kwam boven de 2,0-drempel (2,34 op 28/7).
+  Approval #1 ongewijzigd: advertorial-kanteling niet bevestigd (terug naar
+  1,00). Hoofd-scheerapparaat-LP-hypothese extra bevestigd (Brothers in
+  Style, 1,3M reach). Testimonial-static en bundel-test-notities bijgewerkt
+  met nieuwe marktvoorbeelden (BALZY, Cloud Nine).
 - **2026-07-27** · Approval #3 **gede-escaleerd** (GroomGuard-test hersteld
   naar 1,39 — monitoren i.p.v. acuut pauzeren). Advertorial-advies bijgesteld:
   3-daags 2,12 en stijgend, één bevestigingsdag van kanteling. **Hoofd-

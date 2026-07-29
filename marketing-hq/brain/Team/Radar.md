@@ -1,12 +1,20 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-27 · ochtendcyclus
-**Huidige taak:** klaar; volgende scan morgen 07:00
+**Laatste run:** 2026-07-29 · ochtendcyclus
+**Huidige taak:** klaar; Cloud Nine-ad-piek (147/24u) volgende scan
+verifiëren op dataglitch; BALZY's nieuwe creator-partnerships volgen
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-29** · [[../Briefings/2026-07-29|Trendbriefing]]: 149 nieuwe ads
+  (grotendeels Cloud Nine, mogelijk dataglitch); **Brothers in Style
+  hoofd-scheerapparaat-video haalt 1,3M reach** (sterkste signaal tot nu
+  toe); Ace & Taylor curler-hook beste rank van de scan; BALZY blijft
+  testimonial-topschaler + 3 nieuwe creator-partnerships. Sansbeauté
+  SansStraight ontdekt als langst lopende LP (261 dagen). 107 credits
+  (9.107 resterend).
 - **2026-07-27** · [[../Briefings/2026-07-27|Trendbriefing]]: erg rustig (27
   nieuwe ads); **Brothers in Style hoofd-scheerapparaat-LP = 173 dagen / 128k
   impressies** (grootste LP) → hoofd-scheerapparaat-LP naar hypothese;

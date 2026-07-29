@@ -1,13 +1,22 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-27 · ochtendcyclus
-**Huidige taak:** klaar; GroomGuard-test 001 monitoren (hersteld naar 1,39);
-advertorial-kanteling volgen
+**Laatste run:** 2026-07-29 · ochtendcyclus (haalde het ontbrekende
+28/7-rapport in)
+**Huidige taak:** klaar; Wellshine-nulaankopen volgen (3 dagen op rij),
+GroomGuard-test boven 2,0-drempel bevestigen
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-29** · [[../Reports/Daily/2026-07-29|Dagrapport]]: Wellshave®
+  herstelt naar **2,11** op €159,07 (beste sinds 23/7). Wellshine derde
+  nuldag op rij (26/7–28/7, €87→€57→€47, telkens 0 aankopen) —
+  spend-disciplinehypothese weerlegd, nieuw voorstel richting Nova.
+  GroomGuard-test boven 2,0 (2,34); Advertorial terug naar 1,00. 25/7 en
+  26/7 definitief; 27/7 voorlopig. Klaviyo dag 47 stil (verzenddatum
+  gecorrigeerd naar 12 juni). Geen 28/7-rapport gepubliceerd — dit rapport
+  haalt het gat in. Supabase-schrijftoegang niet beschikbaar deze sessie.
 - **2026-07-27** · [[../Reports/Daily/2026-07-27|Dagrapport]]: Wellshave®
   blended **1,89** op €198,18. GroomGuard-test hersteld naar **1,39** (was
   0,56) → approval #3 gede-escaleerd. Advertorial knalde naar **3,57** (beste
