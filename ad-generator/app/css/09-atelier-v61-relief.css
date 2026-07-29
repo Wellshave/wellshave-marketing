@@ -1,0 +1,291 @@
+/* ============================================================
+   ATELIER CONSOLE v6.1 — "RELIEF"
+   Design-system-verdieping bovenop Daylight: oppervlakteniveaus,
+   schaduw- en lijnschalen, focus-states, en per pagina de
+   componenten die de data zelf al aankan — trend-sparkline en
+   asymmetrische statistieken op het dashboard, een tijdlijn voor
+   de wijzigingen, empty states met een actie, en één gedeelde
+   dropzone-taal. Alles append-only: geen bestaande regel geraakt.
+   ============================================================ */
+
+:root, body.brand-wellshave, body.brand-wellshine {
+  /* Oppervlakteniveaus: canvas → kaart → verhoogd → inzet */
+  --lv0: var(--paper);
+  --lv1: #ffffff;
+  --lv2: #fffdf8;
+  --lv-inset: #f6f3ea;
+  /* Lijnschaal */
+  --line-1: rgba(22, 21, 15, 0.06);
+  --line-2: rgba(22, 21, 15, 0.11);
+  --line-3: rgba(22, 21, 15, 0.2);
+  /* Schaduwschaal */
+  --sh-1: 0 1px 2px rgba(32, 27, 16, 0.04);
+  --sh-2: 0 1px 2px rgba(32, 27, 16, 0.05), 0 8px 22px rgba(32, 27, 16, 0.06);
+  --sh-3: 0 2px 4px rgba(32, 27, 16, 0.06), 0 18px 48px rgba(32, 27, 16, 0.13);
+  /* Beweging */
+  --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+
+  /* Contrast op AA-niveau: de stilste tekstlaag en het amber-accent
+     haalden 2.67:1 en 4.48:1 op het canvas — nu 4.79:1 en 5.09:1,
+     zonder dat de hiërarchie visueel verschuift. */
+  --ink-faint: #6f6a5b;
+  --text-faint: #6f6a5b;
+  --amber-deep: #7f6210;
+}
+
+/* ---------- AANRAAK EN INVOER ---------- */
+button, .btn, [data-go], [data-libid], .dash-rec, .dash-strip,
+.changelog-item.wg-clampable, .library-item, .slib-item { cursor: pointer; }
+button, .btn, a, select, .wgsel-field { touch-action: manipulation; }
+@media (max-width: 768px) {
+  /* 16px voorkomt de automatische zoom van iOS; 44px is de minimale
+     aanraakmaat, ook voor de zijbalk-items op een telefoon. */
+  input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="url"], textarea, select, .wgsel-field {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+  .ws-nav-item { padding: 12px 12px !important; min-height: 44px; }
+  .btn { min-height: 44px; }
+}
+
+/* ---------- CANVAS: van vlek naar licht ----------
+   De gele burst rechtsonder las als een vlek. Nu: één warme
+   lichtbron linksboven die over het werkvlak strijkt en rustig
+   uitdooft, plus een nauwelijks zichtbaar vignet onderaan. */
+html, body, body.brand-wellshave {
+  background-image:
+    radial-gradient(ellipse 85% 60% at 18% -8%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 55%),
+    radial-gradient(ellipse 110% 80% at 85% -20%, rgba(242, 197, 61, 0.20) 0%, rgba(242, 197, 61, 0) 55%),
+    linear-gradient(180deg, rgba(32, 27, 16, 0) 82%, rgba(32, 27, 16, 0.035) 100%) !important;
+  background-attachment: fixed !important;
+}
+body.brand-wellshine, html:has(body.brand-wellshine) {
+  background-image:
+    radial-gradient(ellipse 85% 60% at 18% -8%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 55%),
+    radial-gradient(ellipse 110% 80% at 85% -20%, rgba(228, 196, 152, 0.24) 0%, rgba(228, 196, 152, 0) 55%),
+    linear-gradient(180deg, rgba(32, 27, 16, 0) 82%, rgba(32, 27, 16, 0.035) 100%) !important;
+}
+
+/* ---------- TOEGANKELIJKHEID: zichtbare focus, overal ---------- */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--amber-deep, #8a6a12) !important;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.ws-sidebar :focus-visible { outline-color: var(--amber, #f2c53d) !important; }
+
+/* ---------- KNOPPEN: pressed en werkend gevoel ---------- */
+.btn, button.btn, .dash-act, .ws-nav-item {
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-med) var(--ease-out),
+              background var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
+}
+.btn:active, button.btn:active { transform: translateY(1px) scale(0.995); }
+.dash-act:active { transform: translateY(-1px); }
+.btn[disabled], button[disabled] { cursor: not-allowed; opacity: 0.55; }
+
+/* ---------- PAGINAKOP: één systeem, minder herhaling ----------
+   De ledes bleven volle regels over de hele breedte; nu een
+   leesmaat en een stille kleur, zodat de kop het werk doet. */
+.proxy-guide-lede, .tab-intro, .lib-intro {
+  max-width: 60ch;
+  font-size: 14.5px !important;
+  line-height: 1.65 !important;
+  color: var(--ink-soft) !important;
+}
+.proxy-guide-h1 { letter-spacing: -0.01em; }
+
+/* ---------- DASHBOARD: hiërarchie in plaats van vier gelijke tegels ---------- */
+.dash-stats {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr !important;
+  gap: 14px;
+  align-items: stretch;
+}
+.dash-stat {
+  background: var(--lv1) !important;
+  border: 1px solid var(--line-1) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--sh-1);
+  padding: 18px 20px 16px !important;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  transition: box-shadow var(--t-med) var(--ease-out), transform var(--t-med) var(--ease-out);
+}
+.dash-stat:hover { box-shadow: var(--sh-2); transform: translateY(-2px); }
+/* Concepten (derde tegel) is de hoofdstatistiek — het werkresultaat van de
+   tool — en schuift via order naar voren met een groter cijfer en amber rand. */
+.dash-stats .dash-stat { order: 1; }
+.dash-stats .dash-stat:nth-child(3) {
+  order: 0;
+  background: linear-gradient(160deg, #fffdf6 0%, #fff9e8 100%) !important;
+  border-color: rgba(var(--gold-rgb), 0.28) !important;
+  box-shadow: var(--sh-2);
+}
+.dash-stats .dash-stat:nth-child(3) .dash-num { font-size: 58px !important; color: var(--ink) !important; }
+.dash-stats .dash-stat:nth-child(3) .dash-lbl { font-weight: 700; color: var(--ink) !important; }
+/* De oude accent-klasse op Producten wijkt: één tegel voert de boventoon */
+.dash-stats .dash-stat.accent:not(:nth-child(3)) {
+  background: var(--lv1) !important;
+  border-color: var(--line-1) !important;
+}
+.dash-num { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+
+/* Voortgangsbalken laden vloeiend naar hun stand */
+.ws-progress span, .dash-rank-bar > div { transition: width 0.9s var(--ease-out); }
+
+/* Sparkline-strook in de begroeting: echte activiteit, 14 dagen */
+.dash-hi { align-items: center !important; }
+.dash-trend {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--lv1); border: 1px solid var(--line-1); border-radius: 14px;
+  box-shadow: var(--sh-1); padding: 10px 16px;
+}
+.dash-trend svg { display: block; }
+.dash-trend-line { fill: none; stroke: var(--amber-deep); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dash-trend-fill { fill: url(#wgTrendFade); stroke: none; }
+.dash-trend-meta { display: flex; flex-direction: column; gap: 2px; }
+.dash-trend-delta { font-size: 15px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dash-trend-delta .up { color: var(--green); }
+.dash-trend-lbl { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.02em; }
+
+/* Snelstart: de hoofdactie stuurt, de rest volgt */
+.dash-act { position: relative; overflow: hidden; }
+.dash-act.primary {
+  background: linear-gradient(150deg, #ffe9a3 0%, var(--amber, #f2c53d) 90%) !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 22px rgba(200, 156, 32, 0.28) !important;
+}
+.dash-act.primary svg, .dash-act.primary .dash-act-t { color: #241d0a !important; }
+.dash-act.primary .dash-act-s { color: rgba(36, 29, 10, 0.65) !important; }
+.dash-act.primary::after {
+  content: "→"; position: absolute; right: 16px; bottom: 12px;
+  font-size: 16px; color: #241d0a; opacity: 0;
+  transform: translateX(-6px); transition: opacity var(--t-fast) ease, transform var(--t-med) var(--ease-out);
+}
+.dash-act.primary:hover::after { opacity: 1; transform: translateX(0); }
+
+/* Leaderboards die laden: rustige puls in plaats van kale tekst */
+#dash-lb.dash-empty, #dash-lb-succes.dash-empty { animation: wg-pulse 1.6s ease-in-out infinite; }
+@keyframes wg-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.45; } }
+
+/* ---------- WIJZIGINGEN: tijdlijn met versie-knopen ---------- */
+#changelog-list { position: relative; padding-left: 4px; }
+#changelog-list::before {
+  content: ""; position: absolute; left: 30px; top: 18px; bottom: 18px;
+  width: 1px; background: linear-gradient(180deg, rgba(var(--gold-rgb), 0.5), var(--line-2) 30%, var(--line-2) 85%, transparent);
+}
+.changelog-item {
+  position: relative;
+  background: var(--lv1) !important;
+  border: 1px solid var(--line-1) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--sh-1);
+  margin: 0 0 14px 62px !important;
+  padding: 16px 20px !important;
+  display: block !important;
+  transition: box-shadow var(--t-med) var(--ease-out), border-color var(--t-fast) ease;
+}
+.changelog-item:hover { box-shadow: var(--sh-2); border-color: var(--line-2) !important; }
+.changelog-item::before {
+  content: ""; position: absolute; left: -37px; top: 22px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--lv1); border: 2px solid var(--line-3);
+}
+.changelog-item:first-child::before { background: var(--amber); border-color: var(--amber-deep); }
+.changelog-item-meta { display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.changelog-panel, .changelog-wrapper { background: transparent !important; border: none !important; box-shadow: none !important; }
+.changelog-version { color: var(--amber-deep) !important; font-weight: 700; }
+.changelog-date { color: var(--ink-faint) !important; font-size: 11.5px; }
+.changelog-new-badge {
+  background: var(--amber) !important; color: #241d0a !important;
+  border-radius: 999px; padding: 2px 9px !important; font-size: 10px !important;
+  font-weight: 700; letter-spacing: 0.05em;
+}
+.changelog-title { color: var(--ink) !important; }
+.changelog-desc { color: var(--ink-soft) !important; line-height: 1.6 !important; }
+/* Lange teksten geklemd tot vijf regels; klik klapt uit */
+.changelog-item.wg-clampable { cursor: pointer; }
+.changelog-item.wg-clampable .changelog-desc {
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.changelog-item.wg-clampable.open .changelog-desc { display: block; -webkit-line-clamp: unset; }
+.changelog-item.wg-clampable .wg-cl-more {
+  display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--amber-deep);
+}
+.changelog-item.wg-clampable.open .wg-cl-more-t::after { content: "Toon minder"; }
+.changelog-item.wg-clampable:not(.open) .wg-cl-more-t::after { content: "Lees verder"; }
+
+/* ---------- EMPTY STATES: een uitnodiging, geen mededeling ---------- */
+.wg-empty {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  background: var(--lv2); border: 1px dashed var(--line-2); border-radius: 16px;
+  padding: 28px 30px; max-width: 560px;
+}
+.wg-empty-ico {
+  width: 38px; height: 38px; border-radius: 12px; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--gold-rgb), 0.12); color: var(--amber-deep);
+}
+.wg-empty-ico svg { width: 19px; height: 19px; }
+.wg-empty-t { font-size: 15px; font-weight: 700; color: var(--ink); }
+.wg-empty-s { font-size: 13px; line-height: 1.6; color: var(--ink-soft); max-width: 46ch; }
+.wg-empty .btn { margin-top: 12px; }
+
+/* ---------- DROPZONES: één taal, drie plekken ---------- */
+.tf-photo-zone, .source-ad-dropzone, .ref-dropzone,
+#ref-dropzone-product {
+  background: var(--lv-inset) !important;
+  border: 1.5px dashed var(--line-3) !important;
+  border-radius: 16px !important;
+  transition: border-color var(--t-fast) ease, background var(--t-fast) ease, transform var(--t-med) var(--ease-out);
+}
+.tf-photo-zone:hover, .source-ad-dropzone:hover, .ref-dropzone:hover,
+#ref-dropzone-product:hover {
+  border-color: rgba(var(--gold-rgb), 0.7) !important;
+  background: var(--amber-wash) !important;
+}
+.tf-photo-zone.dragging, .source-ad-dropzone.dragover, .source-ad-dropzone.dragging,
+.ref-dropzone.dragover, .ref-dropzone.dragging {
+  border-color: var(--amber-deep) !important;
+  background: var(--amber-wash) !important;
+  transform: scale(1.008);
+}
+
+/* ---------- LIJSTEN EN RIJEN ---------- */
+.library-item, .slib-item, .persona-card, .product-card {
+  transition: box-shadow var(--t-med) var(--ease-out), transform var(--t-med) var(--ease-out), border-color var(--t-fast) ease;
+}
+.library-item:hover, .slib-item:hover, .persona-card:hover, .product-card:hover {
+  box-shadow: var(--sh-2);
+  transform: translateY(-2px);
+}
+
+/* ---------- ZIJBALK: tellers bij de bibliotheek ---------- */
+.ws-nav-count {
+  margin-left: auto; font-size: 10.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.72);
+  border-radius: 999px; padding: 1px 8px; line-height: 1.6;
+}
+.ws-nav-item.active .ws-nav-count { background: rgba(var(--gold-rgb), 0.25); color: var(--amber-hi); }
+
+/* ---------- BEWEGING UIT WAAR HET MOET ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ws-progress span, .dash-rank-bar > div { transition: none; }
+  #dash-lb.dash-empty, #dash-lb-succes.dash-empty { animation: none; }
+  .dash-stat, .dash-stat:hover, .library-item:hover, .slib-item:hover,
+  .persona-card:hover, .product-card:hover { transform: none; }
+}
+
+@media (max-width: 900px) {
+  .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .dash-stats .dash-stat:nth-child(3) { grid-column: 1 / -1; }
+  .dash-stats .dash-stat:nth-child(3) .dash-num { font-size: 44px !important; }
+  .dash-trend { width: 100%; justify-content: space-between; }
+  .changelog-item { margin-left: 34px !important; }
+  #changelog-list::before { left: 16px; }
+  .changelog-item::before { left: -23px; }
+}

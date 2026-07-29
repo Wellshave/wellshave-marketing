@@ -4,9 +4,11 @@
   "private": true,
   "description": "Wellshave Marketing — ad generator, agent team, brain and Pulse dashboard",
   "scripts": {
-    "skillui": "skillui"
+    "skillui": "skillui",
+    "test:console": "node ad-generator/test/console-boot.cjs"
   },
   "devDependencies": {
+    "playwright": "^1.49.1",
     "skillui": "^1.3.4",
     "ui-ux-pro-max-cli": "^2.11.0"
   },
