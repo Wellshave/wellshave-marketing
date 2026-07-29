@@ -9,12 +9,15 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Pad | Wat |
 |---|---|
 | `docs/ARCHITECTUUR.md` | Blauwdruk: waar we vandaan komen, waar we heen gaan, in welke volgorde |
+| `docs/PUBLICEREN.md` | Stap 03 — hoe een creative een draaiende advertentie wordt |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
+| `db/migrations/0007_publiceren.sql` | Publicaties en de view die cijfer aan hypothese koppelt |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
-| `worker/test/smoke.mjs` | Testlus zonder deploy, database of API-kosten |
+| `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
+| `worker/test/publiceren.mjs` | Testlus voor de publiceerflow en de guardrail eromheen |
 
 ## Status
 
@@ -24,6 +27,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Testlus groen (25 controles) | ✅ `node platform/worker/test/smoke.mjs` |
 | Migraties 0004 + 0005 toegepast | ✅ 29 juli |
 | Databases samengevoegd | ✅ 29 juli — inhoud geverifieerd via md5 |
+| Publiceerflow gebouwd (0007 + runtime) | ✅ 29 juli — 30 controles groen |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -113,7 +117,7 @@ module er is.
 | Agent | Draait | Opdrachten (`kind`) |
 |---|---|---|
 | Atlas | ✅ | `daily_report` |
-| Bolt | ✅ | `creative_scorecard` |
+| Bolt | ✅ | `creative_scorecard`, `publish_queue` |
 | Echo | ✅ | `flow_audit`, `campaign_plan` |
 | Radar | ✅ | `trend_scan` — beperkt, Trendtrack is nog niet server-side gekoppeld |
 | Nova | ✅ | `pipeline_sync` |
@@ -130,19 +134,33 @@ verstuurt. Alles wat naar buiten werkt gaat via `request_approval` en wordt een
 rij in `approvals` die op een mens wacht. Dat zit in de code, niet in de prompt:
 een agent kan er niet omheen praten.
 
+Publiceren naar Meta volgt dezelfde regel, maar preciezer: een agent mag het
+beeld uploaden en de ad-creative aanmaken (kost niets, wordt nooit vertoond), en
+alléén een mens kan er via `POST /agents/publications/<id>/publish` een
+draaiende advertentie van maken. Zie [`docs/PUBLICEREN.md`](docs/PUBLICEREN.md).
+
 Wat een agent kan lezen staat op een whitelist. Vraagt hij een tabel die er niet
 op staat, dan krijgt hij een nette weigering terug met de lijst die wél mag.
 
 ## Testen
 
 ```
-node platform/worker/test/smoke.mjs
+node platform/worker/test/smoke.mjs        # agent-runtime — 25 controles
+node platform/worker/test/publiceren.mjs   # publiceerflow — 30 controles
 ```
 
-Draait de echte runtime tegen een nep-Supabase en een nep-Claude: planning →
-job → tool-rondes → rapport → afronding, inclusief de Fable 5-valkuil waarbij
-een thinking-blok vooraan staat. Geen deploy, geen kosten, geen database.
+Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
+Geen deploy, geen kosten, geen database.
 
-Wat de test níet dekt: of PostgREST `marketing_hq` echt serveert, en of Meta en
-Klaviyo de velden teruggeven die we verwachten. Dat blijkt bij de eerste echte
-run.
+De eerste dekt de lus: planning → job → tool-rondes → rapport → afronding,
+inclusief de Fable 5-valkuil waarbij een thinking-blok vooraan staat.
+
+De tweede dekt de grens rond geld: dat klaarzetten wél een creative en géén
+advertentie maakt, dat publiceren zonder akkoord wordt geweigerd, dat een
+tweede poging niets dubbels oplevert, en dat de toolset van Bolt geen enkele
+naam bevat die met publiceren of budget te maken heeft.
+
+Wat de tests níet dekken: of PostgREST `marketing_hq` echt serveert, en of Meta
+en Klaviyo zich gedragen zoals verwacht. De vorm van de Meta-aanroepen is wel
+geverifieerd tegen het echte account — pagina, `object_story_spec` en ad sets
+komen overeen met wat er nu live staat.

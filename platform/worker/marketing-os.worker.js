@@ -41,6 +41,11 @@ const ORIGINS = ['https://wellshave-adgen.netlify.app', 'http://localhost:8823',
 const MODEL = 'claude-fable-5';
 const FALLBACK_MODEL = 'claude-opus-4-8';
 const META_API = 'https://graph.facebook.com/v21.0';
+
+/* De Facebook-pagina waaronder de advertenties hangen. Geverifieerd tegen het
+   account: bestaande creatives hebben een object_story_id die hiermee begint. */
+const META_PAGE_ID = '100135282880333';
+const WINKEL_URL = 'https://wellshave.nl';
 const KLAVIYO_API = 'https://a.klaviyo.com/api';
 const KLAVIYO_REVISION = '2025-07-15';
 
@@ -163,8 +168,19 @@ Bij kind = daily_report:
   bolt: {
     naam: 'Bolt',
     rol: 'Performance Marketeer',
-    tools: ['db_query', 'meta_insights', 'write_recommendation', 'write_report', 'send_message', 'request_approval'],
+    tools: ['db_query', 'meta_insights', 'write_recommendation', 'meta_prepare_ad', 'write_report', 'send_message', 'request_approval'],
     prompt: `Je bent Bolt, de performance marketeer. Jij oordeelt per advertentie.
+
+Bij kind = publish_queue:
+1. Zoek met db_query de creatives die klaarstaan om getest te worden
+   (status 'To Test', has_image = true) en kijk welke al een publicatie hebben.
+2. Zet er per keer hooguit drie klaar met meta_prepare_ad, in de ad set die
+   erbij past. Meer tegelijk maakt de test onleesbaar.
+3. Elke publicatie heeft een hypothese nodig in de vorm "als we X, dan Y, omdat
+   Z". Zonder hypothese weet niemand later waarom deze advertentie bestond;
+   zet hem dan niet klaar maar vraag erom via send_message aan nova.
+4. meta_prepare_ad maakt zelf de goedkeuring aan. Jij zet niets live — dat kan
+   je niet en dat hoort ook niet.
 
 Bij kind = creative_scorecard:
 1. Haal met meta_insights de ads op over het gevraagde venster (default 7 dagen).
@@ -532,6 +548,36 @@ const TOOLS = {
     }
   },
 
+  meta_prepare_ad: {
+    schema: {
+      name: 'meta_prepare_ad',
+      description: 'Zet een creative uit de console klaar als advertentie bij Meta: beeld uploaden en de ad-creative aanmaken. Dit maakt GEEN advertentie en geeft dus niets uit — het levert een publicatie op die op goedkeuring wacht. Vraag na deze tool altijd request_approval aan; een mens zet hem live.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          creative_id: { type: 'integer', description: 'De id uit de creatives-tabel van de console' },
+          adset_id: { type: 'string', description: 'De ad set waar de advertentie in komt' },
+          campaign_id: { type: 'string' },
+          ad_name: { type: 'string', description: 'Naam van de advertentie in Meta' },
+          headline: { type: 'string', description: 'De kop bij het beeld' },
+          primary_text: { type: 'string', description: 'De tekst boven het beeld' },
+          description: { type: 'string' },
+          cta_type: { type: 'string', description: 'SHOP_NOW, ORDER_NOW, LEARN_MORE — het account gebruikt meestal ORDER_NOW' },
+          link_url: { type: 'string', description: 'Waar de advertentie heen linkt. De herkomst wordt automatisch toegevoegd.' },
+          daily_budget: { type: 'number', description: 'Voorgesteld dagbudget, alleen ter informatie bij de goedkeuring' },
+          hypothesis: { type: 'string', description: 'Wat deze advertentie test: als we X, dan Y, omdat Z' }
+        },
+        required: ['creative_id', 'adset_id']
+      }
+    },
+    async run(env, ctx, input) {
+      if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
+        return { error: 'Meta is niet gekoppeld op deze worker; publiceren kan niet.' };
+      }
+      return metaPrepare(env, ctx, input);
+    }
+  },
+
   request_approval: {
     schema: {
       name: 'request_approval',
@@ -626,6 +672,283 @@ async function metaInsights(env, level, days, perDag) {
       is_final: dagenGeleden(row.date_start) > 3
     };
   });
+}
+
+/* ============================================================
+ * 4b. Publiceren naar Meta
+ *
+ * De scheiding die dit hele blok draagt: klaarzetten en publiceren zijn twee
+ * verschillende dingen, met twee verschillende uitvoerders.
+ *
+ *   klaarzetten  — een agent mag dit. Beeld uploaden en een adcreative
+ *                  aanmaken kost niets en levert niets af: een creative die
+ *                  aan geen enkele advertentie hangt, wordt nooit vertoond.
+ *   publiceren   — alleen een mens, via POST /agents/publications/<id>/publish,
+ *                  en alleen als de bijbehorende approval op 'approved' staat.
+ *                  Er bestaat geen agent-tool die deze stap kan zetten.
+ *
+ * Daarom maakt metaPrepare() wel een creative maar nooit een ad, en zit
+ * metaPublish() niet in TOOLS maar achter een endpoint.
+ * ============================================================ */
+
+async function metaPost(env, pad, body, isForm) {
+  const url = `${META_API}/${pad}`;
+  let opties;
+  if (isForm) {
+    body.append('access_token', env.META_ACCESS_TOKEN);
+    opties = { method: 'POST', body: body };
+  } else {
+    opties = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ access_token: env.META_ACCESS_TOKEN }, body))
+    };
+  }
+  const r = await fetch(url, opties);
+  const data = await r.json().catch(() => ({}));
+  if (data.error) {
+    const e = data.error;
+    /* Meta's foutmeldingen zijn onleesbaar zonder de user-velden erbij. */
+    throw new Error(`Meta ${e.code || r.status}: ${e.error_user_msg || e.message || 'onbekende fout'}`
+      + (e.error_user_title ? ` (${e.error_user_title})` : ''));
+  }
+  if (!r.ok) throw new Error(`Meta ${r.status}: ${JSON.stringify(data).slice(0, 300)}`);
+  return data;
+}
+
+function base64NaarBytes(b64) {
+  const schoon = String(b64).replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
+  const bin = atob(schoon);
+  const uit = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) uit[i] = bin.charCodeAt(i);
+  return uit;
+}
+
+async function sha256Hex(bytes) {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* Beeld naar Meta. Dezelfde bytes leveren dezelfde hash op, dus dit is uit
+   zichzelf idempotent: twee keer uploaden geeft twee keer hetzelfde beeld. */
+async function metaUploadImage(env, bytes, bestandsnaam) {
+  const form = new FormData();
+  form.append('filename', new Blob([bytes], { type: 'image/png' }), bestandsnaam || 'creative.png');
+  const data = await metaPost(env, `act_${env.META_AD_ACCOUNT_ID.replace(/^act_/, '')}/adimages`, form, true);
+  const images = data.images || {};
+  const eerste = Object.keys(images)[0];
+  if (!eerste) throw new Error('Meta gaf geen image hash terug');
+  return images[eerste].hash;
+}
+
+/* De link met de herkomst erin. Dit is de tweede, onafhankelijke koppeling:
+   ook als onze database omvalt, staat in de Shopify-order welke publicatie de
+   klant heeft binnengebracht. */
+function bouwLink(basis, publicationId) {
+  const url = new URL(basis);
+  url.searchParams.set('utm_source', 'facebook');
+  url.searchParams.set('utm_medium', 'paid');
+  url.searchParams.set('utm_content', 'wg-' + publicationId);
+  return url.toString();
+}
+
+/* Zet alles klaar tot en met de adcreative. Maakt géén advertentie aan. */
+async function metaPrepare(env, ctx, invoer) {
+  const account = String(env.META_AD_ACCOUNT_ID || '').replace(/^act_/, '');
+
+  /* 1. De creative uit de console ophalen — daar zit het beeld en de herkomst. */
+  const rijen = await sbPublic(env, 'creatives', `id=eq.${Number(invoer.creative_id)}&select=*`);
+  const c = rijen[0];
+  if (!c) return { error: `creative ${invoer.creative_id} bestaat niet` };
+  if (!c.image_b64) return { error: `creative ${invoer.creative_id} heeft geen beeld; publiceren kan niet` };
+
+  const bytes = base64NaarBytes(c.image_b64);
+  const sha = await sha256Hex(bytes);
+
+  /* 2. Bestaat er al een publicatie voor deze creative in deze ad set?
+        Zo ja: teruggeven in plaats van een tweede aanmaken. */
+  const idem = `${c.id}:${invoer.adset_id}:${sha.slice(0, 16)}`;
+  const bestaand = await sbSelect(env, 'meta_publications',
+    `idem_key=eq.${encodeURIComponent(idem)}&select=*`);
+  if (bestaand[0] && bestaand[0].status !== 'mislukt') {
+    return {
+      al_klaargezet: true, publication_id: bestaand[0].id, status: bestaand[0].status,
+      opmerking: 'Deze creative staat al klaar voor deze ad set. Er is niets nieuws aangemaakt.'
+    };
+  }
+
+  /* 3. Publicatierij eerst, want het id gaat mee in de link. */
+  const pub = (await sbInsert(env, 'meta_publications', {
+    brand: c.brand || 'wellshave',
+    creative_id: c.id,
+    ad_name: invoer.ad_name || c.ad_name || `Creative ${c.id}`,
+    account_id: account,
+    adset_id: String(invoer.adset_id),
+    campaign_id: invoer.campaign_id || null,
+    asset_kind: 'image',
+    asset_sha256: sha,
+    headline: invoer.headline || c.ad_name || null,
+    primary_text: invoer.primary_text || c.hook_short || null,
+    description: invoer.description || null,
+    cta_type: invoer.cta_type || 'SHOP_NOW',
+    link_url: invoer.link_url || WINKEL_URL,
+    page_id: META_PAGE_ID,
+    hypothesis: invoer.hypothesis || null,
+    angle: c.marketing_angle || null,
+    persona: c.persona || null,
+    awareness_level: c.awareness_level || null,
+    proposed_daily_budget: invoer.daily_budget != null ? Number(invoer.daily_budget) : null,
+    prepared_by: ctx.agentId,
+    run_id: ctx.runId,
+    idem_key: idem,
+    status: 'concept'
+  }, { onConflict: 'idem_key' }))[0];
+
+  try {
+    /* 4. Beeld en creative bij Meta. Nog steeds geen advertentie. */
+    const hash = await metaUploadImage(env, bytes, `wg-${pub.id}.png`);
+    const link = bouwLink(invoer.link_url || WINKEL_URL, pub.id);
+
+    const spec = {
+      page_id: META_PAGE_ID,
+      link_data: {
+        image_hash: hash,
+        link: link,
+        message: invoer.primary_text || c.hook_short || '',
+        name: invoer.headline || c.ad_name || '',
+        call_to_action: { type: invoer.cta_type || 'SHOP_NOW', value: { link: link } }
+      }
+    };
+    if (invoer.description) spec.link_data.description = invoer.description;
+
+    const creative = await metaPost(env, `act_${account}/adcreatives`, {
+      name: `${invoer.ad_name || c.ad_name || 'Creative ' + c.id} · wg-${pub.id}`,
+      object_story_spec: spec,
+      degrees_of_freedom_spec: { creative_features_spec: { standard_enhancements: { enroll_status: 'OPT_OUT' } } }
+    });
+
+    /* 5. De goedkeuring hoort bij het klaarzetten, niet bij de goede wil van de
+          agent. Door hem hier aan te maken kan een publicatie nooit bestaan
+          zonder dat er iets voor een mens klaarligt om over te beslissen. */
+    const app = (await sbInsert(env, 'approvals', {
+      requested_by: ctx.agentId,
+      action_type: 'ad_publish',
+      description: [
+        `Advertentie live zetten: "${invoer.ad_name || c.ad_name || 'Creative ' + c.id}"`,
+        `Ad set ${invoer.adset_id}.`,
+        invoer.daily_budget ? `Voorgesteld dagbudget €${Number(invoer.daily_budget).toFixed(2)}.` : '',
+        invoer.hypothesis ? `Test: ${invoer.hypothesis}` : '',
+        'Beeld en creative staan klaar bij Meta; er is nog geen advertentie aangemaakt.'
+      ].filter(Boolean).join(' '),
+      payload: {
+        publication_id: pub.id,
+        creative_id: c.id,
+        adset_id: invoer.adset_id,
+        meta_creative_id: creative.id,
+        link: link,
+        daily_budget: invoer.daily_budget || null
+      }
+    }))[0];
+
+    await sbUpdate(env, 'meta_publications', `id=eq.${pub.id}`, {
+      meta_image_hash: hash,
+      meta_creative_id: creative.id,
+      object_story_spec: spec,
+      utm_content: 'wg-' + pub.id,
+      link_url: link,
+      approval_id: app.id,
+      status: 'wacht_op_akkoord',
+      prepared_at: new Date().toISOString()
+    });
+
+    return {
+      publication_id: pub.id,
+      meta_creative_id: creative.id,
+      approval_id: app.id,
+      status: 'wacht_op_akkoord',
+      opmerking: 'Beeld en creative staan bij Meta en de goedkeuring is aangemaakt. '
+        + 'Er is nog GEEN advertentie; die kan alleen een mens live zetten.'
+    };
+  } catch (e) {
+    await sbUpdate(env, 'meta_publications', `id=eq.${pub.id}`, {
+      status: 'mislukt', error: String(e && e.message || e)
+    });
+    throw e;
+  }
+}
+
+/* Publiceren. Alleen bereikbaar via het endpoint, alleen na akkoord.
+   De advertentie wordt eerst PAUSED aangemaakt en daarna pas aangezet, zodat
+   een half mislukte aanroep nooit ongemerkt budget uitgeeft. */
+async function metaPublish(env, publicationId, gebruiker, direct_aan) {
+  const account = String(env.META_AD_ACCOUNT_ID || '').replace(/^act_/, '');
+  const rij = (await sbSelect(env, 'meta_publications', `id=eq.${publicationId}&select=*`))[0];
+  if (!rij) return { error: 'publicatie bestaat niet', status: 404 };
+
+  if (rij.meta_ad_id) {
+    return { al_live: true, publication_id: rij.id, meta_ad_id: rij.meta_ad_id, status: rij.status };
+  }
+  if (!rij.meta_creative_id) {
+    return { error: 'deze publicatie is niet voorbereid; er is geen creative bij Meta', status: 409 };
+  }
+  if (!rij.approval_id) {
+    return { error: 'er hangt geen goedkeuring aan deze publicatie', status: 409 };
+  }
+
+  const app = (await sbSelect(env, 'approvals', `id=eq.${rij.approval_id}&select=status,description`))[0];
+  if (!app || app.status !== 'approved') {
+    return { error: `goedkeuring staat op "${app ? app.status : 'onbekend'}"; publiceren kan alleen na akkoord`, status: 403 };
+  }
+
+  await sbUpdate(env, 'meta_publications', `id=eq.${publicationId}`, {
+    status: 'publiceren', attempts: (rij.attempts || 0) + 1
+  });
+
+  try {
+    const ad = await metaPost(env, `act_${account}/ads`, {
+      name: rij.ad_name,
+      adset_id: rij.adset_id,
+      creative: { creative_id: rij.meta_creative_id },
+      status: 'PAUSED'
+    });
+
+    if (direct_aan) {
+      await metaPost(env, ad.id, { status: 'ACTIVE' });
+    }
+
+    const uit = (await sbUpdate(env, 'meta_publications', `id=eq.${publicationId}`, {
+      meta_ad_id: ad.id,
+      status: direct_aan ? 'live' : 'gepauzeerd',
+      published_by: gebruiker,
+      published_at: new Date().toISOString(),
+      error: null
+    }))[0];
+
+    /* De creative in de console weet nu dat hij draait. Vanaf hier kan Atlas
+       het cijfer terugleiden naar deze hypothese. */
+    if (rij.creative_id) {
+      try {
+        await fetch(`${SB_URL}/rest/v1/creatives?id=eq.${rij.creative_id}`, {
+          method: 'PATCH',
+          headers: sbHeaders(env, { 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ status: 'Live', date_live: vandaag() })
+        });
+      } catch (e) { /* de publicatie is gelukt; dit is bijwerk-comfort */ }
+    }
+
+    await sbInsert(env, 'agent_events', {
+      agent_id: rij.prepared_by || 'bolt',
+      level: 'info',
+      message: `Advertentie ${direct_aan ? 'live' : 'aangemaakt (gepauzeerd)'}: ${rij.ad_name}`,
+      data: { publication_id: rij.id, meta_ad_id: ad.id, door: gebruiker }
+    });
+
+    return { ok: true, publication: uit, meta_ad_id: ad.id };
+  } catch (e) {
+    const fout = String(e && e.message || e);
+    await sbUpdate(env, 'meta_publications', `id=eq.${publicationId}`, { status: 'mislukt', error: fout });
+    return { error: fout, status: 502 };
+  }
 }
 
 /* ============================================================
@@ -1007,6 +1330,59 @@ export default {
           priority: 1                     // wat een mens vraagt gaat voor op cron
         }))[0];
         return json({ ok: true, job: rij });
+      }
+
+      /* ---- Publicaties ---- */
+      if (path === '/agents/publications' && request.method === 'GET') {
+        const status = url.searchParams.get('status');
+        const q = ['select=*', 'order=created_at.desc',
+                   'limit=' + Math.min(Number(url.searchParams.get('limit')) || 50, 200)];
+        if (status) q.push('status=eq.' + status);
+        return json({ publications: await sbSelect(env, 'meta_publications', q.join('&')) });
+      }
+
+      /* Beslissen over een goedkeuring. Dit is de menselijke stap; er is met
+         opzet geen agent-tool die een approval op 'approved' kan zetten. */
+      const beslis = path.match(/^\/agents\/approvals\/(\d+)\/decide$/);
+      if (beslis && request.method === 'POST') {
+        const body = await request.json().catch(() => ({}));
+        const besluit = String(body.decision || '').toLowerCase();
+        if (besluit !== 'approved' && besluit !== 'rejected') {
+          return json({ error: 'decision moet "approved" of "rejected" zijn' }, 400);
+        }
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin kan goedkeuren of afwijzen' }, 403);
+        }
+        const bijgewerkt = await sbUpdate(env, 'approvals', `id=eq.${beslis[1]}&status=eq.pending`, {
+          status: besluit, decided_by: gebruiker.email, decided_at: new Date().toISOString()
+        });
+        if (!bijgewerkt.length) {
+          return json({ error: 'goedkeuring bestaat niet of is al beslist' }, 409);
+        }
+        /* Een afgewezen publicatie moet dat ook zelf weten, anders blijft hij
+           in de wachtrij staan alsof er nog over nagedacht wordt. */
+        if (besluit === 'rejected') {
+          await sbUpdate(env, 'meta_publications',
+            `approval_id=eq.${beslis[1]}&status=eq.wacht_op_akkoord`, { status: 'afgewezen' });
+        } else {
+          await sbUpdate(env, 'meta_publications',
+            `approval_id=eq.${beslis[1]}`, { approved_at: new Date().toISOString() });
+        }
+        return json({ ok: true, approval: bijgewerkt[0] });
+      }
+
+      /* Live zetten. Het enige punt in het systeem waar geld gaat lopen. */
+      const publiceer = path.match(/^\/agents\/publications\/(\d+)\/publish$/);
+      if (publiceer && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin kan een advertentie live zetten' }, 403);
+        }
+        if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
+          return json({ error: 'Meta is niet gekoppeld op deze worker' }, 500);
+        }
+        const body = await request.json().catch(() => ({}));
+        const uit = await metaPublish(env, Number(publiceer[1]), gebruiker.email, body.activate !== false);
+        return json(uit, uit.error ? (uit.status || 400) : 200);
       }
 
       const cancel = path.match(/^\/agents\/jobs\/(\d+)\/cancel$/);
