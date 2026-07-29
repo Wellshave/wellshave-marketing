@@ -117,6 +117,141 @@ volledig:
 | Vector | Webdesigner | ⑥ landingspagina |
 | Sage | SEO-specialist | ⑥ vindbaarheid |
 
+## 3b. Hoe de estafette werkt, station voor station
+
+Drie soorten overdracht, en het verschil is geen detail:
+
+| | | |
+|---|---|---|
+| **vanzelf** | de volgende stap start zelf | kost niets, werkt niet naar buiten |
+| **poort** | wacht op een mens | geld of iets naar buiten |
+| **door een mens** | een mens ís de stap | creatief werk |
+
+---
+
+**① Radar — het signaal**
+
+*Draait:* `trend_scan`, elke dag 05:15. Gereedschap: `db_query`, `write_report`,
+`send_message`.
+
+Radar leest de markt en schrijft een rapport. Wat hij achterlaat is een
+observatie: een hoek die opkomt, een concurrent die iets nieuws doet, een
+formulering die het blijkbaar goed doet.
+
+*Overdracht naar Nova:* **vanzelf** — een signaal kost niets en doet niets naar
+buiten. Het hoort als voorstel op Nova's stapel te komen, niet in een rapport
+dat iemand moet openen.
+
+**② Nova — de briefing**
+
+*Draait:* `pipeline_sync`, elke dag 06:00. Gereedschap: `db_query`,
+`update_pipeline`, `write_report`, `send_message`, `request_approval`.
+
+Nova is de creative director. Zij zet een signaal om in een testbaar voorstel:
+welk product, welke persona, welke hoek, en waarom nu. Ze weegt daarbij mee wat
+`angle_learnings` al weet — welke hoek bij deze persona werkt, en welke uitgeput
+raakt.
+
+*Overdracht naar Pixel en Quill:* **vanzelf** naar de wachtrij, want een briefing
+schrijven kost niets.
+
+**③ Pixel en Quill — beeld en tekst**
+
+*Draaien nog niet.* Vandaag is dit station **een mens**: jij in de wizard, met
+Fable als sparringpartner — product, persona, hoek, format, scene — en de
+generator maakt de concepten en beelden.
+
+Dat is geen tekortkoming die weggewerkt moet worden. Dit is het station waar een
+mens hoort te staan, en Pixel en Quill worden zijn gereedschap, niet zijn
+vervanger. Wat het station oplevert is een rij in `public.creatives`.
+
+*Overdracht naar Bolt:* **door een mens** — jij zet hem klaar om te testen.
+
+**④ Bolt — live**
+
+*Draait:* `creative_scorecard` (05:20) en `publish_queue`. Gereedschap onder meer
+`meta_prepare_ad`.
+
+Bolt zet de advertentie klaar bij Meta: beeld uploaden, ad-creative aanmaken.
+Dat kost niets en wordt nooit vertoond. Hij schrijft een rij in
+`meta_publications` met `creative_id` — **de eerste echte koppeling in de hele
+keten.**
+
+*Overdracht naar Atlas:* **poort.** Bolt kán niet lanceren. Alleen een mens maakt
+er via `POST /agents/publications/<id>/publish` een draaiende advertentie van.
+Dat zit in de code, niet in de prompt.
+
+Op het scherm is die poort geen uitzondering maar onderdeel van de keten: de
+estafette toont hem als een stap die op jou wacht, met wat er gebeurt als je
+ja zegt.
+
+**⑤ Atlas — meten en terugkoppelen**
+
+*Draait:* `daily_report` (05:00) en `feedback_sync` (05:40). Die laatste is een
+systeemtaak: geen taalmodel, nul kosten.
+
+Atlas telt de cijfers op — eerst de tellers, dan pas delen — en schrijft ROAS,
+CTR, hook rate en de rest terug naar de creative. Boven de drempel (4 dagen,
+€ 50, 1.000 vertoningen) verandert ook de status.
+
+*Overdracht:* **vanzelf**, en hier sluit de lus. Het resultaat gaat terug naar
+station ③: de hoekkaarten in de wizard staan op volgorde van wat werkte.
+
+Dit stuk — ③ → ④ → ⑤ → ③ — is het enige deel van de keten dat vandaag echt
+gekoppeld is, en het is getest.
+
+**⑥ Echo en Vector — de oogst**
+
+*Echo draait:* `flow_audit`, `campaign_plan`. Gereedschap: `klaviyo_read`,
+`email_draft`. Hij schrijft een concept in `email_drafts`.
+
+*Vector draait nog niet.* Zijn werk begint waar Bolt eindigt: bij een advertentie
+die wint hoort een landingspagina die dezelfde belofte waarmaakt.
+
+*Overdracht:* **poort.** Een e-mail versturen en een pagina live zetten zijn
+naar-buiten-acties en wachten op een mens.
+
+**Sage** staat naast de keten, niet erin: vindbaarheid is een doorlopende taak,
+geen station.
+
+---
+
+### Wat hier nog niet klopt
+
+De estafette heeft een ruggengraat nodig die er niet is.
+
+Elke koppeling in de database wijst vandaag naar `agents`, `runs`, `jobs` of
+`approvals`. **Geen enkele wijst naar een stuk werk.** Het model kan beantwoorden
+welke agent wat deed en wanneer; het kan niet beantwoorden wat er met één idee is
+gebeurd.
+
+Wat er wél is:
+
+- `meta_publications.creative_id` en `meta_recommendations.creative_id` — de
+  koppeling ④ → ⑤ werkt
+- `agent_messages.ref_pipeline_item` — agents kunnen naar een pipeline-item
+  verwijzen
+
+Wat ontbreekt:
+
+- `reports` (Radar) heeft alleen een auteur. Een signaal hangt nergens aan vast.
+- `pipeline_items` (Nova) kent geen `creative_id`. De briefing en de creative die
+  eruit voortkomt weten niet van elkaar.
+- `email_drafts` (Echo) kent alleen een vrij tekstveld `angle`.
+
+Dat veld `angle` komt in drie tabellen voor als losse tekst — `pipeline_items`,
+`email_drafts`, `meta_publications`. Het is een koppelsleutel die niemand zo
+bedoeld heeft: "Problem-Solution" als string, zonder garantie dat het overal
+hetzelfde geschreven staat.
+
+**Regel 3b.1** Voor de estafette komt er één ruggengraat: een werkstuk-id dat van
+station ① tot ⑥ wordt meegedragen. Elke tabel die aan de keten deelneemt krijgt
+die verwijzing. Zonder dat is de estafette een plaatje dat de data niet kan
+onderbouwen.
+
+**Regel 3b.2** Elke stap legt vast **waaróm** hij deed wat hij deed, niet alleen
+wat. Dat is wat de keten leesbaar maakt in plaats van een reeks tijdstempels.
+
 ## 4. Kleur — gemeten, niet aangenomen
 
 Alle waarden hieronder zijn berekend tegen `--paper #f4f1ea`.
