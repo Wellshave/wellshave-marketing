@@ -20,30 +20,34 @@ eerst — hieronder staat alleen hoe je het aanzet.
 
 | Stap | Status |
 |---|---|
-| Blauwdruk, schema, runtime in de repo | ✅ dit werk |
+| Blauwdruk, schema, runtime in de repo | ✅ |
 | Testlus groen (25 controles) | ✅ `node platform/worker/test/smoke.mjs` |
-| Migraties toegepast op Supabase | ⬜ nog niet — zie hieronder |
-| Databases samengevoegd | ⬜ nog niet |
-| Worker gedeployed met cron | ⬜ nog niet |
+| Migraties 0004 + 0005 toegepast | ✅ 29 juli |
+| Databases samengevoegd | ✅ 29 juli — inhoud geverifieerd via md5 |
+| `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
+| Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
-**Er is nog niets live veranderd.** De bestaande console, de bestaande worker en
-beide databases doen exact wat ze deden.
+De database is klaar. De console en de worker draaien nog ongewijzigd: er is niets
+aan de live werkomgeving van het team veranderd.
 
 ## Aanzetten
 
-### 1. Migraties
+### 1. Migraties — gedaan
 
-Toepassen op project `bequyhghgkvekvibufhw` (Supabase → SQL editor), in deze
-volgorde:
+Toegepast op `bequyhghgkvekvibufhw` op 29 juli:
 
 ```
-db/migrations/0004_agent_runtime.sql
-db/migrations/0005_modules.sql
+db/migrations/0004_agent_runtime.sql   → schedules, agent_jobs, agent_events, integrations
+db/migrations/0005_modules.sql         → meta_insights_daily, meta_recommendations, email_drafts, email_performance
 ```
 
-Beide zijn additief: ze maken nieuwe objecten en raken geen bestaande rijen.
-Onderaan elk bestand staan de drops om terug te draaien.
+Beide additief. Onderaan elk bestand staan de drops om terug te draaien. De
+consolidatie (0006) is uitgevoerd; details in dat bestand.
+
+Terugdraaien van de samenvoeging kan uit
+`marketing_hq_backup_20260728` — dat schema bevat de stale rijen zoals ze vóór
+de migratie in het doelproject stonden. Laat het minstens een maand staan.
 
 ### 2. PostgREST het schema laten zien
 

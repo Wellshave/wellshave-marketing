@@ -1,5 +1,10 @@
 # Stap 2 — de twee Supabase-projecten samenvoegen
 
+> **Uitgevoerd op 29 juli 2026.** Wat hieronder staat is de procedure zoals
+> gepland; onderaan staat wat er werkelijk is gebeurd en hoe het is
+> gecontroleerd. Het HQ-project is nog niet bevroren — zie stap 5.
+
+
 Doel: één database. `marketing_hq` uit het HQ-project (`srjpulfodxakbyulwhki`)
 gaat naar het ad-generator-project (`bequyhghgkvekvibufhw`), zodat agents de
 creatives, producten en persona's van het team kunnen lezen en de console de
@@ -143,3 +148,69 @@ De Routine is de belangrijkste: laat die pas los zodra de Worker-runtime de
 ochtendcyclus overneemt (stap 3). Tot dat moment schrijft hij naar het oude
 project en loopt de nieuwe database achter — dat is acceptabel voor een paar
 dagen, maar niet langer.
+
+---
+
+## Wat er werkelijk is gebeurd (29 juli)
+
+De procedure is gevolgd, met één afwijking in **hoe** de rijen zijn verplaatst.
+
+### De overdracht
+
+Het plan ging uit van handwerk: rijen exporteren en als `insert` terugzetten.
+Dat bleek onnodig riskant — elke rij die door een mens of model wordt overgetypt
+kan stil beschadigen. In plaats daarvan heeft het **doelproject de bron zelf
+opgehaald**, met de `http`-extensie:
+
+1. Op de bron een tijdelijke functie, alleen aanroepbaar met een eenmalig
+   gegenereerd token, die de vier tabellen als JSON teruggeeft.
+2. Op het doel dezelfde constructie voor het invoegen.
+3. Het doel roept de bron aan met `extensions.http()`, zet het antwoord in een
+   staging-tabel en voegt in.
+4. Beide functies, de staging-tabel én de `http`-extensie zijn daarna verwijderd.
+
+De data is dus nooit buiten Supabase geweest. De kleinere tabellen (agents,
+pipeline, approvals) waren al eerder overgezet als base64-blok, gecontroleerd op
+rij-aantal vóór het invoegen.
+
+### Id's
+
+In plaats van nieuwe id's uit te delen en een mapping bij te houden, zijn de
+**oorspronkelijke id's behouden** (`overriding system value`). Dat kon omdat de
+stale rijen eerst verwijderd waren, dus er kon niets botsen. Alle verwijzingen —
+`pipeline_events.item_id`, `agent_messages.ref_pipeline_item` — klopten daardoor
+meteen, zonder omnummeren. De id-reeksen zijn daarna met `setval` bijgezet.
+
+### Controle
+
+Rij-aantallen na afloop, precies zoals verwacht:
+
+| tabel | verwacht | gemeten |
+|---|---|---|
+| agents | 9 | 9 |
+| agent_runs | 31 | 31 |
+| agent_messages | 25 | 25 |
+| pipeline_items | 5 | 5 |
+| pipeline_events | 7 | 7 |
+| reports | 21 | 21 |
+| metrics_daily | ≤ 101 | 101 |
+| approvals | 3 | 3 |
+
+`metrics_daily` kwam op precies 101 uit: de 48 stale rijen vielen volledig binnen
+de 101 van de bron en zijn dus bijgewerkt in plaats van toegevoegd.
+
+Aantallen alleen zeggen niets over de inhoud, dus is aan beide kanten dezelfde
+md5 berekend over de betekenisdragende kolommen van `reports`, `agent_runs`,
+`agent_messages` en `metrics_daily`. **Alle vier identiek** — de inhoud is byte
+voor byte gelijk overgekomen.
+
+Daarnaast gecontroleerd en nul fouten: geen `pipeline_events` zonder item, geen
+`agent_messages` die naar een verdwenen item wijzen, geen `agent_runs` zonder
+agent, geen rapport zonder tekst, en geen id-reeks die achterloopt.
+
+### Wat nog openstaat
+
+- `marketing_hq` toevoegen aan **Exposed schemas** — zonder dat kan de
+  Worker-runtime niet schrijven. Eén instelling in het Supabase-dashboard.
+- Het HQ-project bevriezen (stap 5). Doe dit pas als de Worker de ochtendcyclus
+  overneemt; tot dan blijft de Routine naar het oude project schrijven.
