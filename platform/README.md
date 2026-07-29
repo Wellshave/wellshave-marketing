@@ -11,6 +11,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `docs/ARCHITECTUUR.md` | Blauwdruk: waar we vandaan komen, waar we heen gaan, in welke volgorde |
 | `docs/PUBLICEREN.md` | Stap 03 — hoe een creative een draaiende advertentie wordt |
 | `docs/TERUGKOPPELING.md` | Stap 06 — hoe het cijfer terugkomt bij de creatieve keuze |
+| `docs/ONTWERPCONTRACT.md` | Harde, toetsbare regels voor uiterlijk en gedrag — gaat vóór op smaak |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
