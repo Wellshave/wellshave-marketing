@@ -81,8 +81,14 @@ insert into public.creatives (ad_name, product, persona, angle_type, status) val
   ('Reviews A','Scheermes','Man 30-45','Social Proof / Reviews','Live'),
   ('Reviews B','Scheermes','Man 30-45','Social Proof / Reviews','Killed'),
   ('Founder story','Scheermes','Man 45+','Storytelling / Narrative','To Test'),
-  ('Zonder hoek',null,null,null,'To Test'),
-  ('Ook zonder',null,null,null,'To Test');
+  -- zoals het er echt in staat: product en persona bekend, hoek leeg. Zes
+  -- varianten van dezelfde campagne. Die horen bij ELKAAR, niet elk apart.
+  ('Jij googelt het ook','Groom Guard','Mark de Vries',null,'To Test'),
+  ('Jij googelt het ook','Groom Guard','Mark de Vries',null,'To Test'),
+  ('23:47 Incognito','Groom Guard','Mark de Vries',null,'To Test'),
+  -- en het enige geval zonder enige metadata: dan wel elk zijn eigen werkstuk
+  ('Zonder alles',null,null,null,'To Test'),
+  ('Ook zonder alles',null,null,null,'To Test');
 insert into marketing_hq.creative_results (creative_id, spend, purchase_value, beoordeelbaar) values
   (1, 400, 1640, true), (2, 260, 520, true), (4, 300, 900, true);
 SQL
@@ -97,13 +103,19 @@ echo "  (migratie draaide zonder fout)"
 echo
 
 # ── wat de backfill moet opleveren ────────────────────────────────────────
-# 8 creatives -> 5 werkstukken: drie Nekirritaties zijn varianten van dezelfde
-# hypothese, twee Reviews ook. De twee zonder metadata mogen NIET samengevoegd
-# worden — "onbekend" is geen hypothese die je deelt.
-check "varianten samengevoegd, naamlozen niet" 5 "$(q 'select count(*) from marketing_hq.werkstukken')"
+# 11 creatives -> 6 werkstukken. Drie Nekirritaties horen samen, twee Reviews
+# ook, Founder story staat alleen, en de drie Groom Guard-varianten horen bij
+# elkaar op product + persona ondanks een lege hoek. Alleen de twee creatives
+# zonder enige metadata krijgen elk hun eigen werkstuk: daar is niets om op te
+# groeperen.
+check "varianten samengevoegd op wat bekend is" 6 "$(q 'select count(*) from marketing_hq.werkstukken')"
 check "elke creative heeft een werkstuk"       0 "$(q 'select count(*) from public.creatives where werkstuk_id is null')"
-check "naamloze creatives kregen elk hun eigen werkstuk" 2 \
-  "$(q "select count(distinct werkstuk_id) from public.creatives where angle_type is null")"
+check "creatives zonder enige metadata blijven apart" 2 \
+  "$(q "select count(distinct werkstuk_id) from public.creatives where product is null and persona is null")"
+# de kern van de fout die de echte data blootlegde
+check "lege hoek splitst een campagne niet op" 1 \
+  "$(q "select count(distinct werkstuk_id) from public.creatives
+        where product='Groom Guard' and persona='Mark de Vries'")"
 
 # De volledige keten is altijd zichtbaar, ook wat nog moet gebeuren.
 check "elk werkstuk heeft alle zes stations" 0 \
@@ -111,7 +123,7 @@ check "elk werkstuk heeft alle zes stations" 0 \
         group by werkstuk_id having count(*) <> 6) x')"
 
 # Geschiedenis die er niet was, wordt niet verzonnen.
-check "station 1 en 2 staan op niet_vastgelegd" 10 \
+check "station 1 en 2 staan op niet_vastgelegd" 12 \
   "$(q "select count(*) from marketing_hq.werkstuk_stappen where station in (1,2) and status='niet_vastgelegd'")"
 check "geen enkele stap staat ten onrechte op klaar bij station 1-2" 0 \
   "$(q "select count(*) from marketing_hq.werkstuk_stappen where station in (1,2) and status='klaar'")"
@@ -151,7 +163,7 @@ check "een fout weegt zwaarder dan wachten" "vastgelopen" \
   "$(q "select toestand from marketing_hq.werkstuk_estafette where id=$W2")"
 
 # ── niets bestaands is stukgegaan ─────────────────────────────────────────
-check "creatives zijn niet aangeraakt behalve de nieuwe kolom" 8 \
+check "creatives zijn niet aangeraakt behalve de nieuwe kolom" 11 \
   "$(q 'select count(*) from public.creatives')"
 check "de nieuwe kolom is nullable"  "YES" \
   "$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c \

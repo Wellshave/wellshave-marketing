@@ -335,10 +335,13 @@ declare
 begin
   for g in
     -- Groeperen op product + persona + hoek: varianten van dezelfde hypothese
-    -- horen bij hetzelfde werkstuk. Maar alléén als die drie er ook zijn —
-    -- anders zou "geen hoek bekend" zelf een groepeersleutel worden en zouden
-    -- ongerelateerde creatives op één hoop belanden. Zonder metadata krijgt
-    -- elke creative zijn eigen werkstuk.
+    -- horen bij hetzelfde werkstuk.
+    --
+    -- Alleen wanneer er níets is om op te groeperen krijgt elke creative zijn
+    -- eigen werkstuk. Product en persona samen zijn al een hypothese; een
+    -- ontbrekende hoek maakt zes varianten van dezelfde campagne niet ineens
+    -- zes losse ideeën. Een eerdere versie eiste alle drie de velden en gaf
+    -- daardoor op de echte data zes werkstukken waar er één hoorde.
     select brand, product, persona, angle_type,
            array_agg(id)                             as ids,
            min(coalesce(ad_name, 'Creative ' || id)) as titel,
@@ -346,8 +349,7 @@ begin
     from public.creatives
     where werkstuk_id is null
     group by brand, product, persona, angle_type,
-             case when product is null or persona is null or angle_type is null
-                  then id end
+             case when product is null and persona is null then id end
   loop
     insert into marketing_hq.werkstukken (brand, titel, product, persona, angle_type,
                                           aanleiding, gestart_door)
