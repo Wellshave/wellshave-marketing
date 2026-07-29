@@ -118,9 +118,6 @@ runtime corrigeert zelf voor zomer- en wintertijd.
 
 ## Wat er nog niet is
 
-- **De volgorde in de generator.** De wizard toont winnaars gesorteerd op ROAS,
-  maar sorteert de hoekkaarten zelf nog niet op wat werkt. Dat is een aanpassing
-  in de console, en die wacht op de opsplitsing van dat bestand.
 - **Uitgeputte hooks markeren.** Een hoek die drie keer achtereen zakt zou een
   waarschuwing moeten geven vóór iemand er een vierde variant op maakt. De data
   ligt er; het signaal nog niet.

@@ -112,9 +112,10 @@ bestand. Er is nog steeds geen bouwstap: wat in de repo staat is exact wat draai
 
 ## Wat dit oplevert
 
-De aanleiding was stap 06: de wizard toont winnaars op ROAS maar sorteert de
-hoekkaarten zelf nog niet op wat werkt. Die aanpassing zit in
-`js/08-generator.js` — 837 regels, met een naam die zegt wat erin zit.
+De aanleiding was stap 06: de wizard sorteerde de angle-kaarten nog niet op wat
+werkt. Dat is meteen daarna gebouwd, in `js/03-defaults-state-opslag.js` — de
+functies `wgpLoadAngleHist` en `wgpScreen`, met een testlus in
+`test/wizard-angles.cjs`. Zie `ANGLE-VOLGORDE.md`.
 
 En breder: een fout in de scriptwriter zoek je nu in een bestand van 591 regels in
 plaats van in regel 15.450 van 20.969.

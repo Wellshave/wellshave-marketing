@@ -490,13 +490,58 @@ function wgpScreen(){
   }
   if(s==='angle'){
     var hist = wgp.angleHist || {};
-    var cards = CS_ANGLES.map(function(a){
-      var st = hist[a];
-      var chip = st ? (st.n+'x getest'+(st.best!=null?(' · beste ROAS '+st.best):'')) : 'Nog niet getest met deze persona';
-      return wgpCard("wgpPick('angle','"+a.replace(/'/g,"\\'")+"')",a,'',chip, st?'gold':'new');
-    }).join('');
-    return '<div class="wgp-intro"><h3>De angle voor '+wgpEsc(wgp.sel.persona||'deze persona')+'</h3><p>Per angle zie je wat er al mee getest is bij deze persona (live uit de Creative Strategy-tabel). Vraag Fable om angles in de klanttaal van deze persona.</p></div>'
-      + '<div class="wgp-cards c2">'+cards+'</div>'+wgpFree('angle','Of eigen angle, het liefst als klanttaal-citaat...');
+
+    /* Op resultaat gesorteerd, maar in drie groepen in plaats van één lijst.
+       Eén lijst op ROAS zou de ongeteste angles ertussen strooien op een
+       waarde die ze niet hebben, of ze onderaan laten verdwijnen. Dan test je
+       alleen nog wat je al weet en leer je niets meer.
+
+       bewezen  genoeg data voor een oordeel (>= 3 ads, >= EUR 300) -> op gewogen ROAS
+       dun      wel geprobeerd, te weinig om iets te betekenen -> op beste losse ad
+       nieuw    nog niet geprobeerd bij deze persona -> eigen volgorde van CS_ANGLES */
+    var bewezen=[], dun=[], nieuw=[];
+    CS_ANGLES.forEach(function(a){
+      var st=hist[a];
+      if(st && st.betrouwbaar && st.roas!=null) bewezen.push(a);
+      else if(st && st.n) dun.push(a);
+      else nieuw.push(a);
+    });
+    bewezen.sort(function(x,y){ return hist[y].roas - hist[x].roas; });
+    dun.sort(function(x,y){
+      var bx=hist[x].best, by=hist[y].best;
+      if(bx==null && by==null) return hist[y].n - hist[x].n;   // geen cijfer: vaakst geprobeerd eerst
+      if(bx==null) return 1;
+      if(by==null) return -1;
+      return by - bx;
+    });
+
+    var chipBewezen=function(v){
+      return 'ROAS '+v.roas+' over '+v.ads+(v.ads===1?' ad':' ads')
+        + (v.winnaars ? (' · '+v.winnaars+(v.winnaars===1?' winner':' winners')) : '');
+    };
+    var chipDun=function(v){
+      return v.n+'x getest'+(v.best!=null?(' · beste ROAS '+v.best):'')+' · nog te dun voor een oordeel';
+    };
+    var blok=function(namen,label,chipVan,cls){
+      if(!namen.length) return '';
+      return '<div class="wgp-groep">'+label+'</div><div class="wgp-cards c2">'
+        + namen.map(function(a){
+            return wgpCard("wgpPick('angle','"+a.replace(/'/g,"\\'")+"')",a,'',chipVan(hist[a]),cls);
+          }).join('')
+        + '</div>';
+    };
+
+    var body = wgp.angleHist===null
+      ? '<div class="wgp-note">Testhistorie laden...</div><div class="wgp-cards c2">'
+        + CS_ANGLES.map(function(a){
+            return wgpCard("wgpPick('angle','"+a.replace(/'/g,"\\'")+"')",a,'','','');
+          }).join('') + '</div>'
+      : blok(bewezen,'Werkt bij deze persona',chipBewezen,'gold')
+        + blok(dun,'Geprobeerd, nog geen oordeel',chipDun,'')
+        + blok(nieuw,'Nog niet geprobeerd bij deze persona',function(){ return 'Nog niet getest'; },'new');
+
+    return '<div class="wgp-intro"><h3>De angle voor '+wgpEsc(wgp.sel.persona||'deze persona')+'</h3><p>Op volgorde van wat deze persona daadwerkelijk opleverde. Bovenaan staat alleen wat op genoeg advertenties rust; daaronder wat te dun is om iets te betekenen, en wat je nog niet geprobeerd hebt. Vraag Fable om angles in de klanttaal van deze persona.</p></div>'
+      + body + wgpFree('angle','Of eigen angle, het liefst als klanttaal-citaat...');
   }
   if(s==='format'){
     var cards = CS_FORMATS.filter(function(f){return f.cat==='Video';}).map(function(f){
@@ -583,18 +628,44 @@ function wgpLoadAngleHist(){
   wgp.angleHist=null;
   var sb=window._sb; var p=wgp.sel.persona;
   if(!sb||!window._authProfile||!p){ wgp.angleHist={}; return; }
-  sb.from('creatives').select('angle_type,roas').eq('brand',(typeof ACTIVE_BRAND!=='undefined')?ACTIVE_BRAND:'wellshave')
-    .ilike('persona','%'+p.replace(/[%,()]/g,'')+'%').limit(500)
-    .then(function(r){
-      var h={};
-      ((r&&r.data)||[]).forEach(function(row){
-        if(!row.angle_type) return;
-        if(!h[row.angle_type]) h[row.angle_type]={n:0,best:null};
-        h[row.angle_type].n++;
-        if(row.roas!=null && (h[row.angle_type].best==null || row.roas>h[row.angle_type].best)) h[row.angle_type].best=row.roas;
-      });
-      wgp.angleHist=h; if(wgp.step==='angle') wgpRender();
-    }).catch(function(){ wgp.angleHist={}; if(wgp.step==='angle') wgpRender(); });
+  var merk=(typeof ACTIVE_BRAND!=='undefined')?ACTIVE_BRAND:'wellshave';
+  var zoek='%'+p.replace(/[%,()]/g,'')+'%';
+  var klaar=function(h){ wgp.angleHist=h; if(wgp.step==='angle') wgpRender(); };
+  var leeg=function(){ return []; };
+
+  /* Twee bronnen, twee verschillende vragen.
+     hq_angle_learnings zegt wat een angle heeft OPGELEVERD: ROAS gewogen over
+     advertenties heen (eerst spend en omzet optellen, dan pas delen), en of dat
+     op genoeg data rust om iets te betekenen. Alleen beoordeelbare ads tellen mee.
+     creatives zegt hoe vaak je hem GEPROBEERD hebt, ook zonder oordeel — anders
+     ziet een angle die je gisteren getest hebt er onaangeroerd uit.
+     Het eerste bepaalt de volgorde, het tweede vult hem aan. */
+  Promise.all([
+    sb.from('hq_angle_learnings').select('angle_type,roas,aantal_ads,winnaars,betrouwbaar')
+      .eq('brand',merk).ilike('persona',zoek).limit(200)
+      .then(function(r){ return (r&&r.data)||[]; }, leeg),
+    sb.from('creatives').select('angle_type,roas').eq('brand',merk)
+      .ilike('persona',zoek).limit(500)
+      .then(function(r){ return (r&&r.data)||[]; }, leeg)
+  ]).then(function(res){
+    var h={};
+    var vak=function(a){
+      if(!h[a]) h[a]={ n:0, best:null, roas:null, ads:0, winnaars:0, betrouwbaar:false };
+      return h[a];
+    };
+    res[1].forEach(function(row){
+      if(!row.angle_type) return;
+      var v=vak(row.angle_type); v.n++;
+      if(row.roas!=null && (v.best==null || row.roas>v.best)) v.best=row.roas;
+    });
+    res[0].forEach(function(row){
+      if(!row.angle_type) return;
+      var v=vak(row.angle_type);
+      v.roas=row.roas; v.ads=row.aantal_ads||0;
+      v.winnaars=row.winnaars||0; v.betrouwbaar=!!row.betrouwbaar;
+    });
+    klaar(h);
+  }).catch(function(){ klaar({}); });
 }
 
 /* ---------- braindump ---------- */
@@ -699,7 +770,20 @@ function wgpContext(){
   if(wgp.step==='angle'){
     var p=(state.personas||[]).find(function(x){return x.name===wgp.sel.persona;});
     if(p){ c+='PERSONA-DETAIL '+p.name.toUpperCase()+':\n'; if(p.pains&&p.pains.length) c+='- pijn: '+p.pains.join(' | ')+'\n'; if(p.desires&&p.desires.length) c+='- wensen: '+p.desires.join(' | ')+'\n'; if(p.objections&&p.objections.length) c+='- bezwaren: '+p.objections.join(' | ')+'\n'; }
-    if(wgp.angleHist){ c+='TESTHISTORIE ANGLES BIJ DEZE PERSONA:\n'; Object.keys(wgp.angleHist).forEach(function(k){ c+='- '+k+': '+wgp.angleHist[k].n+'x, beste ROAS '+wgp.angleHist[k].best+'\n'; }); }
+    /* Fable krijgt hetzelfde beeld als het scherm, inclusief het onderscheid
+       tussen een gewogen oordeel en een losse uitschieter. Anders adviseert hij
+       op een ROAS van 5 die op één advertentie van één dag rust. */
+    if(wgp.angleHist){
+      c+='TESTHISTORIE ANGLES BIJ DEZE PERSONA:\n';
+      Object.keys(wgp.angleHist).forEach(function(k){
+        var v=wgp.angleHist[k];
+        c+='- '+k+': '+v.n+'x getest';
+        if(v.roas!=null) c+=', ROAS '+v.roas+' over '+v.ads+' beoordeelde ads'+(v.betrouwbaar?'':' (te dun voor een oordeel)');
+        if(v.winnaars) c+=', '+v.winnaars+' winner';
+        if(v.best!=null) c+=', beste losse ad ROAS '+v.best;
+        c+='\n';
+      });
+    }
   }
   if(wgp.step==='plan'){ var el=document.getElementById('wgp-hypo'); if(el&&el.value) c+='HUIDIGE HYPOTHESE:\n'+el.value+'\n'; }
   return c;

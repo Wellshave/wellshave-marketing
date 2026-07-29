@@ -37,6 +37,7 @@ champagne-gloed op het canvas, zodat zichtbaar is in welk merk je werkt.
 | `app/css/` | 12 stijlbestanden, genummerd op laadvolgorde |
 | `app/js/` | 28 scriptbestanden, genummerd op laadvolgorde |
 | `test/console-boot.cjs` | Opstarttest: start de console in Chromium en kijkt of hij heel is |
+| `test/wizard-angles.cjs` | Testlus voor de angle-volgorde in de testwizard |
 | `worker/atelier-proxy.worker.js` | Cloudflare Worker: `/anthropic` (Claude) + `/openai/*` (beeld). **Let op: gedeployed onder de naam `marketing-ads`**, niet `atelier-proxy`. |
 | `db/` | Supabase-schema en migraties (creatives, personas, products, rollen, RLS) |
 | `scripts/rory-daily-check.routine.js` | Dagelijkse Meta-check → `rory_recommendations` |
@@ -56,10 +57,11 @@ champagne-gloed op het canvas, zodat zichtbaar is in welk merk je werkt.
 Voor je deployt:
 
 ```
-npm run test:console
+npm run test:console   # start de console en kijkt of hij heel is
+npm run test:angles    # de angle-volgorde in de testwizard
 ```
 
-Start de console in een echte browser en controleert of hij zonder fouten opkomt,
+De eerste start de console in een echte browser en controleert of hij zonder fouten opkomt,
 of alle 85 onclick-functies bestaan en of alle 40 css- en js-bestanden laden. Zie
 `docs/CONSOLE-OPSPLITSING.md`.
 
