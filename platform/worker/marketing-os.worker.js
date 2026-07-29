@@ -1000,7 +1000,71 @@ async function logEvent(env, ctx, level, message, data) {
   }
 }
 
+/* ============================================================
+ * 5b. Systeemtaken
+ *
+ * Niet elk werk verdient een taalmodel. De terugkoppeling is optellen en delen:
+ * er is één juist antwoord, en een model kan er alleen iets aan verzinnen.
+ * Deze taken lopen door dezelfde wachtrij — met dezelfde logging, retries en
+ * zichtbaarheid — maar zonder Claude ertussen.
+ * ============================================================ */
+
+const SYSTEEMTAKEN = {
+  /* Stap 06: de cijfers per advertentie terug naar de creative waar hij uit
+     voortkwam, zodat de generator bij de volgende ronde begint bij wat werkt. */
+  async feedback_sync(env, ctx) {
+    const uit = await sbRpc(env, 'sync_creative_results', {});
+    await logEvent(env, ctx, 'info', 'Cijfers teruggeschreven naar de creatives', uit);
+
+    /* Wat er nu bekend is over hoeken, zodat het in de live-feed zichtbaar is
+       en niet alleen in een tabel die niemand opent. */
+    let patronen = [];
+    try {
+      patronen = await sbSelect(env, 'angle_learnings',
+        'betrouwbaar=eq.true&select=angle_type,persona,aantal_ads,roas&order=roas.desc&limit=5');
+      if (patronen.length) {
+        await logEvent(env, ctx, 'info',
+          `Beste hoek nu: ${patronen[0].angle_type} (ROAS ${patronen[0].roas} over ${patronen[0].aantal_ads} ads)`,
+          { patronen: patronen });
+      }
+    } catch (e) { /* de terugkoppeling zelf is gelukt; dit is alleen zicht */ }
+
+    return {
+      summary: `${uit.cijfers_bijgewerkt} creatives bijgewerkt met cijfers, `
+        + `${uit.status_bijgewerkt} van status veranderd`
+        + (patronen.length ? `. Sterkste hoek: ${patronen[0].angle_type}.` : '.'),
+      ...uit
+    };
+  }
+};
+
 async function runAgent(env, job) {
+  /* Systeemtaken eerst: die hebben geen agent-instructie nodig. */
+  if (SYSTEEMTAKEN[job.kind]) {
+    const ctx = { agentId: job.agent_id, jobId: job.id, runId: null };
+    const run = (await sbInsert(env, 'agent_runs', {
+      agent_id: job.agent_id, job_id: job.id, status: 'running', model: 'systeem'
+    }))[0];
+    ctx.runId = run.id;
+    await sbUpdate(env, 'agents', `id=eq.${job.agent_id}`, {
+      status: 'working', current_task: job.kind, last_run_at: new Date().toISOString()
+    });
+    try {
+      const uit = await SYSTEEMTAKEN[job.kind](env, ctx, job.payload || {});
+      await sbUpdate(env, 'agent_runs', `id=eq.${run.id}`, {
+        status: 'done', finished_at: new Date().toISOString(),
+        summary: uit.summary, input_tokens: 0, output_tokens: 0, cost_usd: 0
+      });
+      await sbUpdate(env, 'agents', `id=eq.${job.agent_id}`, { status: 'idle', current_task: null });
+      return uit;
+    } catch (e) {
+      await sbUpdate(env, 'agent_runs', `id=eq.${run.id}`, {
+        status: 'failed', finished_at: new Date().toISOString(), summary: String(e && e.message || e)
+      });
+      throw e;
+    }
+  }
+
   const agent = AGENTS[job.agent_id];
   if (!agent) throw new Error(`agent "${job.agent_id}" heeft nog geen runtime-instructie`);
 
@@ -1317,10 +1381,10 @@ export default {
       if (path === '/agents/run' && request.method === 'POST') {
         const body = await request.json().catch(() => ({}));
         const agentId = String(body.agent_id || '').toLowerCase();
-        if (!AGENTS[agentId]) {
+        if (!body.kind) return json({ error: 'kind is verplicht' }, 400);
+        if (!AGENTS[agentId] && !SYSTEEMTAKEN[body.kind]) {
           return json({ error: `onbekende agent "${agentId}"`, beschikbaar: Object.keys(AGENTS) }, 400);
         }
-        if (!body.kind) return json({ error: 'kind is verplicht' }, 400);
         const rij = (await sbInsert(env, 'agent_jobs', {
           agent_id: agentId,
           kind: String(body.kind),

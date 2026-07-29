@@ -10,14 +10,17 @@ eerst — hieronder staat alleen hoe je het aanzet.
 |---|---|
 | `docs/ARCHITECTUUR.md` | Blauwdruk: waar we vandaan komen, waar we heen gaan, in welke volgorde |
 | `docs/PUBLICEREN.md` | Stap 03 — hoe een creative een draaiende advertentie wordt |
+| `docs/TERUGKOPPELING.md` | Stap 06 — hoe het cijfer terugkomt bij de creatieve keuze |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
 | `db/migrations/0007_publiceren.sql` | Publicaties en de view die cijfer aan hypothese koppelt |
+| `db/migrations/0008_terugkoppeling.sql` | Cijfers terug naar de creatives, en wat over hoeken bekend is |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
 | `worker/test/publiceren.mjs` | Testlus voor de publiceerflow en de guardrail eromheen |
+| `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
 
 ## Status
 
@@ -28,6 +31,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Migraties 0004 + 0005 toegepast | ✅ 29 juli |
 | Databases samengevoegd | ✅ 29 juli — inhoud geverifieerd via md5 |
 | Publiceerflow gebouwd (0007 + runtime) | ✅ 29 juli — 30 controles groen |
+| Terugkoppeling gebouwd (0008 + systeemtaak) | ✅ 29 juli — rekenkant tegen echte Postgres gecontroleerd |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -116,7 +120,7 @@ module er is.
 
 | Agent | Draait | Opdrachten (`kind`) |
 |---|---|---|
-| Atlas | ✅ | `daily_report` |
+| Atlas | ✅ | `daily_report`, `feedback_sync` (systeemtaak, geen model) |
 | Bolt | ✅ | `creative_scorecard`, `publish_queue` |
 | Echo | ✅ | `flow_audit`, `campaign_plan` |
 | Radar | ✅ | `trend_scan` — beperkt, Trendtrack is nog niet server-side gekoppeld |
@@ -145,8 +149,9 @@ op staat, dan krijgt hij een nette weigering terug met de lijst die wél mag.
 ## Testen
 
 ```
-node platform/worker/test/smoke.mjs        # agent-runtime — 25 controles
-node platform/worker/test/publiceren.mjs   # publiceerflow — 30 controles
+node platform/worker/test/smoke.mjs           # agent-runtime — 25 controles
+node platform/worker/test/publiceren.mjs      # publiceerflow — 30 controles
+node platform/worker/test/terugkoppeling.mjs  # systeemtaak — 17 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.

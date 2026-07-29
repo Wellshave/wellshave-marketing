@@ -153,7 +153,8 @@ globalThis.__claim = true;
 const echteFetch2 = globalThis.fetch;
 globalThis.fetch = async (url, opts = {}) => {
   if (String(url).includes('rpc/claim_job')) {
-    const j = db.agent_jobs.find(x => x.status === 'queued');
+    /* Spiegelt claim_job uit 0004, inclusief scheduled_for. */
+    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } });
     j.status = 'running'; j.attempts++;
     return new Response(JSON.stringify(j), { status: 200, headers: { 'Content-Type': 'application/json' } });

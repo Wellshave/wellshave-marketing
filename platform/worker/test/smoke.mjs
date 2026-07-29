@@ -54,7 +54,9 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('/auth/v1/user')) return ok({ id: 'u1', email: 'dustin@wellshave.com' });
 
   if (url.includes('/rest/v1/rpc/claim_job')) {
-    const j = db.agent_jobs.find(x => x.status === 'queued');
+    /* Spiegelt claim_job uit 0004, inclusief scheduled_for: zonder dat pakt
+       één tick een teruggezette job meteen weer op. */
+    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return ok(null);
     j.status = 'running'; j.attempts++; j.locked_at = new Date().toISOString();
     return ok(j);
