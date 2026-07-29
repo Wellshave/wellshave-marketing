@@ -71,6 +71,24 @@ De genummerde markering mag hier, want de inhoud ís een volgorde: je kunt niet
 meten voor je gelanceerd hebt. (Bij een lijst die geen volgorde heeft, is
 nummeren decoratie — en dan mag het niet.)
 
+**Wat de referenties hieraan toevoegden**
+
+Twee van de vier referenties (Crextio, NL Corp) bevatten dezelfde kaart: een
+onboarding-lijst met vinkjes voor wat af is en grijze bollen voor wat nog komt.
+Dat is de estafette, alleen verticaal en zonder de agents erbij — een vorm die
+zichzelf al bewezen heeft. De estafette leent daarvan:
+
+- **een afgeronde stap krijgt een vinkje, geen kleurverschil alleen** — dat is
+  ook wat regel 4.4 eist
+- **de teller staat erbij** ("2/8" bij Crextio). Bij ons: hoeveel stappen van de
+  keten af zijn, zodat je in één blik ziet hoe ver iets is
+- **wie het deed hoort erbij**, zoals de gezichten bij NL Corp. Bij ons is dat de
+  agent
+
+Traxen droeg iets anders bij: op de kaart staat een **route van A naar B**, geen
+status op een moment. Dat is precies het verschil dat dit systeem moet maken. Een
+werkstuk is onderweg, en die weg is zichtbaar — ook het stuk dat nog komt.
+
 **Harde regels voor de estafette**
 
 1. Elk werkstuk toont zijn volledige keten, ook de stappen die nog niet gebeurd
@@ -159,6 +177,31 @@ snelste manier om iets amateuristisch te laten voelen.
 de onderbouwing. Details staan ingeklapt. (Dit is precies wat `v10-review` op main
 al goed doet.)
 
+## 6b. Vakmanschap — het afwerkingsniveau
+
+Uit de referenties overgenomen, want daar zijn ze allemaal goed in. Dit is het
+verschil tussen "werkt" en "hier is aandacht aan besteed".
+
+**Regel 6b.1** Hoekradius uit één schaal: 8px (chips, velden), 12px (kaarten),
+18px (panelen en pop-ups), 999px (pillen). Geen tussenmaten.
+
+**Regel 6b.2** Schaduw is zacht en dubbel: een haarscherpe rand van 1px plus een
+brede, lage schaduw. Nooit één harde slagschaduw. Op papier:
+`0 1px 2px rgba(22,21,15,.05), 0 8px 24px rgba(22,21,15,.05)`.
+
+**Regel 6b.3** Een cijfer dat ertoe doet staat groot in Fraunces met een klein
+label in kapitalen eronder — niet andersom. Het getal is de kop.
+
+**Regel 6b.4** Een verandering ten opzichte van de vorige periode toont richting
+in **vorm én woord**, niet in kleur alleen: `▲ 12% t.o.v. vorige maand`.
+
+**Regel 6b.5** Status is een chip met het woord erin ("Live", "Wacht op akkoord",
+"Gestopt"), zoals de referenties het doen. Een bolletje zonder tekst is geen
+status.
+
+**Regel 6b.6** De donkere zijbalk tegen het lichte canvas blijft. Dat is de
+opbouw die de console al heeft, en die twee van de vier referenties bevestigen.
+
 ## 7. Beweging
 
 **Regel 7.1** 150–300ms. Boven 500ms is het in de weg.
@@ -243,7 +286,44 @@ zodat je kunt bewijzen dat hij daarna nog hetzelfde doet.
 - **Het donkere thema.** Bestaat nu niet; als het komt, is dat een eigen ronde met
   eigen gemeten contrastwaarden.
 
-## 12. Waarom het gereedschap niet klakkeloos is gevolgd
+## 12. De referenties — wat is overgenomen en wat niet
+
+Vier dashboards aangeleverd: Traxen (vrachtvervoer, donker), Crextio (HR, warm
+licht), NL Corp (HR, crème met donkere zijbalk), Shopeers (e-commerce, wit met
+blauw).
+
+**Overgenomen**
+
+| Uit | Wat | Waar het landt |
+|---|---|---|
+| Crextio, NL Corp | de afvinkreeks met stappen, vinkjes en een teller | regel 3, de estafette |
+| Traxen | het traject van A naar B in plaats van een status op een moment | regel 3, de estafette |
+| alle vier | het afwerkingsniveau: radius, schaduw, chips, groot getal met klein label | regel 6b |
+| Crextio, NL Corp | warm palet met geel/amber accent, donkere zijbalk op licht canvas | bevestigt regel 2 |
+
+**Niet overgenomen, met reden**
+
+- **Het donkere thema van Traxen.** Besloten: Daylight blijft licht. Donker zou
+  elke gemeten contrastwaarde ongeldig maken en alle vijftien bestaande tabbladen
+  raken — en v6 ging juist bewust van donker naar licht.
+- **Het acid-groene accent.** Naast dat het botst met amber, is dat de tweede
+  look waar de `frontend-design`-skill voor waarschuwt.
+- **Het KPI-kaartraster als hoofdindeling.** Alle vier de referenties openen met
+  vier tegels met een groot getal. Prachtig gemaakt, maar je ziet er losse cijfers
+  en nooit dat er iets van hand tot hand gaat. Dat is precies de eis die dit
+  systeem wél moet halen. Losse cijfers mogen bestaan, maar niet als het
+  organiserende principe van het beginscherm.
+- **De widget-kiezer van Shopeers.** Besloten: niet doen. Pas zinvol als er
+  genoeg te kiezen valt, en het verplaatst een ontwerpkeuze naar de gebruiker
+  voordat we die keuze zelf goed hebben gemaakt.
+
+**Wat in geen van de vier zat.** Het zijn showcase-beelden: volle, perfecte data.
+Geen lege staat, geen fout, geen wachten. Bij een agentsysteem is dat juist een
+groot deel van wat er op het scherm staat — een agent die faalt, een keten die
+stilligt, een dag zonder data. Die staten zijn hier niet uit af te kijken en
+moeten we zelf goed doen. Zie regel 8.4.
+
+## 13. Waarom het gereedschap niet klakkeloos is gevolgd
 
 `ui-ux-pro-max` gaf op de eerste vraag roze (`#EC4899`) met Fredoka — een
 letter voor kinder-apps — en parallax-scroll. Dat is niet overgenomen: de zoekterm
