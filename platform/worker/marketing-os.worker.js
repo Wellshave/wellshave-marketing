@@ -153,16 +153,29 @@ const AGENTS = {
     tools: ['db_query', 'meta_insights', 'write_report', 'send_message', 'request_approval'],
     prompt: `Je bent Atlas, de data-analist. Jij bepaalt wat er werkelijk gebeurt in de cijfers.
 
+Je bent de eerste in de dagcyclus. Wat jij vaststelt is waar de rest van het
+team vandaag op verderwerkt; wat jij mist, mist iedereen.
+
 Bij kind = daily_report:
-1. Haal met meta_insights de cijfers op van gisteren én de drie dagen daarvoor
+1. Kijk eerst met db_query in meting_dekking welke dagen er zijn en welke
+   ontbreken. Dit gaat vóór het ophalen: je kunt pas zeggen dat er niets
+   ontbreekt als je gekeken hebt.
+2. Haal met meta_insights de cijfers op van gisteren én de drie dagen daarvoor
    (attributie loopt na, dus corrigeer die dagen).
-2. Kijk naar spend, ROAS, CPA, CTR, CPM en frequentie op accountniveau, en
+3. Kijk naar spend, ROAS, CPA, CTR, CPM en frequentie op accountniveau, en
    daarna naar de campagnes die het meest bewegen.
-3. Schrijf met write_report een dagrapport: wat is er veranderd, waardoor, en
+4. Schrijf met write_report een dagrapport: wat is er veranderd, waardoor, en
    wat is het één ding dat vandaag aandacht nodig heeft. Geen opsomming van
    alle getallen — een oordeel, onderbouwd met de getallen die ertoe doen.
-4. Zie je iets dat om actie vraagt (een campagne die wegloopt, een ad die
-   opeens instort), stuur dan send_message naar bolt of nova.`
+   Vul periode_start en periode_eind in, zet in cijfers de getallen waarop je
+   oordeelde, in signalen wat opviel, en in gaten de dagen uit stap 1 die
+   ontbraken. Rapporteer dát er iets ontbreekt; vul het nooit in.
+5. Zie je iets dat om actie vraagt (een campagne die wegloopt, een ad die
+   opeens instort), stuur dan send_message naar bolt of nova.
+
+Krijg je van write_report voorlopig=true terug, dan is dat geen suggestie maar
+een vaststelling: schrijf je samenvatting dan ook zo. Een rapport over de
+laatste drie dagen is nooit definitief, en een rapport met gaten evenmin.`
   },
 
   bolt: {
@@ -259,7 +272,9 @@ Bij kind = pipeline_sync:
    plaats van een fout, zodat de agent het zelf kan oplossen. */
 const LEESBAAR_HQ = ['agents', 'agent_runs', 'agent_messages', 'pipeline_items',
   'pipeline_events', 'reports', 'metrics_daily', 'approvals',
-  'meta_insights_daily', 'meta_recommendations', 'email_drafts', 'email_performance'];
+  'meta_insights_daily', 'meta_recommendations', 'email_drafts', 'email_performance',
+  /* 0012 — wat een agent over zichzelf en over zijn databasis mag weten */
+  'meting_dekking', 'agent_afspraken', 'agent_nakoming', 'atlas_dagrapport'];
 const LEESBAAR_PUBLIC = ['creatives', 'products', 'personas', 'brand_profile', 'ad_results'];
 
 const TOOLS = {
@@ -368,28 +383,56 @@ const TOOLS = {
   write_report: {
     schema: {
       name: 'write_report',
-      description: 'Leg een rapport vast. Dit is hoe je conclusie het team bereikt.',
+      description: 'Leg een rapport vast. Dit is hoe je conclusie het team bereikt. Naast het verhaal leg je vast waar het op rust: de periode, de cijfers, en wat er ontbrak.',
       input_schema: {
         type: 'object',
         properties: {
           kind: { type: 'string', enum: ['daily', 'trend_briefing', 'deep_dive', 'competitor'] },
           title: { type: 'string' },
           body_md: { type: 'string', description: 'Markdown. Begin met de conclusie, daarna de onderbouwing.' },
-          report_date: { type: 'string', description: 'JJJJ-MM-DD, default vandaag' }
+          report_date: { type: 'string', description: 'JJJJ-MM-DD, default vandaag' },
+          periode_start: { type: 'string', description: 'JJJJ-MM-DD — eerste dag waarover dit rapport gaat' },
+          periode_eind: { type: 'string', description: 'JJJJ-MM-DD — laatste dag waarover dit rapport gaat' },
+          cijfers: { type: 'object', description: 'De getallen waarop je oordeel rust, zoals je ze uit de tools kreeg. Verplicht bij kind=daily.' },
+          signalen: { type: 'array', description: 'Wat opviel. Per signaal {naam, richting: op|neer|vlak, waarde, toelichting}.', items: { type: 'object' } },
+          gaten: { type: 'array', description: 'Dagen of bronnen waarvoor geen data was. Noem ze; een gat is geen nul.', items: { type: 'string' } },
+          voorlopig: { type: 'boolean', description: 'Zet dit zelf op true als je twijfelt. Raakt de periode de laatste 72 uur, dan gebeurt het sowieso.' }
         },
         required: ['kind', 'title', 'body_md']
       }
     },
     async run(env, ctx, input) {
+      /* Een dagrapport zonder getallen is een mening met een datum erop. De
+         database weigert het ook, maar een nette weigering hier laat de agent
+         het herstellen in plaats van vastlopen op een 400. */
+      if (input.kind === 'daily' && (!input.cijfers || !Object.keys(input.cijfers).length)) {
+        return { error: 'een dagrapport heeft cijfers nodig — de getallen waarop je oordeel rust, uit je tools' };
+      }
       const row = {
         report_date: input.report_date || vandaag(),
         kind: input.kind,
         title: input.title,
         author_agent: ctx.agentId,
-        body_md: input.body_md
+        body_md: input.body_md,
+        periode_start: input.periode_start || null,
+        periode_eind: input.periode_eind || null,
+        cijfers: input.cijfers || {},
+        signalen: Array.isArray(input.signalen) ? input.signalen : [],
+        gaten: Array.isArray(input.gaten) ? input.gaten : [],
+        voorlopig: !!input.voorlopig
       };
       const out = await sbInsert(env, 'reports', row, { onConflict: 'report_date,kind,title' });
-      return { ok: true, report_id: out[0] && out[0].id };
+      const opgeslagen = out[0] || {};
+      /* Teruggeven wat de database ervan maakte. Zette hij `voorlopig` alsnog
+         aan, dan hoort de agent dat te weten voordat hij zijn samenvatting
+         schrijft — anders staat er "definitief" in het ene veld en "voorlopig"
+         in het andere. */
+      return {
+        ok: true,
+        report_id: opgeslagen.id,
+        voorlopig: opgeslagen.voorlopig,
+        voorlopig_reden: opgeslagen.voorlopig_reden || null
+      };
     }
   },
 

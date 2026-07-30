@@ -109,7 +109,10 @@ globalThis.fetch = async (url, opts = {}) => {
     if (beurt === 2) {
       return ok({
         stop_reason: 'tool_use', usage,
-        content: [{ type: 'tool_use', id: 't2', name: 'write_report', input: { kind: 'daily', title: 'Dagrapport', body_md: '# Test' } }]
+        /* De cijfers moeten mee sinds 0012: een dagrapport zonder getallen
+           wordt geweigerd. Dat die weigering werkt staat in atlas.mjs; hier
+           gaat het alleen om de lus die eromheen loopt. */
+        content: [{ type: 'tool_use', id: 't2', name: 'write_report', input: { kind: 'daily', title: 'Dagrapport', body_md: '# Test', periode_start: '2026-07-24', periode_eind: '2026-07-27', cijfers: { spend: 412.5 } } }]
       });
     }
     return ok({
