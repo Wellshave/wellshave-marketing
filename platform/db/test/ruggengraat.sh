@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Testlus voor migratie 0009 — de ruggengraat van de estafette.
+# Testlus voor migratie 0009 (de ruggengraat) en 0010 (de bezetting).
 #
 # Start een wegwerp-Postgres, bouwt een stand-in van het echte schema, draait de
 # migratie erop en controleert de regels die er echt toe doen. Raakt de
@@ -57,7 +57,9 @@ psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q <<'SQL' >/dev/null 2>&1
 create schema marketing_hq;
 create role authenticated; create role anon;
 create function marketing_hq.is_team_member() returns boolean language sql as $$ select true $$;
-create table marketing_hq.agents            (id text primary key, name text);
+create table marketing_hq.agents (id text primary key, name text not null, role text not null default '',
+  phase int not null default 1, status text not null default 'idle', current_task text,
+  last_run_at timestamptz, created_at timestamptz not null default now());
 create table marketing_hq.agent_runs        (id bigint generated always as identity primary key, agent_id text);
 create table marketing_hq.approvals         (id bigint generated always as identity primary key, titel text);
 create table marketing_hq.reports           (id bigint generated always as identity primary key, author_agent text);
@@ -99,7 +101,13 @@ if ! psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -f "
   psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG" 2>&1 | grep -E '^psql:' | head -3
   exit 1
 fi
-echo "  (migratie draaide zonder fout)"
+MIG10="$(dirname "$MIG")/0010_bezetting.sql"
+if ! psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -f "$MIG10" >/dev/null 2>&1; then
+  echo "  FOUT migratie 0010 draait niet:"
+  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG10" 2>&1 | grep -E '^psql:' | head -3
+  exit 1
+fi
+echo "  (0009 en 0010 draaiden zonder fout)"
 echo
 
 # ── wat de backfill moet opleveren ────────────────────────────────────────
@@ -169,6 +177,44 @@ check "de nieuwe kolom is nullable"  "YES" \
   "$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c \
      "select is_nullable from information_schema.columns
       where table_schema='public' and table_name='creatives' and column_name='werkstuk_id'" 2>/dev/null | tr -d ' ')"
+
+
+# ── de negen agents op hun plek (0010) ────────────────────────────────────
+echo
+echo "  de bezetting"
+check "alle negen agents hebben een regel" 9 \
+  "$(q 'select count(distinct id) from marketing_hq.agent_bezetting')"
+check "vijf zijn operationeel, vier zijn alleen een profiel" "5|4" \
+  "$(q "select count(*) filter (where operationeel)||'|'||count(*) filter (where not operationeel)
+        from marketing_hq.agents")"
+check "station 3 heeft er twee: beeld en tekst" "pixel,quill" \
+  "$(q "select string_agg(agent_id,',' order by agent_id) from marketing_hq.agent_stations where station=3")"
+check "station 6 heeft er twee: e-mail en landingspagina" "echo,vector" \
+  "$(q "select string_agg(agent_id,',' order by agent_id) from marketing_hq.agent_stations where station=6")"
+check "Sage staat bewust in geen enkel station" 0 \
+  "$(q "select count(*) from marketing_hq.agent_stations where agent_id='sage'")"
+check "elk station heeft precies een primaire agent" 6 \
+  "$(q 'select count(*) from marketing_hq.agent_stations where primair')"
+# twee primairen op een station moet de database weigeren
+check "een tweede primair op hetzelfde station wordt geweigerd" "ja" \
+  "$(case "$(qerr "update marketing_hq.agent_stations set primair=true where agent_id='quill'")" in
+      *"duplicate key"*|*"unique constraint"*) echo ja ;; *) echo nee ;; esac)"
+# Bestaande werkstukken hadden een gat bij station 3: die kolom kon maar een
+# agent bevatten en het zijn er daar twee. 0010 dicht dat.
+check "bestaande werkstukken hebben nu ook Pixel op station 3" 0 \
+  "$(q "select count(*) from marketing_hq.werkstuk_stappen
+        where station=3 and status='open' and agent_id is null")"
+# En de trigger haalt hem voortaan uit agent_stations, niet uit een losse kolom.
+NIEUW=$(q "insert into marketing_hq.werkstukken (titel) values ('Triggertest') returning id")
+check "een nieuw werkstuk krijgt Pixel op station 3" "pixel" \
+  "$(q "select agent_id from marketing_hq.werkstuk_stappen where werkstuk_id=$NIEUW and station=3")"
+check "en Echo op station 6" "echo" \
+  "$(q "select agent_id from marketing_hq.werkstuk_stappen where werkstuk_id=$NIEUW and station=6")"
+check "en Radar op station 1" "radar" \
+  "$(q "select agent_id from marketing_hq.werkstuk_stappen where werkstuk_id=$NIEUW and station=1")"
+check "de oude dubbele kolom is weg" 0 \
+  "$(q "select count(*) from information_schema.columns where table_schema='marketing_hq'
+        and table_name='werkstuk_stations' and column_name='standaard_agent'")"
 
 echo
 if [ "$fout" -eq 0 ]; then echo "  Alle controles geslaagd"; else echo "  $fout controle(s) mislukt"; fi
