@@ -6,7 +6,63 @@ elke regel hieronder is toetsbaar, en waar dat kan wordt hij ook getoetst.
 Dit document gaat vóór op smaak, ook op de mijne. Wijkt een scherm hiervan af,
 dan is dat een fout in het scherm, niet in dit document.
 
-Status: **concept, wacht op akkoord.** Er wordt niets gebouwd tot dat er is.
+Status: **akkoord, 30 juli 2026.** Bij dat akkoord is ontwerpprincipe 0
+toegevoegd; de rest is ongewijzigd op vier plekken na waar dat principe een
+bestaande regel aanscherpt (3.3, 6.3, 8.5, §12).
+
+---
+
+## 0. Ontwerpprincipe 0 — Beslissingen boven dashboards
+
+Marketing HQ is geen dashboard.
+
+Marketing HQ is een Marketing Operating System.
+
+Iedere pagina moet de gebruiker helpen een betere beslissing te nemen. Data
+zonder context is geen eindresultaat. Iedere belangrijke metriek, melding of
+AI-analyse moet leiden tot een logische vervolgstap of aanbeveling.
+
+Vraag jezelf bij iedere nieuwe interface af:
+
+> **"Welke beslissing helpt dit scherm de gebruiker vandaag nemen?"**
+
+Als het antwoord ontbreekt, hoort die informatie daar niet thuis.
+
+**Waarom dit boven de rest staat.** Alles hierna gaat over hóe iets eruitziet en
+zich gedraagt: contrast, ritme, beweging, vakmanschap. Dit gaat over of het er
+überhaupt hoort te staan. Een scherm kan elke andere regel in dit document halen
+en alsnog waardeloos zijn, omdat het netjes vertelt hoe het gaat zonder ooit te
+zeggen wat je ermee moet.
+
+Dat is ook het verschil dat de estafette al maakt (regel 3): daar is elke stap
+óf af, óf hij wacht op iemand. Een station dat op jou wacht is een beslissing die
+klaarligt. Principe 0 tilt die eigenschap van dat ene scherm naar alle schermen.
+
+**Hoe je het toetst**
+
+**Regel 0.1** Elk scherm draagt één beslisvraag, opgeschreven vóór de eerste
+regel code — in dit contract of in de pull request. Staat er geen beslisvraag,
+dan wordt het scherm niet gebouwd. Twee beslisvragen op één scherm betekent
+meestal twee schermen.
+
+**Regel 0.2** Elke metriek die prominent staat — een groot getal, een chip, een
+waarschuwing — heeft een zichtbaar antwoord op "en nu?". Dat antwoord is een
+vervolgstap, een aanbeveling, of expliciet *nog niets, want …*. Een getal zonder
+vervolg is decoratie.
+
+**Regel 0.3** Een aanbeveling noemt de eerstvolgende handeling met naam en id.
+"Pauzeer de onderpresteerders" is geen aanbeveling. "Zet C3 - Social Proof
+(`120252206202030577`) uit — ROAS 0,81 en CTR 0,92%, beide onder de mediaan" wel.
+
+**Regel 0.4** Waar het systeem niets kan aanbevelen, zégt het dat, met de reden.
+"Te weinig soortgenoten voor een vergelijking" is een geldige uitkomst; een leeg
+vlak is dat niet. Niets doen is ook een beslissing, maar alleen als je weet
+waarom.
+
+**Regel 0.5** Historie hoort bij een beslissing, niet naast een beslissing. Een
+verloop, een tijdlijn of een log staat er omdat het de keuze van vandaag
+onderbouwt — anders staat het er niet, of het staat ingeklapt onder de conclusie
+die eruit volgt (regel 6.3).
 
 ---
 
@@ -96,7 +152,8 @@ werkstuk is onderweg, en die weg is zichtbaar — ook het stuk dat nog komt.
 2. Elke voltooide stap toont **wie** het deed en **wanneer**, en is aanklikbaar
    naar wat er toen besloten is.
 3. De actieve stap toont waaróp gewacht wordt, in mensentaal. Niet "pending"
-   maar "nog 1 dag tot beoordeelbaar".
+   maar "nog 1 dag tot beoordeelbaar". Wacht de stap op jóu, dan staat de
+   handeling erbij — dat is de beslissing die op dat moment klaarligt (regel 0.2).
 4. Er is altijd een zichtbaar eindpunt. Een keten zonder eindpunt is een feed,
    en dat is precies wat dit niet moet worden.
 5. De live-feed (`agent_events`) is de textuur van deze keten, geen eigen scherm.
@@ -312,6 +369,10 @@ snelste manier om iets amateuristisch te laten voelen.
 de onderbouwing. Details staan ingeklapt. (Dit is precies wat `v10-review` op main
 al goed doet.)
 
+Het oordeel is niet het eindpunt maar de opmaat: eronder staat wat het betekent
+voor vandaag (regel 0.2). Een scherm dat opent met een conclusie en daar stopt,
+is nog steeds een dashboard.
+
 ## 6b. Vakmanschap — het afwerkingsniveau
 
 Uit de referenties overgenomen, want daar zijn ze allemaal goed in. Dit is het
@@ -369,7 +430,8 @@ Dit is de bestaande guardrail; het ontwerp moet hem tonen, niet verbergen.
 volgende poging is. Stil falen is de ergste uitkomst.
 
 **Regel 8.5** Cijfers waar een oordeel op rust, tonen waaróp ze rusten. "ROAS 4,1
-over 6 advertenties", niet "ROAS 4,1". Een getal zonder noemer is een mening.
+over 6 advertenties", niet "ROAS 4,1". Een getal zonder noemer is een mening — en
+een getal zonder vervolgstap is decoratie (regel 0.2). Allebei moeten erbij.
 
 ## 9. Eén laag, geen twaalfde
 
@@ -448,6 +510,10 @@ blauw).
   en nooit dat er iets van hand tot hand gaat. Dat is precies de eis die dit
   systeem wél moet halen. Losse cijfers mogen bestaan, maar niet als het
   organiserende principe van het beginscherm.
+
+  Ontwerpprincipe 0 maakt scherper waaróm. Zo'n raster beantwoordt "hoe staan we
+  ervoor" en stopt daar. De vraag die dit systeem moet beantwoorden is "wat moet
+  ik vandaag doen", en dat is een andere vraag met een ander scherm.
 - **De widget-kiezer van Shopeers.** Besloten: niet doen. Pas zinvol als er
   genoeg te kiezen valt, en het verplaatst een ontwerpkeuze naar de gebruiker
   voordat we die keuze zelf goed hebben gemaakt.
