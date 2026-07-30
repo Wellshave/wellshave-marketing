@@ -1,7 +1,8 @@
 # Atlas — Data-analyst
 
 **Station:** ⑤ meting (primair) · **Fase:** 1 — operationeel
-**Cadans:** dagelijks 05:00 UTC (`daily_report`) en 05:40 UTC (`feedback_sync`)
+**Cadans:** dagelijks 05:00 UTC (`daily_report`) en 05:40 UTC (`feedback_sync`),
+wekelijks maandag 06:00 UTC (`account_audit`)
 
 ## Missie
 Atlas is de waarheid van het team. Hij is de eerste in de dagcyclus: wat hij
@@ -18,6 +19,8 @@ dagrapport: wat gebeurde er, wat betekent het, en waar moet het team op letten.
 - De gemeten cijfers per advertentie terugzetten op de creative waar hij uit
   voortkwam (`feedback_sync`), zodat de generator bij de volgende ronde begint
   bij wat werkt.
+- Wekelijks een accountaudit: de trechter met afhaakpunten, het publiek per
+  segment, en per advertentie een oordeel op twee signalen (`account_audit`).
 - Afwijkingen signaleren (dalende ROAS, stijgende CPA, afwijkend
   verzendgedrag) met context, niet alleen cijfers.
 
@@ -36,6 +39,8 @@ huisregel: een agent kan er niet omheen praten.
 | Een gat in de reeks maakt de conclusie voorlopig | dezelfde trigger | Idem, met het aantal gaten in de reden |
 | Geen dagrapport zonder de cijfers waarop het rust | `reports_dagrapport_heeft_cijfers` + `write_report` | Nette weigering; hij kan het in dezelfde run herstellen |
 | Nooit interpoleren | view `meting_dekking` | Hij kan zien wélke dagen ontbreken, dus "er ontbreekt niets" is een waarneming en geen aanname |
+| Geen oordeel onder de drempel | view `advertentie_scorekaart` | Onder €50 of 1.000 vertoningen komt er geen oordeel maar de reden waarom niet |
+| Nooit stoppen op één signaal | dezelfde view | 'stoppen' vraagt onder de mediaan **én** onder break-even; hoge CTR met lage ROAS wordt een diagnose, geen kill |
 | Geen budgetadvies als uitgevoerde actie | toolset | Er bestaat geen tool die geld uitgeeft; alles naar buiten gaat via `request_approval` |
 
 Daarnaast gelden de globale regels in [`GUARDRAILS.md`](GUARDRAILS.md).
@@ -53,6 +58,12 @@ rekenen is:
 | `signalen` | Wat opviel — `{naam, richting, waarde, toelichting}` |
 | `gaten` | Dagen of bronnen waarvoor geen data was |
 | `voorlopig` + `voorlopig_reden` | Gezet door de database, niet door Atlas |
+
+`account_audit` levert een rapport van kind `audit`. Het rekenwerk komt uit
+`trechter`, `publiek_verzadiging` en `advertentie_scorekaart` — die zijn
+getest, zijn hoofdrekenen niet. Wat Meta niet teruggeeft (kwaliteitsrangschikking,
+industriebenchmark) gaat mee in `gaten`, en het veld `signalen` zegt op hoeveel
+signalen een oordeel rust.
 
 `feedback_sync` levert geen tekst maar een verplaatsing: cijfers van de
 advertentie terug op de creative. Dat is rekenwerk, dus er komt geen taalmodel
@@ -77,3 +88,9 @@ en zeggen niets over deze runtime.
 ## Getest
 - `platform/db/test/atlas.sh` — 32 controles op de guardrails en de views
 - `platform/worker/test/atlas.mjs` — 19 controles op de runtime eromheen
+- `platform/db/test/audit.sh` — 37 controles op de auditberekening, met de
+  echte cijfers van Wellshave® als fixture
+- `platform/worker/test/audit.mjs` — 20 controles op de auditopdracht
+
+De eerste audit staat in
+[`../audits/2026-07-30-wellshave.md`](../audits/2026-07-30-wellshave.md).

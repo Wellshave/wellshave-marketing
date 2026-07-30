@@ -197,7 +197,7 @@ check('en de weigering noemt de tabellen die wél mogen',
   geweigerd.toegestaan.includes('meting_dekking'), true);
 check('meting_dekking wel', uitkomstVan(claudeAanroepen[1], 't1').aantal, 4);
 const tools = claudeAanroepen[0].tools.map(t => t.name).sort();
-check('Atlas houdt zijn eigen toolset', tools, ['db_query', 'meta_insights', 'request_approval', 'send_message', 'write_report']);
+check('Atlas houdt zijn eigen toolset', tools, ['db_query', 'meta_insights', 'meta_publiek', 'request_approval', 'send_message', 'write_report']);
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : '\nAlle controles geslaagd');
 process.exit(fouten ? 1 : 0);

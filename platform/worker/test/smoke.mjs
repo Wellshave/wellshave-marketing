@@ -188,7 +188,7 @@ check('de tools zijn als event gelogd', db.agent_events.some(e => e.message === 
 
 /* Guardrail: een agent mag alleen zijn eigen tools zien. */
 const atlasTools = claudeAanroepen[0].tools.map(t => t.name);
-check('Atlas krijgt zijn eigen toolset', atlasTools.sort(), ['db_query', 'meta_insights', 'request_approval', 'send_message', 'write_report']);
+check('Atlas krijgt zijn eigen toolset', atlasTools.sort(), ['db_query', 'meta_insights', 'meta_publiek', 'request_approval', 'send_message', 'write_report']);
 check('en géén tool die iets naar buiten stuurt', atlasTools.some(n => /send_email|update_budget|launch/.test(n)), false);
 
 function dagenTerug(d) { return Math.floor((Date.now() - new Date(d + 'T00:00:00Z')) / 86400000); }

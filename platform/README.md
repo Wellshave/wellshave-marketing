@@ -23,13 +23,16 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0012_atlas.sql` | Atlas: zijn afspraak, zijn guardrails als trigger, zijn output en nakoming |
 | `db/test/ruggengraat.sh` | Testlus voor 0009 + 0010 — 34 controles |
 | `db/test/tracker.sh` | Testlus voor 0011 — 19 controles op een gecontroleerde reeks |
+| `db/migrations/0013_audit.sql` | Trechter, publiek per segment, scorekaart op twee signalen |
 | `db/test/atlas.sh` | Testlus voor 0012 — 32 controles, elk begint met iets wat niet mag |
+| `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
 | `worker/test/publiceren.mjs` | Testlus voor de publiceerflow en de guardrail eromheen |
 | `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
 | `worker/test/atlas.mjs` | Testlus voor Atlas' kant in de runtime — 19 controles |
+| `worker/test/audit.mjs` | Testlus voor de auditopdracht — 20 controles |
 
 ## Status
 
@@ -44,6 +47,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Ruggengraat + bezetting (0009, 0010) | ✅ 29 juli — 34 controles, toegepast op productie |
 | Datalaag test tracker (0011) | ✅ 29 juli — 19 controles, toegepast op productie |
 | Atlas uitgewerkt (0012 + runtime) | ✅ 30 juli — 51 controles, toegepast op productie |
+| Auditopdracht (0013 + runtime) | ✅ 30 juli — 57 controles, toegepast op productie |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -132,7 +136,7 @@ module er is.
 
 | Agent | Draait | Opdrachten (`kind`) |
 |---|---|---|
-| Atlas | ✅ uitgewerkt | `daily_report`, `feedback_sync` (systeemtaak, geen model) |
+| Atlas | ✅ uitgewerkt | `daily_report`, `feedback_sync` (systeemtaak, geen model), `account_audit` |
 | Bolt | ✅ | `creative_scorecard`, `publish_queue` |
 | Echo | ✅ | `flow_audit`, `campaign_plan` |
 | Radar | ✅ | `trend_scan` — beperkt, Trendtrack is nog niet server-side gekoppeld |
@@ -166,6 +170,8 @@ node platform/worker/test/publiceren.mjs      # publiceerflow — 30 controles
 node platform/worker/test/terugkoppeling.mjs  # systeemtaak — 17 controles
 node platform/worker/test/atlas.mjs           # Atlas in de runtime — 19 controles
 bash platform/db/test/atlas.sh                # Atlas tegen echte Postgres — 32 controles
+node platform/worker/test/audit.mjs           # de auditopdracht — 20 controles
+bash platform/db/test/audit.sh                # de auditberekening — 37 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.

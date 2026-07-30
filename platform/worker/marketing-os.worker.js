@@ -150,7 +150,7 @@ const AGENTS = {
   atlas: {
     naam: 'Atlas',
     rol: 'Data-analyst',
-    tools: ['db_query', 'meta_insights', 'write_report', 'send_message', 'request_approval'],
+    tools: ['db_query', 'meta_insights', 'meta_publiek', 'write_report', 'send_message', 'request_approval'],
     prompt: `Je bent Atlas, de data-analist. Jij bepaalt wat er werkelijk gebeurt in de cijfers.
 
 Je bent de eerste in de dagcyclus. Wat jij vaststelt is waar de rest van het
@@ -172,6 +172,36 @@ Bij kind = daily_report:
    ontbraken. Rapporteer dát er iets ontbreekt; vul het nooit in.
 5. Zie je iets dat om actie vraagt (een campagne die wegloopt, een ad die
    opeens instort), stuur dan send_message naar bolt of nova.
+
+Bij kind = account_audit (wekelijks):
+1. Haal met meta_insights de cijfers op campagne- en advertentieniveau over
+   30 dagen, en met meta_publiek de uitsplitsing per segment. Die laatste is
+   niet optioneel: een frequentie die op accountniveau gezond lijkt kan op één
+   segment ver doorgeslagen zijn, en dat zie je nergens anders.
+2. Lees daarna met db_query de drie views die het rekenwerk al gedaan hebben:
+   trechter, publiek_verzadiging en advertentie_scorekaart. Reken die getallen
+   niet zelf na en overschrijf ze niet — ze zijn getest, jouw hoofdrekenen niet.
+3. Kijk eerst naar de trechter. Waar lekt het, en is dat lek van deze campagne
+   of van het hele account? De kolom zwakste_stap zegt waar deze campagne het
+   slechter doet dan zijn soortgenoten, niet waar de meeste mensen afhaken —
+   dat laatste is bijna altijd bovenin en zegt niets.
+4. Staat er een waarschuwing bij een campagne, behandel die dan vóór het
+   oordeel. Een pixel die ViewContent niet vuurt maakt elke conclusie over de
+   bovenkant van die trechter waardeloos, en dat moet in je rapport staan als
+   gat, niet als bevinding.
+5. De scorekaart geeft per advertentie een oordeel of de reden waarom er geen
+   is. Neem beide over. 'materiaal werkt, bestemming niet' is een diagnose en
+   geen zwak 'stoppen' — een advertentie die doorklikt maar niet omzet vertelt
+   je dat het probleem achter de klik zit.
+6. Schrijf met write_report een rapport van kind audit: de trechter met de
+   afhaakpunten, het publiek per segment, en per advertentie het oordeel. Zet
+   in gaten wat je niet hebt kunnen meten. Sluit af met wat er als eerste moet
+   gebeuren, met naam en id erbij — niet "pauzeer de onderpresteerders".
+
+Wat je niet kunt zien, verzin je niet. Meta's kwaliteitsrangschikking en de
+industriebenchmark komen voor dit account meestal leeg terug; de scorekaart
+werkt daarom op twee signalen tegen onze eigen mediaan. Het veld signalen zegt
+hoeveel het er waren. Schrijf nooit over drie signalen als het er twee zijn.
 
 Krijg je van write_report voorlopig=true terug, dan is dat geen suggestie maar
 een vaststelling: schrijf je samenvatting dan ook zo. Een rapport over de
@@ -274,7 +304,9 @@ const LEESBAAR_HQ = ['agents', 'agent_runs', 'agent_messages', 'pipeline_items',
   'pipeline_events', 'reports', 'metrics_daily', 'approvals',
   'meta_insights_daily', 'meta_recommendations', 'email_drafts', 'email_performance',
   /* 0012 — wat een agent over zichzelf en over zijn databasis mag weten */
-  'meting_dekking', 'agent_afspraken', 'agent_nakoming', 'atlas_dagrapport'];
+  'meting_dekking', 'agent_afspraken', 'agent_nakoming', 'atlas_dagrapport',
+  /* 0013 — het rekenwerk onder de audit, al getest en dus niet zelf natellen */
+  'trechter', 'publiek_verzadiging', 'advertentie_scorekaart', 'meta_publiek'];
 const LEESBAAR_PUBLIC = ['creatives', 'products', 'personas', 'brand_profile', 'ad_results'];
 
 const TOOLS = {
@@ -342,6 +374,45 @@ const TOOLS = {
     }
   },
 
+  meta_publiek: {
+    schema: {
+      name: 'meta_publiek',
+      description: 'Haal spend en bereik op per publiekssegment (prospecting, engaged, existing). Alleen lezen. Dit is de enige manier om verzadiging per doelgroep te zien: een frequentie die op accountniveau gezond lijkt kan op één segment ver doorgeslagen zijn.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          days: { type: 'integer', description: 'Aantal dagen terug, 1-90. Default 30.' }
+        }
+      }
+    },
+    async run(env, ctx, input) {
+      if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
+        return { error: 'Meta is niet gekoppeld op deze worker. Werk verder met wat er in meta_publiek staat.' };
+      }
+      const days = Math.min(Math.max(Number(input.days) || 30, 1), 90);
+      let rijen;
+      try {
+        rijen = await metaPubliek(env, days);
+      } catch (e) {
+        /* Deze uitsplitsing is niet op elk account beschikbaar. Dat is een gat
+           in de meting, geen storing — de agent moet het kunnen melden in
+           plaats van erop vastlopen. */
+        return { error: `de uitsplitsing naar publiek kwam niet terug: ${String(e && e.message || e)}`,
+                 gat: 'publiek per segment' };
+      }
+      if (!rijen.length) {
+        return { aantal: 0, gat: 'publiek per segment',
+                 opmerking: 'Meta gaf geen segmentregels terug voor dit venster' };
+      }
+      try {
+        await sbInsert(env, 'meta_publiek', rijen, { onConflict: 'account_id,van,tot,segment' });
+      } catch (e) {
+        await logEvent(env, ctx, 'warn', 'Publiek ophalen lukte, wegschrijven niet', { fout: String(e) });
+      }
+      return { periode_dagen: days, aantal: rijen.length, rijen: rijen };
+    }
+  },
+
   klaviyo_read: {
     schema: {
       name: 'klaviyo_read',
@@ -387,7 +458,7 @@ const TOOLS = {
       input_schema: {
         type: 'object',
         properties: {
-          kind: { type: 'string', enum: ['daily', 'trend_briefing', 'deep_dive', 'competitor'] },
+          kind: { type: 'string', enum: ['daily', 'audit', 'trend_briefing', 'deep_dive', 'competitor'] },
           title: { type: 'string' },
           body_md: { type: 'string', description: 'Markdown. Begin met de conclusie, daarna de onderbouwing.' },
           report_date: { type: 'string', description: 'JJJJ-MM-DD, default vandaag' },
@@ -707,6 +778,12 @@ async function metaInsights(env, level, days, perDag) {
       add_to_cart: metaActie(acties, 'add_to_cart') || metaActie(acties, 'omni_add_to_cart'),
       initiate_checkout: metaActie(acties, 'initiate_checkout') || metaActie(acties, 'omni_initiated_checkout'),
       landing_page_views: metaActie(acties, 'landing_page_view'),
+      /* Twee stappen die de audit van 30 juli miste. ViewContent is de
+         belangrijkste: staat die ver onder landing_page_views, dan vuurt de
+         pixel op de bestemming niet en is de hele bovenkant van de trechter
+         onbruikbaar. Bij één campagne stonden er 37 tegenover 477. */
+      view_content: metaActie(acties, 'view_content') || metaActie(acties, 'omni_view_content'),
+      add_payment_info: metaActie(acties, 'add_payment_info') || metaActie(acties, 'omni_add_payment_info'),
       video_3s: metaActie(row.video_3_sec_watched_actions, 'video_view'),
       quality_ranking: row.quality_ranking || null,
       engagement_rate_ranking: row.engagement_rate_ranking || null,
@@ -1041,6 +1118,36 @@ async function logEvent(env, ctx, level, message, data) {
   } catch (e) {
     console.error('agent_events schrijven mislukt:', e);
   }
+}
+
+/* De uitsplitsing naar publiek. Apart van metaInsights omdat de korrel anders
+   is: geen dagen maar één venster, want bereik is ontdubbeld binnen de periode
+   die je opvraagt en dus niet over dagen op te tellen.
+
+   Meta geeft bij deze uitsplitsing geen conversies terug. Dat hoeft ook niet —
+   waar het om gaat is vertoningen gedeeld door bereik, en dat is de maat die
+   een accountgemiddelde wegpoetst. */
+async function metaPubliek(env, days) {
+  const p = new URLSearchParams({
+    access_token: env.META_ACCESS_TOKEN,
+    level: 'account',
+    fields: 'spend,impressions,reach',
+    breakdowns: 'user_segment_key',
+    date_preset: 'last_' + days + 'd',
+    limit: '50'
+  });
+  const r = await fetch(`${META_API}/${env.META_AD_ACCOUNT_ID}/insights?${p}`);
+  const data = await r.json();
+  if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
+  return (data.data || []).map(row => ({
+    account_id: env.META_AD_ACCOUNT_ID,
+    van: row.date_start,
+    tot: row.date_stop,
+    segment: row.user_segment_key || 'onbekend',
+    spend: Number(row.spend) || 0,
+    impressions: Number(row.impressions) || 0,
+    reach: Number(row.reach) || null
+  }));
 }
 
 /* ============================================================
