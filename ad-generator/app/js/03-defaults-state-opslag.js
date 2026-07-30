@@ -499,8 +499,16 @@ function wgpScreen(){
        bewezen  genoeg data voor een oordeel (>= 3 ads, >= EUR 300) -> op gewogen ROAS
        dun      wel geprobeerd, te weinig om iets te betekenen -> op beste losse ad
        nieuw    nog niet geprobeerd bij deze persona -> eigen volgorde van CS_ANGLES */
+    /* Vrije waarden tellen mee. In de data staan angles die niet in CS_ANGLES
+       voorkomen ('comparison', 'premium'); vóór deze regel werd hun historie
+       wel opgehaald maar nooit getoond, dus leerde je er niets van terwijl je
+       er wel geld aan uitgaf. Ze komen achter de vaste lijst, want die volgorde
+       is een bewuste keuze en de rest is toeval. */
+    var alle = CS_ANGLES.slice();
+    Object.keys(hist).forEach(function(a){ if(alle.indexOf(a)===-1) alle.push(a); });
+
     var bewezen=[], dun=[], nieuw=[];
-    CS_ANGLES.forEach(function(a){
+    alle.forEach(function(a){
       var st=hist[a];
       if(st && st.betrouwbaar && st.roas!=null) bewezen.push(a);
       else if(st && st.n) dun.push(a);
@@ -1062,9 +1070,18 @@ function csNewRow() {
   csRenderDetail();
 }
 
+/* De huidige waarde hoort er altijd bij te staan, ook als hij niet in de lijst
+   voorkomt. Zonder deze regel toont het veld leeg bij een waarde als
+   'comparison' of 'premium', en overschrijft de eerstvolgende Opslaan die
+   waarde met niets — stille dataverlies bij iemand die alleen een score
+   invulde. Vrije waarden zijn toegestaan; dan moeten ze ook overleven. */
 function csSelOpts(list, cur) {
   var h = '<option value=""></option>';
-  list.forEach(function (x) { var v = (typeof x === 'string') ? x : x.name; h += '<option value="' + csEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + csEsc(v) + '</option>'; });
+  var namen = list.map(function (x) { return (typeof x === 'string') ? x : x.name; });
+  if (cur && namen.indexOf(cur) === -1) {
+    h += '<option value="' + csEsc(cur) + '" selected>' + csEsc(cur) + ' (eigen waarde)</option>';
+  }
+  namen.forEach(function (v) { h += '<option value="' + csEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + csEsc(v) + '</option>'; });
   return h;
 }
 

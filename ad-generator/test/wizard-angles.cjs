@@ -107,7 +107,48 @@ const check = (label, echt, verwacht) => {
   if (!uit.groepen.length || uit.groepen.every(g => !g.kaarten.length)) {
     console.log('  De kaarten zijn niet uit te lezen — selector klopt niet.');
     console.log('  ruwe html:', uit.ruw);
-    await browser.close(); srv.close(); process.exit(1);
+    /* De werkelijkheid op 30 juli: alle drie de creatives met een angle dragen
+     een waarde die NIET in CS_ANGLES staat — 'premium' en 'comparison'. Vóór
+     deze controle werd hun historie wel opgehaald en daarna weggegooid, dus
+     leerde de wizard niets van geld dat wel was uitgegeven. */
+  console.log('\n  vrije angles uit de echte data');
+  const vrij = await lees({
+    hq_angle_learnings: [
+      { angle_type: 'premium', roas: 5.2, aantal_ads: 4, winnaars: 2, betrouwbaar: true }
+    ],
+    creatives: [
+      { angle_type: 'premium',    roas: 5.2 },
+      { angle_type: 'premium',    roas: 4.8 },
+      { angle_type: 'comparison', roas: 1.1 }
+    ]
+  });
+  const kaartenVan = (uit, i) => ((uit.groepen[i] || {}).kaarten || []);
+  check('een vrije angle met genoeg data staat gewoon bovenaan',
+    kaartenVan(vrij, 0)[0] || '(geen groep)', 'premium');
+  check('en een vrije angle met te weinig data zakt naar de tweede groep',
+    kaartenVan(vrij, 1).indexOf('comparison') > -1, true);
+  check('de vaste lijst blijft compleet ernaast staan',
+    vrij.groepen.reduce((n, g) => n + g.kaarten.length, 0), 12);
+
+  /* Het detailveld in de tracker. Stond de huidige waarde er niet bij, dan
+     toonde het veld leeg en overschreef de eerstvolgende Opslaan 'comparison'
+     met niets. */
+  console.log('\n  het angleveld in de tracker');
+  const opties = await page.evaluate(() => ({
+    vrij: csSelOpts(CS_ANGLES, 'comparison'),
+    vast: csSelOpts(CS_ANGLES, 'Problem-Solution'),
+    leeg: csSelOpts(CS_ANGLES, '')
+  }));
+  check('een vrije waarde blijft geselecteerd staan',
+    /value="comparison" selected/.test(opties.vrij), true);
+  check('en wordt herkenbaar gemarkeerd',
+    /comparison \(eigen waarde\)/.test(opties.vrij), true);
+  check('een waarde uit de lijst gedraagt zich als altijd',
+    (opties.vast.match(/selected/g) || []).length, 1);
+  check('en zonder waarde staat er niets geselecteerd',
+    /selected/.test(opties.leeg), false);
+
+  await browser.close(); srv.close(); process.exit(1);
   }
 
   console.log(`  ${uit.groepen.length} groepen op het scherm\n`);
@@ -159,6 +200,47 @@ const check = (label, echt, verwacht) => {
     zonderView.groepen[0].kaarten[0], 'Benefits-Driven');
   check('nog steeds alle tien angles',
     zonderView.groepen.reduce((n, g) => n + g.kaarten.length, 0), 10);
+
+  /* De werkelijkheid op 30 juli: alle drie de creatives met een angle dragen
+     een waarde die NIET in CS_ANGLES staat — 'premium' en 'comparison'. Vóór
+     deze controle werd hun historie wel opgehaald en daarna weggegooid, dus
+     leerde de wizard niets van geld dat wel was uitgegeven. */
+  console.log('\n  vrije angles uit de echte data');
+  const vrij = await lees({
+    hq_angle_learnings: [
+      { angle_type: 'premium', roas: 5.2, aantal_ads: 4, winnaars: 2, betrouwbaar: true }
+    ],
+    creatives: [
+      { angle_type: 'premium',    roas: 5.2 },
+      { angle_type: 'premium',    roas: 4.8 },
+      { angle_type: 'comparison', roas: 1.1 }
+    ]
+  });
+  const kaartenVan = (uit, i) => ((uit.groepen[i] || {}).kaarten || []);
+  check('een vrije angle met genoeg data staat gewoon bovenaan',
+    kaartenVan(vrij, 0)[0] || '(geen groep)', 'premium');
+  check('en een vrije angle met te weinig data zakt naar de tweede groep',
+    kaartenVan(vrij, 1).indexOf('comparison') > -1, true);
+  check('de vaste lijst blijft compleet ernaast staan',
+    vrij.groepen.reduce((n, g) => n + g.kaarten.length, 0), 12);
+
+  /* Het detailveld in de tracker. Stond de huidige waarde er niet bij, dan
+     toonde het veld leeg en overschreef de eerstvolgende Opslaan 'comparison'
+     met niets. */
+  console.log('\n  het angleveld in de tracker');
+  const opties = await page.evaluate(() => ({
+    vrij: csSelOpts(CS_ANGLES, 'comparison'),
+    vast: csSelOpts(CS_ANGLES, 'Problem-Solution'),
+    leeg: csSelOpts(CS_ANGLES, '')
+  }));
+  check('een vrije waarde blijft geselecteerd staan',
+    /value="comparison" selected/.test(opties.vrij), true);
+  check('en wordt herkenbaar gemarkeerd',
+    /comparison \(eigen waarde\)/.test(opties.vrij), true);
+  check('een waarde uit de lijst gedraagt zich als altijd',
+    (opties.vast.match(/selected/g) || []).length, 1);
+  check('en zonder waarde staat er niets geselecteerd',
+    /selected/.test(opties.leeg), false);
 
   await browser.close(); srv.close();
   console.log(fout ? `\n  ${fout} controle(s) mislukt` : '\n  Alle controles geslaagd');
