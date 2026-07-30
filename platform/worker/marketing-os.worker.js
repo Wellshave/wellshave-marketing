@@ -1583,6 +1583,11 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '');
 
+    /* Open endpoint: geen login. Daarom staat hier alleen of iets aan of uit
+       staat, en geen enkel gegeven over het bedrijf erachter — geen
+       accountnummers, geen merknamen. En geen databasecall: een open endpoint
+       dat bij elke aanroep de database aanraakt is een uitnodiging.
+       Welke accounts meetellen staat in /agents/status, achter de login. */
     if (path === '' || path === '/health') {
       return json({
         ok: true,
@@ -1594,12 +1599,6 @@ export default {
           meta: !!env.META_ACCESS_TOKEN,
           klaviyo: !!env.KLAVIYO_API_KEY
         },
-        /* Welke accounts er meetellen. Zonder deze regel is een deploy die
-           terugvalt op één account niet te onderscheiden van een deploy die
-           er vijf ziet — en dat verschil was precies het probleem. */
-        accounts: (await actieveAccounts(env)).map(a => ({
-          id: a.account_id, naam: a.naam, merk: a.merk, noodrem: !!a.noodrem
-        }))
       });
     }
 
@@ -1611,12 +1610,16 @@ export default {
       if (!env.SUPABASE_SERVICE_KEY) return json({ error: 'SUPABASE_SERVICE_KEY ontbreekt op deze worker' }, 500);
 
       if (path === '/agents/status' && request.method === 'GET') {
-        const [agents, jobs, events] = await Promise.all([
+        const [agents, jobs, events, accounts] = await Promise.all([
           sbSelect(env, 'agents', 'select=*&order=phase,name'),
           sbSelect(env, 'agent_jobs', 'status=in.(queued,running)&select=*&order=priority,scheduled_for&limit=50'),
-          sbSelect(env, 'agent_events', 'select=*&order=created_at.desc&limit=40')
+          sbSelect(env, 'agent_events', 'select=*&order=created_at.desc&limit=40'),
+          /* Welke accounts er meetellen. Zonder dit is een deploy die stil
+             terugvalt op één account niet te onderscheiden van een die er vijf
+             ziet — en dat verschil was precies het probleem. */
+          actieveAccounts(env)
         ]);
-        return json({ agents, jobs, events });
+        return json({ agents, jobs, events, accounts });
       }
 
       if (path === '/agents/jobs' && request.method === 'GET') {

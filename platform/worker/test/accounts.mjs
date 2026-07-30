@@ -163,11 +163,22 @@ const uitkomstVan = (aanroep, id) => {
 };
 
 /* ── Health ──────────────────────────────────────────────────────────────── */
-console.log('\n  health vertelt welke accounts meetellen');
+console.log('\n  welke accounts meetellen staat achter de login');
+/* /health is open. Daar hoort niets over het bedrijf erachter te staan: geen
+   accountnummers, geen merknamen, en geen databasecall bij elke aanroep. */
 const gezond = await (await worker.fetch(new Request('https://w/health'), env)).json();
-check('twee draaiende accounts', gezond.accounts.length, 2);
-check('met hun merk erbij', gezond.accounts.map(a => a.merk).sort(), ['wellshave', 'wellshine']);
-check('en geen noodrem', gezond.accounts.every(a => !a.noodrem), true);
+check('health zegt dat de runtime draait', gezond.runtime, 'actief');
+check('maar lekt geen accountgegevens', gezond.accounts, undefined);
+check('en noemt geen enkel accountnummer',
+  JSON.stringify(gezond).includes('2776743939329385'), false);
+
+const zonderLogin = await worker.fetch(new Request('https://w/agents/status'), env);
+check('de accountlijst vraagt een login', zonderLogin.status, 401);
+
+const statusIn = await (await worker.fetch(new Request('https://w/agents/status', auth), env)).json();
+check('ingelogd staan er twee draaiende accounts', statusIn.accounts.length, 2);
+check('met hun merk erbij', statusIn.accounts.map(a => a.merk).sort(), ['wellshave', 'wellshine']);
+check('en geen noodrem', statusIn.accounts.every(a => !a.noodrem), true);
 
 /* ── Meten over alle accounts ────────────────────────────────────────────── */
 console.log('\n  meten gaat over alle draaiende accounts');

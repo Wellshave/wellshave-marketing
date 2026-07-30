@@ -26,6 +26,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0013_audit.sql` | Trechter, publiek per segment, scorekaart op twee signalen |
 | `db/test/atlas.sh` | Testlus voor 0012 — 32 controles, elk begint met iets wat niet mag |
 | `db/migrations/0014_accounts.sql` | Vijf advertentieaccounts in plaats van één secret |
+| `db/migrations/0015_auditplanning.sql` | De audit in `schedules`, zodat de afspraak ook draait |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
@@ -35,7 +36,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
 | `worker/test/atlas.mjs` | Testlus voor Atlas' kant in de runtime — 19 controles |
 | `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
-| `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 15 controles |
+| `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
+| `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
 
 ## Status
 
@@ -52,6 +54,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Atlas uitgewerkt (0012 + runtime) | ✅ 30 juli — 51 controles, toegepast op productie |
 | Auditopdracht (0013 + runtime) | ✅ 30 juli — 57 controles, toegepast op productie |
 | Vijf accounts (0014 + runtime) | ✅ 30 juli — 47 controles, toegepast op productie |
+| Auditplanning (0015) | ✅ 30 juli — afspraak en planning lopen weer gelijk |
+| Deploy-controle console-endpoints | ✅ 30 juli — 26 controles tegen de live code |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -99,6 +103,19 @@ Dit vervangt de code van de bestaande worker `marketing-ads`. De endpoints
 `/anthropic` en `/openai/*` zijn ongewijzigd overgenomen, dus de live console
 blijft werken. Wat erbij komt is `/agents/*` en de cron.
 
+Dat "blijft werken" is niet op goed vertrouwen: `worker/test/console.mjs`
+vergelijkt het gedrag van beide endpoints, de CORS-origins, de header-doorgifte
+en de toegangsgrens met de code die op 30 juli daadwerkelijk gedeployed stond.
+Draai die lus vóór elke deploy — als het team stilvalt, valt het stil op deze
+twee endpoints.
+
+De bundel is 69 KiB (gzip 20 KiB) en heeft geen bindings nodig. Te controleren
+zonder credentials:
+
+```
+npx wrangler deploy --config platform/worker/wrangler.toml --dry-run
+```
+
 Secrets die er nog niet staan:
 
 | Secret | Nodig voor |
@@ -108,6 +125,10 @@ Secrets die er nog niet staan:
 | `KLAVIYO_API_KEY` | Echo |
 
 `ANTHROPIC_KEY` en `OPENAI_KEY` staan er al.
+
+`META_AD_ACCOUNT_ID` hoeft niet meer. Sinds 0014 staan de accounts in
+`marketing_hq.ad_accounts`; het secret werkt nog als noodrem wanneer die tabel
+onleesbaar is, en `/agents/status` meldt het als hij daarop terugvalt.
 
 De service key en het Meta-token zijn de eerste eigen sleutels van dit systeem
 (tot nu toe liep alles via claude.ai-connectors). Ze staan uitsluitend als
@@ -120,18 +141,48 @@ curl https://marketing-ads.dustin-9ff.workers.dev/health
 ```
 
 Verwacht `"runtime": "actief"` en per koppeling `true`. Staat er `uit`, dan
-ontbreekt `SUPABASE_SERVICE_KEY`.
+ontbreekt `SUPABASE_SERVICE_KEY`. `/health` is open en zegt daarom niets over
+de accounts — die staan in `/agents/status`, achter de login.
 
-Daarna één agent handmatig laten draaien, ingelogd als admin:
+Daarna, ingelogd als admin:
+
+```
+GET  /agents/status
+```
+
+Verwacht twee accounts (Wellshave® en Wellshine B.V.) en `noodrem: false`. Staat
+er één account met `noodrem: true`, dan is `ad_accounts` niet leesbaar en meet
+de runtime maar de helft — dan is stap 2 niet gelukt.
+
+Dan één agent handmatig laten draaien:
 
 ```
 POST /agents/run   {"agent_id":"atlas","kind":"daily_report","payload":{"lookback_days":4}}
 POST /agents/tick
-GET  /agents/status
 ```
 
 De eerste echte run is het moment waarop blijkt of Meta de velden teruggeeft
-die we verwachten. Kijk in `agent_events` mee; daar staat elke tool-aanroep.
+die we verwachten, en of het token bij béide businesses kan — Wellshine B.V.
+hangt onder een andere business dan Wellshave. Kan het er niet bij, dan komt
+dat terug als een gat met naam en reden, niet als een storing.
+
+Kijk in `agent_events` mee; daar staat elke tool-aanroep. En daarna in
+`agent_nakoming`: die zegt per afspraak of er ook echt iets geleverd is.
+
+### 5. Wat er vanzelf gaat draaien
+
+| Wanneer (UTC) | Wie | Wat |
+|---|---|---|
+| dagelijks 05:00 | Atlas | `daily_report` |
+| dagelijks 05:15 | Radar | `trend_scan` |
+| dagelijks 05:20 | Bolt | `creative_scorecard` |
+| dagelijks 05:40 | Atlas | `feedback_sync` — systeemtaak, geen model |
+| dagelijks 06:00 | Nova | `pipeline_sync` |
+| maandag 06:30 | Atlas | `account_audit` — per draaiend account |
+
+De planner kijkt of het geplande moment in het afgelopen kwartier lag, dus een
+deploy zet niet meteen alles tegelijk in de rij. De eerste run is de eerstvolgende
+keer dat de klok langs een van deze tijden komt.
 
 ## De agents
 
@@ -176,7 +227,8 @@ node platform/worker/test/atlas.mjs           # Atlas in de runtime — 19 contr
 bash platform/db/test/atlas.sh                # Atlas tegen echte Postgres — 32 controles
 node platform/worker/test/audit.mjs           # de auditopdracht — 20 controles
 bash platform/db/test/audit.sh                # de auditberekening — 37 controles
-node platform/worker/test/accounts.mjs        # meerdere accounts — 15 controles
+node platform/worker/test/console.mjs         # de live console-endpoints — 26 controles
+node platform/worker/test/accounts.mjs        # meerdere accounts — 21 controles
 bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
 ```
 
