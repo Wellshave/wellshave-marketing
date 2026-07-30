@@ -11,34 +11,33 @@
 ## Hypothese
 - **Dedicated hoofd-scheerapparaat landingspagina** · landing_page · Nova
   *Gepromoot 27/7: Brothers in Style bewijst het patroon nu overtuigend —
-  hun hoofd-scheerapparaat-LP draait **175 dagen** met **128k impressies**
-  (grootste LP in de scan). Extra bevestigd 29/7: dezelfde hoek scoort nu
-  een video met **1,3M reach** (rankDelta +78) — het sterkste individuele
-  signaal tot nu toe voor dit idee. Eén product, één pagina, één belofte —
-  CVR hoger dan de generieke productpagina over 14 dagen*
+  hun hoofd-scheerapparaat-video haalt **1,3M+ reach** (rankDelta +78,
+  stabiel over twee scans op rij) — het sterkste individuele signaal tot
+  nu toe voor dit idee. Eén product, één pagina, één belofte — CVR hoger
+  dan de generieke productpagina over 14 dagen*
 - **Testimonial-statics uit bestaande reviews** · static · Nova
   *Prioriteit ↑↑ (25/7): BALZY's echte-klant-hooks blijven de topschaler —
-  29/7: "Beard Balls Bundle" UGC-testimonial (2+1 gratis, rankDelta +225,
-  24.677 reach) en 3 gloednieuwe creator-partnerships gelanceerd (28/7,
-  nog 0 reach — volgen). De echte-review-hook schaalt nog altijd het
-  hardst in onze markt. Echte reviews als hook, product + quote-overlay —
+  30/7: "Beard Balls Bundle" UGC-testimonial schaalt door zónder nieuwe
+  ads (rankDelta +225, 24.677 reach). De 3 creator-partnerships van 28/7
+  zitten nog in vroege testfase (7 ads, ~1.538 reach totaal, ~$15 spend) —
+  nog geen schaal, volgen. De echte-review-hook blijft het hardst
+  schalen in onze markt. Echte reviews als hook, product + quote-overlay —
   CTR boven accountgemiddelde over 7 dagen; goedkoop te testen*
 - **Bundel-test: Wellshave Complete Set** · static · Nova
   *Gepromoveerd 19/7 na twee dagen marktbevestiging (BALZY-bundel schaalt
-  door: 61k + 33k reach). Nieuw extern voorbeeld 29/7: Cloud Nine's
-  "korting + gratis attachment"-mechaniek op de Airshot Pro (rankDelta
-  +255, snelste stijger van de scan). Formule: 2 producten + gratis
-  extra + bundelkorting*
+  door: 61k + 33k reach). Cloud Nine's "korting + gratis attachment"-
+  mechaniek op de Airshot Pro blijft de snelste stijger van de scan,
+  inmiddels twee scans op rij (rankDelta +255/+284) — extra bevestiging.
+  Formule: 2 producten + gratis extra + bundelkorting*
 - **UGC-video: 3 minuten, 0 irritatie** · ugc_video · Nova
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 29/7: de
-  bevestigingsdag van de kanteling bleef uit — 28/7 zakte terug naar
-  **1,00** na de piek van 3,57 op 26/7. Blijft wisselvallig, geen
-  aaneengesloten trend. Ace & Taylor's curler-mechanisme-hook (beste rank
-  van de hele scan, rankDelta +99) blijft de blauwdruk voor
-  tekstvernieuwing — eerst de creative verversen, dan pas budget*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 30/7: geen
+  gemeten aankoop op 29/7 (na 1,00 op 28/7, na de piek van 3,57 op 26/7) —
+  blijft wisselvallig, geen aaneengesloten trend. Ace & Taylor's
+  curler-mechanisme-hook blijft de blauwdruk voor tekstvernieuwing —
+  eerst de creative verversen, dan pas budget*
 
 ## Script
 *leeg*

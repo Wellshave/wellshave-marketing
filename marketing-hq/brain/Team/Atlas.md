@@ -1,14 +1,19 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-29 · ochtendcyclus (haalde het ontbrekende
-28/7-rapport in)
-**Huidige taak:** klaar; Wellshine-nulaankopen volgen (3 dagen op rij),
-GroomGuard-test boven 2,0-drempel bevestigen
+**Laatste run:** 2026-07-30 · ochtendcyclus
+**Huidige taak:** klaar; Airstyler Nova-nulstreak volgen (4 dagen op rij),
+GroomGuard-test-volatiliteit volgen (0,80 na 2,34)
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-30** · [[../Reports/Daily/2026-07-30|Dagrapport]]: Wellshave®
+  zwakste dag van de laatste vier (**0,50**, 29/7) — GroomGuard-test viel
+  terug naar 0,80 na één dag boven 2,0 (28/7: 2,34). Wellshine's nulstreak
+  doorbroken door Hairdryer Briza (2,03), maar Airstyler Nova staat nu op
+  4 nuldagen op rij. 26/7 en 27/7 definitief; 28/7 voorlopig. Klaviyo dag
+  48 stil; lijst +15 naar 4.068.
 - **2026-07-29** · [[../Reports/Daily/2026-07-29|Dagrapport]]: Wellshave®
   herstelt naar **2,11** op €159,07 (beste sinds 23/7). Wellshine derde
   nuldag op rij (26/7–28/7, €87→€57→€47, telkens 0 aankopen) —

@@ -1,14 +1,21 @@
 # Nova — Creative Director & Strategie
 
 **Status:** 🟡 wacht op akkoord (4 approvals)
-**Laatste run:** 2026-07-29 · ochtendcyclus
-**Huidige taak:** 4 approvals openstaand (#1 advertorial 🔻 kanteling niet
-bevestigd, #2 SGL-mail, #3 GroomGuard-test boven 2,0-drempel, #4 nieuw:
-Wellshine-onderzoek/pauze)
+**Laatste run:** 2026-07-30 · ochtendcyclus
+**Huidige taak:** 4 approvals openstaand (#1 advertorial, #2 SGL-mail,
+#3 GroomGuard-test blijft wisselvallig, #4 toegespitst op Airstyler Nova)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-30** · Approval #4 bijgesteld: toegespitst op "Airstyler Nova"
+  specifiek (4 nuldagen op rij) nu "Hairdryer Briza" de streak doorbrak
+  (2,03 op 29/7). Approval #3 bijgesteld: GroomGuard-test blijft
+  wisselvallig — 0,80 op 29/7, meteen terug onder de 2,0-drempel na één
+  dag erboven; advies blijft monitoren, niet cappen op één zwakke dag.
+  Approval #1 ongewijzigd (advertorial zonder aaneengesloten trend).
+  Hoofd-scheerapparaat-LP- en bundel-test-notities bijgewerkt met nieuwe
+  Trendtrack-bevestiging (Brothers in Style, Cloud Nine).
 - **2026-07-29** · **Approval #4 aangemaakt**: Wellshine-campagnes
   pauzeren/onderzoeken na 3 nuldagen op rij ondanks spend terug in de
   "goede" zone — spend-disciplinehypothese weerlegd. Approval #3

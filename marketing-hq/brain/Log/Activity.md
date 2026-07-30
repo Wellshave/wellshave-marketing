@@ -4,6 +4,25 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-30** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-07-30** · Nova · Approval #4 toegespitst op "Airstyler Nova" (4
+  nuldagen op rij) nu "Hairdryer Briza" de nulstreak doorbrak (2,03 op
+  29/7); approval #3 bijgewerkt (GroomGuard-test blijft wisselvallig, 0,80
+  na 2,34); approval #1 ongewijzigd. Pipeline-notities bijgewerkt met
+  nieuwe Trendtrack-bevestiging.
+- **2026-07-30** · Radar · Marktscan: 279 nieuwe ads (bijna dubbel
+  gisteren); Cloud Nine's ad-piek zet 2 dagen op rij door (geen
+  dataglitch); Meridian reactiveert (95 nieuwe ads); MAE voor het eerst
+  zichtbaar actief; Brothers in Style hoofd-scheerapparaat-reach blijft
+  1,3M+; BALZY-partnerships nog vroege testfase. 128 credits (8.979
+  resterend).
+- **2026-07-30** · Atlas · Ochtendcyclus: Wellshave® zwakste dag van de
+  laatste vier (0,50 op 29/7) — GroomGuard-test terug naar 0,80 na 2,34;
+  Wellshine's nulstreak doorbroken door Hairdryer Briza (2,03), Airstyler
+  Nova op 4 nuldagen op rij; 26/7 en 27/7 definitief, 28/7 voorlopig;
+  Klaviyo dag 48 stil, lijst +15 naar 4.068.
 - **2026-07-29** · Systeem · Supabase-schrijftoegang (`marketing_hq.agent_runs`,
   `.metrics_daily`, `.reports`, `.pipeline_items`, `.approvals`) niet
   beschikbaar deze sessie — geen Supabase-connector gekoppeld aan deze

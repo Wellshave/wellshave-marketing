@@ -4,30 +4,29 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 29 juli 2026
-- ✅ **Wellshave® herstelt naar 2,11** (28/7, €159,07) — beste dag sinds 23/7,
-  gedragen door alle drie campagnes: GroomGuard-test **2,34**,
-  TOFU-CBO-GroomGuard **2,96**, Advertorial break-even op 1,00.
-- 🔴 **Wellshine: derde dag op rij nul aankopen** (26/7 €87 → 0, 27/7 €57 → 0,
-  28/7 €47 → 0) — óók binnen de eerder "goede" spendzone. De
-  spend-disciplinehypothese houdt geen stand meer; nieuw voorstel #4 in de
-  Inbox om te pauzeren/onderzoeken.
-- ↗ **GroomGuard-test komt boven de 2,0-drempel uit:** 2,34 op 28/7 — de
-  voorwaarde uit approval #3 is gehaald (nog te bevestigen over meer dagen).
-- 🔻 **Advertorial-kanteling niet bevestigd:** terug naar 1,00 na de piek van
-  3,57 op 26/7. Approval #1 blijft "nog niet scalen" — eerst creative
-  vernieuwen (blauwdruk: Ace & Taylor's mechanisme-hook, beste rank van de
-  hele scan).
-- 📡 [[Briefings/2026-07-29|Trendbriefing]]: Brothers in Style's
-  hoofd-scheerapparaat-video haalt **1,3M reach** — sterkste marktbewijs tot
-  nu toe voor die LP-hypothese; BALZY blijft testimonial-topschaler + 3
-  nieuwe creator-partnerships.
-- 📧 E-mailkanaal: dag 47 stil (laatste verzending 12 juni, gecorrigeerd van
-  11 juni). SGL-draft van approval #2 staat nog klaar. Newsletter-lijst:
-  4.053 profielen.
-- ⚠️ Geen dagrapport gepubliceerd voor 28 juli; dit gat is vandaag ingehaald.
-  Supabase (`marketing_hq`) kon deze ronde niet worden bijgewerkt — geen
-  DB-connector beschikbaar in deze sessie, zie [[Log/Activity|Activiteitenlog]].
+## Vandaag — 30 juli 2026
+- 🔴 **Wellshave® had de zwakste dag van de laatste vier (0,50, 29/7)** —
+  de GroomGuard-test viel terug naar **0,80**, meteen weer onder de
+  2,0-drempel na één dag erboven (28/7: 2,34). Advertorial leverde geen
+  enkele gemeten aankoop.
+- ↗ **Wellshine's nulstreak doorbroken, maar genuanceerd:** Hairdryer
+  Briza deed **2,03** (eerste aankoop in 4 dagen), Airstyler Nova staat nu
+  op **4 nuldagen op rij**. Voorstel #4 wordt bijgesteld: focus op
+  Airstyler Nova specifiek, Hairdryer Briza krijgt een paar dagen om de
+  herstart te bevestigen.
+- ✅ 27/7 wordt definitief: Wellshave 1,15, Wellshine 0,00 (derde
+  bevestigde nuldag). 26/7 blijft definitief 1,88 / 0,00.
+- 📡 [[Briefings/2026-07-30|Trendbriefing]]: 279 nieuwe ads (bijna dubbel
+  zoveel als gisteren) — Cloud Nine's ad-piek zet 2 dagen op rij door
+  (geen glitch meer); Meridian reactiveert (95 nieuwe ads); Brothers in
+  Style's hoofd-scheerapparaat-reach blijft **1,3M+**. Kanttekening: grote
+  impressie-sprongen bij enkele LP's lijken een meetmethode-verschil, niet
+  per se echte 24u-groei — voorzichtig gebruiken.
+- 📧 E-mailkanaal: dag 48 stil (laatste verzending 12 juni). SGL-draft van
+  approval #2 staat nog klaar. Newsletter-lijst: 4.068 profielen (+15).
+- ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
+  geen DB-connector beschikbaar in deze sessie, zie
+  [[Log/Activity|Activiteitenlog]].
 
 ## Het team
 | Agent | Rol | Status |

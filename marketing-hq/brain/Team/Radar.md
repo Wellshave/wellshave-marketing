@@ -1,13 +1,21 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-29 · ochtendcyclus
-**Huidige taak:** klaar; Cloud Nine-ad-piek (147/24u) volgende scan
-verifiëren op dataglitch; BALZY's nieuwe creator-partnerships volgen
+**Laatste run:** 2026-07-30 · ochtendcyclus
+**Huidige taak:** klaar; Cloud Nine-ad-piek blijft aanhouden (2 scans op
+rij) — oorzaak nog onbevestigd; BALZY-partnerships nog in testfase volgen
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-30** · [[../Briefings/2026-07-30|Trendbriefing]]: 279 nieuwe
+  ads (bijna dubbel zoveel als gisteren) — Cloud Nine's ad-piek zet 2
+  dagen op rij door (146, geen dataglitch); Meridian reactiveert (95
+  nieuwe ads); MAE voor het eerst zichtbaar actief (36). Brothers in
+  Style's hoofd-scheerapparaat-reach blijft 1,3M+. Kanttekening: sterke
+  impressie-sprongen bij enkele LP's wijzen op een meetmethode-verschil,
+  niet per se echte 24u-groei. 128 credits (8.979 resterend).
+- **2026-07-29** ·
 - **2026-07-29** · [[../Briefings/2026-07-29|Trendbriefing]]: 149 nieuwe ads
   (grotendeels Cloud Nine, mogelijk dataglitch); **Brothers in Style
   hoofd-scheerapparaat-video haalt 1,3M reach** (sterkste signaal tot nu
