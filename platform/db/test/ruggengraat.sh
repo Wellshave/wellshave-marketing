@@ -25,7 +25,10 @@ check() {                    # check <label> <verwacht> <gekregen>
   if [ "$2" = "$3" ]; then printf '  ok   %s\n' "$1"
   else fout=$((fout+1)); printf '  FOUT %s\n       verwacht %s, kreeg %s\n' "$1" "$2" "$3"; fi
 }
-q() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>/dev/null | tr -d ' '; }
+# Alleen randspaties weghalen, niet alle spaties: met -A padt psql toch niet,
+# en `tr -d ' '` maakte van "nog nooit gedraaid" een onherkenbaar woord.
+q() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>/dev/null \
+      | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
 # stderr MOET op stdout komen, want de melding zelf is het antwoord.
 qerr() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>&1; }
 
@@ -60,7 +63,12 @@ create function marketing_hq.is_team_member() returns boolean language sql as $$
 create table marketing_hq.agents (id text primary key, name text not null, role text not null default '',
   phase int not null default 1, status text not null default 'idle', current_task text,
   last_run_at timestamptz, created_at timestamptz not null default now());
-create table marketing_hq.agent_runs        (id bigint generated always as identity primary key, agent_id text);
+-- job_id onderscheidt runs via de nieuwe runtime (job gevuld) van de oude
+-- claude.ai-Routine (job leeg). 0010 leunt daarop, dus de stand-in moet hem hebben.
+create table marketing_hq.agent_runs (id bigint generated always as identity primary key,
+  agent_id text, job_id bigint);
+-- een historische run zoals ze na de samenvoeging in productie staan
+insert into marketing_hq.agent_runs (agent_id, job_id) values ('atlas', null);
 create table marketing_hq.approvals         (id bigint generated always as identity primary key, titel text);
 create table marketing_hq.reports           (id bigint generated always as identity primary key, author_agent text);
 create table marketing_hq.pipeline_items    (id bigint generated always as identity primary key, angle text);
@@ -98,13 +106,13 @@ SQL
 # ── de migratie ───────────────────────────────────────────────────────────
 if ! psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -f "$MIG" >/dev/null 2>&1; then
   echo "  FOUT de migratie draait niet:"
-  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG" 2>&1 | grep -E '^psql:' | head -3
+  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG" 2>&1 |  grep -E "ERROR" | head -3
   exit 1
 fi
 MIG10="$(dirname "$MIG")/0010_bezetting.sql"
 if ! psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -f "$MIG10" >/dev/null 2>&1; then
   echo "  FOUT migratie 0010 draait niet:"
-  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG10" 2>&1 | grep -E '^psql:' | head -3
+  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIG10" 2>&1 |  grep -E "ERROR" | head -3
   exit 1
 fi
 echo "  (0009 en 0010 draaiden zonder fout)"
@@ -195,6 +203,12 @@ check "Sage staat bewust in geen enkel station" 0 \
   "$(q "select count(*) from marketing_hq.agent_stations where agent_id='sage'")"
 check "elk station heeft precies een primaire agent" 6 \
   "$(q 'select count(*) from marketing_hq.agent_stations where primair')"
+# Een historische run (job_id leeg) mag een agent niet op 'draait' zetten:
+# die runs komen uit de oude claude.ai-Routine, niet uit deze runtime.
+check "een historische run telt niet als draaien" "nog nooit gedraaid" \
+  "$(q "select bezetting from marketing_hq.agent_bezetting where id='atlas' limit 1")"
+check "en wordt wel apart geteld" 1 \
+  "$(q "select runs_historisch from marketing_hq.agent_bezetting where id='atlas' limit 1")"
 # twee primairen op een station moet de database weigeren
 check "een tweede primair op hetzelfde station wordt geweigerd" "ja" \
   "$(case "$(qerr "update marketing_hq.agent_stations set primair=true where agent_id='quill'")" in
