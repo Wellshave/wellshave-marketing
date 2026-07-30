@@ -27,6 +27,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/atlas.sh` | Testlus voor 0012 — 32 controles, elk begint met iets wat niet mag |
 | `db/migrations/0014_accounts.sql` | Vijf advertentieaccounts in plaats van één secret |
 | `db/migrations/0015_auditplanning.sql` | De audit in `schedules`, zodat de afspraak ook draait |
+| `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
@@ -56,7 +57,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Vijf accounts (0014 + runtime) | ✅ 30 juli — 47 controles, toegepast op productie |
 | Auditplanning (0015) | ✅ 30 juli — afspraak en planning lopen weer gelijk |
 | Deploy-controle console-endpoints | ✅ 30 juli — 26 controles tegen de live code |
-| `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
+| `marketing_hq` in Exposed schemas | ✅ 30 juli |
+| Rechten voor de runtime (0016) | ✅ 30 juli — 0 grants → 164, geverifieerd op productie |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
