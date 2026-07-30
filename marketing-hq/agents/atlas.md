@@ -25,9 +25,23 @@ dagrapport: wat gebeurde er, wat betekent het, en waar moet het team op letten.
   verzendgedrag) met context, niet alleen cijfers.
 
 ## Bronnen
-Meta Ads (accounts: Wellshave® `242238038391551`, Wellshine `2776743939329385`,
-Wellshine `1301619051500441`), Klaviyo (Wellshave BV). Shopify en Google Ads
-volgen zodra gekoppeld.
+Meta Ads en Klaviyo (Wellshave BV). Shopify en Google Ads volgen zodra gekoppeld.
+
+Welke advertentieaccounts hij meet staat in `marketing_hq.ad_accounts`, niet in
+een secret. Vijf accounts, twee ervan draaien:
+
+| Account | Merk | | |
+|---|---|---|---|
+| `242238038391551` Wellshave® | wellshave | ✅ draait | primair |
+| `2776743939329385` Wellshine B.V. | wellshine | ✅ draait | primair |
+| `1301619051500441` Wellshine | wellshine | ⬜ stil | geen spend in 30 dagen |
+| `828830209039992` Wellshave Ads | wellshave | ⬜ stil | leeg, geen betaalmethode |
+| `1681495425341768` naamloos | wellshave | ⬜ stil | leeg, geen betaalmethode |
+
+Een account dat uitstaat moet zeggen waarom — dat is een constraint, geen
+gewoonte. Zonder die regel is 'actief = false' na een half jaar een raadsel.
+Elke maat wordt per account berekend: een Wellshine-advertentie wordt tegen de
+Wellshine-mediaan gelegd, niet tegen die van Wellshave.
 
 ## Guardrails
 Drie regels, en ze staan alle drie in code. Dat is het verschil met een
@@ -90,7 +104,10 @@ en zeggen niets over deze runtime.
 - `platform/worker/test/atlas.mjs` — 19 controles op de runtime eromheen
 - `platform/db/test/audit.sh` — 37 controles op de auditberekening, met de
   echte cijfers van Wellshave® als fixture
-- `platform/worker/test/audit.mjs` — 20 controles op de auditopdracht
+- `platform/worker/test/audit.mjs` — 21 controles op de auditopdracht
+- `platform/db/test/accounts.sh` — 32 controles op de accountscheiding
+- `platform/worker/test/accounts.mjs` — 15 controles op meten en publiceren
+  over meerdere accounts
 
 De eerste audit staat in
 [`../audits/2026-07-30-wellshave.md`](../audits/2026-07-30-wellshave.md).

@@ -352,25 +352,52 @@ const TOOLS = {
         properties: {
           level: { type: 'string', enum: ['account', 'campaign', 'adset', 'ad'], description: 'Detailniveau' },
           days: { type: 'integer', description: 'Aantal dagen terug, 1-30. Default 7.' },
-          breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen in plaats van één totaal over de periode' }
+          breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen in plaats van één totaal over de periode' },
+          account: { type: 'string', description: 'Eén specifiek advertentieaccount. Laat leeg om alle draaiende accounts op te halen — dat is bijna altijd wat je wilt.' }
         },
         required: ['level']
       }
     },
     async run(env, ctx, input) {
-      if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
-        return { error: 'Meta is niet gekoppeld op deze worker (META_ACCESS_TOKEN / META_AD_ACCOUNT_ID ontbreekt). Werk verder met wat er in meta_insights_daily staat.' };
+      if (!env.META_ACCESS_TOKEN) {
+        return { error: 'Meta is niet gekoppeld op deze worker (META_ACCESS_TOKEN ontbreekt). Werk verder met wat er in meta_insights_daily staat.' };
       }
       const days = Math.min(Math.max(Number(input.days) || 7, 1), 30);
-      const rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day);
-      if (rows.length) {
+      const lijst = await actieveAccounts(env, input.account);
+      if (!lijst.length) return { error: 'er staat geen enkel draaiend account in ad_accounts' };
+
+      /* Per account apart ophalen. Eén account dat weigert mag de andere niet
+         meenemen: het token hoeft niet elk business te dekken, en dat is een
+         gat in de meting en geen storing. */
+      const per_account = [], gaten = [];
+      let totaal = 0;
+      for (const acc of lijst) {
+        let rows;
         try {
-          await sbInsert(env, 'meta_insights_daily', rows, { onConflict: 'insight_date,account_id,level,entity_id' });
+          rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day, acc.account_id);
         } catch (e) {
-          await logEvent(env, ctx, 'warn', 'Meta-cijfers ophalen lukte, wegschrijven niet', { fout: String(e) });
+          gaten.push({ account_id: acc.account_id, naam: acc.naam, reden: String(e && e.message || e) });
+          await logEvent(env, ctx, 'warn', `Meta weigerde account ${acc.naam}`, { fout: String(e) });
+          continue;
         }
+        if (rows.length) {
+          try {
+            await sbInsert(env, 'meta_insights_daily', rows, { onConflict: 'insight_date,account_id,level,entity_id' });
+          } catch (e) {
+            await logEvent(env, ctx, 'warn', 'Meta-cijfers ophalen lukte, wegschrijven niet', { fout: String(e) });
+          }
+        }
+        totaal += rows.length;
+        per_account.push({ account_id: acc.account_id, naam: acc.naam, merk: acc.merk,
+                           aantal: rows.length, rijen: rows.slice(0, 40) });
       }
-      return { periode_dagen: days, niveau: input.level, aantal: rows.length, rijen: rows.slice(0, 60) };
+      const uit = { periode_dagen: days, niveau: input.level, accounts: per_account.length,
+                    aantal: totaal, per_account: per_account };
+      if (gaten.length) uit.gaten = gaten;
+      if (lijst.some(a => a.noodrem)) {
+        uit.waarschuwing = 'ad_accounts was niet leesbaar; teruggevallen op META_AD_ACCOUNT_ID. Dit is één account, mogelijk niet alle.';
+      }
+      return uit;
     }
   },
 
@@ -381,35 +408,49 @@ const TOOLS = {
       input_schema: {
         type: 'object',
         properties: {
-          days: { type: 'integer', description: 'Aantal dagen terug, 1-90. Default 30.' }
+          days: { type: 'integer', description: 'Aantal dagen terug, 1-90. Default 30.' },
+          account: { type: 'string', description: 'Eén specifiek account. Laat leeg voor alle draaiende accounts.' }
         }
       }
     },
     async run(env, ctx, input) {
-      if (!env.META_ACCESS_TOKEN || !env.META_AD_ACCOUNT_ID) {
+      if (!env.META_ACCESS_TOKEN) {
         return { error: 'Meta is niet gekoppeld op deze worker. Werk verder met wat er in meta_publiek staat.' };
       }
       const days = Math.min(Math.max(Number(input.days) || 30, 1), 90);
-      let rijen;
-      try {
-        rijen = await metaPubliek(env, days);
-      } catch (e) {
-        /* Deze uitsplitsing is niet op elk account beschikbaar. Dat is een gat
-           in de meting, geen storing — de agent moet het kunnen melden in
-           plaats van erop vastlopen. */
-        return { error: `de uitsplitsing naar publiek kwam niet terug: ${String(e && e.message || e)}`,
-                 gat: 'publiek per segment' };
+      const lijst = await actieveAccounts(env, input.account);
+      if (!lijst.length) return { error: 'er staat geen enkel draaiend account in ad_accounts' };
+
+      const per_account = [], gaten = [];
+      let totaal = 0;
+      for (const acc of lijst) {
+        let rijen;
+        try {
+          rijen = await metaPubliek(env, days, acc.account_id);
+        } catch (e) {
+          /* Deze uitsplitsing is niet op elk account beschikbaar. Dat is een gat
+             in de meting, geen storing — de agent moet het kunnen melden in
+             plaats van erop vastlopen. */
+          gaten.push({ account_id: acc.account_id, naam: acc.naam,
+                       gat: 'publiek per segment', reden: String(e && e.message || e) });
+          continue;
+        }
+        if (!rijen.length) {
+          gaten.push({ account_id: acc.account_id, naam: acc.naam, gat: 'publiek per segment',
+                       reden: 'Meta gaf geen segmentregels terug voor dit venster' });
+          continue;
+        }
+        try {
+          await sbInsert(env, 'meta_publiek', rijen, { onConflict: 'account_id,van,tot,segment' });
+        } catch (e) {
+          await logEvent(env, ctx, 'warn', 'Publiek ophalen lukte, wegschrijven niet', { fout: String(e) });
+        }
+        totaal += rijen.length;
+        per_account.push({ account_id: acc.account_id, naam: acc.naam, aantal: rijen.length, rijen: rijen });
       }
-      if (!rijen.length) {
-        return { aantal: 0, gat: 'publiek per segment',
-                 opmerking: 'Meta gaf geen segmentregels terug voor dit venster' };
-      }
-      try {
-        await sbInsert(env, 'meta_publiek', rijen, { onConflict: 'account_id,van,tot,segment' });
-      } catch (e) {
-        await logEvent(env, ctx, 'warn', 'Publiek ophalen lukte, wegschrijven niet', { fout: String(e) });
-      }
-      return { periode_dagen: days, aantal: rijen.length, rijen: rijen };
+      const uit = { periode_dagen: days, accounts: per_account.length, aantal: totaal, per_account: per_account };
+      if (gaten.length) uit.gaten = gaten;
+      return uit;
     }
   },
 
@@ -516,6 +557,7 @@ const TOOLS = {
         properties: {
           ad_id: { type: 'string' },
           ad_name: { type: 'string' },
+          account_id: { type: 'string', description: 'Het account waar deze advertentie in draait. Zonder dit is het oordeel niet terug te vinden zodra er meer dan één account is.' },
           verdict: { type: 'string', enum: ['winner', 'test', 'loser', 'onvoldoende_data'] },
           action: { type: 'string', enum: ['scale', 'iterate', 'copy', 'new', 'pause', 'wait'] },
           confidence: { type: 'number', description: '0 tot 1' },
@@ -528,7 +570,7 @@ const TOOLS = {
     },
     async run(env, ctx, input) {
       const row = {
-        account_id: env.META_AD_ACCOUNT_ID || 'onbekend',
+        account_id: kaalAccount(input.account_id || env.META_AD_ACCOUNT_ID) || 'onbekend',
         ad_id: String(input.ad_id),
         ad_name: input.ad_name || null,
         verdict: input.verdict,
@@ -728,8 +770,48 @@ function metaActie(acties, naam) {
   return a ? Number(a.value) : null;
 }
 
-async function metaInsights(env, level, days, perDag) {
-  const account = env.META_AD_ACCOUNT_ID;
+/* act_ ervoor of niet: Meta accepteert beide op de insights-edge, maar niet
+   overal. Intern werken we zonder, en zetten het erop waar het moet. */
+function kaalAccount(id) { return String(id || '').replace(/^act_/, ''); }
+
+/* De accounts komen uit ad_accounts (0014), niet uit META_AD_ACCOUNT_ID. Een
+   secret is één waarde en kent geen merk, geen valuta en geen "deze ligt stil
+   sinds mei" — en je kunt er niet op joinen.
+
+   Valt de database weg, dan blijft het secret als noodrem staan: liever één
+   account meten dan nul. Dat wordt wel gemeld, want stilzwijgend terugvallen
+   op één account is precies hoe de audit van 30 juli over één account ging
+   terwijl er vijf waren. */
+async function actieveAccounts(env, alleen) {
+  if (alleen) return [{ account_id: kaalAccount(alleen), naam: kaalAccount(alleen), merk: null }];
+  try {
+    const rijen = await sbSelect(env, 'ad_accounts',
+      'actief=is.true&select=account_id,naam,merk,valuta,primair&order=primair.desc,naam.asc');
+    if (rijen.length) return rijen.map(r => ({ ...r, account_id: kaalAccount(r.account_id) }));
+  } catch (e) { /* hieronder de noodrem */ }
+  if (!env.META_AD_ACCOUNT_ID) return [];
+  return [{ account_id: kaalAccount(env.META_AD_ACCOUNT_ID), naam: 'uit META_AD_ACCOUNT_ID',
+            merk: null, noodrem: true }];
+}
+
+/* Welk account hoort bij dit merk. Bij meerdere draaiende accounts op hetzelfde
+   merk wint de primaire; staan er twee primair, dan is dat een keuze die een
+   mens moet maken en geen gok die een agent mag doen. */
+async function accountVoorMerk(env, merk) {
+  if (!merk) return null;
+  let rijen;
+  try {
+    rijen = await sbSelect(env, 'ad_accounts',
+      `actief=is.true&merk=eq.${encodeURIComponent(String(merk).toLowerCase())}`
+      + '&select=account_id,primair&order=primair.desc');
+  } catch (e) { return null; }
+  if (!rijen.length) return null;
+  if (rijen.length > 1 && rijen[0].primair && rijen[1].primair) return null;
+  return rijen[0].account_id;
+}
+
+async function metaInsights(env, level, days, perDag, accountId) {
+  const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
     'ctr', 'cpc', 'cpm', 'actions', 'action_values', 'purchase_roas',
     'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
@@ -745,7 +827,7 @@ async function metaInsights(env, level, days, perDag) {
   });
   if (perDag) p.set('time_increment', '1');
 
-  const r = await fetch(`${META_API}/${account}/insights?${p}`);
+  const r = await fetch(`${META_API}/act_${account}/insights?${p}`);
   const data = await r.json();
   if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
 
@@ -851,10 +933,10 @@ async function sha256Hex(bytes) {
 
 /* Beeld naar Meta. Dezelfde bytes leveren dezelfde hash op, dus dit is uit
    zichzelf idempotent: twee keer uploaden geeft twee keer hetzelfde beeld. */
-async function metaUploadImage(env, bytes, bestandsnaam) {
+async function metaUploadImage(env, bytes, bestandsnaam, accountId) {
   const form = new FormData();
   form.append('filename', new Blob([bytes], { type: 'image/png' }), bestandsnaam || 'creative.png');
-  const data = await metaPost(env, `act_${env.META_AD_ACCOUNT_ID.replace(/^act_/, '')}/adimages`, form, true);
+  const data = await metaPost(env, `act_${kaalAccount(accountId || env.META_AD_ACCOUNT_ID)}/adimages`, form, true);
   const images = data.images || {};
   const eerste = Object.keys(images)[0];
   if (!eerste) throw new Error('Meta gaf geen image hash terug');
@@ -874,13 +956,22 @@ function bouwLink(basis, publicationId) {
 
 /* Zet alles klaar tot en met de adcreative. Maakt géén advertentie aan. */
 async function metaPrepare(env, ctx, invoer) {
-  const account = String(env.META_AD_ACCOUNT_ID || '').replace(/^act_/, '');
-
   /* 1. De creative uit de console ophalen — daar zit het beeld en de herkomst. */
   const rijen = await sbPublic(env, 'creatives', `id=eq.${Number(invoer.creative_id)}&select=*`);
   const c = rijen[0];
   if (!c) return { error: `creative ${invoer.creative_id} bestaat niet` };
   if (!c.image_b64) return { error: `creative ${invoer.creative_id} heeft geen beeld; publiceren kan niet` };
+
+  /* Het account volgt het merk van de creative. Vóór 0014 stond hier één vaste
+     waarde uit een secret, en dan was een Wellshine-advertentie in het
+     Wellshave-account een kwestie van tijd. Liever weigeren dan gokken: een
+     advertentie in het verkeerde account is met geen enkele query terug te
+     draaien. */
+  const account = kaalAccount(invoer.account_id || await accountVoorMerk(env, c.brand));
+  if (!account) {
+    return { error: `geen draaiend advertentieaccount voor merk "${c.brand || 'onbekend'}" — `
+      + `zet er een in ad_accounts of geef account_id expliciet mee` };
+  }
 
   const bytes = base64NaarBytes(c.image_b64);
   const sha = await sha256Hex(bytes);
@@ -926,7 +1017,7 @@ async function metaPrepare(env, ctx, invoer) {
 
   try {
     /* 4. Beeld en creative bij Meta. Nog steeds geen advertentie. */
-    const hash = await metaUploadImage(env, bytes, `wg-${pub.id}.png`);
+    const hash = await metaUploadImage(env, bytes, `wg-${pub.id}.png`, account);
     const link = bouwLink(invoer.link_url || WINKEL_URL, pub.id);
 
     const spec = {
@@ -1127,7 +1218,8 @@ async function logEvent(env, ctx, level, message, data) {
    Meta geeft bij deze uitsplitsing geen conversies terug. Dat hoeft ook niet —
    waar het om gaat is vertoningen gedeeld door bereik, en dat is de maat die
    een accountgemiddelde wegpoetst. */
-async function metaPubliek(env, days) {
+async function metaPubliek(env, days, accountId) {
+  const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const p = new URLSearchParams({
     access_token: env.META_ACCESS_TOKEN,
     level: 'account',
@@ -1136,11 +1228,11 @@ async function metaPubliek(env, days) {
     date_preset: 'last_' + days + 'd',
     limit: '50'
   });
-  const r = await fetch(`${META_API}/${env.META_AD_ACCOUNT_ID}/insights?${p}`);
+  const r = await fetch(`${META_API}/act_${account}/insights?${p}`);
   const data = await r.json();
   if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
   return (data.data || []).map(row => ({
-    account_id: env.META_AD_ACCOUNT_ID,
+    account_id: account,
     van: row.date_start,
     tot: row.date_stop,
     segment: row.user_segment_key || 'onbekend',
@@ -1499,9 +1591,15 @@ export default {
         koppelingen: {
           claude: !!env.ANTHROPIC_KEY,
           openai: !!env.OPENAI_KEY,
-          meta: !!(env.META_ACCESS_TOKEN && env.META_AD_ACCOUNT_ID),
+          meta: !!env.META_ACCESS_TOKEN,
           klaviyo: !!env.KLAVIYO_API_KEY
-        }
+        },
+        /* Welke accounts er meetellen. Zonder deze regel is een deploy die
+           terugvalt op één account niet te onderscheiden van een deploy die
+           er vijf ziet — en dat verschil was precies het probleem. */
+        accounts: (await actieveAccounts(env)).map(a => ({
+          id: a.account_id, naam: a.naam, merk: a.merk, noodrem: !!a.noodrem
+        }))
       });
     }
 

@@ -25,14 +25,17 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/tracker.sh` | Testlus voor 0011 — 19 controles op een gecontroleerde reeks |
 | `db/migrations/0013_audit.sql` | Trechter, publiek per segment, scorekaart op twee signalen |
 | `db/test/atlas.sh` | Testlus voor 0012 — 32 controles, elk begint met iets wat niet mag |
+| `db/migrations/0014_accounts.sql` | Vijf advertentieaccounts in plaats van één secret |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
+| `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
 | `worker/test/publiceren.mjs` | Testlus voor de publiceerflow en de guardrail eromheen |
 | `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
 | `worker/test/atlas.mjs` | Testlus voor Atlas' kant in de runtime — 19 controles |
-| `worker/test/audit.mjs` | Testlus voor de auditopdracht — 20 controles |
+| `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
+| `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 15 controles |
 
 ## Status
 
@@ -48,6 +51,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Datalaag test tracker (0011) | ✅ 29 juli — 19 controles, toegepast op productie |
 | Atlas uitgewerkt (0012 + runtime) | ✅ 30 juli — 51 controles, toegepast op productie |
 | Auditopdracht (0013 + runtime) | ✅ 30 juli — 57 controles, toegepast op productie |
+| Vijf accounts (0014 + runtime) | ✅ 30 juli — 47 controles, toegepast op productie |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -100,7 +104,7 @@ Secrets die er nog niet staan:
 | Secret | Nodig voor |
 |---|---|
 | `SUPABASE_SERVICE_KEY` | de runtime — zonder dit blijft hij uit |
-| `META_ACCESS_TOKEN` + `META_AD_ACCOUNT_ID` | Atlas en Bolt |
+| `META_ACCESS_TOKEN` | Atlas en Bolt — welke accounts staat in `ad_accounts`, niet in een secret |
 | `KLAVIYO_API_KEY` | Echo |
 
 `ANTHROPIC_KEY` en `OPENAI_KEY` staan er al.
@@ -172,6 +176,8 @@ node platform/worker/test/atlas.mjs           # Atlas in de runtime — 19 contr
 bash platform/db/test/atlas.sh                # Atlas tegen echte Postgres — 32 controles
 node platform/worker/test/audit.mjs           # de auditopdracht — 20 controles
 bash platform/db/test/audit.sh                # de auditberekening — 37 controles
+node platform/worker/test/accounts.mjs        # meerdere accounts — 15 controles
+bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.

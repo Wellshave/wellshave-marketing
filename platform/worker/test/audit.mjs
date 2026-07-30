@@ -19,6 +19,9 @@ const db = {
   agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }],
   schedules: [], agent_jobs: [], agent_runs: [], agent_events: [], reports: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }],
+  ad_accounts: [
+    { account_id: '242238038391551', naam: 'Wellshave®', merk: 'wellshave', actief: true, primair: true }
+  ],
   /* Wat de views zouden teruggeven — de uitkomsten uit audit.sh. */
   trechter: [
     { entity_id: '120250501609280577', entity_name: 'Advertorial Pages', lpv_naar_atc_pct: 8.72,
@@ -151,6 +154,7 @@ await new Promise(r => setTimeout(r, 50));
 console.log('\n  de uitsplitsing naar publiek');
 check('de audit loopt door tot het eind', db.agent_jobs[0].status, 'done');
 check('drie segmenten opgehaald', uitkomstVan(claudeAanroepen[1], 't1').aantal, 3);
+check('over één draaiend account', uitkomstVan(claudeAanroepen[1], 't1').accounts, 1);
 check('en weggeschreven als één venster, niet als dagen', db.meta_publiek.length, 3);
 const engaged = db.meta_publiek.find(r => r.segment === 'engaged');
 check('het venster staat als periode vast', [engaged.van, engaged.tot], ['2026-06-30', '2026-07-29']);
@@ -181,9 +185,13 @@ await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth
 await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
 await new Promise(r => setTimeout(r, 50));
 
+/* Het gat staat per account, niet bovenaan: met meerdere accounts kan de ene
+   het wel geven en de andere niet, en dan is één vlag te grof. */
 const geweigerd = uitkomstVan(claudeAanroepen[1], 't1');
-check('de weigering komt terug als gat, niet als crash', geweigerd.gat, 'publiek per segment');
-check('met de reden erbij', String(geweigerd.error).includes('user_segment_key'), true);
+check('de weigering komt terug als gat, niet als crash', geweigerd.gaten[0].gat, 'publiek per segment');
+check('met de reden erbij', String(geweigerd.gaten[0].reden).includes('user_segment_key'), true);
+check('en met het account erbij, zodat je weet welke het was',
+  geweigerd.gaten[0].account_id, '242238038391551');
 check('de audit loopt gewoon door', db.agent_jobs[0].status, 'done');
 check('er is niets half weggeschreven', db.meta_publiek.length, 0);
 check('en er komt nog steeds een rapport', db.reports.length, 1);

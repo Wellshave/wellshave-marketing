@@ -17,6 +17,12 @@ import worker from '../marketing-os.worker.js';
 /* ── Nepdatabase ────────────────────────────────────────────────────────── */
 
 const db = {
+  /* Sinds 0014 volgt het publiceeraccount het merk van de creative. Zonder deze
+     tabel weet de runtime niet waar een wellshave-creative heen moet, en dat
+     hoort hij te weigeren in plaats van te gokken. */
+  ad_accounts: [
+    { account_id: '242238038391551', naam: 'Wellshave®', merk: 'wellshave', actief: true, primair: true }
+  ],
   agents: [{ id: 'bolt', name: 'Bolt', status: 'idle' }],
   creatives: [{
     id: 3, brand: 'wellshave', ad_name: "Eén static die de angst voor sneetjes wegneemt",
@@ -178,6 +184,8 @@ check('maar er is nog GEEN advertentie', pub.meta_ad_id, undefined);
 check('Meta heeft geen /ads-aanroep gekregen', metaAanroepen.some(a => a.pad.endsWith('/ads')), false);
 
 check('de herkomst zit in de link', pub.link_url.includes('utm_content=wg-' + pub.id), true);
+check('en het beeld ging naar het account van het merk',
+  metaAanroepen.some(a => a.pad.startsWith('act_242238038391551/adimages')), true);
 check('de hypothese is vastgelegd', pub.hypothesis.startsWith('Als we de angst'), true);
 check('de hoek komt uit de creative', pub.angle, 'Angst voor irritatie');
 check('de persona komt mee', pub.persona, 'Man 30-45, scheert dagelijks');
