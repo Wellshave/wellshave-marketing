@@ -17,6 +17,11 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
 | `db/migrations/0007_publiceren.sql` | Publicaties en de view die cijfer aan hypothese koppelt |
 | `db/migrations/0008_terugkoppeling.sql` | Cijfers terug naar de creatives, en wat over hoeken bekend is |
+| `db/migrations/0009_ruggengraat.sql` | Werkstukken: één idee dat langs zes stations reist |
+| `db/migrations/0010_bezetting.sql` | De negen agents op hun plek in die keten |
+| `db/migrations/0011_tracker.sql` | Datalaag onder de test tracker: verloop, lijstrij, vergelijking |
+| `db/test/ruggengraat.sh` | Testlus voor 0009 + 0010 — 34 controles |
+| `db/test/tracker.sh` | Testlus voor 0011 — 19 controles op een gecontroleerde reeks |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -33,6 +38,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Databases samengevoegd | ✅ 29 juli — inhoud geverifieerd via md5 |
 | Publiceerflow gebouwd (0007 + runtime) | ✅ 29 juli — 30 controles groen |
 | Terugkoppeling gebouwd (0008 + systeemtaak) | ✅ 29 juli — rekenkant tegen echte Postgres gecontroleerd |
+| Ruggengraat + bezetting (0009, 0010) | ✅ 29 juli — 34 controles, toegepast op productie |
+| Datalaag test tracker (0011) | ✅ 29 juli — 19 controles, toegepast op productie |
 | `marketing_hq` in Exposed schemas | ⬜ handmatig, zie stap 2 |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
