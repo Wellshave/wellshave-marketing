@@ -43,6 +43,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
 | `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
+| `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
+| `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
 
 ## Status
 
@@ -65,6 +67,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Rechten voor de runtime (0016) | ✅ 30 juli — 0 grants → 164, geverifieerd op productie |
 | Views filteren op wie kijkt (0017) | ✅ 31 juli — 16 controles, mutatietest vangt de makkelijke foute oplossing |
 | Dagbesluit (0018) | ✅ 31 juli — 33 controles, vijf mutaties gevangen, toegepast op productie |
+| Trackerscherm — het dagbesluit | ✅ 31 juli — 30 controles in de echte console |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 

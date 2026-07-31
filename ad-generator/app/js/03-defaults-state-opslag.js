@@ -962,6 +962,9 @@ function renderCreatives() {
   var nw = document.getElementById('cs-btn-new');
   if (imp) imp.style.display = csCanWrite() ? '' : 'none';
   if (nw) nw.style.display = csCanWrite() ? '' : 'none';
+  // Het besluit eerst, de tabel eronder. Twee losse aanroepen, want als het
+  // dagbesluit omvalt hoort de tabel gewoon te laden -- en andersom.
+  if (typeof dbsFetch === 'function') dbsFetch();
   csFetch();
 }
 
