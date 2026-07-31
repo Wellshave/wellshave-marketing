@@ -4,26 +4,24 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 30 juli 2026
-- 🔴 **Wellshave® had de zwakste dag van de laatste vier (0,50, 29/7)** —
-  de GroomGuard-test viel terug naar **0,80**, meteen weer onder de
-  2,0-drempel na één dag erboven (28/7: 2,34). Advertorial leverde geen
-  enkele gemeten aankoop.
-- ↗ **Wellshine's nulstreak doorbroken, maar genuanceerd:** Hairdryer
-  Briza deed **2,03** (eerste aankoop in 4 dagen), Airstyler Nova staat nu
-  op **4 nuldagen op rij**. Voorstel #4 wordt bijgesteld: focus op
-  Airstyler Nova specifiek, Hairdryer Briza krijgt een paar dagen om de
-  herstart te bevestigen.
-- ✅ 27/7 wordt definitief: Wellshave 1,15, Wellshine 0,00 (derde
-  bevestigde nuldag). 26/7 blijft definitief 1,88 / 0,00.
-- 📡 [[Briefings/2026-07-30|Trendbriefing]]: 279 nieuwe ads (bijna dubbel
-  zoveel als gisteren) — Cloud Nine's ad-piek zet 2 dagen op rij door
-  (geen glitch meer); Meridian reactiveert (95 nieuwe ads); Brothers in
-  Style's hoofd-scheerapparaat-reach blijft **1,3M+**. Kanttekening: grote
-  impressie-sprongen bij enkele LP's lijken een meetmethode-verschil, niet
-  per se echte 24u-groei — voorzichtig gebruiken.
-- 📧 E-mailkanaal: dag 48 stil (laatste verzending 12 juni). SGL-draft van
-  approval #2 staat nog klaar. Newsletter-lijst: 4.068 profielen (+15).
+## Vandaag — 31 juli 2026
+- 🔴 **Wellshave® zakt de derde dag op rij sinds de piek van 28/7 (2,10) —
+  0,35 op 30/7 is de zwakste dag tot nu toe.** De GroomGuard-test daalt
+  twee dagen na de piek van 2,34: 0,80 (29/7) → **0,58** (30/7). Geen
+  stabilisatie zichtbaar — approval #3 bijgesteld met dit aanhoudende
+  patroon.
+- 🔴 **Wellshine: het herstel van 29/7 was een eenmalige blip.** Beide
+  campagnes staan weer op nul; Airstyler Nova nu **5 nuldagen op rij**.
+  Voorstel #4 weer verbreed naar het hele account.
+- 📧 **E-mailkanaal: 4 klaarstaande SGL-drafts blijken onaangeraakt sinds
+  5 juni** (niet 1 zoals eerder bekend) — dag 49 zonder verzending.
+  Approval #2 bijgewerkt. Newsletter-lijst: 4.084 profielen (+16).
+- ✅ 27/7 en 28/7 zijn nu definitief (1,15/0,00 en 2,10/0,00).
+- 📡 [[Briefings/2026-07-31|Trendbriefing]]: de impressie-sprongen van
+  gisteren bij Brothers in Style en Cloud Nine zijn **bevestigd reëel**,
+  geen meetartefact. BALZY's Rick Loonen-partnership schaalt aantoonbaar
+  op (+569% reach). Cloud Nine's ad-piek zakt licht maar blijft 3e dag
+  verhoogd (4,3× normaal).
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

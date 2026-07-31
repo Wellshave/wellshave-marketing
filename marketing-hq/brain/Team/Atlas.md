@@ -1,13 +1,20 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-30 · ochtendcyclus
-**Huidige taak:** klaar; Airstyler Nova-nulstreak volgen (4 dagen op rij),
-GroomGuard-test-volatiliteit volgen (0,80 na 2,34)
+**Laatste run:** 2026-07-31 · ochtendcyclus
+**Huidige taak:** klaar; GroomGuard-test-daling volgen (mogelijk cappen als
+31/7 verder daalt), Wellshine-account als geheel volgen (5 nuldagen)
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-07-31** · [[../Reports/Daily/2026-07-31|Dagrapport]]: Wellshave®
+  derde dag op rij dalend sinds de piek van 28/7 — **0,35** op 30/7, de
+  zwakste dag tot nu toe. GroomGuard-test daalt twee dagen na de piek
+  (2,34 → 0,80 → 0,58). Wellshine's herstel van 29/7 bleek eenmalig: beide
+  campagnes weer op nul, Airstyler Nova nu 5 nuldagen op rij. 27/7 en 28/7
+  definitief. Klaviyo: 4 klaarstaande drafts ontdekt (niet 1), dag 49
+  stil, lijst +16 naar 4.084.
 - **2026-07-30** · [[../Reports/Daily/2026-07-30|Dagrapport]]: Wellshave®
   zwakste dag van de laatste vier (**0,50**, 29/7) — GroomGuard-test viel
   terug naar 0,80 na één dag boven 2,0 (28/7: 2,34). Wellshine's nulstreak

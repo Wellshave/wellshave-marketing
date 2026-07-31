@@ -1,13 +1,21 @@
 # Nova — Creative Director & Strategie
 
 **Status:** 🟡 wacht op akkoord (4 approvals)
-**Laatste run:** 2026-07-30 · ochtendcyclus
-**Huidige taak:** 4 approvals openstaand (#1 advertorial, #2 SGL-mail,
-#3 GroomGuard-test blijft wisselvallig, #4 toegespitst op Airstyler Nova)
+**Laatste run:** 2026-07-31 · ochtendcyclus
+**Huidige taak:** 4 approvals openstaand (#1 advertorial, #2 SGL-mail nu
+4 drafts, #3 GroomGuard-daling verscherpt, #4 weer heel Wellshine-account)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-07-31** · Approval #3 verscherpt: GroomGuard-test daalt nu twee
+  dagen op rij na de piek (0,80 → 0,58) — advies naar "cappen aan de orde
+  als 31/7 verder daalt". Approval #4 weer verbreed naar het hele
+  Wellshine-account (Hairdryer Briza's herstel was een eenmalige blip).
+  Approval #2 bijgesteld: 4 klaarstaande drafts ontdekt, niet 1. Approval
+  #1 ongewijzigd. Hoofd-scheerapparaat-LP-hypothese versterkt (groei
+  bevestigd reëel); testimonial-hypothese versterkt (Rick Loonen-
+  partnership schaalt aantoonbaar op).
 - **2026-07-30** · Approval #4 bijgesteld: toegespitst op "Airstyler Nova"
   specifiek (4 nuldagen op rij) nu "Hairdryer Briza" de streak doorbrak
   (2,03 op 29/7). Approval #3 bijgesteld: GroomGuard-test blijft

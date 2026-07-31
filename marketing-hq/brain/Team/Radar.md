@@ -1,13 +1,21 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-30 · ochtendcyclus
-**Huidige taak:** klaar; Cloud Nine-ad-piek blijft aanhouden (2 scans op
-rij) — oorzaak nog onbevestigd; BALZY-partnerships nog in testfase volgen
+**Laatste run:** 2026-07-31 · ochtendcyclus
+**Huidige taak:** klaar; Cloud Nine-ad-piek volgen (3e dag, licht dalend);
+Kevin Junior-impressie-anomalie en Cloud Nine-dagenteller verifiëren
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-07-31** · [[../Briefings/2026-07-31|Trendbriefing]]: 210 nieuwe
+  ads. Cloud Nine's ad-piek zakt licht (128) maar blijft 3e dag verhoogd
+  (4,3× normaal). Impressie-sprongen van gisteren bij Brothers in Style en
+  Cloud Nine hairdryer-collectie **bevestigd reëel**, geen meetartefact.
+  BALZY's Rick Loonen-partnership schaalt aantoonbaar op (+569% reach).
+  Nieuwe anomalie ontdekt bij Kevin Junior (impressies +627% zonder
+  dagen-verandering, vermoedelijk trackingissue). 126 credits (8.416
+  resterend).
 - **2026-07-30** · [[../Briefings/2026-07-30|Trendbriefing]]: 279 nieuwe
   ads (bijna dubbel zoveel als gisteren) — Cloud Nine's ad-piek zet 2
   dagen op rij door (146, geen dataglitch); Meridian reactiveert (95

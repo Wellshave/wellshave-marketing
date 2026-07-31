@@ -4,6 +4,27 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-07-31** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-07-31** · Nova · Approval #3 verscherpt (GroomGuard-test daalt 2
+  dagen op rij na de piek, 0,80→0,58 — cappen aan de orde als het doorzet);
+  approval #4 weer verbreed naar heel Wellshine (herstel van Hairdryer
+  Briza bleek eenmalig); approval #2 bijgesteld (4 klaarstaande drafts,
+  niet 1); approval #1 ongewijzigd. Pipeline-notities versterkt
+  (hoofd-scheerapparaat-LP-groei bevestigd reëel, BALZY-partnership
+  schaalt op).
+- **2026-07-31** · Radar · Marktscan: 210 nieuwe ads; Cloud Nine-ad-piek
+  3e dag verhoogd (128, licht dalend); impressie-sprongen Brothers in
+  Style/Cloud Nine bevestigd reëel (geen meetartefact); BALZY's Rick
+  Loonen-partnership schaalt op (+569% reach); nieuwe Kevin
+  Junior-impressie-anomalie ontdekt. 126 credits (8.416 resterend).
+- **2026-07-31** · Atlas · Ochtendcyclus: Wellshave® derde daaldag op rij
+  sinds de piek van 28/7 (0,35 op 30/7, zwakste tot nu toe); GroomGuard-
+  test twee dagen dalend na de piek (0,80→0,58); Wellshine's herstel van
+  29/7 bleek eenmalig, Airstyler Nova 5 nuldagen op rij; 27/7 en 28/7
+  definitief; Klaviyo: 4 drafts ontdekt (niet 1), dag 49 stil, lijst +16
+  naar 4.084.
 - **2026-07-30** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.
