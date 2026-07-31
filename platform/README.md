@@ -29,9 +29,11 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0015_auditplanning.sql` | De audit in `schedules`, zodat de afspraak ook draait |
 | `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
 | `db/migrations/0017_views.sql` | De views laten filteren op wie kijkt in plaats van op wie ze bezit |
+| `db/migrations/0018_dagbesluit.sql` | Het oordeel uit 0013 met naam, handeling en volgorde erbij |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
+| `db/test/dagbesluit.sh` | Testlus voor 0018 — 33 controles; alle vijf de oordelen, de volgorde en de dubbele publicatie |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -62,6 +64,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `marketing_hq` in Exposed schemas | ✅ 30 juli |
 | Rechten voor de runtime (0016) | ✅ 30 juli — 0 grants → 164, geverifieerd op productie |
 | Views filteren op wie kijkt (0017) | ✅ 31 juli — 16 controles, mutatietest vangt de makkelijke foute oplossing |
+| Dagbesluit (0018) | ✅ 31 juli — 33 controles, vijf mutaties gevangen, toegepast op productie |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -236,6 +239,7 @@ node platform/worker/test/console.mjs         # de live console-endpoints — 26
 node platform/worker/test/accounts.mjs        # meerdere accounts — 21 controles
 bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
 bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 controles
+bash platform/db/test/dagbesluit.sh           # uitzetten of opschalen — 33 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
