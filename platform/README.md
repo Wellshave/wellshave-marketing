@@ -28,8 +28,10 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0014_accounts.sql` | Vijf advertentieaccounts in plaats van één secret |
 | `db/migrations/0015_auditplanning.sql` | De audit in `schedules`, zodat de afspraak ook draait |
 | `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
+| `db/migrations/0017_views.sql` | De views laten filteren op wie kijkt in plaats van op wie ze bezit |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
+| `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -59,6 +61,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Deploy-controle console-endpoints | ✅ 30 juli — 26 controles tegen de live code |
 | `marketing_hq` in Exposed schemas | ✅ 30 juli |
 | Rechten voor de runtime (0016) | ✅ 30 juli — 0 grants → 164, geverifieerd op productie |
+| Views filteren op wie kijkt (0017) | ✅ 31 juli — 16 controles, mutatietest vangt de makkelijke foute oplossing |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -232,6 +235,7 @@ bash platform/db/test/audit.sh                # de auditberekening — 37 contro
 node platform/worker/test/console.mjs         # de live console-endpoints — 26 controles
 node platform/worker/test/accounts.mjs        # meerdere accounts — 21 controles
 bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
+bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
