@@ -132,6 +132,11 @@
   line-height: 1.4;
   word-break: break-word;
 }
+/* Een mens en een agent staan naast elkaar in dezelfde keten, maar je moet
+   kunnen zien wie wat deed (raamwerk §4). Cursief, niet gekleurd: kleur alleen
+   draagt geen betekenis (regel 4.4), en de naam zelf zegt het al. */
+.wbk-stap-agent--mens { font-style: italic; }
+
 .wbk-stap--toekomst .wbk-stap-naam,
 .wbk-stap--toekomst .wbk-stap-agent { color: var(--ink-soft); }
 

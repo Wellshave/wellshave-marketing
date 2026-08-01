@@ -91,14 +91,27 @@ function wbkStap(station, stap, stationNu) {
   var teken = klaar ? '✓' : fout ? '!' : nu ? '●' : station.nr;
   var soort = klaar ? 'klaar' : fout ? 'fout' : nu ? 'nu' : 'open';
 
-  var agent = (stap && stap.agent) ? stap.agent : station.agent;
-  if (stap && stap.overdracht === 'mens') agent = 'jij';
+  // Wie het deed, bij naam — mens of agent. De view levert die naam aan
+  // (0021); het scherm leidt niets meer af uit "agent_id is leeg".
+  //
+  // Drie gevallen, en het middelste is het belangrijkste: een stap waaraan
+  // gewerkt is maar waarvan niemand weet wie, zegt dat. Er de naam van het
+  // station bij zetten zou suggereren dat die agent het deed.
+  var wie;
+  if (stap && stap.door) {
+    wie = stap.door;
+  } else if (stap && ['klaar', 'bezig', 'mislukt'].indexOf(stap.status) > -1) {
+    wie = 'naamloos';
+  } else {
+    wie = station.agent;   // nog te doen: wie het hóórt te doen
+  }
 
   return '<div class="wbk-stap' + (toekomst ? ' wbk-stap--toekomst' : '') + '"'
     + ' title="' + wbkEsc(stap && stap.waarom ? stap.waarom : station.naam) + '">'
     + '<div class="wbk-bol wbk-bol--' + soort + '">' + teken + '</div>'
     + '<div class="wbk-stap-naam">' + wbkEsc(station.naam) + '</div>'
-    + '<div class="wbk-stap-agent">' + wbkEsc(agent) + '</div>'
+    + '<div class="wbk-stap-agent' + (stap && stap.door_soort === 'mens' ? ' wbk-stap-agent--mens' : '')
+    +   '">' + wbkEsc(wie) + '</div>'
     + '</div>';
 }
 

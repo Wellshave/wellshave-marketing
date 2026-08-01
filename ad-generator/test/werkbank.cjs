@@ -34,8 +34,13 @@ function serve(root) {
   return new Promise(r => s.listen(0, () => r([s, s.address().port])));
 }
 
-const st = (station, naam, agent, status, overdracht, waarom) =>
-  ({ station, naam, agent, status, overdracht, waarom, afgerond: null });
+/* De view levert sinds 0021 per stap ook `door` (de naam) en `door_soort`
+   (mens of agent). Een stap waaraan gewerkt is zonder naam bestaat echt: twee
+   werkstukken uit juli zijn niet te herleiden en blijven zo. */
+const st = (station, naam, agent, status, overdracht, waarom, door, door_soort) =>
+  ({ station, naam, agent, status, overdracht, waarom, afgerond: null,
+     door: door === undefined ? (agent ? agent : null) : door,
+     door_soort: door_soort === undefined ? (agent ? 'agent' : null) : door_soort });
 
 /* De echte stand op productie voor de eerste twee, plus drie verzonnen gevallen
    die de takken raken die daar (nog) niet in voorkomen. */
@@ -50,7 +55,7 @@ const RIJEN = [
     stappen: [
       st(1,'signaal','radar','niet_vastgelegd','vanzelf','bestond vóór de estafette'),
       st(2,'briefing','nova','niet_vastgelegd','vanzelf','bestond vóór de estafette'),
-      st(3,'creatie',null,'klaar','mens','Creative gemaakt in de Atelier Console'),
+      st(3,'creatie',null,'klaar','mens','Creative gemaakt in de Atelier Console','Dustin Gibson','mens'),
       st(4,'live','bolt','open','poort',null),
       st(5,'meting','atlas','open','vanzelf',null),
       st(6,'oogst','echo','open','poort',null) ] },
@@ -80,7 +85,7 @@ const RIJEN = [
     stappen: [
       st(1,'signaal','radar','klaar','vanzelf','signaal'),
       st(2,'briefing','nova','klaar','vanzelf','gebrieft'),
-      st(3,'creatie',null,'mislukt','mens','beeldgeneratie viel om'),
+      st(3,'creatie',null,'mislukt','mens','beeldgeneratie viel om', null, null),
       st(4,'live','bolt','open','poort',null),
       st(5,'meting','atlas','open','vanzelf',null),
       st(6,'oogst','echo','open','poort',null) ] },
@@ -197,8 +202,15 @@ const check = (label, echt, verwacht) => {
     w9.soorten, ['wbk-bol--open','wbk-bol--open','wbk-bol--klaar','wbk-bol--nu','wbk-bol--open','wbk-bol--open']);
 
   console.log('\n  regel 3.2 — wie het deed staat erbij');
-  check('per station een naam', w9.agents, ['radar','nova','jij','bolt','atlas','echo']);
-  check('creatief werk staat op jou, niet op een agent', w9.agents[2], 'jij');
+  check('per station een naam', w9.agents,
+    ['radar','nova','Dustin Gibson','bolt','atlas','echo']);
+  check('een mens staat er met zijn eigen naam, niet als "jij"', w9.agents[2], 'Dustin Gibson');
+  // Een stap waaraan gewerkt is zonder bekende naam mag niet de agent van het
+  // station lenen -- dan zou er staan dat iemand iets deed wat hij niet deed.
+  check('een naamloze stap zegt dat, en leent geen naam',
+    uit.stukken[1].agents[2], 'naamloos');
+  check('en een stap die nog moet gebeuren toont wie het hoort te doen',
+    uit.stukken[1].agents[3], 'bolt');
 
   console.log('\n  regel 3.3 — waarop gewacht wordt, in mensentaal');
   check('wacht het op jou, dan staat dat er zo',   w9.wachtOp, 'Wacht op jou');

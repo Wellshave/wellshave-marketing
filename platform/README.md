@@ -33,12 +33,14 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0018_dagbesluit.sql` | Het oordeel uit 0013 met naam, handeling en volgorde erbij |
 | `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank |
 | `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
+| `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
 | `db/test/dagbesluit.sh` | Testlus voor 0018 — 33 controles; alle vijf de oordelen, de volgorde en de dubbele publicatie |
 | `db/test/brein.sh` | Testlus voor 0019 — 35 controles; de kern is dat stilte per soort overdracht iets anders betekent |
 | `db/test/bolt.sh` | Testlus voor 0020 — 37 controles, elk begint met iets wat niet mag |
+| `db/test/deelnemers.sh` | Testlus voor 0021 — 29 controles; de kern is dat er niet gegokt wordt wie iets deed |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -82,6 +84,13 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Brein als Obsidian-vault | ✅ 1 augustus — 47 controles, gedraaid op de echte 80 gebeurtenissen |
 | Werkruimte in de console | ✅ 1 augustus — 42 controles; de estafette per werkstuk, niet negen agentkaarten |
 | Bolt uitgewerkt (0020 + runtime) | ✅ 1 augustus — 68 controles, zes mutaties gevangen, toegepast op productie |
+| Raamwerk Werkbank vastgelegd | ✅ 1 augustus — `docs/WERKBANK.md`, akkoord op de Criticus |
+| ① Deelnemers bij naam (0021) | ✅ 1 augustus — 29 + 42 controles, vier mutaties gevangen, toegepast op productie |
+| ② Het denkstuk | ⬜ zeven velden, de poort erachter, en "niet doen" als uitgang |
+| ③ De overdracht | ⬜ vijf velden; een stap kan niet af zonder |
+| ④ Terugsturen | ⬜ inclusief de grens van twee |
+| ⑤ Het dossier per station | ⬜ uit tabellen die er al zijn |
+| ⑥ De Criticus | ⬜ pas als ③ er staat |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -259,6 +268,7 @@ bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 contr
 bash platform/db/test/dagbesluit.sh           # uitzetten of opschalen — 33 controles
 bash platform/db/test/brein.sh                # het brein en de werkbank — 35 controles
 bash platform/db/test/bolt.sh                 # Bolts guardrails — 37 controles
+bash platform/db/test/deelnemers.sh           # wie deed wat — 29 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
