@@ -25,19 +25,19 @@
   goedkoop te testen*
 - **Bundel-test: Wellshave Complete Set** · static · Nova
   *Gepromoveerd 19/7 na twee dagen marktbevestiging (BALZY-bundel schaalt
-  door: 61k + 33k reach). Cloud Nine's "korting + gratis attachment"-
-  mechaniek op de Airshot Pro blijft een sterk extern voorbeeld. Formule:
-  2 producten + gratis extra + bundelkorting*
+  door: 61k + 33k reach). 1/8: Cloud Nine's nieuwe "£100 off Summer
+  Sale"-bundel (Contouring Iron + Airshot) is weer een vers extern
+  voorbeeld. Formule: 2 producten + gratis extra + bundelkorting*
 - **UGC-video: 3 minuten, 0 irritatie** · ugc_video · Nova
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 31/7:
-  opnieuw geen gemeten aankoop (30/7) — blijft wisselvallig, geen
-  aaneengesloten trend. Ace & Taylor lanceerde 30/7 een nieuwe
-  keramiek-mechanisme-hook ("krullen die uitzakken") — weer een vers
-  extern voorbeeld van hetzelfde patroon. Blauwdruk voor tekstvernieuwing
-  — eerst de creative verversen, dan pas budget*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 1/8: onze
+  eigen advertorial deed 0,97 op 31/7 — nog altijd geen aaneengesloten
+  trend. Er is inmiddels ook een nieuwe eigen testcampagne
+  "002 – CBO – Advertorials" gestart (31/7, nog geen resultaten). Ace &
+  Taylor's keramiek-mechanisme-hook blijft de externe blauwdruk voor
+  tekstvernieuwing — eerst de creative verversen, dan pas budget*
 
 ## Script
 *leeg*

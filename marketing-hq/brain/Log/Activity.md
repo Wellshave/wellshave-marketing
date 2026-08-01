@@ -4,6 +4,26 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-01** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-01** · Nova · Approval #3 gede-escaleerd (GroomGuard-test
+  herstelde naar 1,45, tweedaagse daling zette niet door); approval #5
+  aangemaakt (nieuwe testcampagne "002 – CBO – Advertorials" ter
+  kennisgeving, navraag aanbevolen); approval #4 ongewijzigd; approval #2
+  ongewijzigd (4 drafts, dag 50 stil).
+- **2026-08-01** · Radar · Marktscan: 61 nieuwe ads (forse terugval).
+  Cloud Nine's ad-piek volledig genormaliseerd; BALZY's "Beard Balls
+  Bundle" sterkste schaler; Kevin Junior-impressie-anomalie verergert
+  (+272k/24u, cijfer voorlopig onbruikbaar); BALZY-partnerships niet
+  verifieerbaar deze scan (buiten partner-cap). 126 credits (8.290
+  resterend).
+- **2026-08-01** · Atlas · Ochtendcyclus: GroomGuard-test herstelt naar
+  1,45 op 31/7 (tweedaagse daling doorbroken); nieuwe campagne
+  "002 – CBO – Advertorials" gestart (€108,31, nog geen resultaten);
+  Wellshave-accountspend piekte naar €276,48; Wellshine: Airstyler Nova
+  6 nuldagen op rij; 28/7 en 29/7 definitief; Klaviyo dag 50 stil, lijst
+  +29 naar 4.113.
 - **2026-07-31** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

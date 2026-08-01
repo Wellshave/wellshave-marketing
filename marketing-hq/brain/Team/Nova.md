@@ -1,13 +1,21 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (4 approvals)
-**Laatste run:** 2026-07-31 · ochtendcyclus
-**Huidige taak:** 4 approvals openstaand (#1 advertorial, #2 SGL-mail nu
-4 drafts, #3 GroomGuard-daling verscherpt, #4 weer heel Wellshine-account)
+**Status:** 🟡 wacht op akkoord (5 approvals)
+**Laatste run:** 2026-08-01 · ochtendcyclus
+**Huidige taak:** 5 approvals openstaand (#1 advertorial, #2 SGL-mail,
+#3 GroomGuard gede-escaleerd, #4 Wellshine, #5 nieuw: info-item nieuwe
+campagne)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-01** · Approval #3 **gede-escaleerd**: GroomGuard-test
+  herstelde naar 1,45, de tweedaagse daling zette niet door — geen acute
+  reden meer om te cappen. Approval #5 aangemaakt (ter kennisgeving): een
+  nieuwe testcampagne "002 – CBO – Advertorials" is gestart met een fors
+  eerstedagsbudget zonder zichtbare eerdere approval — navraag bij het
+  team aanbevolen. Approval #4 ongewijzigd (Wellshine blijft zorgelijk).
+  Pipeline-notities bijgewerkt met Cloud Nine's nieuwe bundelactie.
 - **2026-07-31** · Approval #3 verscherpt: GroomGuard-test daalt nu twee
   dagen op rij na de piek (0,80 → 0,58) — advies naar "cappen aan de orde
   als 31/7 verder daalt". Approval #4 weer verbreed naar het hele

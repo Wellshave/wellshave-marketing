@@ -4,24 +4,25 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 31 juli 2026
-- 🔴 **Wellshave® zakt de derde dag op rij sinds de piek van 28/7 (2,10) —
-  0,35 op 30/7 is de zwakste dag tot nu toe.** De GroomGuard-test daalt
-  twee dagen na de piek van 2,34: 0,80 (29/7) → **0,58** (30/7). Geen
-  stabilisatie zichtbaar — approval #3 bijgesteld met dit aanhoudende
-  patroon.
-- 🔴 **Wellshine: het herstel van 29/7 was een eenmalige blip.** Beide
-  campagnes staan weer op nul; Airstyler Nova nu **5 nuldagen op rij**.
-  Voorstel #4 weer verbreed naar het hele account.
-- 📧 **E-mailkanaal: 4 klaarstaande SGL-drafts blijken onaangeraakt sinds
-  5 juni** (niet 1 zoals eerder bekend) — dag 49 zonder verzending.
-  Approval #2 bijgewerkt. Newsletter-lijst: 4.084 profielen (+16).
-- ✅ 27/7 en 28/7 zijn nu definitief (1,15/0,00 en 2,10/0,00).
-- 📡 [[Briefings/2026-07-31|Trendbriefing]]: de impressie-sprongen van
-  gisteren bij Brothers in Style en Cloud Nine zijn **bevestigd reëel**,
-  geen meetartefact. BALZY's Rick Loonen-partnership schaalt aantoonbaar
-  op (+569% reach). Cloud Nine's ad-piek zakt licht maar blijft 3e dag
-  verhoogd (4,3× normaal).
+## Vandaag — 1 augustus 2026
+- ↗ **GroomGuard-test herstelt naar 1,45 — de tweedaagse daling zette niet
+  door.** Approval #3 kan worden gede-escaleerd: geen acute reden meer om
+  te cappen.
+- 🔴 **Wellshine blijft zorgelijk:** Airstyler Nova nu **6 nuldagen op
+  rij**; Hairdryer Briza's herstel van 29/7 is bevestigd eenmalig geweest.
+  Voorstel #4 blijft staan.
+- 💰 **Nieuwe campagne "002 – CBO – Advertorials" gestart** met een fors
+  eerstedagsbudget (€108,31) — Wellshave-accountspend sprong naar €276,48.
+  Nog geen resultaten, te vroeg om te beoordelen.
+- ✅ 28/7 en 29/7 zijn nu definitief (2,10/0,00 en 0,50/1,05 — bevestigt
+  Hairdryer Briza's ene goede dag als een blijvend resultaat).
+- 📧 E-mailkanaal: dag 50 stil. Newsletter-lijst: 4.113 profielen
+  (+29, sterkste weekgroei tot nu toe).
+- 📡 [[Briefings/2026-08-01|Trendbriefing]]: Cloud Nine's ad-piek is
+  volledig genormaliseerd (8 nieuwe ads, was 147). BALZY's "Beard Balls
+  Bundle" blijft de sterkste schaler van de markt. ⚠️ Kevin
+  Junior-impressiecijfer blijkt een verergerende trackinganomalie —
+  voorlopig niet gebruiken.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

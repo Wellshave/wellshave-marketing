@@ -1,13 +1,20 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-31 · ochtendcyclus
-**Huidige taak:** klaar; GroomGuard-test-daling volgen (mogelijk cappen als
-31/7 verder daalt), Wellshine-account als geheel volgen (5 nuldagen)
+**Laatste run:** 2026-08-01 · ochtendcyclus
+**Huidige taak:** klaar; nieuwe campagne "002 – CBO – Advertorials"
+volgen, Wellshine-account als geheel volgen (6 nuldagen)
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-01** · [[../Reports/Daily/2026-08-01|Dagrapport]]: GroomGuard-
+  test herstelt naar **1,45** op 31/7 — de tweedaagse daling zette niet
+  door. Nieuwe campagne "002 – CBO – Advertorials" gestart met €108,31
+  eerstedagsbudget, nog geen resultaten; Wellshave-accountspend sprong
+  naar €276,48. Wellshine: Airstyler Nova nu 6 nuldagen op rij. 28/7 en
+  29/7 definitief. Klaviyo dag 50 stil; lijst +29 naar 4.113 (sterkste
+  weekgroei tot nu toe).
 - **2026-07-31** · [[../Reports/Daily/2026-07-31|Dagrapport]]: Wellshave®
   derde dag op rij dalend sinds de piek van 28/7 — **0,35** op 30/7, de
   zwakste dag tot nu toe. GroomGuard-test daalt twee dagen na de piek

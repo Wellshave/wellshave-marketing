@@ -1,13 +1,20 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-07-31 · ochtendcyclus
-**Huidige taak:** klaar; Cloud Nine-ad-piek volgen (3e dag, licht dalend);
-Kevin Junior-impressie-anomalie en Cloud Nine-dagenteller verifiëren
+**Laatste run:** 2026-08-01 · ochtendcyclus
+**Huidige taak:** klaar; Kevin Junior-impressiecijfer voorlopig niet
+gebruiken (verergerende anomalie); BALZY Rick Loonen/mo7ayatii morgen
+gericht navragen (viel buiten de partner-cap deze scan)
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-01** · [[../Briefings/2026-08-01|Trendbriefing]]: 61 nieuwe
+  ads (forse terugval na de piekdagen). Cloud Nine's ad-piek volledig
+  genormaliseerd (8, was 147). BALZY's "Beard Balls Bundle" sterkste
+  schaler van de dag (+231 rankDelta). Kevin Junior-impressie-anomalie
+  verergert (+272k in 24u) — cijfer voorlopig niet bruikbaar. 126 credits
+  (8.290 resterend).
 - **2026-07-31** · [[../Briefings/2026-07-31|Trendbriefing]]: 210 nieuwe
   ads. Cloud Nine's ad-piek zakt licht (128) maar blijft 3e dag verhoogd
   (4,3× normaal). Impressie-sprongen van gisteren bij Brothers in Style en
