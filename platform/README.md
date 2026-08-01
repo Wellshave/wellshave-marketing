@@ -12,6 +12,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `docs/PUBLICEREN.md` | Stap 03 — hoe een creative een draaiende advertentie wordt |
 | `docs/TERUGKOPPELING.md` | Stap 06 — hoe het cijfer terugkomt bij de creatieve keuze |
 | `docs/ONTWERPCONTRACT.md` | Harde, toetsbare regels voor uiterlijk en gedrag — gaat vóór op smaak |
+| `docs/WERKBANK.md` | Functioneel raamwerk: hoe mensen en agents samen aan één werkstuk werken |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
