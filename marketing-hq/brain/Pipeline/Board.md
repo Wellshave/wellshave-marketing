@@ -5,6 +5,15 @@
 
 `idee → hypothese → script → bij creator → opname → edit → klaar voor launch → live → geanalyseerd`
 
+> **Classificatie van kansen:** *observatie* (nog niet onderbouwd) →
+> *testwaardige kans* (onderbouwd door meerdere databronnen) → 🔥
+> **prioritaire kans** (aantoonbare concurrentietractie, één sterke
+> Trendtrack-bron volstaat — zie `docs/architecture.md`, "Onderbouwing van
+> kansen"). Prioritaire items krijgen het 🔥-teken en een notitie in
+> `Pipeline/Items/` met de negen vastgelegde punten uit die regel. Een
+> prioritaire kans gaat nooit automatisch live — het is en blijft een
+> testvoorstel.
+
 ## Idee
 *leeg*
 

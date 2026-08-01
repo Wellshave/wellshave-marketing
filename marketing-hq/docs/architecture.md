@@ -63,6 +63,48 @@ ready_for_launch → live → analyzed → archived`. Elke overgang wordt gelogd
 `pipeline_events` en is zichtbaar op het board. Na `live` pakt Atlas het item
 op voor analyse; de uitkomst voedt de volgende hypothese-ronde van Nova.
 
+### Onderbouwing van kansen: van observatie tot prioritaire kans
+
+Elke kans die Radar signaleert krijgt één van drie classificaties, expliciet
+benoemd in de briefing en op de Werkbank (`brain/Pipeline/Board.md`):
+
+1. **Observatie** — valt op, maar is nog niet onderbouwd genoeg om te testen.
+2. **Testwaardige kans** — de normale drempel: onderbouwd door **meerdere
+   ondersteunende databronnen** (bv. Trendtrack + Foreplay, of Trendtrack-
+   signaal bevestigd over meerdere dagen) voordat het een pipeline-item wordt.
+3. **Prioritaire kans door aantoonbare concurrentietractie** —
+   **uitzondering** op de bronnenregel. Wanneer Trendtrack alléén al
+   aantoonbaar sterke, harde prestatiesignalen toont van een advertentie van
+   een relevante concurrent, is **één sterke Trendtrack-bron voldoende**.
+   Kwalificerende signalen (ten minste één, expliciet benoemd bij het
+   voorstel):
+   1. Sterke groei in bereik of engagement
+   2. Langdurig actief blijven
+   3. Veel nieuwe varianten van dezelfde advertentie
+   4. Opschaling naar meerdere markten
+   5. Een duidelijke toename in advertentievolume
+   6. Herhaald gebruik van dezelfde hook, angle of creative structuur
+
+   Radar mag zo'n kans direct als **prioritair testvoorstel** doorgeven aan
+   Nova, zonder op een tweede bron te wachten. Nova legt bij elke prioritaire
+   kans negen punten vast in het pipeline-item (`Pipeline/Items/`):
+   1. Welke concurrent het betreft
+   2. Welke advertentie is gevonden
+   3. Welke prestatiesignalen Trendtrack toont
+   4. Waarom dit relevant is voor Wellshave of Wellshine
+   5. Welke marketingangle of creative structuur gekopieerd of vertaald kan worden
+   6. Welke onderdelen bewust niet gekopieerd worden
+   7. Voor welk product en welke persona dit relevant is
+   8. Hoe snel dit getest moet worden
+   9. Welke risico's of onzekerheden nog bestaan
+
+   Een aantoonbaar virale concurrent-ad wordt zo automatisch een **prioritair
+   testvoorstel** op de Werkbank — **nooit automatisch een live advertentie**.
+   Uitvoeren (creative maken, live zetten) blijft aan de gewone
+   pipeline-stappen en aan `agents/GUARDRAILS.md` gebonden. Doel: snel
+   reageren op marktbewegingen zonder ongefundeerde advertenties na te
+   bouwen.
+
 ## Connectorstatus (geverifieerd 2026-07-17)
 
 | Koppeling | Status |
