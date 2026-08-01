@@ -36,6 +36,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
+| `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
@@ -44,6 +45,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/bolt.sh` | Testlus voor 0020 — 37 controles, elk begint met iets wat niet mag |
 | `db/test/deelnemers.sh` | Testlus voor 0021 — 29 controles; de kern is dat er niet gegokt wordt wie iets deed |
 | `db/test/overdracht.sh` | Testlus voor 0022 — 39 controles; de kern is dat een stap niet af kan zonder overdracht |
+| `db/test/denkstuk.sh` | Testlus voor 0023 — 52 controles; de kern is dat geen agent het denkstuk kan aftekenen |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -90,8 +92,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Raamwerk Werkbank vastgelegd | ✅ 1 augustus — `docs/WERKBANK.md`, akkoord op de Criticus |
 | Raamwerk Team vastgelegd | ✅ 1 augustus — `docs/TEAM.md`; hangt aan de overdracht uit ③ |
 | ① Deelnemers bij naam (0021) | ✅ 1 augustus — 29 + 42 controles, vier mutaties gevangen, toegepast op productie |
+| ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
-| ② Het denkstuk | ⬜ zeven velden, de poort erachter, en "niet doen" als uitgang |
 | ④ Terugsturen | ⬜ inclusief de grens van twee |
 | ⑤ Het dossier per station | ⬜ uit tabellen die er al zijn |
 | ⑥ De Criticus | ⬜ pas als ③ er staat |
@@ -274,6 +276,7 @@ bash platform/db/test/brein.sh                # het brein en de werkbank — 35 
 bash platform/db/test/bolt.sh                 # Bolts guardrails — 37 controles
 bash platform/db/test/deelnemers.sh           # wie deed wat — 29 controles
 bash platform/db/test/overdracht.sh           # wat de een aan de ander doorgeeft — 39 controles
+bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort erachter — 52 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
