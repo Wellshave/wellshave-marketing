@@ -31,11 +31,13 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0017_views.sql` | De views laten filteren op wie kijkt in plaats van op wie ze bezit |
 | `db/migrations/0018_dagbesluit.sql` | Het oordeel uit 0013 met naam, handeling en volgorde erbij |
 | `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank |
+| `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
 | `db/test/dagbesluit.sh` | Testlus voor 0018 — 33 controles; alle vijf de oordelen, de volgorde en de dubbele publicatie |
 | `db/test/brein.sh` | Testlus voor 0019 — 35 controles; de kern is dat stilte per soort overdracht iets anders betekent |
+| `db/test/bolt.sh` | Testlus voor 0020 — 37 controles, elk begint met iets wat niet mag |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -45,6 +47,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
 | `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
+| `worker/test/bolt.mjs` | Testlus voor Bolt in de runtime — 31 controles; de kern is dat er geen weg naar buiten is |
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
 | `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
 | `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
@@ -77,6 +80,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Brein + werkbank (0019) | ✅ 1 augustus — 35 controles, vier mutaties gevangen, toegepast op productie |
 | Brein als Obsidian-vault | ✅ 1 augustus — 47 controles, gedraaid op de echte 80 gebeurtenissen |
 | Werkruimte in de console | ✅ 1 augustus — 42 controles; de estafette per werkstuk, niet negen agentkaarten |
+| Bolt uitgewerkt (0020 + runtime) | ✅ 1 augustus — 68 controles, zes mutaties gevangen, toegepast op productie |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -253,6 +257,8 @@ bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32
 bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 controles
 bash platform/db/test/dagbesluit.sh           # uitzetten of opschalen — 33 controles
 bash platform/db/test/brein.sh                # het brein en de werkbank — 35 controles
+bash platform/db/test/bolt.sh                 # Bolts guardrails — 37 controles
+node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
