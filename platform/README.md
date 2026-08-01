@@ -47,6 +47,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
 | `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
+| `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
+| `../ad-generator/test/werkbank.cjs` | Testlus voor de werkbank — 42 controles, incl. contrast en de vier lege toestanden |
 | `../marketing-hq/brain/genereer.mjs` | Het brein afdrukken als Obsidian-vault onder `brain/Live/` |
 | `../marketing-hq/brain/test/genereer.mjs` | Testlus voor die afdruk — 47 controles, waarvan 11 over de schrijfgrens |
 
@@ -74,7 +76,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Trackerscherm — het dagbesluit | ✅ 31 juli — 30 controles in de echte console |
 | Brein + werkbank (0019) | ✅ 1 augustus — 35 controles, vier mutaties gevangen, toegepast op productie |
 | Brein als Obsidian-vault | ✅ 1 augustus — 47 controles, gedraaid op de echte 80 gebeurtenissen |
-| Werkruimte in de console | ⬜ de andere helft: hetzelfde, maar live in het scherm |
+| Werkruimte in de console | ✅ 1 augustus — 42 controles; de estafette per werkstuk, niet negen agentkaarten |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 

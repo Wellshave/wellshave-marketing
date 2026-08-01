@@ -205,13 +205,15 @@ function switchMainTab(tab) {
   const scriptsBtn = document.getElementById('main-tab-btn-scripts');
   const creativesView = document.getElementById('main-tab-creatives');
   const creativesBtn = document.getElementById('main-tab-btn-creatives');
+  const werkbankView = document.getElementById('main-tab-werkbank');
+  const werkbankBtn = document.getElementById('main-tab-btn-werkbank');
   const transformerView = document.getElementById('main-tab-transformer');
   const transformerBtn = document.getElementById('main-tab-btn-transformer');
   const copywriterView = document.getElementById('main-tab-copywriter');
   const copywriterBtn = document.getElementById('main-tab-btn-copywriter');
   const scriptwriterView = document.getElementById('main-tab-scriptwriter');
   const scriptwriterBtn = document.getElementById('main-tab-btn-scriptwriter');
-  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, werkbankBtn].forEach(b => { if (b) b.classList.remove('active'); });
   if (genView) genView.style.display = 'none';
   if (proxyView) proxyView.style.display = 'none';
   if (libView) libView.style.display = 'none';
@@ -225,6 +227,7 @@ function switchMainTab(tab) {
   if (brandView) brandView.style.display = 'none';
   if (scriptsView) scriptsView.style.display = 'none';
   if (creativesView) creativesView.style.display = 'none';
+  if (werkbankView) werkbankView.style.display = 'none';
   if (tab === 'library') {
     if (libView) libView.style.display = 'block';
     if (libBtn) libBtn.classList.add('active');
@@ -283,12 +286,16 @@ function switchMainTab(tab) {
     if (creativesView) creativesView.style.display = 'block';
     if (creativesBtn) creativesBtn.classList.add('active');
     if (typeof renderCreatives === 'function') renderCreatives();
+  } else if (tab === 'werkbank') {
+    if (werkbankView) werkbankView.style.display = 'block';
+    if (werkbankBtn) werkbankBtn.classList.add('active');
+    if (typeof renderWerkbank === 'function') renderWerkbank();
   } else {
     if (genView) genView.style.display = 'block';
     if (genBtn) genBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('scratch');
   }
-  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy' };
+  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', werkbank: 'Werkbank' };
   const tEl = document.getElementById('ws-page-title');
   if (tEl) tEl.textContent = titleMap[tab] || 'Generator';
   window.scrollTo({ top: 0, behavior: 'smooth' });

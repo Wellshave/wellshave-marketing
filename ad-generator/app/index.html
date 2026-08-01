@@ -35,7 +35,11 @@
       Dashboard
     </button>
 
-    <div class="ws-nav-section">Genereren</div>
+        <button class="ws-nav-item" id="main-tab-btn-werkbank" onclick="switchMainTab('werkbank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><line x1="7" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="17" y2="12"/></svg>
+      Werkbank
+    </button>
+<div class="ws-nav-section">Genereren</div>
     <button class="ws-nav-item active" id="main-tab-btn-generator" onclick="switchMainTab('generator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
       Statics
@@ -1466,6 +1470,12 @@
   </div>
 
   <!-- CREATIVE STRATEGY MASTER TAB -->
+  <div id="main-tab-werkbank" style="display:none;">
+    <div class="container" style="max-width:1400px;margin:0 auto;padding:0 32px;">
+      <div id="wbk-mount"></div>
+    </div>
+  </div>
+
   <div id="main-tab-creatives" style="display:none;">
     <style>
       .cs-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -1901,6 +1911,7 @@
 <link id="wg-delight" rel="stylesheet" href="css/05-wg-delight.css">
 <script src="js/22-wg-delight.js"></script>
 <script src="js/29-dagbesluit.js"></script>
+<script src="js/30-werkbank.js"></script>
 
 <link id="console-skin-2" rel="stylesheet" href="css/06-console-skin-2.css">
 
@@ -2007,6 +2018,9 @@
 
 <!-- Het dagbesluit bovenaan de Creative Strategy-tab -->
 <link id="dagbesluit-css" rel="stylesheet" href="css/13-dagbesluit.css">
+
+<!-- De werkbank: de estafette per werkstuk -->
+<link id="werkbank-css" rel="stylesheet" href="css/14-werkbank.css">
 
 <script id="wg-v9-intelligence" src="js/28-wg-v9-intelligence.js"></script>
 
