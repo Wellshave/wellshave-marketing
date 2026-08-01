@@ -209,9 +209,17 @@ insert into marketing_hq.reports (report_date, kind, title, author_agent, vault_
   (current_date, 'brief','Briefing nekirritatie','nova','brain/Briefings/x.md',1, now() - interval '34 hours', false, null),
   (current_date, 'daily','Dagrapport','atlas','brain/Reports/Daily/y.md',null, now() - interval '5 hours', true, 'attributie loopt nog na');
 
+-- De statuswaarden zijn Engels; dat is wat de constraint op approvals toestaat.
+-- Deze reeks staat hier zo omdat de view ze eerst in het Nederlands verwachtte
+-- en drie wachtende goedkeuringen daardoor stil doorvielen naar 'info'.
 insert into marketing_hq.approvals (requested_by, action_type, description, status, werkstuk_id, created_at, decided_by, decided_at) values
-  ('bolt','budget','GroomGuard-test op 20 euro/dag','open',2, now() - interval '30 hours', null, null),
-  ('nova','publiceren','Nekirritatie v1 live','akkoord',1, now() - interval '33 hours','dustin', now() - interval '32 hours');
+  ('bolt','budget','GroomGuard-test op 20 euro/dag','pending',2, now() - interval '30 hours', null, null),
+  ('nova','publiceren','Nekirritatie v1 live','approved',1, now() - interval '33 hours','dustin', now() - interval '32 hours'),
+  -- Deze twee hangen bewust aan géén werkstuk: hangen ze aan W3, dan is dat
+  -- werkstuk opeens 18 uur geleden aangeraakt en meet de stiltecontrole
+  -- verderop iets anders dan hij bedoelt.
+  ('bolt','pauzeren','Verlieslatende ad uitzetten','rejected',null, now() - interval '20 hours','dustin', now() - interval '19 hours'),
+  ('bolt','budget','Uitgevoerde poort','executed',null, now() - interval '18 hours','dustin', now() - interval '17 hours');
 
 insert into marketing_hq.agent_runs (agent_id, started_at, finished_at, status, summary, cost_usd, input_tokens, output_tokens, model) values
   ('nova', now() - interval '36 hours', now() - interval '35 hours','klaar','Nova briefte het team', 0.0412, 12000, 900,'claude-opus-5'),
@@ -244,10 +252,20 @@ check "en zegt erbij dat hij niet is opgepakt" "t" \
   "$(q "select wat like '%nog niet opgepakt%' from marketing_hq.brein where bron='agent_messages' and werkstuk_id=2")"
 check "een gelezen overdracht niet" "info" \
   "$(q "select toon from marketing_hq.brein where bron='agent_messages' and werkstuk_id=1")"
-check "een open poort wacht zichtbaar" "t" \
+check "een wachtende poort is een waarschuwing, geen info" "warn" \
+  "$(q "select toon from marketing_hq.brein where bron='approvals' and werkstuk_id=2")"
+check "en zegt zichtbaar dat hij wacht" "t" \
   "$(q "select wat like '%wacht op akkoord%' from marketing_hq.brein where bron='approvals' and werkstuk_id=2")"
 check "een gegeven akkoord noemt wie" "t" \
   "$(q "select wat like '%akkoord door dustin%' from marketing_hq.brein where bron='approvals' and werkstuk_id=1")"
+check "een afwijzing is een fout, want daar strandde werk" "error" \
+  "$(q "select toon from marketing_hq.brein where bron='approvals' and wat like '%Verlieslatende%'")"
+check "een uitgevoerde poort zegt dat ook" "t" \
+  "$(q "select wat like '%uitgevoerd%' from marketing_hq.brein where bron='approvals' and wat like '%Uitgevoerde poort%'")"
+# Als iemand later een vijfde status toevoegt, mag die niet stil doorvallen.
+check "geen enkele poort valt stil door zonder markering" 0 \
+  "$(q "select count(*) from marketing_hq.brein where soort='poort'
+        and wat not similar to '%\\((wacht op akkoord|akkoord door|afgewezen door|uitgevoerd|onbekende status)%'")"
 check "een voorlopig rapport zegt waarom het voorlopig is" "t" \
   "$(q "select bool_or(wat like '%attributie loopt nog na%') from marketing_hq.brein where bron='reports'")"
 

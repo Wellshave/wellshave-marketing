@@ -119,17 +119,36 @@ from marketing_hq.reports r
 union all
 
 -- Waar een mens aan te pas moest komen. Dit zijn de poorten uit de estafette.
+--
+-- De statuswaarden zijn Engels en dat is geen slordigheid maar de constraint op
+-- approvals: pending / approved / rejected / executed. Bij het schrijven van
+-- deze view nam ik de Nederlandse woorden aan die de rest van dit schema
+-- gebruikt, en toen viel alles stil door naar `else`: drie goedkeuringen die op
+-- een mens wachtten stonden in het brein als gewone informatie, zonder één
+-- teken dat er iemand op zat te wachten. Precies wat dit brein moet opvangen.
+--
+-- Daarom staat er onderaan geen stille `else ''` meer. Een status die hier niet
+-- bij staat wordt zichtbaar gemeld in plaats van weggemoffeld — op een poort
+-- die geld kost is een onbekende toestand geen detail.
 select
   a.created_at,
   'poort',
   a.requested_by,
-  case a.status when 'open' then 'warn' when 'afgewezen' then 'error' else 'info' end,
+  case a.status
+    when 'pending'  then 'warn'
+    when 'rejected' then 'error'
+    when 'approved' then 'info'
+    when 'executed' then 'info'
+    else 'warn'
+  end,
   a.action_type || ': ' || a.description
     || case a.status
-         when 'open' then '  (wacht op akkoord)'
-         when 'akkoord' then '  (akkoord door ' || coalesce(a.decided_by, 'onbekend') || ')'
-         when 'afgewezen' then '  (afgewezen door ' || coalesce(a.decided_by, 'onbekend') || ')'
-         else '' end,
+         when 'pending'  then '  (wacht op akkoord)'
+         when 'approved' then '  (akkoord door ' || coalesce(a.decided_by, 'onbekend') || ')'
+         when 'rejected' then '  (afgewezen door ' || coalesce(a.decided_by, 'onbekend') || ')'
+         when 'executed' then '  (uitgevoerd)'
+         else '  (onbekende status: ' || coalesce(a.status, 'leeg') || ')'
+       end,
   a.werkstuk_id,
   jsonb_build_object('status', a.status, 'payload', a.payload, 'besloten_op', a.decided_at),
   'approvals',
