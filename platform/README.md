@@ -13,6 +13,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `docs/TERUGKOPPELING.md` | Stap 06 — hoe het cijfer terugkomt bij de creatieve keuze |
 | `docs/ONTWERPCONTRACT.md` | Harde, toetsbare regels voor uiterlijk en gedrag — gaat vóór op smaak |
 | `docs/WERKBANK.md` | Functioneel raamwerk: hoe mensen en agents samen aan één werkstuk werken |
+| `docs/TEAM.md` | Functioneel raamwerk: profielen, discussies, reputatie en agentgeheugen |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
@@ -85,6 +86,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Werkruimte in de console | ✅ 1 augustus — 42 controles; de estafette per werkstuk, niet negen agentkaarten |
 | Bolt uitgewerkt (0020 + runtime) | ✅ 1 augustus — 68 controles, zes mutaties gevangen, toegepast op productie |
 | Raamwerk Werkbank vastgelegd | ✅ 1 augustus — `docs/WERKBANK.md`, akkoord op de Criticus |
+| Raamwerk Team vastgelegd | ✅ 1 augustus — `docs/TEAM.md`; hangt aan de overdracht uit ③ |
 | ① Deelnemers bij naam (0021) | ✅ 1 augustus — 29 + 42 controles, vier mutaties gevangen, toegepast op productie |
 | ② Het denkstuk | ⬜ zeven velden, de poort erachter, en "niet doen" als uitgang |
 | ③ De overdracht | ⬜ vijf velden; een stap kan niet af zonder |
