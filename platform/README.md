@@ -30,10 +30,12 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
 | `db/migrations/0017_views.sql` | De views laten filteren op wie kijkt in plaats van op wie ze bezit |
 | `db/migrations/0018_dagbesluit.sql` | Het oordeel uit 0013 met naam, handeling en volgorde erbij |
+| `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
 | `db/test/dagbesluit.sh` | Testlus voor 0018 — 33 controles; alle vijf de oordelen, de volgorde en de dubbele publicatie |
+| `db/test/brein.sh` | Testlus voor 0019 — 35 controles; de kern is dat stilte per soort overdracht iets anders betekent |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -68,6 +70,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Views filteren op wie kijkt (0017) | ✅ 31 juli — 16 controles, mutatietest vangt de makkelijke foute oplossing |
 | Dagbesluit (0018) | ✅ 31 juli — 33 controles, vijf mutaties gevangen, toegepast op productie |
 | Trackerscherm — het dagbesluit | ✅ 31 juli — 30 controles in de echte console |
+| Brein + werkbank (0019) | ✅ 1 augustus — 35 controles, vier mutaties gevangen, toegepast op productie |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -243,6 +246,7 @@ node platform/worker/test/accounts.mjs        # meerdere accounts — 21 control
 bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
 bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 controles
 bash platform/db/test/dagbesluit.sh           # uitzetten of opschalen — 33 controles
+bash platform/db/test/brein.sh                # het brein en de werkbank — 35 controles
 ```
 
 Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
