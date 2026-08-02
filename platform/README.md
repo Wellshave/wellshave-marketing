@@ -98,7 +98,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
 | ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles, toegepast op productie; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
 | ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles, toegepast op productie; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
-| ⑥ De Criticus | ⬜ pas als ③ er staat |
+| ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -281,6 +281,7 @@ bash platform/db/test/overdracht.sh           # wat de een aan de ander doorgeef
 bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort erachter — 52 controles
 bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van twee — 44 controles
 bash platform/db/test/dossier.sh               # wat een agent bij een stap meekrijgt — 35 controles
+bash platform/db/test/criticus.sh              # de grendel tussen creatie en lancering — 32 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
