@@ -35,6 +35,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank |
 | `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
+| `db/migrations/0025_dossier.sql` | Het dossier per station — stap 5 van het Werkbank-raamwerk |
+| `db/migrations/0026_criticus.sql` | De Criticus — stap 6, de grendel tussen creatie en lancering |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
 | `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
 | `db/migrations/0024_terugsturen.sql` | Terugsturen: de keten gaat weer open, de grens van twee, en het bevroren denkstuk erbij |
@@ -98,7 +100,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
 | ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles, toegepast op productie; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
 | ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles, toegepast op productie; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
-| ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
+| ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles, toegepast op productie; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
