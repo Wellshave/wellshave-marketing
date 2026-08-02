@@ -18,6 +18,22 @@
 *leeg*
 
 ## Hypothese
+- 🔥 **BALZY-bundel → SkinSafe Body Shaver** · static/bundle · Nova
+  *Prioritaire kans (2/8, zie
+  [[../Pipeline/Items/2026-08-02-balzy-bundel-skinsafe|volledige notitie]]):
+  BALZY's "Beard Balls Bundle" (2+1-gratis, confidence-hook) scoort
+  rankDelta +234, reach 43.640, 95 dagen live, 60 varianten, 54 nieuwe ads
+  in 24u — vier van de zes kwalificerende signalen. Directe
+  categorie-concurrent van SkinSafe Body Shaver. Sterkste testkandidaat
+  tot nu toe*
+- 🔥 **Cloud Nine Airshot Pro → Wellshine Airstyler/Hairdryer** · static/campagne · Nova
+  *Prioritaire kans (2/8, zie
+  [[../Pipeline/Items/2026-08-02-cloud-nine-airshot-wellshine|volledige notitie]]):
+  grootste rankdelta van de hele scan (+378/+313). Radar zag de fit als
+  onduidelijk, maar Wellshine verkoopt zelf Airstyler Nova en Hairdryer
+  Briza — exact hetzelfde segment, en Airstyler Nova staat op 7 nuldagen
+  op rij. Eerst gerichte vervolgscan op de creative nodig vóór verdere
+  productie*
 - **Dedicated hoofd-scheerapparaat landingspagina** · landing_page · Nova
   *Gepromoot 27/7: Brothers in Style bewijst het patroon nu overtuigend —
   hun hoofd-scheerapparaat-video haalt **1,3M+ reach**, en de groei van de
@@ -26,11 +42,14 @@
   dit idee. Eén product, één pagina, één belofte — CVR hoger dan de
   generieke productpagina over 14 dagen*
 - **Testimonial-statics uit bestaande reviews** · static · Nova
-  *Prioriteit ↑↑ (25/7): BALZY's echte-klant-hooks blijven de topschaler.
-  31/7: de Rick Loonen-creator-partnership schaalt nu aantoonbaar op
-  (rankDelta +153, reach van de 3 partnerships samen +569% naar 10.293) —
-  eerste harde bewijs dat de creator-aanpak naast de klassieke
-  UGC-testimonial ook werkt. CTR boven accountgemiddelde over 7 dagen;
+  *Prioriteit ↑↑ (25/7): BALZY's echte-klant-hooks blijven de topschaler
+  — nu ook bevestigd via de aparte prioritaire-kans-notitie hierboven.
+  ⚠️ Correctie (2/8): de eerder gemelde "Rick Loonen"-creator-partnership
+  blijkt een naamverwarring — het account heet **rickdekkernl**, actief
+  sinds 16/7 maar met zwak signaal (reach 359, spend €3). De
+  creator-partnership-route is dus minder sterk bewezen dan eerder
+  gemeld; de klassieke UGC-testimonial-hook (zie BALZY-bundelnotitie)
+  blijft het hardste bewijs. CTR boven accountgemiddelde over 7 dagen;
   goedkoop te testen*
 - **Bundel-test: Wellshave Complete Set** · static · Nova
   *Gepromoveerd 19/7 na twee dagen marktbevestiging (BALZY-bundel schaalt
@@ -41,12 +60,14 @@
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 1/8: onze
-  eigen advertorial deed 0,97 op 31/7 — nog altijd geen aaneengesloten
-  trend. Er is inmiddels ook een nieuwe eigen testcampagne
-  "002 – CBO – Advertorials" gestart (31/7, nog geen resultaten). Ace &
-  Taylor's keramiek-mechanisme-hook blijft de externe blauwdruk voor
-  tekstvernieuwing — eerst de creative verversen, dan pas budget*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 2/8: onze
+  eigen advertorial haalde **3,15** op 1/8 — voor het eerst sinds 26/7
+  weer boven de drempel, nog geen bevestigde meerdaagse trend. ⚠️ De
+  "002 – CBO – Advertorials"-testcampagne uit het rapport van 1/8 kon niet
+  worden teruggevonden — zie approval #5, vraagt om menselijke
+  verificatie. Ace & Taylor's keramiek-mechanisme-hook blijft de externe
+  blauwdruk voor tekstvernieuwing — eerst de creative verversen, dan pas
+  budget*
 
 ## Script
 *leeg*

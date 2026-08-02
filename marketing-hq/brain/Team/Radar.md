@@ -1,14 +1,23 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-01 · ochtendcyclus
-**Huidige taak:** klaar; Kevin Junior-impressiecijfer voorlopig niet
-gebruiken (verergerende anomalie); BALZY Rick Loonen/mo7ayatii morgen
-gericht navragen (viel buiten de partner-cap deze scan)
+**Laatste run:** 2026-08-02 · ochtendcyclus
+**Huidige taak:** klaar; vervolgscan op Cloud Nine Airshot Pro-creative
+nodig (welke hook drijft de rankstijging); Brothers in Style
+impressiedaling volgen (mogelijk eenmalig)
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-02** · [[../Briefings/2026-08-02|Trendbriefing]]: **eerste
+  toepassing van de nieuwe prioritaire-kans-regel** — 2 kansen
+  geprioriteerd: BALZY's bundelactie (rankDelta +234, 4/6 signalen) en
+  Cloud Nine's Airshot Pro (grootste rankdelta van de scan, +378).
+  Correctie: "Rick Loonen"-partnership bleek naamverwarring
+  (rickdekkernl, zwak signaal). Kevin Junior-anomalie verergert verder
+  (1,41M impr.) + nieuwe aparte trackingfout ontdekt. Brothers in Style
+  LP-impressies daalden ongebruikelijk (-44k). 126 credits (8.164
+  resterend).
 - **2026-08-01** · [[../Briefings/2026-08-01|Trendbriefing]]: 61 nieuwe
   ads (forse terugval na de piekdagen). Cloud Nine's ad-piek volledig
   genormaliseerd (8, was 147). BALZY's "Beard Balls Bundle" sterkste

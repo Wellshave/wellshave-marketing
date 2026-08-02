@@ -4,25 +4,30 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 1 augustus 2026
-- ↗ **GroomGuard-test herstelt naar 1,45 — de tweedaagse daling zette niet
-  door.** Approval #3 kan worden gede-escaleerd: geen acute reden meer om
-  te cappen.
-- 🔴 **Wellshine blijft zorgelijk:** Airstyler Nova nu **6 nuldagen op
-  rij**; Hairdryer Briza's herstel van 29/7 is bevestigd eenmalig geweest.
-  Voorstel #4 blijft staan.
-- 💰 **Nieuwe campagne "002 – CBO – Advertorials" gestart** met een fors
-  eerstedagsbudget (€108,31) — Wellshave-accountspend sprong naar €276,48.
-  Nog geen resultaten, te vroeg om te beoordelen.
-- ✅ 28/7 en 29/7 zijn nu definitief (2,10/0,00 en 0,50/1,05 — bevestigt
-  Hairdryer Briza's ene goede dag als een blijvend resultaat).
-- 📧 E-mailkanaal: dag 50 stil. Newsletter-lijst: 4.113 profielen
-  (+29, sterkste weekgroei tot nu toe).
-- 📡 [[Briefings/2026-08-01|Trendbriefing]]: Cloud Nine's ad-piek is
-  volledig genormaliseerd (8 nieuwe ads, was 147). BALZY's "Beard Balls
-  Bundle" blijft de sterkste schaler van de markt. ⚠️ Kevin
-  Junior-impressiecijfer blijkt een verergerende trackinganomalie —
-  voorlopig niet gebruiken.
+## Vandaag — 2 augustus 2026
+- ⚠️ **Datacorrectie die om menselijke verificatie vraagt:** de
+  testcampagne "002 – CBO – Advertorials" (gisteren gemeld met €108,31
+  spend) kon vandaag in géén enkel toegankelijk Meta-account worden
+  teruggevonden. 31/7 herberekend zónder die campagne: €168,61/ROAS≈1,10
+  i.p.v. de eerder gemelde €276,48/0,67. Vraagt verificatie in Meta Ads
+  Manager — zie approval #5.
+- ✅ **Sterkste dag in weken (1/8): blended ROAS ≈2,03.** Alle drie
+  Wellshave-campagnes positief; Advertorial Pages haalt voor het eerst
+  sinds 26/7 de 3,0-drempel (**3,15**). GroomGuard-test herstelt 3 dagen
+  op rij (0,58→1,45→**2,10**).
+- 🔥 **Twee nieuwe prioritaire testvoorstellen** — eerste toepassing van de
+  nieuwe uitzonderingsregel (één sterke Trendtrack-bron volstaat bij
+  aantoonbare concurrentietractie): **BALZY's bundelactie** → SkinSafe
+  Body Shaver (rankDelta +234, 4 van de 6 signalen), en **Cloud Nine's
+  Airshot Pro** → Wellshine's eigen Airstyler/Hairdryer-segment (grootste
+  rankdelta van de scan, +378). Beide volledig gedocumenteerd in
+  `Pipeline/Items/`, zie [[Pipeline/Board|Board]].
+- 🔴 Wellshine: Airstyler Nova nu **7 nuldagen op rij**; Hairdryer Briza
+  had wel een 2e positieve dag (2,17).
+- 📡 [[Briefings/2026-08-02|Trendbriefing]]: correctie op eerdere
+  briefing — de "Rick Loonen"-partnership bleek een naamverwarring
+  (account heet rickdekkernl, zwak signaal). Kevin Junior-anomalie
+  verergert verder + een tweede, aparte trackingfout ontdekt.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

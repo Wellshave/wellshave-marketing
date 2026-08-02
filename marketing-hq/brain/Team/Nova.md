@@ -1,14 +1,24 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (5 approvals)
-**Laatste run:** 2026-08-01 · ochtendcyclus
-**Huidige taak:** 5 approvals openstaand (#1 advertorial, #2 SGL-mail,
-#3 GroomGuard gede-escaleerd, #4 Wellshine, #5 nieuw: info-item nieuwe
-campagne)
+**Status:** 🟡 wacht op akkoord (5 approvals, waarvan 1 met verzwaarde
+urgentie)
+**Laatste run:** 2026-08-02 · ochtendcyclus
+**Huidige taak:** 2 nieuwe prioritaire pipeline-items aangemaakt (BALZY,
+Cloud Nine); approval #5 verzwaard naar "actie vereist"
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-02** · **Eerste toepassing van de nieuwe
+  prioritaire-kans-regel**: twee 🔥-items aangemaakt op het board met
+  volledige 9-punts-documentatie in `Pipeline/Items/` — BALZY's
+  bundelactie (SkinSafe Body Shaver) en Cloud Nine's Airshot Pro
+  (Wellshine Airstyler/Hairdryer, fit-correctie op Radars eigen
+  inschatting). Approval #5 verzwaard van "ter kennisgeving" naar "actie
+  vereist" na de onopgeloste discrepantie rond "002 – CBO – Advertorials".
+  Approval #1 bijgewerkt (3,15 op 1/8, nog niet scalen), #3 verder
+  gede-escaleerd, #4 genuanceerd (Hairdryer Briza 2e goede dag).
+  Testimonial-static-notitie gecorrigeerd (Rick Loonen-naamverwarring).
 - **2026-08-01** · Approval #3 **gede-escaleerd**: GroomGuard-test
   herstelde naar 1,45, de tweedaagse daling zette niet door — geen acute
   reden meer om te cappen. Approval #5 aangemaakt (ter kennisgeving): een

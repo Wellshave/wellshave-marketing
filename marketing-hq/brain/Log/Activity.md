@@ -4,6 +4,28 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-02** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-02** · Nova · Eerste toepassing van de nieuwe
+  prioritaire-kans-regel: 2 🔥-items aangemaakt (BALZY-bundel → SkinSafe
+  Body Shaver, Cloud Nine Airshot Pro → Wellshine Airstyler/Hairdryer),
+  elk met volledige 9-punts-documentatie in `Pipeline/Items/`. Approval
+  #5 verzwaard naar "actie vereist" (onopgeloste campagne-discrepantie).
+  Approvals #1, #3, #4 bijgewerkt; testimonial-notitie gecorrigeerd
+  (Rick Loonen-naamverwarring rechtgezet).
+- **2026-08-02** · Radar · Marktscan: eerste toepassing van de
+  prioritaire-kans-regel — BALZY-bundel (rankDelta +234) en Cloud Nine
+  Airshot Pro (rankDelta +378) geprioriteerd. Kevin Junior-anomalie
+  verergert verder + nieuwe aparte trackingfout; Brothers in Style
+  LP-impressies daalden ongebruikelijk. 126 credits (8.164 resterend).
+- **2026-08-02** · Atlas · Ochtendcyclus: ⚠️ campagne
+  "002 – CBO – Advertorials" niet terug te vinden — 31/7 herberekend naar
+  €168,61/ROAS≈1,10 i.p.v. €276,48/0,67, vraagt menselijke verificatie.
+  Sterkste dag in weken op 1/8 (blended ROAS ≈2,03): Advertorial Pages
+  3,15, GroomGuard-test 2,10 (3 dagen herstel). Airstyler Nova 7 nuldagen
+  op rij. 29/7 en 30/7 definitief. Klaviyo dag 51 stil, lijst +36 naar
+  4.149.
 - **2026-08-01** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

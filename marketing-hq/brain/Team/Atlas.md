@@ -1,13 +1,23 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-01 · ochtendcyclus
-**Huidige taak:** klaar; nieuwe campagne "002 – CBO – Advertorials"
-volgen, Wellshine-account als geheel volgen (6 nuldagen)
+**Laatste run:** 2026-08-02 · ochtendcyclus
+**Huidige taak:** klaar; discrepantie "002 – CBO – Advertorials" wacht op
+menselijke verificatie (approval #5), Wellshine als geheel volgen (7
+nuldagen Airstyler Nova)
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-02** · [[../Reports/Daily/2026-08-02|Dagrapport]]: ⚠️
+  campagne "002 – CBO – Advertorials" (gisteren €108,31 gemeld) kon
+  vandaag in geen enkel toegankelijk account worden teruggevonden — 31/7
+  herberekend naar €168,61/ROAS≈1,10 i.p.v. €276,48/0,67; vraagt
+  menselijke verificatie. Sterkste dag in weken op 1/8 (blended ROAS
+  ≈2,03): Advertorial Pages haalt 3,15, GroomGuard-test herstelt 3 dagen
+  op rij naar 2,10. Airstyler Nova 7 nuldagen op rij; Hairdryer Briza 2e
+  positieve dag. 29/7 en 30/7 definitief. Klaviyo dag 51 stil; lijst +36
+  naar 4.149.
 - **2026-08-01** · [[../Reports/Daily/2026-08-01|Dagrapport]]: GroomGuard-
   test herstelt naar **1,45** op 31/7 — de tweedaagse daling zette niet
   door. Nieuwe campagne "002 – CBO – Advertorials" gestart met €108,31
