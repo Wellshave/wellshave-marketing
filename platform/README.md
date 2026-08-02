@@ -14,6 +14,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `docs/ONTWERPCONTRACT.md` | Harde, toetsbare regels voor uiterlijk en gedrag — gaat vóór op smaak |
 | `docs/WERKBANK.md` | Functioneel raamwerk: hoe mensen en agents samen aan één werkstuk werken |
 | `docs/TEAM.md` | Functioneel raamwerk: profielen, discussies, reputatie en agentgeheugen |
+| `docs/BATCHES.md` | Plan van aanpak voor de eerste batches — batchgrootte volgt uit de drempels |
 | `db/migrations/0004_agent_runtime.sql` | Planning, wachtrij, live-feed, koppelstatus |
 | `db/migrations/0005_modules.sql` | Meta-analyse en e-mail |
 | `db/migrations/0006_consolidatie.md` | De twee Supabase-projecten samenvoegen |
