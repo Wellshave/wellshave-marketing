@@ -97,7 +97,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles, toegepast op productie; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
 | ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles, toegepast op productie; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
-| ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
+| ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles, toegepast op productie; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
 | ⑥ De Criticus | ⬜ pas als ③ er staat |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
