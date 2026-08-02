@@ -102,6 +102,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles, toegepast op productie; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
 | ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles, toegepast op productie; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
 | ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles, toegepast op productie; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
+| Fase 0: opruimen (0027) | ✅ 2 augustus — 29 controles; duplicaten gearchiveerd, de rest bij naam genoemd |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -285,6 +286,7 @@ bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort era
 bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van twee — 44 controles
 bash platform/db/test/dossier.sh               # wat een agent bij een stap meekrijgt — 35 controles
 bash platform/db/test/criticus.sh              # de grendel tussen creatie en lancering — 32 controles
+bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
