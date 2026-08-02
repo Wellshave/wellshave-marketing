@@ -97,7 +97,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles, toegepast op productie; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
 | ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles, toegepast op productie; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
-| ⑤ Het dossier per station | ⬜ uit tabellen die er al zijn |
+| ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
 | ⑥ De Criticus | ⬜ pas als ③ er staat |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
@@ -280,6 +280,7 @@ bash platform/db/test/deelnemers.sh           # wie deed wat — 29 controles
 bash platform/db/test/overdracht.sh           # wat de een aan de ander doorgeeft — 39 controles
 bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort erachter — 52 controles
 bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van twee — 44 controles
+bash platform/db/test/dossier.sh               # wat een agent bij een stap meekrijgt — 35 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
