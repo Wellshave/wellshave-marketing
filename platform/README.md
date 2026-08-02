@@ -37,6 +37,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
 | `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
+| `db/migrations/0024_terugsturen.sql` | Terugsturen: de keten gaat weer open, de grens van twee, en het bevroren denkstuk erbij |
 | `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
@@ -46,6 +47,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/deelnemers.sh` | Testlus voor 0021 — 29 controles; de kern is dat er niet gegokt wordt wie iets deed |
 | `db/test/overdracht.sh` | Testlus voor 0022 — 39 controles; de kern is dat een stap niet af kan zonder overdracht |
 | `db/test/denkstuk.sh` | Testlus voor 0023 — 52 controles; de kern is dat geen agent het denkstuk kan aftekenen |
+| `db/test/terugsturen.sh` | Testlus voor 0024 — 44 controles; de kern is dat twee agents elkaar niet eindeloos heen en weer sturen |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
@@ -94,7 +96,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ① Deelnemers bij naam (0021) | ✅ 1 augustus — 29 + 42 controles, vier mutaties gevangen, toegepast op productie |
 | ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles, toegepast op productie; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
-| ④ Terugsturen | ⬜ inclusief de grens van twee |
+| ④ Terugsturen (0024) | ✅ 2 augustus — 44 controles; de derde ronde vraagt een mens, en ② kan niet meer overgeslagen worden |
 | ⑤ Het dossier per station | ⬜ uit tabellen die er al zijn |
 | ⑥ De Criticus | ⬜ pas als ③ er staat |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
@@ -277,6 +279,7 @@ bash platform/db/test/bolt.sh                 # Bolts guardrails — 37 controle
 bash platform/db/test/deelnemers.sh           # wie deed wat — 29 controles
 bash platform/db/test/overdracht.sh           # wat de een aan de ander doorgeeft — 39 controles
 bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort erachter — 52 controles
+bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van twee — 44 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
