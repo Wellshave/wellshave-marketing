@@ -92,7 +92,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Raamwerk Werkbank vastgelegd | ✅ 1 augustus — `docs/WERKBANK.md`, akkoord op de Criticus |
 | Raamwerk Team vastgelegd | ✅ 1 augustus — `docs/TEAM.md`; hangt aan de overdracht uit ③ |
 | ① Deelnemers bij naam (0021) | ✅ 1 augustus — 29 + 42 controles, vier mutaties gevangen, toegepast op productie |
-| ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
+| ② Het denkstuk (0023) | ✅ 1 augustus — 52 controles, toegepast op productie; alleen een mens tekent af, en "niet doen" stopt het werkstuk |
 | ③ De overdracht (0022) | ✅ 1 augustus — 39 controles, vijf mutaties gevangen, toegepast op productie |
 | ④ Terugsturen | ⬜ inclusief de grens van twee |
 | ⑤ Het dossier per station | ⬜ uit tabellen die er al zijn |
