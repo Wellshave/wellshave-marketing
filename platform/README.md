@@ -103,6 +103,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ⑤ Het dossier per station (0025) | ✅ 2 augustus — 35 controles, toegepast op productie; geen dossierregel zonder herkomst, en de lus komt rond bij de volgende hoek |
 | ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles, toegepast op productie; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
 | Fase 0: opruimen (0027) | ✅ 2 augustus — 29 controles, toegepast op productie; 9 → 6 creatives, 3 gereed, 3 werkstukken klem |
+| Werkstukken herschikt (0028) | ✅ 2 augustus — 28 controles, toegepast op productie; drie koppen werden vragen, `premium` werd `safety` |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -287,6 +288,7 @@ bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van
 bash platform/db/test/dossier.sh               # wat een agent bij een stap meekrijgt — 35 controles
 bash platform/db/test/criticus.sh              # de grendel tussen creatie en lancering — 32 controles
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
+bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
