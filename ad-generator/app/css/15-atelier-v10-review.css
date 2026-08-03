@@ -1,0 +1,187 @@
+/* ============================================================
+   ATELIER CONSOLE v10 — "REVIEW"
+   De gegenereerde output als creative review workspace in plaats
+   van een formulier. Alle velden blijven exact dezelfde DOM-knopen
+   met dezelfde IDs en handlers; ze worden alleen als leesbare tekst
+   gepresenteerd (readonly) tot de gebruiker bewust gaat bewerken.
+   Vier lagen: concept, copy, details, AI-reasoning.
+   ============================================================ */
+
+/* ---------- zodra er output is, wordt de review de hoofdzaak ----------
+   De inspiratiekolom is smal genoeg om in te kiezen, maar te krap om
+   creatief werk te beoordelen. Bij resultaten verschuift het gewicht. */
+.ws8-grid.rv-output { grid-template-columns: 258px minmax(0, 0.78fr) minmax(560px, 1.3fr); }
+.ws8-grid.rv-output .ws8-right {
+  position: static; max-height: none; overflow: visible;
+}
+.ws8-grid.rv-output .ws8-right .ws8-inspire { display: none; }
+.rv-output-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 0 2px 12px;
+}
+.rv-output-head b { font-family: 'Fraunces', Georgia, serif; font-size: 21px; font-weight: 600; color: var(--ink); }
+.rv-output-head span { font-size: 12px; color: var(--ink-faint); }
+@media (max-width: 1420px) { .ws8-grid.rv-output { grid-template-columns: 240px minmax(0, 0.72fr) minmax(480px, 1.35fr); } }
+@media (max-width: 1180px) { .ws8-grid.rv-output { grid-template-columns: 1fr; } }
+
+/* De oudere inklap-laag (vc-toggle) wordt vervangen door de secties
+   hieronder; rijen die daarin verhuisd zijn moeten weer zichtbaar zijn. */
+.variation-card[data-rv] .vc-toggle { display: none !important; }
+.variation-card[data-rv]:not(.vc-open) .rv-fold-body .vc-heavy,
+.variation-card[data-rv]:not(.vc-open) .rv-copy .vc-heavy,
+.variation-card[data-rv]:not(.vc-open) .rv-concept .vc-heavy { display: block !important; }
+
+.variation-card {
+  background: #fffdf8 !important;
+  border: 1px solid rgba(22, 21, 15, 0.07) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04), 0 12px 32px rgba(32, 27, 16, 0.05) !important;
+  padding: 0 !important;
+  margin-bottom: 18px !important;
+  overflow: hidden;
+  transition: box-shadow 0.25s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+.variation-card:hover { box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04), 0 18px 44px rgba(32, 27, 16, 0.09) !important; }
+
+/* ---------- kop: variatienummer, hook, acties ---------- */
+.variation-card .var-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding: 14px 22px !important; margin: 0 !important;
+  border-bottom: 1px solid rgba(22, 21, 15, 0.06);
+  background: #faf7f0;
+}
+.variation-card .var-number {
+  font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-faint) !important;
+}
+.variation-card .var-hook-tag {
+  background: #17161b !important; color: #ffd75e !important; border: none !important;
+  border-radius: 999px; padding: 4px 11px !important; font-size: 10.5px !important; font-weight: 700 !important;
+}
+.variation-card .var-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- 1. concept: de headline voert de boventoon ---------- */
+.rv-concept { padding: 26px 26px 4px; }
+.variation-card .var-headline {
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-size: 30px !important; font-weight: 600 !important; line-height: 1.18 !important;
+  color: var(--ink) !important; letter-spacing: -0.012em;
+  margin: 0 !important; padding: 0 !important; border: none !important; background: none !important;
+}
+.rv-concept .rv-sub { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); max-width: 62ch; }
+
+/* ---------- 2. copy: leesbare tekst, geen invoervelden ---------- */
+.rv-copy { padding: 4px 26px 22px; display: flex; flex-direction: column; gap: 2px; }
+.rv-block { padding: 12px 0; border-top: 1px solid rgba(22, 21, 15, 0.06); position: relative; }
+.rv-block:first-child { border-top: none; }
+.rv-lbl {
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;
+}
+.rv-cta-line { display: flex; align-items: center; gap: 10px; }
+.rv-cta-line .rv-lbl { margin-bottom: 0; }
+
+/* leesmodus: velden zien eruit als tekst */
+.variation-card .var-row .inline-edit-input,
+.variation-card .var-row .inline-edit-textarea {
+  border: none !important; background: transparent !important; box-shadow: none !important;
+  padding: 0 !important; border-radius: 0 !important;
+  color: var(--ink) !important; width: 100%;
+  font-family: 'Hanken Grotesk', sans-serif !important;
+  transition: background 0.16s ease, padding 0.16s ease, box-shadow 0.16s ease;
+}
+.variation-card .var-row .inline-edit-textarea { font-size: 14.5px !important; line-height: 1.62 !important; resize: none; overflow: hidden; }
+.variation-card .var-row .inline-edit-input { font-size: 14.5px !important; font-weight: 600 !important; }
+.rv-block[data-f="cta"] .inline-edit-input {
+  font-size: 13px !important; font-weight: 700 !important;
+  display: inline-block; width: auto; min-width: 120px;
+  background: var(--amber-wash) !important; color: var(--amber-deep) !important;
+  border-radius: 999px !important; padding: 5px 14px !important;
+}
+.variation-card .inline-edit-input[readonly],
+.variation-card .inline-edit-textarea[readonly] { cursor: default; }
+.variation-card .inline-edit-input[readonly]:focus,
+.variation-card .inline-edit-textarea[readonly]:focus { outline: none; }
+/* bewerkmodus: velden krijgen hun kader terug */
+.variation-card.rv-editing .var-row .inline-edit-input,
+.variation-card.rv-editing .var-row .inline-edit-textarea {
+  background: #fff !important; padding: 9px 12px !important;
+  border: 1px solid rgba(22, 21, 15, 0.14) !important; border-radius: 10px !important;
+}
+.variation-card.rv-editing .rv-block[data-f="cta"] .inline-edit-input {
+  background: #fff !important; color: var(--ink) !important; border-radius: 10px !important;
+}
+.variation-card.rv-editing .var-row .inline-edit-input:focus,
+.variation-card.rv-editing .var-row .inline-edit-textarea:focus {
+  border-color: rgba(var(--gold-rgb), 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.16) !important;
+}
+/* lege velden alleen in bewerkmodus tonen */
+.variation-card:not(.rv-editing) .rv-block.rv-empty { display: none; }
+.variation-card .var-row { display: block !important; padding: 0 !important; border: none !important; background: none !important; }
+.variation-card .var-row .field-name { display: none !important; }
+.variation-card .var-row .field-value-editable { display: block !important; padding: 0 !important; }
+.variation-card .sync-status { font-size: 10.5px; }
+/* kopieerknop verschijnt op hover van het blok */
+.rv-block .copy-btn {
+  position: absolute; top: 8px; right: 0; opacity: 0;
+  transition: opacity 0.16s ease; background: #f2efe5 !important; border-radius: 8px !important;
+}
+.rv-block:hover .copy-btn, .rv-block .copy-btn:focus-visible { opacity: 1; }
+
+/* ---------- knoppenbalk onder de copy ---------- */
+.rv-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 26px 18px; }
+.rv-edit-btn {
+  border: 1px solid rgba(22, 21, 15, 0.14); background: #fffdf8; color: var(--ink-soft);
+  border-radius: 999px; padding: 7px 15px; cursor: pointer; touch-action: manipulation;
+  font: 600 12.5px 'Hanken Grotesk', sans-serif;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.rv-edit-btn:hover { background: var(--amber-wash); border-color: rgba(var(--gold-rgb), 0.55); color: var(--ink); }
+.variation-card.rv-editing .rv-edit-btn { background: #17161b; border-color: #17161b; color: #ffd75e; }
+.rv-edit-hint { font-size: 11.5px; color: var(--ink-faint); }
+
+/* ---------- 3 & 4. details en reasoning: ingeklapt ---------- */
+.rv-fold { border-top: 1px solid rgba(22, 21, 15, 0.06); }
+.rv-fold-head {
+  display: flex; align-items: center; gap: 10px; padding: 13px 26px; cursor: pointer; user-select: none;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+  transition: background 0.14s ease;
+}
+.rv-fold-head:hover { background: #faf7f0; }
+.rv-fold-head .rv-chev { margin-left: auto; color: var(--ink-faint); font-size: 11px; transition: transform 0.2s ease; }
+.rv-fold.open .rv-chev { transform: rotate(180deg); }
+.rv-fold-head .rv-count { font-size: 10.5px; font-weight: 600; color: var(--ink-faint); }
+.rv-fold-body { display: none; padding: 0 26px 20px; }
+.rv-fold.open .rv-fold-body { display: block; }
+.rv-fold.reasoning .rv-fold-head { color: var(--amber-deep); }
+.rv-fold.reasoning .rv-fold-head::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); flex: none;
+}
+/* reasoning leest als citaat, niet als veld */
+.rv-fold.reasoning .field-value.reasoning {
+  background: #faf7f0 !important; border: none !important;
+  border-left: 2px solid rgba(var(--gold-rgb), 0.5) !important;
+  border-radius: 0 10px 10px 0 !important;
+  padding: 13px 16px !important; margin-bottom: 10px;
+  font-size: 13.5px !important; line-height: 1.65 !important; color: var(--ink-soft) !important;
+}
+.rv-fold .field-value.reasoning { font-size: 13.5px !important; line-height: 1.62 !important; }
+.rv-fold-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint); margin: 4px 0 6px; }
+.rv-fold .field-value.mono { font-size: 11.5px !important; line-height: 1.6 !important; }
+
+/* beeldsectie houdt zijn eigen ruimte onderaan */
+.variation-card .gen-image-section { padding: 0 26px 22px; }
+.variation-card .ogilvy-row { padding: 0 26px 18px; margin: 0 !important; }
+.variation-card .ogilvy-result:not(:empty) { padding: 0 26px 18px; }
+
+@media (max-width: 700px) {
+  .rv-concept, .rv-copy, .rv-bar, .rv-fold-head, .rv-fold-body,
+  .variation-card .gen-image-section, .variation-card .ogilvy-row { padding-left: 18px; padding-right: 18px; }
+  .variation-card .var-head { padding: 14px 18px !important; }
+  .variation-card .var-headline { font-size: 24px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .variation-card, .rv-chev, .rv-block .copy-btn { transition: none; }
+}

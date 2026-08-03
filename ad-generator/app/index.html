@@ -109,7 +109,7 @@
       <button onclick="switchMainTab('generator'); try{ setMode('scratch'); }catch(e){}">Start &rsaquo;</button>
     </div>
 
-    <div class="ws-sidebar-foot">ATELIER CONSOLE &middot; WELLGROUP V6.0</div>
+    <div class="ws-sidebar-foot" id="ws-version-label">ATELIER CONSOLE &middot; WELLGROUP</div>
   </aside>
 
   <!-- WORKSPACE SHELL: TOPBAR -->
@@ -2023,6 +2023,15 @@
 <link id="werkbank-css" rel="stylesheet" href="css/14-werkbank.css">
 
 <script id="wg-v9-intelligence" src="js/28-wg-v9-intelligence.js"></script>
+
+<!-- v10 Review: de gegenereerde output als beoordeel-werkruimte.
+     Kwam van main als inline blok; hier als module, zoals elke laag sinds v6. -->
+<link id="atelier-v10-review" rel="stylesheet" href="css/15-atelier-v10-review.css">
+
+<script id="wg-v10-review" src="js/31-wg-v10-review.js"></script>
+
+<!-- Het versielabel leest de changelog in plaats van hardcoded te staan -->
+<script id="wg-version-label" src="js/32-wg-versielabel.js"></script>
 
 </body>
 </html>

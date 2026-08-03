@@ -36,6 +36,12 @@ const SUPABASE_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
 const CHANGELOG = [
   {
+    version: '7.3',
+    date: '2026-07-28',
+    title: 'Review: de gegenereerde output als beoordeel-werkruimte',
+    desc: 'De variaties die uit een generatie komen zagen eruit als een formulier: elk onderdeel een invoerveld, allemaal even zwaar. Nu lees je eerst wat Claude bedacht heeft. De headline staat groot bovenaan in Fraunces, body copy leest als tekst en de CTA als een pill — geen kaders, geen invoervakken. Wil je iets wijzigen, dan klik je op "Tekst bewerken" en krijgen de velden hun kader terug; het headline-veld verschijnt dan pas, en de grote headline loopt live mee terwijl je typt. De kaart is opgedeeld in vier lagen: concept (de headline), copy (body en CTA), Details (visual en de ChatGPT-prompt) en "Waarom deze variatie werkt" (hypothese en Rory\'s reasoning als citaten) — die laatste twee staan ingeklapt, zodat de beoordeling voorop staat. Lege velden blijven verborgen tot je gaat bewerken. Zodra er variaties zijn, verbreedt de werkruimte zich naar de output en wijkt het inspiratiepaneel. Alle velden, IDs, sync-logica en knoppen zijn ongewijzigd — alleen de presentatie is anders. De oudere concept-details-inklapknop is vervangen door deze indeling.'
+  },
+  {
     version: '7.2',
     date: '2026-07-28',
     title: 'Intelligence: AI voelbaar door de hele workspace',
