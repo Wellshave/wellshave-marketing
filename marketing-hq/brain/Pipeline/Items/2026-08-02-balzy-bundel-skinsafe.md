@@ -27,6 +27,12 @@ BushBuster/WorldPride-variant — beide op dezelfde landingspagina en hook.
 Vier van de zes kwalificerende signalen uit de architectuurregel zijn van
 toepassing — ruim boven de drempel voor prioritering.
 
+**Update 3/8 — tweede dag bevestigd, schaalt door.** Nu **43 actieve
+ad-varianten** op dezelfde landingspagina, met sterke reach-groei op de
+nieuwste varianten (+11.509, +1.586, +1.568 reach in 1 dag). Herhaalde
+hook blijft consistent: "Vandaag besteld, morgen kaal", UGC-testimonials,
+de WorldPride-invalshoek.
+
 ## 4. Waarom relevant voor Wellshave/Wellshine
 BALZY's lichaamshaarverwijdering-voor-mannen concurreert rechtstreeks met
 Wellshave's SkinSafe Body Shaver. Het is de sterkste, best-onderbouwde

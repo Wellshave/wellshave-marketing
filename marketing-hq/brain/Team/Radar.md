@@ -1,14 +1,21 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-02 · ochtendcyclus
-**Huidige taak:** klaar; vervolgscan op Cloud Nine Airshot Pro-creative
-nodig (welke hook drijft de rankstijging); Brothers in Style
-impressiedaling volgen (mogelijk eenmalig)
+**Laatste run:** 2026-08-03 · ochtendcyclus
+**Huidige taak:** klaar; Brothers in Style LP-impressiedaling blijven
+volgen (2 dagen op rij, watch-item); Cloud Nine Airshot Pro nog 1-2 scans
+aanhouden vóór verdere prioritering (Trendtrack: "too early to call")
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-03** · [[../Briefings/2026-08-03|Trendbriefing]]: beide
+  prioritaire kansen een 2e dag bevestigd — BALZY-bundel schaalt door (43
+  varianten), Cloud Nine Airshot Pro's hook nu bekend (technologie/
+  prijsactie) maar Trendtrack zelf noemt het "too early to call" (6 dagen
+  actief). Brothers in Style's LP-impressies dalen 2 dagen op rij (-85k
+  sinds 1/8) — watch-item, vermoedelijk trackinganomalie. 132 credits
+  (7.861 resterend).
 - **2026-08-02** · [[../Briefings/2026-08-02|Trendbriefing]]: **eerste
   toepassing van de nieuwe prioritaire-kans-regel** — 2 kansen
   geprioriteerd: BALZY's bundelactie (rankDelta +234, 4/6 signalen) en

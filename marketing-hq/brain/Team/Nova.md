@@ -2,13 +2,21 @@
 
 **Status:** 🟡 wacht op akkoord (5 approvals, waarvan 1 met verzwaarde
 urgentie)
-**Laatste run:** 2026-08-02 · ochtendcyclus
-**Huidige taak:** 2 nieuwe prioritaire pipeline-items aangemaakt (BALZY,
-Cloud Nine); approval #5 verzwaard naar "actie vereist"
+**Laatste run:** 2026-08-03 · ochtendcyclus
+**Huidige taak:** correctienotitie toegevoegd aan rapport 1/8; twee
+prioritaire pipeline-items bijgewerkt met vervolgonderzoek
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-03** · Correctienotitie toegevoegd aan
+  [[../Reports/Daily/2026-08-01|het rapport van 1/8]]: de
+  "002 – CBO – Advertorials"-campagne is na twee grondige zoekacties niet
+  gevonden, 31/7 definitief bevestigd zonder die campagne. Beide
+  prioritaire pipeline-items bijgewerkt (BALZY: 2e dag bevestigd; Cloud
+  Nine: hook nu bekend, maar Trendtracks eigen "too early to call"-oordeel
+  toegevoegd als risico). Approvals #1, #3, #4, #5 bijgewerkt met de
+  omslag na de piekdag van 1/8.
 - **2026-08-02** · **Eerste toepassing van de nieuwe
   prioritaire-kans-regel**: twee 🔥-items aangemaakt op het board met
   volledige 9-punts-documentatie in `Pipeline/Items/` — BALZY's

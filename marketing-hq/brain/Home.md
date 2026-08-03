@@ -4,30 +4,26 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 2 augustus 2026
-- ⚠️ **Datacorrectie die om menselijke verificatie vraagt:** de
-  testcampagne "002 – CBO – Advertorials" (gisteren gemeld met €108,31
-  spend) kon vandaag in géén enkel toegankelijk Meta-account worden
-  teruggevonden. 31/7 herberekend zónder die campagne: €168,61/ROAS≈1,10
-  i.p.v. de eerder gemelde €276,48/0,67. Vraagt verificatie in Meta Ads
-  Manager — zie approval #5.
-- ✅ **Sterkste dag in weken (1/8): blended ROAS ≈2,03.** Alle drie
-  Wellshave-campagnes positief; Advertorial Pages haalt voor het eerst
-  sinds 26/7 de 3,0-drempel (**3,15**). GroomGuard-test herstelt 3 dagen
-  op rij (0,58→1,45→**2,10**).
-- 🔥 **Twee nieuwe prioritaire testvoorstellen** — eerste toepassing van de
-  nieuwe uitzonderingsregel (één sterke Trendtrack-bron volstaat bij
-  aantoonbare concurrentietractie): **BALZY's bundelactie** → SkinSafe
-  Body Shaver (rankDelta +234, 4 van de 6 signalen), en **Cloud Nine's
-  Airshot Pro** → Wellshine's eigen Airstyler/Hairdryer-segment (grootste
-  rankdelta van de scan, +378). Beide volledig gedocumenteerd in
-  `Pipeline/Items/`, zie [[Pipeline/Board|Board]].
-- 🔴 Wellshine: Airstyler Nova nu **7 nuldagen op rij**; Hairdryer Briza
-  had wel een 2e positieve dag (2,17).
-- 📡 [[Briefings/2026-08-02|Trendbriefing]]: correctie op eerdere
-  briefing — de "Rick Loonen"-partnership bleek een naamverwarring
-  (account heet rickdekkernl, zwak signaal). Kevin Junior-anomalie
-  verergert verder + een tweede, aparte trackingfout ontdekt.
+## Vandaag — 3 augustus 2026
+- ⚠️ **De "002 – CBO – Advertorials"-discrepantie is voor de tweede keer
+  onderzocht en niet opgelost gevonden** — een grondiger zoekactie
+  (volledige historie, alle accounts) vond opnieuw niets. 31/7 is nu
+  **definitief bevestigd** op €168,61/ROAS 1,10. De balans van bewijs
+  wijst op een foutieve rapportage op 1/8, maar 100% zekerheid vraagt nog
+  een handmatige check — zie approval #5. Correctienotitie toegevoegd aan
+  het rapport van 1 augustus.
+- 🔻 **De "sterkste dag in weken" van 1/8 bleek een piek, geen kanteling.**
+  GroomGuard-test: 2,10 → **0,93**. Advertorial Pages: 3,15 → **geen
+  enkele gemeten aankoop** (op de hoogste spenddag tot nu toe, €48,45).
+  Extreme volatiliteit blijft het dominante patroon.
+- 🔴 Wellshine: Airstyler Nova nu **8 nuldagen op rij**; Hairdryer Briza
+  weer terug naar nul na de goede dag van 1/8.
+- ✅ 30/7 en 31/7 zijn nu definitief.
+- 📡 [[Briefings/2026-08-03|Trendbriefing]]: beide prioritaire kansen
+  (BALZY-bundel, Cloud Nine Airshot Pro) een 2e dag bevestigd — maar
+  Trendtrack noemt Cloud Nine zelf **"too early to call"** (ad pas 6
+  dagen actief). Nieuw watch-item: Brothers in Style's LP-impressies
+  dalen 2 dagen op rij (-85k), vermoedelijk trackinganomalie.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

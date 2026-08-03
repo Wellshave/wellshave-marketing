@@ -29,18 +29,20 @@
 - 🔥 **Cloud Nine Airshot Pro → Wellshine Airstyler/Hairdryer** · static/campagne · Nova
   *Prioritaire kans (2/8, zie
   [[../Pipeline/Items/2026-08-02-cloud-nine-airshot-wellshine|volledige notitie]]):
-  grootste rankdelta van de hele scan (+378/+313). Radar zag de fit als
-  onduidelijk, maar Wellshine verkoopt zelf Airstyler Nova en Hairdryer
-  Briza — exact hetzelfde segment, en Airstyler Nova staat op 7 nuldagen
-  op rij. Eerst gerichte vervolgscan op de creative nodig vóór verdere
+  grootste rankdelta van de hele scan, 2 dagen op rij bevestigd
+  (+378→+380). 3/8: de hook is nu bekend (technologie/prijsactie, geen
+  script) — maar Trendtrack noemt het zelf **"too early to call"** (ad
+  draait pas 6 dagen, klein budget). Blijft prioritair, nog niet naar
   productie*
 - **Dedicated hoofd-scheerapparaat landingspagina** · landing_page · Nova
   *Gepromoot 27/7: Brothers in Style bewijst het patroon nu overtuigend —
   hun hoofd-scheerapparaat-video haalt **1,3M+ reach**, en de groei van de
   bijbehorende LP is op 31/7 bevestigd **reëel** (176d/2,65M impr., +0,9%,
-  geen meetartefact). Het sterkste en nu ook geverifieerde signaal voor
-  dit idee. Eén product, één pagina, één belofte — CVR hoger dan de
-  generieke productpagina over 14 dagen*
+  geen meetartefact). ⚠️ Watch-item (3/8): de LP-impressies dalen nu twee
+  dagen op rij (-85k sinds 1/8) terwijl de pagina zelf actief blijft
+  (179 dagen, 160 ads) — vermoedelijk een trackinganomalie, geen echte
+  stop, maar wordt gevolgd. Hypothese blijft overeind op basis van de
+  eerdere, sterkere reach-data*
 - **Testimonial-statics uit bestaande reviews** · static · Nova
   *Prioriteit ↑↑ (25/7): BALZY's echte-klant-hooks blijven de topschaler
   — nu ook bevestigd via de aparte prioritaire-kans-notitie hierboven.
@@ -60,14 +62,15 @@
   *ROAS ≥ 2,0 over 7 dagen na launch — snelheids/anti-irritatie demo-hook.
   Urgenter geworden: Brothers in Style zet 12 nieuwe ads op deze hook*
 - **Advertorial-funnel uitbouwen** · landing_page · Nova
-  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 2/8: onze
-  eigen advertorial haalde **3,15** op 1/8 — voor het eerst sinds 26/7
-  weer boven de drempel, nog geen bevestigde meerdaagse trend. ⚠️ De
-  "002 – CBO – Advertorials"-testcampagne uit het rapport van 1/8 kon niet
-  worden teruggevonden — zie approval #5, vraagt om menselijke
-  verificatie. Ace & Taylor's keramiek-mechanisme-hook blijft de externe
-  blauwdruk voor tekstvernieuwing — eerst de creative verversen, dan pas
-  budget*
+  *ROAS ≥ 3,0 bij verdubbeld budget — wacht op budget-akkoord. 3/8: de
+  piek van 3,15 (1/8) bleek eenmalig — 2/8 leverde **geen enkele gemeten
+  aankoop** op de hoogste spenddag tot nu toe (€48,45). Nog altijd geen
+  aaneengesloten trend in welke richting dan ook. ⚠️ De
+  "002 – CBO – Advertorials"-testcampagne uit het rapport van 1/8 blijkt
+  na twee grondige zoekacties niet te bestaan — zie approval #5,
+  waarschijnlijk een foutieve rapportage. Ace & Taylor's
+  keramiek-mechanisme-hook blijft de externe blauwdruk voor
+  tekstvernieuwing — eerst de creative verversen, dan pas budget*
 
 ## Script
 *leeg*

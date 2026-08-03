@@ -14,14 +14,25 @@ Airshot Pro hairdryer-ad + de bijbehorende Sale-bundelad (Contouring Iron +
 Airshot, £100 korting).
 
 ## 3. Prestatiesignalen (Trendtrack)
-- Sterke groei bereik/engagement: rankDelta **+378** (rank 493→115) en
-  **+313** (409→96) — de grootste rankbewegingen van de hele scan die dag,
-  reach 23.752 resp. 21.297.
+- Sterke groei bereik/engagement: rankDelta **+378→+380** (rank 493→113)
+  en **+313→+314** (409→95) — de grootste rankbewegingen van de scan,
+  twee dagen op rij bevestigd (2 en 3 augustus); reach steeg van
+  23.752→27.858 resp. 21.297→24.292.
 
-Slechts één van de zes signalen is hard bevestigd (de andere vijf zijn niet
-gecontroleerd deze scan) — de kans wordt geprioriteerd op basis van de
-kracht van dit ene signaal (grootste rankdelta van de scan), zoals de
-uitzonderingsregel toestaat.
+Slechts één van de zes signalen is hard bevestigd — de kans wordt
+geprioriteerd op basis van de kracht en aanhoudendheid van dit ene signaal,
+zoals de uitzonderingsregel toestaat.
+
+**Update 3/8 — de hook is nu bekend, met een belangrijke kanttekening.**
+`scan_ad` op de hoofdadvertentie: *"For gentler drying, in minutes. Ionic
+technology reduces frizz, while styling attachments and self-cleaning
+technology maintains optimum airflow and power, ensuring smooth,
+salon-quality results every time."* CTA "SHOP NOW" + Klarna
+buy-now-pay-later. Geen gesproken script (video leunt op muziek/beeld).
+Tweede ad is een statisch beeld: £100-korting op de Contouring+Airshot
+Pro-bundel. **Trendtracks eigen verdict: "Testing phase — too early to
+call."** De ad draait pas 6 dagen, alleen in GB, leeftijd 24-65, geschatte
+spend €196 — een vroeg signaal, geen bewezen winnaar.
 
 ## 4. Waarom relevant voor Wellshave/Wellshine
 Radar schatte de fit zelf als "onduidelijk" (Cloud Nine is hairstyling,
@@ -34,10 +45,13 @@ directe categorie-concurrent op precies het segment waar Wellshine
 worstelt.
 
 ## 5. Angle/structuur die vertaald kan worden
-Nog niet vastgesteld — de exacte hook/creative achter de rankstijging is
-deze scan niet onderzocht, alleen de rank-/reach-cijfers. De
-bundelkorting-structuur (2 producten, vast kortingsbedrag) is wel zichtbaar
-en sluit aan bij de al lopende bundel-testhypothese op het board.
+**Bijgewerkt 3/8:** een technologie-hook (ionic/zelfreinigend, frizzreductie,
+"salon-quality results"), gecombineerd met een prijsactie en Klarna
+buy-now-pay-later als frictieverlager. Geen bijzonder script om te
+vertalen — de aanjagers zijn product-features en aankoopgemak, niet een
+creatieve invalshoek. De bundelkorting-structuur (2 producten, vast
+kortingsbedrag) sluit aan bij de al lopende bundel-testhypothese op het
+board.
 
 ## 6. Wat bewust niet gekopieerd wordt
 Cloud Nine's premium-merkpositionering en -prijsniveau; het exacte
@@ -55,7 +69,12 @@ rankbeweging rechtvaardigt prioritering op het board, maar niet meteen
 productie zonder te weten wélke hook het drijft.
 
 ## 9. Risico's en onzekerheden
-- Onbekend welke exacte hook/creative de rankstijging drijft.
+- **Bijgewerkt 3/8:** Trendtrack zelf noemt dit "testing phase — too
+  early to call" — de ad draait pas 6 dagen op klein budget (≈€196). De
+  rankdelta is sterk, maar dat is een vroege-signaal-indicator, geen
+  bewezen winnaar.
+- De hook leunt op product-technologie en prijsactie, niet op een
+  overdraagbaar creatief script — minder direct te vertalen dan gehoopt.
 - Wellshine's eigen Airstyler/Hairdryer-campagnes presteren al zwak —
   onduidelijk of dat aan de creative ligt of aan het productsegment zelf;
   dit signaal alleen bewijst niet welke van de twee het is.
@@ -63,6 +82,6 @@ productie zonder te weten wélke hook het drijft.
   overige vijf zijn nog niet gecontroleerd.
 
 ## Status
-Blijft een **testvoorstel**, geen actie. Volgende stap: gerichte
-Trendtrack-vervolgscan op de creative zelf, dan pas een concreet
-briefingvoorstel.
+Blijft een **testvoorstel**, geen actie. Gezien het "too early to call"-
+verdict van Trendtrack: nog niet naar productie — eerst nog 1–2 scans
+afwachten om te zien of dit signaal aanhoudt buiten de eerste testfase.

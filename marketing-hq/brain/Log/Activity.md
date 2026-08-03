@@ -4,6 +4,26 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-03** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-03** · Nova · Correctienotitie toegevoegd aan het rapport van
+  1/8 (campagne-discrepantie tweemaal bevestigd niet gevonden, 31/7
+  definitief zonder die campagne). Prioritaire pipeline-items bijgewerkt
+  met vervolgonderzoek (BALZY 2e dag bevestigd, Cloud Nine "too early to
+  call"-risico toegevoegd). Approvals #1, #3, #4, #5 bijgewerkt na de
+  omslag van de piekdag van 1/8.
+- **2026-08-03** · Radar · Marktscan: BALZY-bundel en Cloud Nine Airshot
+  Pro beide een 2e dag bevestigd als prioritaire kans; Cloud Nine-hook nu
+  bekend maar Trendtrack noemt het zelf "too early to call". Brothers in
+  Style LP-impressies dalen 2 dagen op rij (-85k), nieuw watch-item. 132
+  credits (7.861 resterend).
+- **2026-08-03** · Atlas · Ochtendcyclus: "002 – CBO – Advertorials"
+  tweemaal grondig gezocht, niet gevonden — 31/7 definitief bevestigd op
+  €168,61/ROAS 1,10. Piekdag van 1/8 bleek eenmalig: GroomGuard-test
+  terug naar 0,93, Advertorial Pages geen enkele gemeten aankoop.
+  Airstyler Nova 8 nuldagen op rij. 30/7 en 31/7 definitief. Klaviyo dag
+  52 stil, lijst +15 naar 4.164.
 - **2026-08-02** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.
