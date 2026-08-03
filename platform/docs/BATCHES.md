@@ -187,3 +187,40 @@ advertentiebudget.
 - Een `batch`-begrip in de database, als de proefrit uitwijst dat het nodig is.
   Nu is een batch nog een afspraak in dit document, en dat is genoeg zolang er
   één tegelijk loopt.
+
+---
+
+## 6. Wat de proefrit uitwees — 3 augustus
+
+Fase 1 gedraaid op werkstuk 11 (Groom Guard, `safety`, Mark). Denkstuk 1 staat
+afgetekend, twee overdrachten geschreven, de derde creative gemaakt. Vier
+bevindingen, en ze gaan geen van alle over de techniek.
+
+**Vraag 7 is niet te beantwoorden.** "Waarom is dit nu relevant?" vraagt naar een
+marktsignaal, en dat is er niet: het werkstuk is met terugwerkende kracht om
+bestaande advertenties heen gelegd en station ① heeft nooit plaatsgevonden. Het
+antwoord staat op `open` in plaats van dat er iets plausibels bij is verzonnen.
+Dat is de eerlijke uitkomst en meteen de eerste eis aan batch 2: die begint bij
+① of hij begint niet.
+
+**Zes van de zeven antwoorden zijn een aanname, en dat hoort zo.** Er is nog
+nooit iets gemeten, dus er is geen bewijs om naar te wijzen. `denkstukken_stand`
+noemt dat "in balans". Een eerste denkstuk dat overal `onderbouwd` zegt, liegt.
+
+**De eis "verschil op één as" is strenger dan het materiaal.** Creative 2 zit op
+awareness `problem` en 3 op `solution`. Dat is bewust geaccepteerd als onderdeel
+van één as — hoe expliciet het bewijs in beeld is — en niet als losse variabele.
+Perfect isoleren lukt bij drie advertenties toch niet; het alternatief was een
+creative met beeld weggooien. Wel opgeschreven in de overdracht, zodat het bij
+het aflezen meeweegt.
+
+**De Criticus kan niet tekenen.** 0026 verbiedt dat wie de overdracht schreef er
+het oordeel over velt. De overdracht van ③ naar ④ komt van Dustin, dus Dustin
+kan hem niet beoordelen — en er is geen tweede mens actief in de werkbank en
+geen draaiende Criticus-agent. De grendel werkt precies zoals bedoeld en blokkeert
+daarmee de enige batch die er ligt. Dit is geen bug: het is de rekening voor een
+team van één. Oplossing is een tweede mens (Yvonne) of de Criticus laten draaien,
+niet de regel versoepelen.
+
+Wat er nu klem staat, staat klem met een reden erbij — en dat is het verschil met
+29 juli.

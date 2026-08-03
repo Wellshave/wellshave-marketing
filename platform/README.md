@@ -104,6 +104,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | ⑥ De Criticus (0026) | ✅ 2 augustus — 32 controles, toegepast op productie; creatie komt niet langs zonder oordeel, en 'niet door' sluit aannemen uit |
 | Fase 0: opruimen (0027) | ✅ 2 augustus — 29 controles, toegepast op productie; 9 → 6 creatives, 3 gereed, 3 werkstukken klem |
 | Werkstukken herschikt (0028) | ✅ 2 augustus — 28 controles, toegepast op productie; drie koppen werden vragen, `premium` werd `safety` |
+| Fase 1: proefrit werkstuk 11 | ✅ 3 augustus — denkstuk 1 afgetekend, 2 overdrachten, derde creative; vier bevindingen in `docs/BATCHES.md` §6 |
+| Fase 2: batch 1 live | ⬜ wacht op beeld voor creative 11, een tweede mens voor de Criticus, en de Meta-secrets |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
