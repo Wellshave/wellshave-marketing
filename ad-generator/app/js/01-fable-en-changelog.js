@@ -29,7 +29,22 @@ function wgClaudeText(data){
 // ============================================================
 // ===== TEAM-SERVER CONFIG (gedeelde proxy + database) =====
 // Fase 1: alle AI-calls lopen via deze Worker (keys staan op de server).
-const PROXY_BASE = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING-ADS] eigen ad-generator-worker: /anthropic + /v1 (OpenAI), team-login vereist */
+const WORKER_URL = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING-ADS] eigen ad-generator-worker: /anthropic + /v1 (OpenAI), team-login vereist */
+/* De worker staat maar één herkomst toe in zijn CORS-lijst: wellshave-adgen.
+   Een tweede omgeving kan hem daardoor niet rechtstreeks aanroepen. In plaats
+   van die lijst te verruimen (dat vraagt een worker-deploy, en die raakt de
+   console waar het team vandaag in werkt) lopen de calls daar via _redirects
+   over de eigen origin: de browser praat same-origin, Netlify praat met de
+   worker. De Authorization-header gaat mee, en die is de echte grens — de
+   worker weigert op de login, niet op de herkomst.
+   Bekende hosts houden de directe route, zodat daar niets verandert. */
+const PROXY_BASE = (function () {
+  var h = location.hostname;
+  if (h === 'wellshave-adgen.netlify.app') return WORKER_URL;
+  if (/^(localhost|127\.0\.0\.1)$/.test(h))  return WORKER_URL;
+  if (location.protocol === 'file:')          return WORKER_URL;
+  return location.origin;
+})();
 window.__WG_TEAMSERVER = /^https:\/\//i.test(PROXY_BASE) && !/(localhost|127\.0\.0\.1)/i.test(PROXY_BASE); /* [MARKETING-ADS] sleutels staan server-side op de worker -> key-veld niet vereist */
 // Fase 2 (Supabase data-sync) gebruikt deze twee:
 const SUPABASE_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
