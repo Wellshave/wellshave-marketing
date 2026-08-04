@@ -47,7 +47,7 @@ function renderWerkbank() {
   sb.from('hq_werkbank')
     .select('id,brand,titel,product,persona,angle_type,toestand,stappen_af,station_nu,stappen,'
           + 'aantal_ads,spend,omzet,roas,winnaars,station_naam,overdracht,wacht_op,'
-          + 'stil_uren,stil_grens_uren,te_stil,waarom')
+          + 'stil_uren,stil_grens_uren,te_stil,waarom,blokkade,blokkade_soort,aantal_creatives')
     .order('te_stil', { ascending: false })
     .order('stil_uren', { ascending: false })
     .then(function (r) {
@@ -141,14 +141,48 @@ function wbkStuk(w) {
     + (w.te_stil ? ' — te lang' : ' van ' + w.stil_grens_uren)
     + '</span>';
 
+  /* De blokkade (0029). `waarom` zegt waar het werk ligt; dit zegt waarom het
+     daar niet weg kan, en dat is bijna altijd het interessantere van de twee.
+     Daarom staat hij als eigen regel en niet als chip: een chip lees je als
+     een label, en dit is een zin die iets van je vraagt.
+
+     De soort bepaalt het woord ervoor. 'Afgekeurd' en 'wacht op een oordeel'
+     zijn twee verschillende dingen — het eerste vraagt om terugsturen, het
+     tweede om lezen — en die mogen hier niet samenvallen tot één toon. */
+  var BLOKKADE_KOP = {
+    afgekeurd:   'Tegengehouden',
+    oordeel:     'Wacht op de Criticus',
+    onzekerheid: 'Er moet een mens bij'
+  };
+  var blokkade = '';
+  if (w.blokkade) {
+    blokkade = '<div class="wbk-blok wbk-blok--' + wbkEsc(w.blokkade_soort || 'onbekend') + '">'
+      + '<span class="wbk-blok-kop">' + wbkEsc(BLOKKADE_KOP[w.blokkade_soort] || 'Houdt dit tegen') + '</span>'
+      + '<span class="wbk-blok-tekst">' + wbkEsc(w.blokkade) + '</span>'
+      + '</div>';
+  }
+
+  /* Het aantal creatives wordt geteld in de view (0029) en stond eerder als
+     tekst in de toelichting op ③, waar het achterliep. Het staat er ook als er
+     nog niets gedraaid heeft — juist dan, want dat is het verschil tussen
+     "er ligt niets" en "er ligt werk dat nooit is gaan draaien". */
+  var creatives = '';
+  if (w.aantal_creatives) {
+    creatives = '<span>' + w.aantal_creatives + ' creative' + (w.aantal_creatives === 1 ? '' : 's')
+      + (w.aantal_ads ? '' : ', nog niet gedraaid') + '</span>';
+  }
+
   var cijfers = '';
   if (w.aantal_ads) {
     cijfers = '<div class="wbk-cijfers">'
+      + creatives
       + '<span>' + w.aantal_ads + ' advertentie' + (w.aantal_ads === 1 ? '' : 's') + '</span>'
       + '<span>uitgegeven <b>€ ' + Number(w.spend || 0).toLocaleString('nl-NL', { maximumFractionDigits: 0 }) + '</b></span>'
       + (w.roas != null ? '<span>ROAS <b>' + Number(w.roas).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</b></span>' : '')
       + (w.winnaars ? '<span>' + w.winnaars + ' winnaar' + (w.winnaars === 1 ? '' : 's') + '</span>' : '')
       + '</div>';
+  } else if (creatives) {
+    cijfers = '<div class="wbk-cijfers">' + creatives + '</div>';
   }
 
   return '<div class="wbk-stuk' + (w.te_stil ? ' wbk-stuk--stil' : '') + '">'
@@ -161,6 +195,7 @@ function wbkStuk(w) {
     +   '<span class="wbk-wacht-tekst">' + wbkEsc(w.waarom) + '</span>'
     +   stil
     + '</div>'
+    + blokkade
     + cijfers
     + '</div>';
 }

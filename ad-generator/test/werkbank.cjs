@@ -51,6 +51,8 @@ const RIJEN = [
     station_naam: 'live', overdracht: 'poort', wacht_op: 'jij',
     stil_uren: 77, stil_grens_uren: 72, te_stil: true,
     waarom: 'ligt bij jou op station 4 — live',
+    blokkade: 'de Criticus heeft hier nog geen oordeel over geveld',
+    blokkade_soort: 'oordeel', aantal_creatives: 3,
     aantal_ads: 6, spend: 340, roas: 1.82, winnaars: 1,
     stappen: [
       st(1,'signaal','radar','niet_vastgelegd','vanzelf','bestond vóór de estafette'),
@@ -66,6 +68,7 @@ const RIJEN = [
     station_naam: 'briefing', overdracht: 'vanzelf', wacht_op: 'nova',
     stil_uren: 3, stil_grens_uren: 24, te_stil: false,
     waarom: 'ligt bij nova op station 2 — briefing',
+    blokkade: null, blokkade_soort: null, aantal_creatives: 0,
     aantal_ads: 0, spend: null, roas: null, winnaars: 0,
     stappen: [
       st(1,'signaal','radar','klaar','vanzelf','hoek kwam op in de markt'),
@@ -81,6 +84,8 @@ const RIJEN = [
     station_naam: 'creatie', overdracht: 'mens', wacht_op: 'jij',
     stil_uren: 300, stil_grens_uren: 168, te_stil: true,
     waarom: 'een stap is mislukt en niemand heeft hem opgepakt',
+    blokkade: 'de Criticus liet dit niet door: de belofte staat niet op de landingspagina',
+    blokkade_soort: 'afgekeurd', aantal_creatives: 2,
     aantal_ads: 0, spend: null, roas: null, winnaars: 0,
     stappen: [
       st(1,'signaal','radar','klaar','vanzelf','signaal'),
@@ -96,6 +101,7 @@ const RIJEN = [
     station_naam: null, overdracht: null, wacht_op: null,
     stil_uren: 400, stil_grens_uren: 72, te_stil: false,
     waarom: 'alle zes de stations af',
+    blokkade: null, blokkade_soort: null, aantal_creatives: 3,
     aantal_ads: 3, spend: 900, roas: 3.1, winnaars: 2,
     stappen: [1,2,3,4,5,6].map(n => st(n, ['','signaal','briefing','creatie','live','meting','oogst'][n],
       'nova', 'klaar', 'vanzelf', 'af')) },
@@ -150,6 +156,8 @@ const check = (label, echt, verwacht) => {
         chip: (k.querySelector('.wbk-chip') || {}).textContent,
         stilKlasse: k.classList.contains('wbk-stuk--stil'),
         cijfers: (k.querySelector('.wbk-cijfers') || {}).textContent,
+        blokKop:   (k.querySelector('.wbk-blok-kop')   || {}).textContent,
+        blokTekst: (k.querySelector('.wbk-blok-tekst') || {}).textContent,
       };
     };
     return {
@@ -230,6 +238,35 @@ const check = (label, echt, verwacht) => {
   check('een werkstuk zonder advertenties toont geen lege cijfers',
     uit.stukken[2].cijfers, undefined);
 
+  console.log('\n  wat het tegenhoudt staat er, en alleen waar het bestaat');
+  // Waar het ligt en waarom het daar niet weg kan zijn twee dingen. Stonden ze
+  // in één zin, dan zou "ligt bij jou op station 4" blijven suggereren dat jij
+  // aan zet bent terwijl het op een oordeel wacht.
+  check('een werkstuk dat op een oordeel wacht zegt dat',
+    w9.blokKop, 'Wacht op de Criticus');
+  check('met de reden eronder',
+    w9.blokTekst, 'de Criticus heeft hier nog geen oordeel over geveld');
+  check('en de regel waar het ligt blijft daarnaast staan',
+    w9.waarom, 'ligt bij jou op station 4 — live');
+  // Tegengehouden vraagt om terugsturen, wachten vraagt om lezen. Twee
+  // besluiten, dus twee woorden -- niet één kleurtje met twee betekenissen.
+  check('afgekeurd krijgt een ander woord dan wachten',
+    uit.stukken[1].blokKop, 'Tegengehouden');
+  check('en de reden van de Criticus staat er letterlijk bij',
+    /de belofte staat niet op de landingspagina/.test(uit.stukken[1].blokTekst || ''), true);
+  check('zonder blokkade staat er geen blok',
+    uit.stukken[2].blokKop, undefined);
+  check('een afgerond werkstuk kent geen blokkade',
+    uit.stukken[3].blokKop, undefined);
+
+  console.log('\n  het aantal creatives wordt geteld, niet onthouden');
+  check('een werkstuk dat nog nooit draaide toont zijn creatives',
+    /2 creatives, nog niet gedraaid/.test(uit.stukken[1].cijfers || ''), true);
+  check('en met advertenties erbij vervalt die toevoeging',
+    /3 creatives.*6 advertenties/.test(w9.cijfers || ''), true);
+  check('nul creatives geeft geen lege regel',
+    uit.stukken[2].cijfers, undefined);
+
   console.log('\n  regel 0.4 — nooit een leeg vlak');
   const geenStil = await teken({ data: RIJEN.filter(r => !r.te_stil) });
   check('een lege groep blijft staan met een reden',
@@ -280,6 +317,8 @@ const check = (label, echt, verwacht) => {
       stapAgent: meet('.wbk-stap-agent', '.wbk-stuk'),
       waarom:    meet('.wbk-wacht-tekst', '.wbk-stuk'),
       teller:    meet('.wbk-teller', '.wbk-stuk'),
+      blokTekst: meet('.wbk-blok-tekst', '.wbk-blok'),
+      blokKop:   meet('.wbk-blok-kop', '.wbk-blok'),
       bolNu:     meet('.wbk-bol--nu', '.wbk-bol--nu'),
       bolKlaar:  meet('.wbk-bol--klaar', '.wbk-bol--klaar'),
     };

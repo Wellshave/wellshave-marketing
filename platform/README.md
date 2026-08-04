@@ -37,6 +37,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/migrations/0025_dossier.sql` | Het dossier per station — stap 5 van het Werkbank-raamwerk |
+| `db/migrations/0029_blokkade.sql` | Wat een werkstuk tegenhoudt, zichtbaar in de werkbank |
 | `db/migrations/0026_criticus.sql` | De Criticus — stap 6, de grendel tussen creatie en lancering |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
 | `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
@@ -105,7 +106,9 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Fase 0: opruimen (0027) | ✅ 2 augustus — 29 controles, toegepast op productie; 9 → 6 creatives, 3 gereed, 3 werkstukken klem |
 | Werkstukken herschikt (0028) | ✅ 2 augustus — 28 controles, toegepast op productie; drie koppen werden vragen, `premium` werd `safety` |
 | Fase 1: proefrit werkstuk 11 | ✅ 3 augustus — denkstuk 1 afgetekend, 2 overdrachten, derde creative; vier bevindingen in `docs/BATCHES.md` §6 |
-| Fase 2: batch 1 live | ⬜ wacht op beeld voor creative 11, een tweede mens voor de Criticus, en de Meta-secrets |
+| Tweede omgeving live | ✅ 3 augustus — `wellshave-werkbank.netlify.app`, calls via `_redirects` naar de worker |
+| De blokkade zichtbaar (0029) | ✅ 4 augustus — 32 + 4 controles, vier mutaties gevangen, toegepast op productie; de Criticus staat nu op de kaart |
+| Fase 2: batch 1 live | ⬜ wacht op beeld voor creative 11, een oordeel van de Criticus, en de Meta-secrets |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |
 
@@ -291,6 +294,7 @@ bash platform/db/test/dossier.sh               # wat een agent bij een stap meek
 bash platform/db/test/criticus.sh              # de grendel tussen creatie en lancering — 32 controles
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
+bash platform/db/test/blokkade.sh              # wat een werkstuk tegenhoudt — 32 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 

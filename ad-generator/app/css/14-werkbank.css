@@ -220,3 +220,43 @@
   .wbk-stap-agent { display: none; }
   .wbk-stuk { padding: 16px; }
 }
+
+/* ── wat het tegenhoudt ─────────────────────────────────────────────────── */
+/* `waarom` zegt waar het werk ligt, dit zegt waarom het daar niet weg kan.
+   Het tweede is bijna altijd het interessantere, dus krijgt het een eigen blok
+   en niet een chip: een chip lees je als een label, dit is een zin.
+
+   De drie soorten verschillen in toon en niet alleen in kleur (regel 4.4):
+   het kopje zegt het woord, de kleur bevestigt het. Wie alleen op kleur zou
+   afgaan, leest hier nog steeds het verschil tussen tegengehouden en wachten. */
+.wbk-blok {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.wbk-blok-kop {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wbk-blok-tekst {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  flex: 1 1 240px;
+}
+
+/* Tegengehouden is een besluit en geen wachttijd: dat mag zwaarder wegen. */
+.wbk-blok--afgekeurd   { background: var(--amber-wash); border-color: var(--amber); }
+.wbk-blok--afgekeurd .wbk-blok-tekst { color: var(--ink); }
+.wbk-blok--oordeel     { background: var(--surface-3); border-color: var(--line-strong); }
+.wbk-blok--onzekerheid { background: var(--surface-3); border-color: var(--line-strong); }
