@@ -142,6 +142,51 @@ const check = (label, echt, verwacht) => {
   check('een gewoon bestand van dezelfde site niet', headers[1].auth, null);
   check('en de rechtstreekse call draagt hem ook', headers[2].auth, 'Bearer test-token-123');
 
+  console.log('\n  de tijdgrens verschilt per route');
+  /* Over de eigen origin ligt de grens rond dertig seconden; rechtstreeks mag
+     de worker veel langer doorwerken. Een call die op de ene route past en op
+     de andere afkapt, hoort dus niet met dezelfde instelling verstuurd te
+     worden. */
+  const denkwerk = await proxyPage.evaluate(async () => {
+    const gezien = [];
+    const echt = window.fetch;
+    window.fetch = async (url, opties) => {
+      gezien.push(JSON.parse(opties.body));
+      return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'ok' }] }) };
+    };
+    await fetchJsonWithRetry(location.origin + '/anthropic',
+      { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 1500 }) });
+    await fetchJsonWithRetry('https://marketing-ads.dustin-9ff.workers.dev/anthropic',
+      { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 1500 }) });
+    await fetchJsonWithRetry('https://marketing-ads.dustin-9ff.workers.dev/anthropic',
+      { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 8000 }) });
+    window.fetch = echt;
+    return gezien;
+  });
+  check('over de tussenstap wordt ook een kleine call begrensd',
+    (denkwerk[0].output_config || {}).effort, 'low');
+  check('rechtstreeks mag een kleine call vol nadenken',
+    (denkwerk[1].output_config || {}).effort, undefined);
+  check('en een zware call blijft rechtstreeks ook begrensd',
+    (denkwerk[2].output_config || {}).effort, 'low');
+
+  console.log('\n  en een afgekapte call zegt wat er gebeurde');
+  const melding = await proxyPage.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async () => ({ ok: false, status: 504, json: async () => ({}) });
+    let tekst = null;
+    try {
+      await fetchJsonWithRetry(location.origin + '/anthropic',
+        { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 0);
+    } catch (e) { tekst = e.message; }
+    window.fetch = echt;
+    return tekst;
+  });
+  // "API fout (status 504)" stuurt je naar Anthropic zoeken naar iets wat hier
+  // gebeurde. De melding hoort te zeggen wat er werkelijk afkapte.
+  check('een 504 op deze route noemt de tussenstap',
+    /tussenstap kapte de verbinding af/.test(melding || ''), true);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();

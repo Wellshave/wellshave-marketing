@@ -170,6 +170,10 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
       }
     }
   } catch (e) {}
+  /* Gaat deze call over de eigen origin naar de worker, of rechtstreeks? Dat
+     verschil bepaalt hoeveel tijd hij krijgt, en dus hoeveel denkwerk erin past. */
+  var _viaTussenstap = _naarDeWorker(url) && !/^https:\/\/marketing-ads\./i.test(String(url));
+
   /* [FABLE 5] adaptief denken verbruikt output-tokens; til de max_tokens-cap op
      zodat structured JSON niet halverwege afkapt (onparseerbaar antwoord). */
   try {
@@ -183,7 +187,17 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
            een Cloudflare 524. Begrens het denken op zware calls (>=6000 tokens gevraagd)
            tot 'low' zodat ze ruim onder de 100s blijven. Kleine strategische calls
            (interview, spar, kleine JSON) laten we op adaptief voor de kwaliteit. */
-        if (_need >= 6000) {
+        /* Achter de eigen origin ligt de grens veel lager. De worker mag van
+           Cloudflare tegen de honderd seconden aan; de tussenstap die daar
+           doorheen zet kapt af rond de dertig, en dan krijg je een 504 op een
+           call die het gewoon nog aan het doen was. Op die route wordt dus élke
+           call begrensd, niet alleen de zware — anders is het verschil tussen
+           "duurt lang" en "stuk" niet te zien.
+
+           Dit verdwijnt zodra de worker de tweede omgeving in zijn CORS-lijst
+           heeft: dan gaan de calls daar rechtstreeks en geldt de ruime grens
+           weer. */
+        if (_need >= 6000 || _viaTussenstap) {
           if (!_bpp.thinking) _bpp.thinking = { type: 'adaptive' };
           if (!_bpp.output_config || typeof _bpp.output_config !== 'object') _bpp.output_config = {};
           if (typeof _bpp.output_config.effort === 'undefined') _bpp.output_config.effort = 'low';
@@ -209,7 +223,14 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
         return data;
       }
 
-      const msg = (data.error && data.error.message) || `API fout (status ${response.status})`;
+      /* Een 502/504 op deze route komt van de tussenstap en niet van het model:
+         die kapt af terwijl de worker nog bezig is. "API fout (status 504)"
+         stuurt je het verkeerde bos in — dan ga je bij Anthropic zoeken naar
+         iets wat hier gebeurde. */
+      const msg = (data.error && data.error.message)
+        || ((_viaTussenstap && (response.status === 504 || response.status === 502))
+            ? 'De tussenstap kapte de verbinding af (na ongeveer 30 seconden), terwijl de server nog bezig was. Probeer het opnieuw, of stel een kortere vraag.'
+            : `API fout (status ${response.status})`);
       const lower = msg.toLowerCase();
       const retryable = (response.status >= 500 && response.status < 600) ||
                         response.status === 429 ||

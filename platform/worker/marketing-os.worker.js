@@ -36,7 +36,12 @@
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
-const ORIGINS = ['https://wellshave-adgen.netlify.app', 'http://localhost:8823', 'http://127.0.0.1:8823'];
+/* Wie de worker rechtstreeks vanuit de browser mag aanroepen. Staat een
+   omgeving hier niet in, dan kan hij alleen via een tussenstap op zijn eigen
+   origin — en die kapt lange calls af. Een adres erbij is dus goedkoper dan het
+   omzeilen ervan. */
+const ORIGINS = ['https://wellshave-adgen.netlify.app', 'https://wellshave-werkbank.netlify.app',
+                 'http://localhost:8823', 'http://127.0.0.1:8823'];
 
 const MODEL = 'claude-fable-5';
 const FALLBACK_MODEL = 'claude-opus-4-8';
