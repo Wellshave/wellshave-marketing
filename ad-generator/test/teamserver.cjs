@@ -53,7 +53,7 @@ const check = (label, echt, verwacht) => {
      wijst. Anders is er geen manier om de console op een ándere host te laten
      draaien dan localhost, en juist dát verschil is wat hier getest wordt. */
   const opties = fs.existsSync(CHROOM) ? { executablePath: CHROOM } : {};
-  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1'];
+  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1, MAP wellshave-werkbank.netlify.app 127.0.0.1'];
   const browser = await chromium.launch(opties);
 
   /* Twee pagina's, want er zijn twee situaties en ze verschillen alleen in de
@@ -68,6 +68,12 @@ const check = (label, echt, verwacht) => {
   const proxyPage = await browser.newPage();
   await proxyPage.goto(`http://console.test:${poort}/`, { waitUntil: 'load' });
   await proxyPage.waitForTimeout(1200);
+
+  /* En de tweede omgeving zelf. Die stond tot 4 augustus op de proxyroute; sinds
+     de worker haar in zijn CORS-lijst kent, hoort ze rechtstreeks te praten. */
+  const werkbankPage = await browser.newPage();
+  await werkbankPage.goto(`http://wellshave-werkbank.netlify.app:${poort}/`, { waitUntil: 'load' });
+  await werkbankPage.waitForTimeout(1200);
 
   console.log('\n  PROXY_BASE kiest per host');
   const basis = await page.evaluate(() => ({
@@ -84,6 +90,17 @@ const check = (label, echt, verwacht) => {
     /^https:\/\/marketing-ads\./.test(basis.worker || ''), true);
   check('en de console blijft in beide gevallen in teamserver-modus',
     [basis.teamserver, basisProxy.teamserver], [true, true]);
+
+  // De lijst in js/01 hoort gelijk te zijn aan ORIGINS in de worker. Loopt die
+  // uit de pas, dan valt een omgeving stil terug op de trage route zonder dat
+  // iemand het merkt -- tot een lang gesprek halverwege afkapt.
+  const werkbank = await werkbankPage.evaluate(() => ({
+    hier: PROXY_BASE, worker: WORKER_URL,
+    tussenstap: _naarDeWorker(location.origin + '/anthropic')
+  }));
+  check('de tweede omgeving praat nu rechtstreeks met de worker',
+    werkbank.hier, werkbank.worker);
+  check('en heeft de tussenstap dus niet meer nodig', werkbank.tussenstap, false);
 
   console.log('\n  wie krijgt het token');
   // De kern. De vraag is niet "welke hostnaam" maar "gaat dit naar onze
@@ -186,6 +203,17 @@ const check = (label, echt, verwacht) => {
   // gebeurde. De melding hoort te zeggen wat er werkelijk afkapte.
   check('een 504 op deze route noemt de tussenstap',
     /tussenstap kapte de verbinding af/.test(melding || ''), true);
+
+  console.log('\n  de lijst hier en de lijst in de worker lopen gelijk');
+  const workerBron = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'platform', 'worker', 'marketing-os.worker.js'), 'utf8');
+  const uitWorker = (workerBron.match(/const ORIGINS = \[([\s\S]*?)\]/) || [])[1] || '';
+  const hostsWorker = (uitWorker.match(/https:\/\/[^']+/g) || []).map(u => u.replace('https://', ''));
+  const appBron = fs.readFileSync(path.join(APP, 'js', '01-fable-en-changelog.js'), 'utf8');
+  const hostsApp = ((appBron.match(/WORKER_HOSTS = \[([^\]]*)\]/) || [])[1] || '')
+    .split(',').map(s2 => s2.trim().replace(/'/g, '')).filter(Boolean);
+  check('elke host die de console rechtstreeks aanroept, staat ook in de worker',
+    hostsApp.filter(h => hostsWorker.indexOf(h) === -1), []);
 
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);

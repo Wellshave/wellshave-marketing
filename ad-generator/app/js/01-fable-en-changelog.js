@@ -30,19 +30,22 @@ function wgClaudeText(data){
 // ===== TEAM-SERVER CONFIG (gedeelde proxy + database) =====
 // Fase 1: alle AI-calls lopen via deze Worker (keys staan op de server).
 const WORKER_URL = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING-ADS] eigen ad-generator-worker: /anthropic + /v1 (OpenAI), team-login vereist */
-/* De worker staat maar één herkomst toe in zijn CORS-lijst: wellshave-adgen.
-   Een tweede omgeving kan hem daardoor niet rechtstreeks aanroepen. In plaats
-   van die lijst te verruimen (dat vraagt een worker-deploy, en die raakt de
-   console waar het team vandaag in werkt) lopen de calls daar via _redirects
-   over de eigen origin: de browser praat same-origin, Netlify praat met de
-   worker. De Authorization-header gaat mee, en die is de echte grens — de
-   worker weigert op de login, niet op de herkomst.
-   Bekende hosts houden de directe route, zodat daar niets verandert. */
+/* Welke omgevingen de worker rechtstreeks mogen aanroepen. Deze lijst hoort
+   gelijk te zijn aan ORIGINS in de worker: staat een host daar niet in, dan
+   weigert de browser het antwoord.
+
+   Een host die er niet in staat valt terug op de eigen origin, waar
+   _redirects de calls doorzet naar de worker. Dat werkt, maar die tussenstap
+   kapt af rond de dertig seconden — en daarom is een adres toevoegen aan
+   beide lijsten beter dan eromheen werken. Precies die fout maakte ik op
+   3 augustus: de tussenstap bleek goedkoop tot Rory halverwege een gesprek
+   werd afgebroken. */
+var WORKER_HOSTS = ['wellshave-adgen.netlify.app', 'wellshave-werkbank.netlify.app'];
 const PROXY_BASE = (function () {
   var h = location.hostname;
-  if (h === 'wellshave-adgen.netlify.app') return WORKER_URL;
-  if (/^(localhost|127\.0\.0\.1)$/.test(h))  return WORKER_URL;
-  if (location.protocol === 'file:')          return WORKER_URL;
+  if (WORKER_HOSTS.indexOf(h) > -1)          return WORKER_URL;
+  if (/^(localhost|127\.0\.0\.1)$/.test(h)) return WORKER_URL;
+  if (location.protocol === 'file:')         return WORKER_URL;
   return location.origin;
 })();
 /* Staan de sleutels op de server? Zo ja, dan hoeft niemand hier een API-key in
