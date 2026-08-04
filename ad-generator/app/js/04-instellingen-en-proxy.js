@@ -80,8 +80,11 @@ function useVaultKeys(){
 }
 
 function updateApiStatus() {
-  // Teamserver-modus: de sleutels staan op de proxy (Cloudflare Worker), niet in de browser
-  var _teamServer = /^https:\/\//i.test(PROXY_BASE) && !/(localhost|127\.0\.0\.1)/i.test(PROXY_BASE);
+  // Teamserver-modus: de sleutels staan op de proxy (Cloudflare Worker), niet in
+  // de browser. Dit stond hier als tweede exemplaar van dezelfde test, met een
+  // eigen kopie van de voorwaarde -- en die liep uit de pas zodra de eerste
+  // veranderde. Eén waarheid, in js/01.
+  var _teamServer = !!window.__WG_TEAMSERVER;
   if (_teamServer) {
     var _aS = document.getElementById('anthropic-status'), _aT = document.getElementById('anthropic-status-text');
     var _oS = document.getElementById('openai-status'), _oT = document.getElementById('openai-status-text');
@@ -120,12 +123,44 @@ function updateApiStatus() {
 // ============================================================
 // RETRY HELPER & PROXY STATUS
 // ============================================================
+/* Gaat deze call naar de teamserver, en moet de login er dus bij?
+ *
+ * Dit stond als één test op de hostnaam: begint de url met
+ * https://marketing-ads., dan hoort de Authorization-header erbij. Dat klopte
+ * zolang er maar één omgeving was.
+ *
+ * Sinds er een tweede omgeving is, lopen de calls daar over de eigen origin
+ * (zie _redirects). De url is dan https://<die-site>/anthropic, de test faalde
+ * stil, en de worker kreeg een verzoek zonder token terug — 401, en dus geen
+ * generatie en geen sparren. De fout zat niet in de proxy maar hier: een
+ * hostnaam als voorwaarde voor "dit is onze server" houdt maar één huis over.
+ *
+ * Daarom nu twee vragen: gaat het naar de worker zelf, of naar een van de paden
+ * die door de eigen origin naar de worker worden doorgezet. Dat laatste is
+ * begrensd tot precies die paden — anders zou elke fetch naar de eigen site het
+ * teamtoken meesturen, en dat is een sleutel die je niet uitdeelt aan een
+ * plaatje.
+ */
+var _WORKER_PADEN = /^\/(anthropic|v1\/|openai\/|agents\/|health)/;
+
+function _naarDeWorker(url) {
+  var u = String(url || '');
+  if (/^https:\/\/marketing-ads\./i.test(u)) return true;
+  try {
+    var abs = new URL(u, location.href);
+    var basis = new URL(PROXY_BASE, location.href);
+    return abs.origin === basis.origin && _WORKER_PADEN.test(abs.pathname);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) {
   /* [MARKETING-ADS] de worker vereist een team-login (Supabase-token van een
      goedgekeurd lid). Zet/overschrijf de Authorization-header voor alle calls
      naar de worker — ook beeld-calls (de OpenAI-key staat server-side). */
   try {
-    if (/^https:\/\/marketing-ads\./i.test(String(url))) {
+    if (_naarDeWorker(url)) {
       options = options || {};
       if (options.headers instanceof Headers) {
         if (window.__WG_TOKEN) options.headers.set('Authorization', 'Bearer ' + window.__WG_TOKEN);

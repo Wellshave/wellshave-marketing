@@ -45,7 +45,13 @@ const PROXY_BASE = (function () {
   if (location.protocol === 'file:')          return WORKER_URL;
   return location.origin;
 })();
-window.__WG_TEAMSERVER = /^https:\/\//i.test(PROXY_BASE) && !/(localhost|127\.0\.0\.1)/i.test(PROXY_BASE); /* [MARKETING-ADS] sleutels staan server-side op de worker -> key-veld niet vereist */
+/* Staan de sleutels op de server? Zo ja, dan hoeft niemand hier een API-key in
+   te tikken. De vraag is niet welk protocol PROXY_BASE heeft maar of hij naar
+   een server wijst die de sleutels houdt: de worker rechtstreeks, of onze eigen
+   origin die ernaartoe doorzet. Alleen een proxy op de eigen machine telt niet
+   mee — daar staat geen sleutel. */
+window.__WG_TEAMSERVER = /^https?:\/\//i.test(PROXY_BASE)
+  && !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(PROXY_BASE); /* [MARKETING-ADS] sleutels staan server-side op de worker -> key-veld niet vereist */
 // Fase 2 (Supabase data-sync) gebruikt deze twee:
 const SUPABASE_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
