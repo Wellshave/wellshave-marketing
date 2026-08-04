@@ -65,6 +65,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
 | `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
 | `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
+| `../ad-generator/app/js/33-logboek.js` | Het logboek: wat het team deed per dag, uit vijf bronnen |
+| `../ad-generator/test/logboek.cjs` | Testlus voor dat scherm — 38 controles, incl. contrast en de vier lege toestanden |
 | `../ad-generator/test/werkbank.cjs` | Testlus voor de werkbank — 42 controles, incl. contrast en de vier lege toestanden |
 | `../marketing-hq/brain/genereer.mjs` | Het brein afdrukken als Obsidian-vault onder `brain/Live/` |
 | `../marketing-hq/brain/test/genereer.mjs` | Testlus voor die afdruk — 47 controles, waarvan 11 over de schrijfgrens |
@@ -108,6 +110,8 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Fase 1: proefrit werkstuk 11 | ✅ 3 augustus — denkstuk 1 afgetekend, 2 overdrachten, derde creative; vier bevindingen in `docs/BATCHES.md` §6 |
 | Tweede omgeving live | ✅ 3 augustus — `wellshave-werkbank.netlify.app`, calls via `_redirects` naar de worker |
 | De blokkade zichtbaar (0029) | ✅ 4 augustus — 32 + 4 controles, vier mutaties gevangen, toegepast op productie; de Criticus staat nu op de kaart |
+| Logboek in de console | ✅ 4 augustus — 38 controles, twee mutaties gevangen; het brein is nu een scherm en niet alleen een view |
+| Post bezorgen bij de agents | ⬜ `send_message` belooft dat de ontvanger leest; de runtime maakt dat niet waar |
 | Fase 2: batch 1 live | ⬜ wacht op beeld voor creative 11, een oordeel van de Criticus, en de Meta-secrets |
 | Worker gedeployed met cron | ⬜ wacht op de secrets |
 | Console-modules (Agents, Analyse, E-mail) | ⬜ volgende ronde |

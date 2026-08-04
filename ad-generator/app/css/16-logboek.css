@@ -1,0 +1,194 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Het logboek — wat het team deed, per dag
+
+   Eén beslisvraag: wat deden de agents, wat gaven ze aan elkaar door, en waar
+   ging het mis?
+
+   De vorm is een dagboek en geen tabel. Een tabel nodigt uit tot scannen op
+   kolommen; hier gaat het om lezen: wie zei wat tegen wie, en klopte dat.
+
+   Alle kleuren komen uit het tokenblok in 08-atelier-v6-daylight.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lgb { margin: 0 auto; max-width: 1000px; }
+
+.lgb-vraag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+
+/* ── hoe oud is dit ─────────────────────────────────────────────────────── */
+/* Staat bovenaan omdat het het eerste is wat je moet weten. Een lijst die er
+   gevuld uitziet leest als actueel, ook als de laatste regel van vorige week
+   is. */
+.lgb-vers {
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  background: var(--surface-3);
+}
+.lgb-vers--stil { background: var(--amber-wash); border-color: var(--amber); }
+.lgb-vers-kop {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.lgb-vers-tekst { font-size: 13px; line-height: 1.55; color: var(--ink-soft); max-width: 76ch; }
+.lgb-vers--stil .lgb-vers-tekst { color: var(--ink); }
+
+/* ── filters ────────────────────────────────────────────────────────────── */
+.lgb-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 16px; }
+.lgb-filter {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.lgb-filter:hover { border-color: var(--ink-soft); color: var(--ink); }
+.lgb-filter--aan { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+
+/* ── een dag ────────────────────────────────────────────────────────────── */
+.lgb-dag {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.lgb-dag--open { border-color: var(--line-strong); }
+.lgb-dag-kop {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 14px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.lgb-dag-kop:hover { background: var(--surface-3); }
+.lgb-dag-datum {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.lgb-dag-telling { font-size: 13px; color: var(--ink-soft); flex: 1 1 200px; }
+.lgb-chev { font-size: 12px; color: var(--ink-soft); }
+
+.lgb-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.lgb-chip--fout { background: var(--amber-wash); border-color: var(--amber); }
+
+.lgb-dag-body { border-top: 1px solid var(--line); padding: 4px 0; }
+
+/* ── een regel ──────────────────────────────────────────────────────────── */
+.lgb-regel {
+  display: flex;
+  gap: 14px;
+  padding: 9px 18px;
+  align-items: baseline;
+}
+.lgb-regel + .lgb-regel { border-top: 1px solid var(--line); }
+.lgb-tijd {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  flex: 0 0 42px;
+}
+.lgb-wie {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 0 0 92px;
+  overflow-wrap: anywhere;
+}
+.lgb-wat { font-size: 13px; line-height: 1.55; color: var(--ink); flex: 1 1 auto; }
+
+/* Het werkwoord zegt welke soort regel dit is. Een woord en geen pictogram:
+   een pictogram moet je leren, een woord niet (regel 4.4). */
+.lgb-soort {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  margin-right: 4px;
+}
+.lgb-werkstuk {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.lgb-body {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--line-strong);
+  padding-left: 12px;
+  max-width: 74ch;
+}
+.lgb-meta {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 12px;
+}
+
+/* Een waarschuwing is een regel die opvalt zonder te schreeuwen: de rand doet
+   het werk, de tekst blijft leesbaar. */
+.lgb-regel--warn  { background: var(--amber-wash); }
+.lgb-regel--error { background: var(--amber-wash); border-left: 3px solid var(--amber); }
+
+.lgb-leeg-regel { padding: 12px 18px; font-size: 13px; color: var(--ink-soft); }
+
+/* ── leeg ───────────────────────────────────────────────────────────────── */
+.lgb-leeg {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 24px;
+}
+.lgb-leeg-kop {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.lgb-leeg p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 8px; max-width: 72ch; }
+
+.lgb-bron { font-size: 12px; color: var(--ink-soft); margin: 16px 0 0; }
