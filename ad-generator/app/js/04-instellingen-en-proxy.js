@@ -223,13 +223,21 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
         return data;
       }
 
-      /* Een 502/504 op deze route komt van de tussenstap en niet van het model:
-         die kapt af terwijl de worker nog bezig is. "API fout (status 504)"
-         stuurt je het verkeerde bos in — dan ga je bij Anthropic zoeken naar
-         iets wat hier gebeurde. */
+      /* Een 502/504 zegt alleen dát er iets afkapte, niet wát. En dat is precies
+         de vraag: kapte de tussenstap op de eigen origin af (rond 30 seconden),
+         of hield Cloudflare de worker tegen (rond 100)? Dat zijn twee heel
+         verschillende problemen met twee verschillende oplossingen, en zonder
+         de route erbij is er geen manier om ze uit elkaar te houden — dan sta
+         je te raden welke van de twee je aan het oplossen bent. */
+      var _afgekapt = (response.status === 504 || response.status === 502 || response.status === 524);
       const msg = (data.error && data.error.message)
-        || ((_viaTussenstap && (response.status === 504 || response.status === 502))
-            ? 'De tussenstap kapte de verbinding af (na ongeveer 30 seconden), terwijl de server nog bezig was. Probeer het opnieuw, of stel een kortere vraag.'
+        || (_afgekapt
+            ? (_viaTussenstap
+                ? 'De tussenstap op deze omgeving kapte af (rond 30 seconden) terwijl de server nog bezig was. '
+                  + 'Deze omgeving hoort rechtstreeks met de worker te praten — ververs de pagina hard (Cmd+Shift+R); '
+                  + 'blijft dit staan, dan mist deze host in de lijst van de worker.'
+                : 'De verbinding met de worker kapte af na ongeveer honderd seconden (' + response.status + '), '
+                  + 'terwijl het model nog aan het nadenken was. Dit is een te zware generatie, geen storing.')
             : `API fout (status ${response.status})`);
       const lower = msg.toLowerCase();
       const retryable = (response.status >= 500 && response.status < 600) ||

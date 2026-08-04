@@ -200,9 +200,25 @@ const check = (label, echt, verwacht) => {
     return tekst;
   });
   // "API fout (status 504)" stuurt je naar Anthropic zoeken naar iets wat hier
-  // gebeurde. De melding hoort te zeggen wat er werkelijk afkapte.
-  check('een 504 op deze route noemt de tussenstap',
-    /tussenstap kapte de verbinding af/.test(melding || ''), true);
+  // gebeurde. De melding hoort te zeggen wat er werkelijk afkapte -- en vooral
+  // wélke van de twee tijdgrenzen het was, want daar hangt de oplossing aan.
+  check('een 504 over de tussenstap noemt de tussenstap',
+    /tussenstap op deze omgeving kapte af/.test(melding || ''), true);
+
+  const meldingDirect = await werkbankPage.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async () => ({ ok: false, status: 504, json: async () => ({}) });
+    let tekst = null;
+    try {
+      await fetchJsonWithRetry(WORKER_URL + '/anthropic',
+        { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 0);
+    } catch (e) { tekst = e.message; }
+    window.fetch = echt;
+    return tekst;
+  });
+  check('en dezelfde 504 rechtstreeks noemt de worker en de honderd seconden',
+    /worker kapte af na ongeveer honderd seconden|verbinding met de worker kapte af na ongeveer honderd seconden/
+      .test(meldingDirect || ''), true);
 
   console.log('\n  de lijst hier en de lijst in de worker lopen gelijk');
   const workerBron = fs.readFileSync(
