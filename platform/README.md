@@ -8,6 +8,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 
 | Pad | Wat |
 |---|---|
+| `docs/SYSTEEM.md` | Het hele systeem van voor naar achter: elke tab, elke agent, de werkwijze, en wat er nu werkelijk staat |
 | `docs/ARCHITECTUUR.md` | Blauwdruk: waar we vandaan komen, waar we heen gaan, in welke volgorde |
 | `docs/PUBLICEREN.md` | Stap 03 — hoe een creative een draaiende advertentie wordt |
 | `docs/TERUGKOPPELING.md` | Stap 06 — hoe het cijfer terugkomt bij de creatieve keuze |
