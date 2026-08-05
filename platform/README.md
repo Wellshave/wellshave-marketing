@@ -303,7 +303,7 @@ bash platform/db/test/criticus.sh              # de grendel tussen creatie en la
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
 bash platform/db/test/blokkade.sh              # wat een werkstuk tegenhoudt — 32 controles
-bash platform/db/test/testklaar.sh             # een variant testklaar maken — 30 controles
+bash platform/db/test/testklaar.sh             # een variant testklaar maken — 47 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 

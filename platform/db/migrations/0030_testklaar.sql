@@ -48,38 +48,74 @@
 
 -- ── 1. De statussen, als data ──────────────────────────────────────────────
 -- In een tabel en niet als CHECK, om dezelfde reden als werkstuk_stations: een
--- status erbij is inhoud, geen implementatie. Bovendien heeft elke status hier
--- een betekenis en een fase, en die horen op één plek te staan in plaats van
--- verspreid over een dropdown, een view en iemands hoofd.
+-- status erbij is inhoud, geen implementatie.
+--
+-- Elke status moet minstens één ding anders doen dan zijn buren: een andere
+-- verantwoordelijke, een andere toegestane handeling, een andere grendel, een
+-- andere betekenis, of een andere volgende stap. Daarom staan verantwoordelijke
+-- en volgende stap hier als kolom en niet in iemands hoofd — dan is het verschil
+-- na te lopen in plaats van te geloven.
+--
+-- Twee zijn er langs die lat gesneuveld. "Nog niet beoordeelbaar" en
+-- "Beoordeelbaar" hadden dezelfde verantwoordelijke (Atlas meet), dezelfde
+-- handeling (geen), dezelfde grendel en dezelfde volgende stap (wachten tot de
+-- drempel gehaald is). Ze verschilden alleen in een feit dat 0008 al UITREKENT
+-- uit de metingen: vier dagen, vijftig euro, duizend vertoningen. Dat als status
+-- laten intypen levert twee waarheden op die uit elkaar lopen zodra iemand
+-- vergeet bij te werken. Ze zijn samengevoegd tot 'Live'; of een advertentie
+-- beoordeelbaar is, blijft afgeleid en staat in creative_performance.
 create table if not exists marketing_hq.creative_statussen (
-  status     text primary key,
-  volgorde   smallint not null,
-  fase       text not null check (fase in ('maken','beoordelen','draaien','oordeel')),
-  betekenis  text not null,
+  status            text primary key,
+  volgorde          smallint not null,
+  fase              text not null check (fase in ('maken','beoordelen','draaien','oordeel')),
+  betekenis         text not null,
+  verantwoordelijke text not null,
+  volgende_stap     text not null,
   -- Vanaf welke status er een toetsbare test onder moet liggen. Alles in de
   -- fase 'maken' mag nog rammelen; daarna niet meer.
-  vraagt_test boolean not null default false
+  vraagt_test       boolean not null default false
 );
 
-insert into marketing_hq.creative_statussen (status, volgorde, fase, betekenis, vraagt_test) values
-  ('Concept',                10, 'maken',      'Gemaakt, nog niet ingediend. Mag onaf zijn.',                         false),
-  ('Klaar voor review',      20, 'beoordelen', 'Ingediend door de maker, wacht op een oordeel.',                      true),
-  ('Goedgekeurd voor test',  30, 'beoordelen', 'Doorgelaten. Mag klaargezet worden bij het advertentieplatform.',     true),
-  ('Klaar voor publicatie',  40, 'draaien',    'Klaargezet bij Meta, wacht op een mens die hem live zet.',            true),
-  ('Live',                   50, 'draaien',    'Draait en geeft geld uit.',                                           true),
-  ('Nog niet beoordeelbaar', 60, 'draaien',    'Draait, maar onder de drempel van 0008: te kort, te weinig besteed.', true),
-  ('Beoordeelbaar',          70, 'oordeel',    'Genoeg data om iets te mogen zeggen.',                                true),
-  ('Winner',                 80, 'oordeel',    'Beter dan zijn soortgenoten. Kandidaat om op te schalen.',            true),
-  ('Middelmatig',            81, 'oordeel',    'Doet het niet slecht en niet goed. Levert geen learning op.',         true),
-  ('Verliezer',              82, 'oordeel',    'Onder de mediaan van zijn soortgenoten.',                             true),
-  ('Itereren',               83, 'oordeel',    'Iets werkte; er gaat een variant op door.',                           true),
-  ('Gestopt',                90, 'oordeel',    'Bewust stopgezet, met een reden.',                                    false)
-on conflict (status) do nothing;
+insert into marketing_hq.creative_statussen
+  (status, volgorde, fase, betekenis, verantwoordelijke, volgende_stap, vraagt_test) values
+  ('Concept',               10, 'maken',      'Gemaakt, nog niet ingediend. Mag onaf zijn.',
+      'de maker',       'indienen voor review, of laten liggen',                    false),
+  ('Klaar voor review',     20, 'beoordelen', 'Ingediend, wacht op een oordeel.',
+      'de Criticus',    'een oordeel: door of niet door, met de reden',             true),
+  ('Goedgekeurd voor test', 30, 'beoordelen', 'Doorgelaten. Mag klaargezet worden bij Meta.',
+      'Bolt',           'beeld uploaden en de ad-creative aanmaken',                true),
+  ('Klaar voor publicatie', 40, 'draaien',    'Klaargezet bij Meta. Kost nog niets, wordt niet vertoond.',
+      'jij',            'live zetten — dit is de poort waar geld begint te lopen',  true),
+  ('Live',                  50, 'draaien',    'Draait en geeft geld uit. Of hij al beoordeelbaar is, rekent 0008 uit.',
+      'Atlas',          'meten tot de drempel gehaald is, dan oordelen',            true),
+  ('Winner',                60, 'oordeel',    'Beter dan zijn soortgenoten.',
+      'jij',            'opschalen, en de learning vastleggen op de hoek',          true),
+  ('Middelmatig',           61, 'oordeel',    'Niet slecht, niet goed. Levert geen learning op.',
+      'jij',            'laten lopen of vervangen — hier valt niets uit te leren',  true),
+  ('Verliezer',             62, 'oordeel',    'Onder de mediaan van zijn soortgenoten.',
+      'jij',            'uitzetten, en vastleggen wat niet werkte',                 true),
+  ('Itereren',              63, 'oordeel',    'Iets werkte; er gaat een variant op door.',
+      'de maker',       'een variant maken met parent_id naar deze',                true),
+  ('Gestopt',               90, 'oordeel',    'Bewust stopgezet, met een reden.',
+      'niemand',        'niets — dit is een eindpunt',                              false)
+on conflict (status) do update set
+  volgorde = excluded.volgorde, fase = excluded.fase, betekenis = excluded.betekenis,
+  verantwoordelijke = excluded.verantwoordelijke, volgende_stap = excluded.volgende_stap,
+  vraagt_test = excluded.vraagt_test;
+
+-- Mocht een eerdere versie van deze migratie de twee afgeleide statussen al
+-- gezet hebben: ze worden 'Live', want dat is wat ze betekenden.
+update public.creatives set status = 'Live'
+ where status in ('Nog niet beoordeelbaar', 'Beoordeelbaar');
+delete from marketing_hq.creative_statussen
+ where status in ('Nog niet beoordeelbaar', 'Beoordeelbaar');
 
 comment on table marketing_hq.creative_statussen is
-  'De levensloop van een creative, van concept tot oordeel. Als data, want een status erbij is inhoud en geen deploy.';
+  'De levensloop van een creative. Elke status verschilt van zijn buren in verantwoordelijke, handeling, grendel, betekenis of volgende stap — anders hoort hij er niet te staan.';
 comment on column marketing_hq.creative_statussen.vraagt_test is
   'Vanaf hier moet er een toetsbare test onder liggen: hypothese, testvariabele en een werkstuk.';
+comment on column marketing_hq.creative_statussen.verantwoordelijke is
+  'Wie er aan zet is. Twee statussen met dezelfde verantwoordelijke, handeling en volgende stap zijn één status.';
 
 alter table marketing_hq.creative_statussen enable row level security;
 do $$ begin
@@ -99,7 +135,6 @@ alter table public.creatives
   add column if not exists hypothesis            text,
   add column if not exists test_variable         text,
   add column if not exists parent_id             bigint references public.creatives(id) on delete set null,
-  add column if not exists market_sophistication text,
   add column if not exists funnel_stage          text,
   add column if not exists headline              text,
   add column if not exists body_copy             text,
@@ -117,8 +152,6 @@ comment on column public.creatives.hypothesis is
   'Als we X, dan Y, omdat Z. Zonder dit is een afbeelding geen test.';
 comment on column public.creatives.test_variable is
   'Wat er precies anders is aan deze variant, en dus wat de meting moet uitwijzen. Een hypothese zonder dit is niet toetsbaar.';
-comment on column public.creatives.market_sophistication is
-  'Hoeveel van deze belofte de markt al gehoord heeft (1-5). Het enige veld uit de opdracht dat nergens bestond.';
 comment on column public.creatives.bronnen is
   'Waar de onderbouwing op rust: eerdere learnings, reviews, een trendscan. Leeg betekent: dit rust op smaak.';
 comment on column public.creatives.parent_id is
@@ -130,6 +163,87 @@ alter table public.creatives
   add constraint creatives_status_bekend
   foreign key (status) references marketing_hq.creative_statussen(status)
   on update cascade not valid;
+
+-- ── 2b. Market sophistication, op het werkstuk ─────────────────────────────
+-- Zes vragen die eerst beantwoord moesten worden, want een los tekstveld erbij
+-- zetten maakt het een invulveld en geen oordeel:
+--
+--   Waar hoort het?   Op het WERKSTUK. Sophistication is een eigenschap van de
+--                     markt en de belofte, niet van variant 3. Vier varianten
+--                     op dezelfde hoek delen hem per definitie; op de creative
+--                     zou je hem vier keer intypen en drie keer verkeerd.
+--   Welke waarden?    De vijf van Schwartz, als data hieronder. Niet vrij, want
+--                     een schaal waar iedereen zijn eigen woord voor kiest is
+--                     geen schaal en kun je niet groeperen in een analyse.
+--   Wie stelt voor?   Nova. Zij doet station ② en heeft de markt al bekeken;
+--                     Radar levert haar het materiaal.
+--   Welke bron?       De redenering is verplicht bij een voorstel. Zonder is
+--                     het een getal dat niemand kan wegen.
+--   Mens verplicht?   Ja. Een agent mag voorstellen, een mens bevestigt — en
+--                     dat staat hier in de vorm van de tabel, net als bij het
+--                     denkstuk: er is geen kolom waar een agent kan tekenen.
+--   Later in analyse? Als groepering naast hoek en persona. Twee advertenties
+--                     op niveau 2 en niveau 4 vergelijken zegt niets; binnen
+--                     hetzelfde niveau wel.
+create table if not exists marketing_hq.sophistication_niveaus (
+  niveau      smallint primary key check (niveau between 1 and 5),
+  naam        text not null,
+  betekenis   text not null,
+  wat_werkt   text not null
+);
+
+insert into marketing_hq.sophistication_niveaus (niveau, naam, betekenis, wat_werkt) values
+  (1, 'nieuw',        'De markt kent het probleem of de oplossing nog niet.',
+      'De simpele claim. Noem gewoon wat het doet.'),
+  (2, 'claim-race',   'Concurrenten roepen hetzelfde; wie hardst roept wint even.',
+      'Dezelfde claim, maar groter of specifieker. Een getal.'),
+  (3, 'mechanisme',   'De markt gelooft de claims niet meer.',
+      'Uitleggen HOE het werkt. Een nieuw mechanisme maakt een oude claim weer geloofwaardig.'),
+  (4, 'mechanisme+',  'Ook de mechanismes zijn uitgekauwd.',
+      'Het mechanisme beter, sneller of makkelijker maken. Bewijs erbij.'),
+  (5, 'identificatie','De markt is alles zat en luistert alleen nog naar wie op hen lijkt.',
+      'Wie je bent in plaats van wat je doet. Persona, verhaal, sociaal bewijs.')
+on conflict (niveau) do nothing;
+
+comment on table marketing_hq.sophistication_niveaus is
+  'De vijf niveaus van Schwartz, met wat er op elk niveau werkt. Als data omdat een schaal waar iedereen zijn eigen woord voor kiest geen schaal is.';
+
+grant select on marketing_hq.sophistication_niveaus to authenticated;
+
+alter table marketing_hq.werkstukken
+  add column if not exists sophistication            smallint
+    references marketing_hq.sophistication_niveaus(niveau),
+  add column if not exists sophistication_reden      text,
+  add column if not exists sophistication_door_agent text references marketing_hq.agents(id),
+  add column if not exists sophistication_door_mens  uuid references public.team_members(id),
+  add column if not exists sophistication_bevestigd_door uuid references public.team_members(id),
+  add column if not exists sophistication_bevestigd_op   timestamptz;
+
+-- Een voorstel zonder redenering is een getal dat niemand kan wegen.
+alter table marketing_hq.werkstukken drop constraint if exists sophistication_heeft_reden;
+alter table marketing_hq.werkstukken
+  add constraint sophistication_heeft_reden
+  check (sophistication is null
+         or (sophistication_reden is not null and length(trim(sophistication_reden)) > 0));
+
+-- Precies één voorsteller, zelfde patroon als 0021, 0022 en 0023.
+alter table marketing_hq.werkstukken drop constraint if exists sophistication_een_voorsteller;
+alter table marketing_hq.werkstukken
+  add constraint sophistication_een_voorsteller
+  check (sophistication is null
+         or (sophistication_door_agent is null) <> (sophistication_door_mens is null));
+
+-- Bevestigen kan alleen een mens, en alleen als er iets te bevestigen is.
+alter table marketing_hq.werkstukken drop constraint if exists sophistication_bevestiging;
+alter table marketing_hq.werkstukken
+  add constraint sophistication_bevestiging
+  check (sophistication_bevestigd_door is null
+         or (sophistication is not null and sophistication_bevestigd_op is not null));
+
+comment on column marketing_hq.werkstukken.sophistication is
+  'Hoeveel van deze belofte de markt al gehoord heeft. Een voorstel van Nova telt niet als vastgesteld tot een mens tekent.';
+comment on column marketing_hq.werkstukken.sophistication_bevestigd_door is
+  'Een teamlid. Er is met opzet geen agent-variant van deze kolom.';
 
 -- ── 3. Een afbeelding zonder hypothese is geen test ────────────────────────
 -- Eis 5 en 6 uit de opdracht, en ze zijn alleen iets waard als ze in de weg
@@ -176,6 +290,26 @@ create trigger creative_testklaar_trg
 -- veranderen voordat hij bevestigt; wat hier staat is alleen wat het systeem
 -- aanbiedt als hij niets doet.
 --
+-- De vorm staat als data per merk en niet in de functie. Niet omdat er vandaag
+-- twee vormen nodig zijn — er is er één — maar omdat "voorlopig" in de opdracht
+-- staat, en een voorlopige afspraak die je in code giet is over een half jaar
+-- een deploy waard. Zo is het een rij.
+create table if not exists marketing_hq.naam_conventie (
+  brand        text primary key,
+  voorvoegsel  text not null,
+  patroon      text not null,
+  toelichting  text not null
+);
+
+insert into marketing_hq.naam_conventie (brand, voorvoegsel, patroon, toelichting) values
+  ('wellshave', 'WS',  '{voorvoegsel}.{product}.{persona}.{angle}.{nr}',
+     'Voorlopige afspraak van 4 augustus. Het volgnummer telt binnen dezelfde combinatie.'),
+  ('wellshine', 'WLS', '{voorvoegsel}.{product}.{persona}.{angle}.{nr}',
+     'Zelfde vorm, ander voorvoegsel.')
+on conflict (brand) do nothing;
+
+grant select on marketing_hq.naam_conventie to authenticated;
+--
 -- Het volgnummer telt binnen merk + product + persona + hoek, want dat is waar
 -- "de tweede van deze soort" iets betekent. Telt hij over het hele merk, dan
 -- zegt .07 niets.
@@ -203,7 +337,11 @@ create or replace function marketing_hq.ad_naam_voorstel(
 ) returns text language plpgsql stable as $$
 declare voorvoegsel text; basis text; n int;
 begin
-  voorvoegsel := case lower(coalesce(p_brand, '')) when 'wellshine' then 'WLS' else 'WS' end;
+  select n.voorvoegsel into voorvoegsel
+  from marketing_hq.naam_conventie n where n.brand = lower(coalesce(p_brand, ''));
+  -- Een onbekend merk krijgt WS in plaats van een fout: een naamvoorstel hoort
+  -- nooit de reden te zijn dat iemand niet verder kan.
+  voorvoegsel := coalesce(voorvoegsel, 'WS');
   basis := voorvoegsel
         || '.' || marketing_hq.naam_deel(p_product)
         || '.' || marketing_hq.naam_deel(p_persona)
@@ -236,7 +374,7 @@ select
   c.id                                   as creative_id,
   c.brand, c.ad_name, c.product, c.persona,
   c.angle_type, c.marketing_angle,
-  c.awareness_level, c.market_sophistication, c.funnel_stage,
+  c.awareness_level, c.funnel_stage,
   c.format, c.media_type, c.channel,
   c.headline, c.body_copy, c.cta, c.visual_concept, c.image_prompt,
   (c.image_b64 is not null)              as heeft_beeld,
@@ -254,6 +392,11 @@ select
 
   w.titel                                as werkstuk,
   w.status                               as werkstuk_status,
+  w.sophistication,
+  sn.naam                                as sophistication_naam,
+  sn.wat_werkt                           as sophistication_wat_werkt,
+  w.sophistication_reden,
+  (w.sophistication_bevestigd_door is not null) as sophistication_bevestigd,
 
   -- Waar de onderbouwing op staat, geteld uit het denkstuk zelf.
   d.status                               as denkstuk_status,
@@ -281,6 +424,7 @@ left join marketing_hq.creative_statussen s on s.status = c.status
 left join marketing_hq.werkstukken w        on w.id = c.werkstuk_id
 left join marketing_hq.denkstukken d        on d.id = c.denkstuk_id
 left join public.team_members tm            on tm.id = c.klaargezet_door
+left join marketing_hq.sophistication_niveaus sn on sn.niveau = w.sophistication
 left join lateral (
   select count(*) as totaal,
          count(*) filter (where zekerheid = 'onderbouwd')  as onderbouwd,

@@ -221,9 +221,8 @@ check "met alle drie erbij mag het wel" "Klaar voor review" \
         test_variable='de kop toont het mechanisme', werkstuk_id=1, denkstuk_id=1,
         status='Klaar voor review' where ad_name like 'WS.%';
         select status from public.creatives where ad_name like 'WS.%'")"
-check "en de melding noemt alles wat ontbreekt in één keer" "ja" \
-  "$(q "select case when (select count(*) from marketing_hq.creative_statussen where vraagt_test) = 10
-        then 'ja' else 'nee' end")"
+check "acht van de tien statussen eisen een toetsbare test" "8" \
+  "$(q "select count(*) from marketing_hq.creative_statussen where vraagt_test")"
 
 # ── 2. Gestopt mag altijd ──────────────────────────────────────────────────
 echo
@@ -291,6 +290,86 @@ check "de status draagt zijn eigen betekenis mee" "ja" \
 check "en zijn fase" "oordeel" \
   "$(q "select status_fase from marketing_hq.testkaart where ad_name='WS.Leeg.Niemand.geen.01'")"
 
+# ── 4b. De statussen verschillen echt van elkaar ───────────────────────────
+echo
+echo "  elke status doet iets anders"
+# De lat uit de opdracht: verantwoordelijke, handeling, grendel, betekenis of
+# volgende stap moet verschillen. Twee rijen met dezelfde verantwoordelijke én
+# dezelfde volgende stap zijn één status met twee namen.
+check "geen twee statussen met dezelfde verantwoordelijke en volgende stap" "0" \
+  "$(q "select count(*) from (
+          select verantwoordelijke, volgende_stap from marketing_hq.creative_statussen
+          group by 1,2 having count(*) > 1) x")"
+check "elke status zegt wie er aan zet is" "0" \
+  "$(q "select count(*) from marketing_hq.creative_statussen
+        where verantwoordelijke is null or length(trim(verantwoordelijke)) = 0")"
+check "en wat de volgende stap is" "0" \
+  "$(q "select count(*) from marketing_hq.creative_statussen
+        where volgende_stap is null or length(trim(volgende_stap)) = 0")"
+# Deze twee zijn samengevoegd omdat 0008 beoordeelbaarheid al uitrekent uit de
+# metingen. Ze als status laten intypen levert twee waarheden op.
+check "beoordeelbaarheid is geen status meer" "0" \
+  "$(q "select count(*) from marketing_hq.creative_statussen
+        where status in ('Beoordeelbaar','Nog niet beoordeelbaar')")"
+# Hij bestaat nog, alleen als afgeleid feit in plaats van als status: 0008 zet
+# hem op creative_results, 0011 neemt hem mee in creative_kaart.
+check "en 0008 rekent hem nog steeds uit" "creative_kaart, creative_results" \
+  "$(q "select string_agg(table_name, ', ' order by table_name)
+        from information_schema.columns
+        where table_schema='marketing_hq' and column_name='beoordeelbaar'")"
+
+# ── 4c. De naamconventie staat als data ────────────────────────────────────
+echo
+echo "  de naamconventie is voorlopig, dus verplaatsbaar"
+check "elk merk heeft zijn eigen voorvoegsel" "WS|WLS" \
+  "$(q "select string_agg(voorvoegsel, '|' order by brand) from marketing_hq.naam_conventie")"
+check "de functie leest die tabel en heeft hem niet ingebakken" "XX.Groom-Guard.Mark.safety.01" \
+  "$(q "insert into marketing_hq.naam_conventie (brand, voorvoegsel, patroon, toelichting)
+        values ('proefmerk','XX','{voorvoegsel}.{product}.{persona}.{angle}.{nr}','test');
+        select marketing_hq.ad_naam_voorstel('proefmerk','Groom Guard','Mark','safety')")"
+check "een onbekend merk blokkeert niets maar krijgt WS" "WS.X.Y.z.01" \
+  "$(q "select marketing_hq.ad_naam_voorstel('bestaat-niet','X','Y','z')")"
+
+# ── 4d. Market sophistication ──────────────────────────────────────────────
+echo
+echo "  market sophistication hoort bij het werkstuk"
+check "de vijf niveaus staan vast" "5" \
+  "$(q "select count(*) from marketing_hq.sophistication_niveaus")"
+check "en dragen wat er op dat niveau werkt" "ja" \
+  "$(q "select case when wat_werkt like '%mechanisme%' then 'ja' else wat_werkt end
+        from marketing_hq.sophistication_niveaus where niveau = 3")"
+# Mét voorsteller, want anders vuurt die constraint eerst en test je de
+# verkeerde regel.
+check "een niveau zonder redenering kan niet" "ja" \
+  "$(weigert "update marketing_hq.werkstukken set sophistication = 3,
+              sophistication_door_agent = 'nova' where id = 1" \
+     "sophistication_heeft_reden")"
+check "en zonder voorsteller ook niet" "ja" \
+  "$(weigert "update marketing_hq.werkstukken set sophistication = 3,
+              sophistication_reden = 'de markt kent de claim' where id = 1" \
+     "sophistication_een_voorsteller")"
+check "een voorstel van Nova mag" "3" \
+  "$(q "update marketing_hq.werkstukken set sophistication = 3,
+        sophistication_reden = 'concurrenten leggen allemaal het mechanisme uit',
+        sophistication_door_agent = 'nova' where id = 1;
+        select sophistication from marketing_hq.werkstukken where id = 1")"
+# Dit is de kern: een agent kan voorstellen, niet vaststellen. Er is geen kolom
+# waar hij kan tekenen -- dezelfde grendel als bij het denkstuk in 0023.
+check "maar bevestigen kan alleen een mens" "0" \
+  "$(q "select count(*) from information_schema.columns
+        where table_schema='marketing_hq' and table_name='werkstukken'
+          and column_name like 'sophistication_bevestigd%agent%'")"
+check "en een mens die tekent staat erbij" "ja" \
+  "$(q "update marketing_hq.werkstukken
+        set sophistication_bevestigd_door = '11111111-1111-1111-1111-111111111111',
+            sophistication_bevestigd_op = now() where id = 1;
+        select case when sophistication_bevestigd_door is not null then 'ja' else 'nee' end
+        from marketing_hq.werkstukken where id = 1")"
+check "de testkaart toont het niveau met zijn naam" "mechanisme" \
+  "$(q "select sophistication_naam from marketing_hq.testkaart where werkstuk_id = 1 limit 1")"
+check "en of een mens het bevestigde" "t" \
+  "$(q "select sophistication_bevestigd from marketing_hq.testkaart where werkstuk_id = 1 limit 1")"
+
 # ── 5. Wat er niet stuk mocht ──────────────────────────────────────────────
 echo
 echo "  wat er al was, werkt nog"
@@ -310,7 +389,7 @@ echo
 echo "  de migratie nog een keer"
 uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0030_testklaar.sql" 2>&1)
 check "0030 draait twee keer zonder klagen" "" "$(echo "$uit" | grep -o 'ERROR' | head -1)"
-check "en er zijn nog steeds twaalf statussen" "12" \
+check "en er zijn nog steeds tien statussen" "10" \
   "$(q "select count(*) from marketing_hq.creative_statussen")"
 
 echo
