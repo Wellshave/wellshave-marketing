@@ -113,6 +113,7 @@ create table marketing_hq.schedules (id text primary key, agent_id text, kind te
   next_due_at timestamptz, created_at timestamptz default now());
 create table marketing_hq.meta_recommendations (id bigint generated always as identity primary key,
   ad_id text, creative_id bigint, agent_id text, run_id bigint, verdict text, action text,
+  reasoning text, confidence numeric(3,2), status text default 'open',
   created_at timestamptz default now());
 create table marketing_hq.pipeline_items    (id bigint generated always as identity primary key, angle text);
 create table marketing_hq.email_drafts      (id bigint generated always as identity primary key, angle text);
@@ -445,6 +446,34 @@ check "en hq_testkaart bestaat voor de console" "ja" \
         select case when count(*) >= 0 then 'ja' else 'nee' end from public.hq_testkaart")"
 check "anon komt er niet bij" "ja" \
   "$(weigert "set role anon; select count(*) from public.hq_testkaart" "permission denied")"
+
+# ── 5b. Het dossier ────────────────────────────────────────────────────────
+# Het dossier is een view over acht andere tabellen. Bij security_invoker leest
+# hij met de rechten van wie kijkt, dus een ontbrekend grant op één tabel maakt
+# het hele dossier onleesbaar -- en dat merk je pas in productie.
+echo ""
+echo "  het dossier per creative"
+check "een teamlid kan het dossier lezen" "ja" \
+  "$(q "set role authenticated; set local test.teamlid='ja';
+        select case when count(*) > 0 then 'ja' else 'nee' end from public.hq_creative_dossier")"
+check "anon komt er niet bij" "ja" \
+  "$(weigert "set role anon; select count(*) from public.hq_creative_dossier" "permission denied")"
+check "het dossier kent alle zes de onderdelen" "ja" \
+  "$(q "select case when count(*) = 8 then 'ja' else 'nee, ' || count(*) end
+        from information_schema.columns
+        where table_schema='marketing_hq' and table_name='creative_dossier'
+          and column_name in ('denkstuk_regels','stappen','overdrachten','oordelen',
+                              'discussies','publicatie','meting','learnings')")"
+# Een leeg dossier moet leeg zijn en niet stuk: null is een antwoord, een fout
+# is dat niet.
+check "een creative zonder meting geeft null en geen fout" "" \
+  "$(q "select meting from marketing_hq.creative_dossier
+        where ad_name = 'WS.Leeg.Niemand.geen.01'")"
+check "de testkaart zegt wie er aan zet is" "ja" \
+  "$(q "select case when count(*) = 3 then 'ja' else 'nee, ' || count(*) end
+        from information_schema.columns
+        where table_schema='marketing_hq' and table_name='testkaart'
+          and column_name in ('verantwoordelijke','volgende_stap','verdict')")"
 
 # ── 6. Nog een keer ────────────────────────────────────────────────────────
 echo

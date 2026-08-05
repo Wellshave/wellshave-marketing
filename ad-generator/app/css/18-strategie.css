@@ -1,0 +1,358 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Creative Strategy — de tabel en het dossier
+
+   Twee dingen bepalen de vorm.
+
+   1. Een tabel van honderd rijen wordt gescand, niet gelezen. Daarom rustige
+      regels, één accentkleur per statusgroep en verder geen versiering: elke
+      kleur die niets betekent maakt de kleur die wél iets betekent zwakker.
+
+   2. Status is een groep en geen tint. Zes groepen, zes plekken in het hoofd.
+      "Wacht op jou" krijgt de enige echt luide kleur, want dat is het enige
+      dat om een handeling vraagt.
+
+   Alle kleuren komen uit het tokenblok in 08-atelier-v6-daylight.css. Er staat
+   hier bewust geen losse hex: één plek waar de huid vandaan komt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.str { max-width: 100%; }
+
+/* De wissel tussen "wat vraagt om een beslissing" en "cijfers bijwerken".
+   Twee vragen aan dezelfde rijen, dus twee knoppen en geen twee tabbladen. */
+.str-wissel { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.str-knop--aan {
+  background: var(--ink);
+  color: var(--paper, var(--surface));
+  border-color: var(--ink);
+  font-weight: 600;
+}
+.str-knop--aan:hover { background: var(--ink); }
+
+.str-vraag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+/* ── de balk: zoeken, filteren, kolommen ────────────────────────────────── */
+
+.str-balk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.str-zoek {
+  flex: 1 1 240px;
+  min-width: 180px;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.str-filter {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.str-knop {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+.str-knop:hover { background: var(--surface-2, var(--surface)); }
+
+.str-kiezer {
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-3);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.str-kiezer-kop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.str-kiezer-lijst {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 14px;
+}
+.str-vink {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.str-kiezer-uitleg {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 72ch;
+}
+
+.str-telling { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 8px; }
+.str-telling a { color: var(--ink); }
+
+/* ── de tabel ───────────────────────────────────────────────────────────── */
+
+.str-tabelwrap {
+  overflow-x: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.str-tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+.str-tabel th {
+  text-align: left;
+  padding: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.str-sorteer {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.str-tabel td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: top;
+  max-width: 280px;
+}
+.str-rij { cursor: pointer; }
+.str-rij:hover td { background: var(--surface-3); }
+.str-vinkkolom { width: 30px; padding-left: 10px !important; cursor: default; }
+.str-leeg-cel { color: var(--ink-soft); }
+.str-geen {
+  padding: 22px 14px !important;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.str-geen a { color: var(--ink); }
+
+.str-thumb { color: var(--ink); font-size: 12px; }
+.str-thumb--leeg { color: var(--ink-soft); }
+
+/* ── de statusgroep: zes dingen die je verschillend doet ────────────────── */
+
+.str-status {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: var(--surface-3);
+}
+/* Alleen dit vraagt om een handeling van jou — en dus om de enige luide kleur. */
+.str-status--wacht   { background: var(--amber-wash); border-color: var(--amber); }
+.str-status--klaar   { background: var(--surface-3); border-color: var(--ink-soft); }
+.str-status--live    { background: var(--surface-3); border-color: var(--ink); font-weight: 700; }
+.str-status--oordeel { background: var(--surface-3); border-color: var(--line-strong); }
+.str-status--gestopt { color: var(--ink-soft); }
+.str-status--concept { color: var(--ink-soft); }
+
+/* Een gestopte test blijft leesbaar maar hoeft geen aandacht meer te trekken. */
+.str-rij--gestopt td { color: var(--ink-soft); }
+
+/* ── leeg is een uitkomst, geen lege plek ───────────────────────────────── */
+
+.str-leeg {
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  padding: 22px 24px;
+  background: var(--surface-3);
+  max-width: 76ch;
+}
+.str-leeg-kop {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.str-leeg p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 8px; }
+.str-leeg p:last-child { margin-bottom: 0; }
+.str-leeg code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* ── het dossier ────────────────────────────────────────────────────────── */
+
+.str-dos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99991;
+  background: rgba(22, 21, 15, 0.42);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 30px 18px;
+  overflow: auto;
+}
+.str-dos {
+  width: 940px;
+  max-width: 100%;
+  margin: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  padding: 22px 26px 24px;
+  box-shadow: 0 30px 90px rgba(84, 72, 48, .28);
+}
+.str-dos-kop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-strong);
+  margin-bottom: 6px;
+}
+.str-dos-kop strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.str-x {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.str-x:hover { color: var(--ink); }
+
+.str-sec { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.str-sec:last-child { border-bottom: 0; }
+.str-sec h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+/* "Nog niets vastgelegd" is een antwoord. Het staat er in woorden, want een
+   lege sectie laat je raden of het ontbreekt of nooit is gebeurd. */
+.str-sec-leeg { font-size: 13px; line-height: 1.55; color: var(--ink-soft); margin: 0; max-width: 74ch; }
+
+.str-dl { margin: 0; }
+.str-paar {
+  display: flex;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+}
+.str-paar:last-child { border-bottom: 0; }
+.str-paar dt {
+  flex: 0 0 150px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+.str-paar dd { flex: 1 1 auto; margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.str-paar--leeg dd { color: var(--ink-soft); font-style: italic; }
+
+.str-mini { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+.str-mini th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.str-mini td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: top;
+}
+.str-mini small { color: var(--ink-soft); }
+/* Een aanname ziet er anders uit dan een meting: anders lees je een gok als feit. */
+.str-zeker--aanname td { background: var(--amber-wash); }
+.str-zeker--leeg td, .str-zeker--open td { color: var(--ink-soft); }
+
+.str-werkstuk { font-size: 13px; color: var(--ink); margin: 0 0 8px; }
+.str-sub {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  margin: 14px 0 6px;
+}
+.str-oordeel,
+.str-overdracht,
+.str-bericht,
+.str-learning {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-3);
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.str-bericht p { margin: 6px 0 0; color: var(--ink); }
+.str-overdracht small { color: var(--ink-soft); }
+.str-let-op { color: var(--ink) !important; font-weight: 700; }
+.str-learning small { color: var(--ink-soft); }

@@ -289,6 +289,9 @@ function tkBevestig() {
     tkSluit();
     if (typeof toast === 'function') toast('Klaargezet als ' + (uit.ad_name || 'test') + ' — staat in Creative Strategy');
     if (typeof _cs !== 'undefined') { _cs.inited = _cs.inited; if (typeof csLoad === 'function') csLoad(); }
+    /* De testtabel heeft er een rij bij; hij staat in het geheugen, dus hij
+       moet opnieuw laden of hij mist precies wat je net hebt klaargezet. */
+    if (typeof strVernieuw === 'function' && document.getElementById('str-mount')) strVernieuw();
   }).catch(function (e) {
     _tk.bezig = false;
     if (knop) { knop.disabled = false; knop.textContent = 'Bevestigen en naar Creative Strategy'; }

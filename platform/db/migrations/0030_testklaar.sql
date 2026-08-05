@@ -384,6 +384,11 @@ select
   s.fase                                 as status_fase,
   s.betekenis                            as status_betekenis,
   s.volgorde                             as status_volgorde,
+  -- Wie er nu aan zet is en wat het volgende is, komt uit de statustabel en
+  -- nergens anders: één waarheid over status, ook over wat hij betekent.
+  s.verantwoordelijke,
+  s.volgende_stap,
+  s.vraagt_test,
   c.parent_id, c.werkstuk_id, c.denkstuk_id,
   c.user_name                            as gemaakt_door,
   tm.full_name                           as klaargezet_door,
@@ -418,7 +423,9 @@ select
     when c.werkstuk_id is null
       then 'niet aan een werkstuk gekoppeld'
     else null
-  end                                    as niet_testklaar
+  end                                    as niet_testklaar,
+
+  v.verdict, v.verdict_actie, v.verdict_reden, v.verdict_op
 from public.creatives c
 left join marketing_hq.creative_statussen s on s.status = c.status
 left join marketing_hq.werkstukken w        on w.id = c.werkstuk_id
@@ -431,12 +438,35 @@ left join lateral (
          count(*) filter (where zekerheid = 'aanname')     as aanname,
          count(*) filter (where zekerheid = 'open')        as open_gelaten
   from marketing_hq.denkstuk_antwoorden x where x.denkstuk_id = d.id
-) a on true;
+) a on true
+-- Het laatste oordeel van de agents over deze advertentie. Staat er als kolom
+-- omdat het in de tabel scanbaar moet zijn; de redenering hoort in het dossier.
+left join lateral (
+  select mr.verdict, mr.action as verdict_actie, mr.reasoning as verdict_reden,
+         mr.created_at as verdict_op
+  from marketing_hq.meta_recommendations mr
+  where mr.creative_id = c.id
+  order by mr.created_at desc limit 1
+) v on true;
 
 comment on view marketing_hq.testkaart is
   'Alles wat een variant testklaar maakt, op één plek: de context, de onderbouwing uit het denkstuk, en wat er nog ontbreekt.';
 
 alter view marketing_hq.testkaart set (security_invoker = true);
+-- Een security_invoker-view leest met de rechten van wie kijkt. Elke tabel die
+-- de testkaart en het dossier aanraken heeft dus zelf een leesrecht nodig,
+-- anders krijgt een teamlid "permission denied" op een view die er wél is.
+-- Dat is precies de fout die je pas in productie ziet, dus staat hij hier.
+grant select on marketing_hq.meta_recommendations to authenticated;
+grant select on marketing_hq.meta_publications    to authenticated;
+grant select on marketing_hq.creative_results     to authenticated;
+grant select on marketing_hq.angle_learnings      to authenticated;
+grant select on marketing_hq.agent_messages       to authenticated;
+grant select on marketing_hq.werkstuk_stappen     to authenticated;
+grant select on marketing_hq.werkstuk_stations    to authenticated;
+grant select on marketing_hq.werkstuk_overdrachten to authenticated;
+grant select on marketing_hq.werkstukken          to authenticated;
+
 grant select on marketing_hq.testkaart to authenticated;
 
 drop view if exists public.hq_testkaart;
@@ -628,3 +658,111 @@ create or replace function public.hq_ad_naam_voorstel(
 $$;
 revoke all on function public.hq_ad_naam_voorstel(text, text, text, text) from public, anon;
 grant execute on function public.hq_ad_naam_voorstel(text, text, text, text) to authenticated;
+
+-- ── 7. Het dossier ─────────────────────────────────────────────────────────
+-- Zes secties uit zes plekken, maar één rij per creative. Niet omdat dat
+-- sneller is: als het scherm zes queries doet en er komt er één niet terug, dan
+-- toont hij een dossier waarin een sectie ontbreekt zonder te zeggen dat hij
+-- iets mist. Eén rij is er of is er niet.
+--
+-- Alles hier is samengesteld uit wat er al staat. Er wordt niets gedupliceerd:
+-- de creative levert de uitvoering, het werkstuk de estafette, het denkstuk de
+-- onderbouwing, criticus_oordelen het oordeel, agent_messages de discussies en
+-- creative_results de meting.
+create or replace view marketing_hq.creative_dossier as
+select
+  t.*,                                            -- alles uit de testkaart (A, B, deels C)
+
+  -- C. Strategische herkomst — het denkstuk, vraag voor vraag met zijn zekerheid
+  (select jsonb_agg(jsonb_build_object(
+            'vraag', v.vraag, 'tekst', v.tekst,
+            'antwoord', a.antwoord, 'zekerheid', a.zekerheid, 'bron', a.bron)
+          order by v.vraag)
+     from marketing_hq.denkstuk_vragen v
+     left join marketing_hq.denkstuk_antwoorden a
+            on a.denkstuk_id = t.denkstuk_id and a.vraag = v.vraag
+  )                                               as denkstuk_regels,
+
+  -- D. Werkstuk en agents
+  (select jsonb_agg(jsonb_build_object(
+            'station', s.station, 'naam', st.naam, 'status', s.status,
+            'wie', coalesce(tm.full_name, ag.name, 'naamloos'),
+            'soort', case when s.mens_id is not null then 'mens'
+                          when s.agent_id is not null then 'agent' else 'onbekend' end,
+            'waarom', s.waarom, 'afgerond', s.afgerond_op)
+          order by s.station)
+     from marketing_hq.werkstuk_stappen s
+     join marketing_hq.werkstuk_stations st on st.station = s.station
+     left join public.team_members tm on tm.id = s.mens_id
+     left join marketing_hq.agents ag on ag.id = s.agent_id
+    where s.werkstuk_id = t.werkstuk_id)          as stappen,
+
+  (select jsonb_agg(jsonb_build_object(
+            'van_station', o.van_station, 'naar_station', o.naar_station,
+            'besluit', o.besluit, 'waarom', o.waarom, 'controleren', o.controleren,
+            'onzekerheden', o.onzekerheden, 'mens_nodig', o.mens_nodig,
+            'status', o.status, 'wanneer', o.created_at)
+          order by o.created_at)
+     from marketing_hq.werkstuk_overdrachten o
+    where o.werkstuk_id = t.werkstuk_id)          as overdrachten,
+
+  (select jsonb_agg(jsonb_build_object(
+            'oordeel', k.oordeel, 'reden', k.reden, 'wanneer', k.created_at,
+            'door', coalesce(tm.full_name, k.door_agent))
+          order by k.created_at)
+     from marketing_hq.criticus_oordelen k
+     join marketing_hq.werkstuk_overdrachten o on o.id = k.overdracht_id
+     left join public.team_members tm on tm.id = k.door_mens
+    where o.werkstuk_id = t.werkstuk_id)          as oordelen,
+
+  -- Discussies en meningsverschillen: wat agents elkaar over dit werkstuk
+  -- schreven. Ongelezen post staat er ook in — juist die.
+  (select jsonb_agg(jsonb_build_object(
+            'van', m.from_agent, 'aan', m.to_agent, 'onderwerp', m.subject,
+            'body', m.body, 'wanneer', m.created_at, 'gelezen', m.read_at)
+          order by m.created_at)
+     from marketing_hq.agent_messages m
+    where m.werkstuk_id = t.werkstuk_id)          as discussies,
+
+  -- E. Publicatie en performance — alleen wat gemeten is, nooit ingevuld
+  (select jsonb_build_object(
+            'account_id', p.account_id, 'status', p.status,
+            'meta_ad_id', p.meta_ad_id, 'gepubliceerd_op', p.published_at,
+            'door', p.published_by)
+     from marketing_hq.meta_publications p
+    where p.creative_id = t.creative_id
+    order by p.created_at desc limit 1)           as publicatie,
+
+  (select jsonb_build_object(
+            'spend', r.spend, 'impressions', r.impressions, 'clicks', r.clicks,
+            'ctr', r.ctr, 'cpa', r.cpa, 'roas', r.roas, 'purchases', r.purchases,
+            'omzet', r.purchase_value, 'hook_rate', r.hook_rate,
+            'dagen_live', r.dagen_live, 'meetdagen', r.meetdagen,
+            'alles_definitief', r.alles_definitief, 'beoordeelbaar', r.beoordeelbaar)
+     from marketing_hq.creative_results r
+    where r.creative_id = t.creative_id)          as meting,
+
+  -- F. Learning — uit angle_learnings, want een learning hoort bij de hoek en
+  -- niet bij één advertentie. Dat is waar 0008 hem al bijhoudt.
+  (select jsonb_agg(jsonb_build_object(
+            'hoek', l.angle_type, 'persona', l.persona,
+            'advertenties', l.aantal_ads, 'spend', l.spend, 'roas', l.roas,
+            'winnaars', l.winnaars,
+            'betrouwbaar', l.betrouwbaar)
+          order by l.angle_type)
+     from marketing_hq.angle_learnings l
+    where l.angle_type = t.angle_type
+      and (t.persona is null or l.persona = t.persona)) as learnings
+from marketing_hq.testkaart t;
+
+comment on view marketing_hq.creative_dossier is
+  'Eén rij per creative met het hele verhaal eromheen. Samengesteld uit wat er al staat — niets wordt hier gedupliceerd.';
+
+alter view marketing_hq.creative_dossier set (security_invoker = true);
+grant select on marketing_hq.creative_dossier to authenticated;
+
+drop view if exists public.hq_creative_dossier;
+create view public.hq_creative_dossier with (security_invoker = true)
+  as select * from marketing_hq.creative_dossier;
+revoke all on public.hq_creative_dossier from anon, public;
+grant select on public.hq_creative_dossier to authenticated;

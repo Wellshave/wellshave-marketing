@@ -289,6 +289,7 @@ function switchMainTab(tab) {
     if (creativesView) creativesView.style.display = 'block';
     if (creativesBtn) creativesBtn.classList.add('active');
     if (typeof renderCreatives === 'function') renderCreatives();
+    if (typeof strWisselTeken === 'function') strWisselTeken();
   } else if (tab === 'werkbank') {
     if (werkbankView) werkbankView.style.display = 'block';
     if (werkbankBtn) werkbankBtn.classList.add('active');

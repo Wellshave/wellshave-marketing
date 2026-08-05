@@ -1528,6 +1528,13 @@
         <h1 class="proxy-guide-h1">Creative <em>Strategy</em></h1>
         <p class="proxy-guide-lede">Het master-overzicht van alle creatives, gedeeld met het hele team: plan, cijfers en beslissing per rij, precies zoals de Test Tracker. Bewaar je een script in de Scriptwriter, dan landt het hier automatisch met status To Test. Vul later de cijfers in, zet de status op Winner, Iterate of Killed, en filter op angle, format of persona om de dots te verbinden.</p>
       </div>
+      <!-- Twee blikken op dezelfde rijen in public.creatives. "Tests" leest de
+           testkaart uit 0030 (hypothese, testvariabele, werkstuk, dossier);
+           "Bewerken" is de bestaande tabel waar cijfers en status met de hand
+           in gaan. Geen tweede waarheid: dezelfde tabel, andere vraag. -->
+      <div class="str-wissel" id="str-wissel"></div>
+      <div id="str-mount"></div>
+      <div id="cs-klassiek">
       <div id="cs-login-note" style="display:none;" class="loading-card">Log in op de live tool om de gedeelde Creative Strategy-tabel te zien.</div>
       <div id="cs-body">
         <div id="dbs-mount"></div>
@@ -1556,6 +1563,7 @@
         <div id="cs-table-wrap" style="overflow:auto;"></div>
         <div id="cs-pager" class="cs-pager"></div>
         <div id="cs-detail" style="display:none;"></div>
+      </div>
       </div>
     </div>
   </div>
@@ -1925,6 +1933,7 @@
 <script src="js/30-werkbank.js"></script>
 <script src="js/33-logboek.js"></script>
 <script src="js/34-testklaar.js"></script>
+<script src="js/35-strategie.js"></script>
 
 <link id="console-skin-2" rel="stylesheet" href="css/06-console-skin-2.css">
 
@@ -2040,6 +2049,7 @@
 
 <!-- Klaarzetten voor test: de controlekaart -->
 <link id="testklaar-css" rel="stylesheet" href="css/17-testklaar.css">
+<link id="strategie-css" rel="stylesheet" href="css/18-strategie.css">
 
 <script id="wg-v9-intelligence" src="js/28-wg-v9-intelligence.js"></script>
 
