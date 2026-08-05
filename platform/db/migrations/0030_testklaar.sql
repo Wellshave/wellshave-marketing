@@ -264,13 +264,13 @@ begin
 
   ontbreekt := array[]::text[];
   if new.hypothesis is null or length(trim(new.hypothesis)) = 0 then
-    ontbreekt := ontbreekt || 'een hypothese (als we X, dan Y, omdat Z)';
+    ontbreekt := array_append(ontbreekt, 'een hypothese (als we X, dan Y, omdat Z)');
   end if;
   if new.test_variable is null or length(trim(new.test_variable)) = 0 then
-    ontbreekt := ontbreekt || 'een testvariabele: wat is er precies anders aan deze variant';
+    ontbreekt := array_append(ontbreekt, 'een testvariabele: wat is er precies anders aan deze variant');
   end if;
   if new.werkstuk_id is null then
-    ontbreekt := ontbreekt || 'een werkstuk om aan te hangen — een creative gaat niet los van zijn context';
+    ontbreekt := array_append(ontbreekt, 'een werkstuk om aan te hangen — een creative gaat niet los van zijn context');
   end if;
 
   if array_length(ontbreekt, 1) > 0 then
@@ -456,3 +456,175 @@ grant execute on function marketing_hq.unaccent_of(text) to authenticated;
 --   drop index if exists creatives_naam_uniek_per_merk;
 --   update public.creatives set status = 'To Test' where status = 'Concept';
 -- De kolommen laten staan: ze bevatten dan al werk dat nergens anders staat.
+
+-- ── 6. Klaarzetten voor test, als één handeling ────────────────────────────
+-- De console mag marketing_hq alleen lezen. Dat blijft zo: er komt geen
+-- schrijfrecht op werkstukken bij, want dan kan elke tab in elke browser de
+-- estafette aanpassen. In plaats daarvan één functie die het hele gebaar doet
+-- en de regels bewaakt.
+--
+-- Dat is ook inhoudelijk beter. "Klaarzetten voor test" is één besluit, geen
+-- vier inserts die elk half kunnen slagen: zonder werkstuk geen creative,
+-- zonder denkstuk geen context, en een naam die dubbel blijkt hoort de hele
+-- handeling te stoppen in plaats van er een tweede rij naast te zetten.
+--
+-- security definer, en daarom expliciet: de aanroeper moet een goedgekeurd
+-- teamlid zijn. Zonder die regel kan iedereen met een inlog schrijven in het
+-- schema dat de agents aansturen.
+create or replace function marketing_hq.creative_testklaar_maken(p jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_mens      uuid;
+  v_werkstuk  bigint;
+  v_denkstuk  bigint;
+  v_creative  bigint;
+  v_naam      text;
+  v_brand     text := lower(coalesce(p->>'brand', 'wellshave'));
+begin
+  -- 1. Wie ben je, en mag je dit.
+  select tm.id into v_mens
+  from public.team_members tm
+  where tm.id = auth.uid() and tm.status = 'approved';
+  if v_mens is null then
+    raise exception 'Alleen een goedgekeurd teamlid kan een variant testklaar maken.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- 2. De naam. Voorgesteld door het systeem, maar wat hier binnenkomt is wat
+  --    de gebruiker heeft laten staan of aangepast — de bevestiging zit in de
+  --    aanroep. Leeg betekent: doe maar een voorstel.
+  v_naam := nullif(trim(coalesce(p->>'ad_name', '')), '');
+  if v_naam is null then
+    v_naam := marketing_hq.ad_naam_voorstel(v_brand, p->>'product', p->>'persona', p->>'angle_type');
+  end if;
+
+  -- 3. Het werkstuk. Bestaat er al een, dan hangen we eraan; anders maken we er
+  --    een. Dit is wat "nooit los van zijn testcontext" afdwingbaar maakt.
+  v_werkstuk := nullif(p->>'werkstuk_id', '')::bigint;
+  if v_werkstuk is null then
+    insert into marketing_hq.werkstukken
+      (brand, titel, product, persona, angle_type, aanleiding, gestart_door, gestart_door_mens)
+    values (v_brand,
+            coalesce(nullif(trim(coalesce(p->>'werkstuk_titel','')), ''),
+                     'Werkt ' || coalesce(p->>'angle_type','deze hoek') ||
+                     ' bij ' || coalesce(p->>'persona','deze persona') || '?'),
+            p->>'product', p->>'persona', p->>'angle_type',
+            coalesce(nullif(trim(coalesce(p->>'aanleiding','')), ''),
+                     'Ontstaan in de Static Ad Generator op ' || to_char(now(), 'DD-MM-YYYY') || '.'),
+            'mens', v_mens)
+    returning id into v_werkstuk;
+  end if;
+
+  -- 4. Market sophistication hoort bij het werkstuk (correctie van 5 augustus).
+  --    Alleen invullen als het er nog niet staat: een tweede variant mag het
+  --    oordeel van de eerste niet overschrijven.
+  if (p->>'sophistication') is not null then
+    update marketing_hq.werkstukken w
+       set sophistication = (p->>'sophistication')::smallint,
+           sophistication_reden = nullif(trim(coalesce(p->>'sophistication_reden','')), ''),
+           sophistication_door_mens = v_mens,
+           sophistication_bevestigd_door = v_mens,
+           sophistication_bevestigd_op = now()
+     where w.id = v_werkstuk and w.sophistication is null
+       and nullif(trim(coalesce(p->>'sophistication_reden','')), '') is not null;
+  end if;
+
+  -- 5. Het denkstuk. Wat het interview en de generatie al weten, wordt hier
+  --    ingevuld — de gebruiker heeft het net beantwoord en typt het niet
+  --    nog een keer. Aftekenen gebeurt niet hier: dat blijft een mens die
+  --    bewust tekent, in de werkbank (0023).
+  select d.id into v_denkstuk from marketing_hq.denkstukken d where d.werkstuk_id = v_werkstuk;
+  if v_denkstuk is null then
+    insert into marketing_hq.denkstukken (werkstuk_id, status) values (v_werkstuk, 'bezig')
+    returning id into v_denkstuk;
+
+    insert into marketing_hq.denkstuk_antwoorden
+      (denkstuk_id, vraag, antwoord, zekerheid, door_mens)
+    select v_denkstuk, x.vraag, x.antwoord, 'aanname', v_mens
+    from (values
+      (1::smallint, nullif(trim(coalesce(p->>'marketing_angle','')), '')),
+      (2::smallint, nullif(trim(coalesce(p->>'kernpijn','')), '')),
+      (3::smallint, nullif(trim(coalesce(p->>'persona','')), '')),
+      (4::smallint, nullif(trim(coalesce(p->>'hypothesis','')), '')),
+      (5::smallint, nullif(trim(coalesce(p->>'format','')), '')),
+      (6::smallint, nullif(trim(coalesce(p->>'test_variable','')), '')),
+      (7::smallint, nullif(trim(coalesce(p->>'waarom_nu','')), ''))
+    ) x(vraag, antwoord)
+    where x.antwoord is not null;
+  end if;
+
+  -- 6. De creative zelf. Bestaat hij al (opgeslagen in de bibliotheek), dan
+  --    werken we hem bij in plaats van een tweede rij te maken.
+  v_creative := nullif(p->>'creative_id', '')::bigint;
+
+  if v_creative is null then
+    insert into public.creatives (
+      brand, user_id, user_email, user_name, ad_name, product, persona,
+      awareness_level, angle_type, marketing_angle, format, media_type, channel,
+      creative_concept, hook_short, image_b64, source_type,
+      hypothesis, test_variable, funnel_stage, headline, body_copy, cta,
+      visual_concept, image_prompt, rory_reasoning, theriot_reasoning, bronnen,
+      werkstuk_id, denkstuk_id, parent_id, klaargezet_door, klaargezet_op, status
+    ) values (
+      v_brand, v_mens, p->>'user_email', p->>'user_name', v_naam,
+      p->>'product', p->>'persona', p->>'awareness_level', p->>'angle_type',
+      p->>'marketing_angle', p->>'format', coalesce(p->>'media_type','Static'), p->>'channel',
+      p->>'creative_concept', left(coalesce(p->>'headline',''), 300), p->>'image_b64',
+      coalesce(p->>'source_type','static'),
+      p->>'hypothesis', p->>'test_variable', p->>'funnel_stage',
+      p->>'headline', p->>'body_copy', p->>'cta',
+      p->>'visual_concept', p->>'image_prompt',
+      p->>'rory_reasoning', p->>'theriot_reasoning',
+      coalesce(p->'bronnen', '[]'::jsonb),
+      v_werkstuk, v_denkstuk, nullif(p->>'parent_id','')::bigint,
+      v_mens, now(), 'Klaar voor review'
+    ) returning id into v_creative;
+  else
+    update public.creatives c set
+      ad_name = v_naam, hypothesis = p->>'hypothesis', test_variable = p->>'test_variable',
+      werkstuk_id = v_werkstuk, denkstuk_id = v_denkstuk,
+      headline = coalesce(p->>'headline', c.headline),
+      body_copy = coalesce(p->>'body_copy', c.body_copy),
+      cta = coalesce(p->>'cta', c.cta),
+      visual_concept = coalesce(p->>'visual_concept', c.visual_concept),
+      image_prompt = coalesce(p->>'image_prompt', c.image_prompt),
+      rory_reasoning = coalesce(p->>'rory_reasoning', c.rory_reasoning),
+      theriot_reasoning = coalesce(p->>'theriot_reasoning', c.theriot_reasoning),
+      bronnen = coalesce(p->'bronnen', c.bronnen),
+      klaargezet_door = v_mens, klaargezet_op = now(),
+      status = 'Klaar voor review'
+    where c.id = v_creative;
+  end if;
+
+  return jsonb_build_object(
+    'creative_id', v_creative, 'werkstuk_id', v_werkstuk,
+    'denkstuk_id', v_denkstuk, 'ad_name', v_naam);
+end $$;
+
+comment on function marketing_hq.creative_testklaar_maken(jsonb) is
+  'Eén gebaar: werkstuk, denkstuk en creative in één keer, of niets. De console mag marketing_hq niet schrijven; dit is de enige deur, en hij vraagt om een goedgekeurd teamlid.';
+
+-- De console praat met het public-schema; daar staat de deur.
+create or replace function public.hq_creative_testklaar(p jsonb)
+returns jsonb language sql security invoker as $$
+  select marketing_hq.creative_testklaar_maken(p)
+$$;
+
+revoke all on function marketing_hq.creative_testklaar_maken(jsonb) from public, anon;
+revoke all on function public.hq_creative_testklaar(jsonb) from public, anon;
+grant execute on function marketing_hq.creative_testklaar_maken(jsonb) to authenticated;
+grant execute on function public.hq_creative_testklaar(jsonb) to authenticated;
+
+-- De console moet een naamvoorstel kunnen vragen zonder zelf de conventie te
+-- kennen. Anders staat de vorm op twee plekken en lopen ze uit elkaar.
+create or replace function public.hq_ad_naam_voorstel(
+  p_brand text, p_product text, p_persona text, p_angle text
+) returns text language sql security definer set search_path = '' as $$
+  select marketing_hq.ad_naam_voorstel(p_brand, p_product, p_persona, p_angle)
+$$;
+revoke all on function public.hq_ad_naam_voorstel(text, text, text, text) from public, anon;
+grant execute on function public.hq_ad_naam_voorstel(text, text, text, text) to authenticated;

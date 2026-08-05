@@ -69,7 +69,9 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
 | `../ad-generator/app/js/33-logboek.js` | Het logboek: wat het team deed per dag, uit vijf bronnen |
 | `../ad-generator/test/logboek.cjs` | Testlus voor dat scherm — 38 controles, incl. contrast en de vier lege toestanden |
-| `../ad-generator/test/teamserver.cjs` | Krijgt de juiste call de team-login mee, en de verkeerde niet — 15 controles |
+| `../ad-generator/test/teamserver.cjs` | Krijgt de juiste call de team-login mee, en de verkeerde niet — 24 controles |
+| `../ad-generator/app/js/34-testklaar.js` | Klaarzetten voor test: de controlekaart tussen generator en Creative Strategy |
+| `../ad-generator/test/testklaar.cjs` | Testlus voor die kaart — 38 controles, incl. contrast en 'geen dubbele invoer' |
 | `../ad-generator/test/werkbank.cjs` | Testlus voor de werkbank — 42 controles, incl. contrast en de vier lege toestanden |
 | `../marketing-hq/brain/genereer.mjs` | Het brein afdrukken als Obsidian-vault onder `brain/Live/` |
 | `../marketing-hq/brain/test/genereer.mjs` | Testlus voor die afdruk — 47 controles, waarvan 11 over de schrijfgrens |
@@ -303,7 +305,8 @@ bash platform/db/test/criticus.sh              # de grendel tussen creatie en la
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
 bash platform/db/test/blokkade.sh              # wat een werkstuk tegenhoudt — 32 controles
-bash platform/db/test/testklaar.sh             # een variant testklaar maken — 47 controles
+bash platform/db/test/testklaar.sh             # een variant testklaar maken — 57 controles
+node ad-generator/test/testklaar.cjs           # de controlekaart — 38 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 

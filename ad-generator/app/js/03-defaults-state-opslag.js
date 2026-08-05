@@ -901,7 +901,7 @@ function pushCreativeRow(item) {
     media_type: meta.format ? (csFormatCat(meta.format) || 'Video') : 'Video',
     hook_short: hook ? String(hook).slice(0, 300) : null,
     persona: meta.persona || info.persona || null,
-    status: 'To Test',
+    status: 'Concept',
     source_type: 'script',
     script: s
   };
@@ -914,16 +914,24 @@ function pushCreativeRow(item) {
     row.test_variable = plan.test_variable || null;
     row.parent_id = plan.parent_id || null;
   }
+  /* Hier stond een terugvaloptie: mislukte de insert op een onbekende kolom,
+     dan gingen hypothesis, test_variable en parent_id eruit en werd het opnieuw
+     geprobeerd. Bedoeld als vangnet toen die kolommen nog niet bestonden.
+
+     Het gevolg was dat het altijd lukte en de hypothese er nooit in kwam --
+     zonder melding, want de tweede poging slaagde. Elke script-rij in de
+     Creative Strategy-tabel mist daardoor zijn hypothese, en niemand kon dat
+     zien. Sinds 0030 bestaan de kolommen; het vangnet is weg.
+
+     Mislukt het nu, dan hoort dat te schuren: een rij zonder hypothese is geen
+     test, en stil doorgaan is erger dan omvallen. */
   var doIns = function (r2) {
     sb.from('creatives').insert(r2).then(function (r) {
       if (r && r.error) {
-        if (/column|schema cache/i.test(r.error.message) && r2.hypothesis !== undefined) {
-          var c = Object.assign({}, r2); delete c.hypothesis; delete c.test_variable; delete c.parent_id;
-          doIns(c); return;
-        }
-        console.warn('creatives insert', r.error.message); toast('Niet in Creative Strategy-tabel gekomen: ' + r.error.message, true);
+        console.warn('creatives insert', r.error.message);
+        toast('Niet in de Creative Strategy-tabel gekomen: ' + r.error.message, true);
       }
-      else { toast('Ook als rij in de Creative Strategy-tabel gezet (status To Test)'); window._swPlan = null; }
+      else { toast('Ook als rij in de Creative Strategy-tabel gezet (status Concept)'); window._swPlan = null; }
     }).catch(function (e) { console.warn('creatives insert', e); });
   };
   doIns(row);

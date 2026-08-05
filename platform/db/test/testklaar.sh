@@ -186,6 +186,8 @@ overriding system value values
 select setval(pg_get_serial_sequence('marketing_hq.werkstukken','id'), 1);
 
 insert into marketing_hq.denkstukken (id, werkstuk_id, status) overriding system value values (1, 1, 'bezig');
+-- De reeks meeschuiven, anders botst de eerstvolgende insert op id 1.
+select setval(pg_get_serial_sequence('marketing_hq.denkstukken','id'), 1);
 insert into marketing_hq.denkstuk_antwoorden (denkstuk_id, vraag, antwoord, zekerheid, door_mens, bron)
 select 1, v.vraag, v.antwoord, v.zekerheid, '11111111-1111-1111-1111-111111111111', v.bron
 from (values
@@ -369,6 +371,66 @@ check "de testkaart toont het niveau met zijn naam" "mechanisme" \
   "$(q "select sophistication_naam from marketing_hq.testkaart where werkstuk_id = 1 limit 1")"
 check "en of een mens het bevestigde" "t" \
   "$(q "select sophistication_bevestigd from marketing_hq.testkaart where werkstuk_id = 1 limit 1")"
+
+# ── 4e. Klaarzetten voor test, als één gebaar ──────────────────────────────
+echo
+echo "  klaarzetten voor test"
+# auth.uid() bestaat niet in deze test; die stubben we, zodat de functie zelf
+# getest wordt en niet de Supabase-omgeving eromheen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+create schema if not exists auth;
+create or replace function auth.uid() returns uuid language sql stable as
+  $f$ select nullif(current_setting('test.uid', true), '')::uuid $f$;
+SQL
+check "een onbekende gebruiker komt er niet in" "ja" \
+  "$(weigert "set local test.uid='22222222-2222-2222-2222-222222222222';
+     select marketing_hq.creative_testklaar_maken('{\"product\":\"X\"}'::jsonb)" \
+     "goedgekeurd teamlid")"
+check "een teamlid maakt in één keer werkstuk, denkstuk en creative" "ja" \
+  "$(q "set local test.uid='11111111-1111-1111-1111-111111111111';
+        select case when (r->>'creative_id') is not null and (r->>'werkstuk_id') is not null
+                     and (r->>'denkstuk_id') is not null then 'ja' else r::text end
+        from (select marketing_hq.creative_testklaar_maken(jsonb_build_object(
+          'brand','wellshave','product','Groom Guard','persona','Mark','angle_type','safety',
+          'marketing_angle','het mechanisme tonen','kernpijn','angst voor sneetjes',
+          'hypothesis','Als we het mechanisme tonen, dan stijgt de CTR, omdat twijfel wegvalt',
+          'test_variable','de kop toont het mechanisme','format','Before / After',
+          'waarom_nu','concurrenten leggen het uit','headline','Dit is het verschil',
+          'rory_reasoning','wantrouwen valt weg bij bewijs',
+          'theriot_reasoning','show dont tell: het verschil in beeld')) as r) x")"
+check "en de creative staat meteen op Klaar voor review" "Klaar voor review" \
+  "$(q "select status from public.creatives where ad_name='WS.Groom-Guard.Mark.safety.02'")"
+check "met een naam volgens de conventie" "WS.Groom-Guard.Mark.safety.02" \
+  "$(q "select ad_name from public.creatives where headline='Dit is het verschil'")"
+# Geen dubbele invoer: wat het interview al wist staat in het denkstuk zonder
+# dat iemand het overtypt.
+check "het denkstuk is gevuld uit wat al bekend was" "7" \
+  "$(q "select count(*) from marketing_hq.denkstuk_antwoorden a
+        join marketing_hq.denkstukken d on d.id=a.denkstuk_id
+        where d.werkstuk_id = (select werkstuk_id from public.creatives where headline='Dit is het verschil')")"
+check "de hypothese staat op vraag 4" "ja" \
+  "$(q "select case when a.antwoord like 'Als we het mechanisme%' then 'ja' else a.antwoord end
+        from marketing_hq.denkstuk_antwoorden a
+        join marketing_hq.denkstukken d on d.id=a.denkstuk_id
+        where a.vraag=4 and d.werkstuk_id=(select werkstuk_id from public.creatives where headline='Dit is het verschil')")"
+check "en het denkstuk is nog niet afgetekend — dat blijft een bewust gebaar" "bezig" \
+  "$(q "select d.status from marketing_hq.denkstukken d
+        where d.werkstuk_id=(select werkstuk_id from public.creatives where headline='Dit is het verschil')")"
+check "Rory en Theriot staan opgeslagen" "wantrouwen valt weg bij bewijs" \
+  "$(q "select rory_reasoning from public.creatives where headline='Dit is het verschil'")"
+# De grendel geldt ook via deze deur: zonder hypothese komt hij niet op
+# 'Klaar voor review'.
+check "zonder hypothese komt hij deze deur niet door" "ja" \
+  "$(weigert "set local test.uid='11111111-1111-1111-1111-111111111111';
+     select marketing_hq.creative_testklaar_maken(jsonb_build_object(
+       'brand','wellshave','product','Y','persona','Z','angle_type','safety'))" \
+     "niet testklaar")"
+check "een eigen naam wordt gerespecteerd" "Mijn eigen naam" \
+  "$(q "set local test.uid='11111111-1111-1111-1111-111111111111';
+        select (marketing_hq.creative_testklaar_maken(jsonb_build_object(
+          'brand','wellshave','ad_name','Mijn eigen naam','product','Groom Guard',
+          'persona','Mark','angle_type','safety','hypothesis','Als we A, dan B, omdat C',
+          'test_variable','iets anders'))->>'ad_name')")"
 
 # ── 5. Wat er niet stuk mocht ──────────────────────────────────────────────
 echo

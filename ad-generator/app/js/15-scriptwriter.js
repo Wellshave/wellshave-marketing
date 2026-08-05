@@ -481,6 +481,7 @@ function renderVariationCard(v, i, metadata, prefix = '') {
         <div class="var-actions">
           <button class="btn btn-small btn-image" onclick="generateImage(${i})">Genereer afbeelding</button>
           <button class="btn btn-small" onclick='saveToLibraryFromCard(${i})'>Bewaar concept</button>
+          <button class="btn btn-small btn-testklaar" onclick='tkOpen(${i})'>Klaarzetten voor test</button>
         </div>
       </div>
 
