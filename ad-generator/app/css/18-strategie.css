@@ -439,3 +439,25 @@
   line-height: 1.55;
   max-width: 74ch;
 }
+
+/* ── de klassieke tabel: een verouderde status ──────────────────────────── */
+
+/* Staat in dit bestand omdat het bij dezelfde beslissing hoort: één
+   statusvocabulaire. De klassieke tabel gebruikt zijn eigen cs-klassen, maar
+   "verouderd" is een nieuw geval dat daar niet bestond. */
+.cs-badge.cs-b-verouderd {
+  background: var(--surface-3);
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-soft);
+}
+.cs-badge.cs-b-verouderd em { font-style: normal; font-weight: 400; }
+.cs-status-let-op {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+}

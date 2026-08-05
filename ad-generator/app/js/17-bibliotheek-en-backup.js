@@ -362,7 +362,10 @@ function pxTagCreative(item){
   var row={ brand:pxBrand(), user_id:window._authProfile.id, user_email:window._authProfile.email||null, user_name:window._authProfile.full_name||window._authProfile.email||null,
     ad_name:v.headline_nl||ctx.angle_title||'Static', product:m.product||null, persona:ctx.persona_name||null,
     marketing_angle:ctx.angle_title||null, awareness_level:ctx.stage||null, angle_id:ctx.angle_id,
-    media_type:'Static', source_type:'static', status:'To Test' };
+    media_type:'Static', source_type:'static',
+    /* De status komt uit creative_statussen en niet uit een woord hier: sinds
+       0030 weigert de database een status die hij niet kent. */
+    status: (typeof csStatusBeginwaarde === 'function' ? csStatusBeginwaarde() : null) };
   var doIns=function(r2){ sb.from('creatives').insert(r2).then(function(r){
     if(r&&r.error){ if(/column|schema cache/i.test(r.error.message)&&r2.angle_id!==undefined){ var c=Object.assign({},r2); delete c.angle_id; doIns(c); return; } }
   }).catch(function(){}); };

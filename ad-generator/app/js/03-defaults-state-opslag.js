@@ -457,7 +457,7 @@ function wgpScreen(){
   if(s==='winner'){
     var body='';
     if(wgp.winners===null) body='<div class="wgp-note">Winners laden uit de Creative Strategy-tabel...</div>';
-    else if(!wgp.winners.length) body='<div class="wgp-note">Nog geen rijen met status Winner of Iterate in de tabel. Kies een andere route, of zet eerst een winnende creative in de tabel.</div>';
+    else if(!wgp.winners.length) body='<div class="wgp-note">Nog geen rijen met status Winner of Itereren in de tabel. Kies een andere route, of zet eerst een winnende creative in de tabel.</div>';
     else body='<div class="wgp-cards c3">'+wgp.winners.map(function(w){
       var sub=wgpEsc([w.persona,w.angle_type,w.format].filter(Boolean).join(' · '))+(w.hook_short?('<br>"'+wgpEsc(String(w.hook_short).slice(0,60))+'..."'):'');
       var chip='ROAS '+(w.roas!=null?w.roas:'?')+(w.hook_rate!=null?(' · hook '+w.hook_rate+'%'):'');
@@ -628,7 +628,7 @@ function wgpLoadWinners(){
   if(!sb||!window._authProfile){ wgp.winners=[]; return; }
   sb.from('creatives').select('id,ad_name,product,persona,angle_type,format,roas,hook_rate,hook_short,status')
     .eq('brand',(typeof ACTIVE_BRAND!=='undefined')?ACTIVE_BRAND:'wellshave')
-    .in('status',['Winner','Iterate']).order('roas',{ascending:false}).limit(6)
+    .in('status',['Winner','Itereren']).order('roas',{ascending:false}).limit(6)
     .then(function(r){ wgp.winners=(r&&r.data)||[]; if(wgp.step==='winner') wgpRender(); })
     .catch(function(){ wgp.winners=[]; if(wgp.step==='winner') wgpRender(); });
 }
@@ -743,7 +743,7 @@ function wgpSavePlanOnly(){
     user_id:window._authProfile.id, user_email:window._authProfile.email||null, user_name:window._authProfile.full_name||window._authProfile.email||null,
     ad_name:isVary?String(wgp.sel.winnerName||'WS-VAR').replace(/-V\d+$/i,'')+'-V2':wgpAdName(),
     product:wgp.sel.product||null, persona:wgp.sel.persona||null, angle_type:wgp.sel.angle||null, format:wgp.sel.format||null,
-    awareness_level:aw[0], creative_concept:wgp.sel.scene||null, media_type:'Video', status:'Not yet', source_type:'plan',
+    awareness_level:aw[0], creative_concept:wgp.sel.scene||null, media_type:'Video', status:csStatusBeginwaarde(), source_type:'plan',
     hypothesis:hypo||null, test_variable:isVary?(wgp.sel.vary||null):'nieuwe combinatie', parent_id:wgp.sel.parentId||null
   };
   var doInsert=function(r2){ sb.from('creatives').insert(r2).then(function(r){
@@ -751,7 +751,7 @@ function wgpSavePlanOnly(){
       if(/column|schema cache/i.test(r.error.message)&&(r2.hypothesis!==undefined)){ var c=Object.assign({},r2); delete c.hypothesis; delete c.test_variable; delete c.parent_id; doInsert(c); return; }
       toast('Plan opslaan mislukt: '+r.error.message,true); return;
     }
-    toast('Plan bewaard in de Creative Strategy-tabel (status Not yet)');
+    toast('Plan bewaard in de Creative Strategy-tabel (status ' + (csStatusBeginwaarde() || 'nog te kiezen') + ')');
   }); };
   doInsert(row);
 }
@@ -866,7 +866,47 @@ var CS_FORMATS = [
   { name: 'Native Article / Advertorial', cat: 'Other' },
   { name: 'Influencer Partnership', cat: 'Other' }
 ];
-var CS_STATUSES = ['To Test','Live','Winner','Iterate','Killed','Not yet'];
+/* ── De statussen komen uit de database ──────────────────────────────────
+   Ze stonden hier als lijst, en in index.html nog een keer als <option>-rij.
+   Twee lijstjes naast marketing_hq.creative_statussen zijn drie waarheden die
+   uit elkaar lopen zodra er een status bijkomt — en sinds 0030 weigert de
+   database een status die hij niet kent, dus dan faalt het opslaan zonder dat
+   iemand begrijpt waarom.
+
+   Lukt het laden niet, dan komt er GEEN reservelijst uit de code: dan staat
+   het statusveld op slot met de reden erbij. Een reservelijst hier zou precies
+   de tweede waarheid zijn die we net hebben weggehaald. */
+var _csStatussen = null;          // null = nog niet geprobeerd, [] = mislukt
+
+function csStatusLijst() { return _csStatussen || []; }
+function csStatusBekend(v) {
+  return csStatusLijst().some(function (s) { return s.status === v; });
+}
+/* Een status die niet (meer) in de lijst staat is verouderd. Hij mag blijven
+   staan op bestaande rijen — automatisch verplaatsen zou een oordeel zijn dat
+   alleen een mens kan vellen — maar hij is niet opnieuw te kiezen. */
+function csStatusVerouderd(v) {
+  return !!v && _csStatussen !== null && _csStatussen.length > 0 && !csStatusBekend(v);
+}
+function csStatusBeginwaarde() {
+  var l = csStatusLijst();
+  if (!l.length) return null;
+  /* De eerste in de levensloop: wat je maakt is een concept tot je het
+     indient. Uit de volgorde in de database, niet uit een naam hier. */
+  return l[0].status;
+}
+function csStatussenLaden(klaar) {
+  if (_csStatussen !== null) { if (klaar) klaar(); return; }
+  var sb = csSb();
+  if (!sb) { _csStatussen = []; if (klaar) klaar(); return; }
+  sb.from('hq_creative_statussen').select('status,volgorde,fase,betekenis,verantwoordelijke,volgende_stap')
+    .order('volgorde', { ascending: true })
+    .then(function (r) {
+      _csStatussen = (r && !r.error && r.data) ? r.data : [];
+      if (klaar) klaar();
+    })
+    .catch(function () { _csStatussen = []; if (klaar) klaar(); });
+}
 var CS_AWARENESS = ['Unaware','Problem Aware','Solution Aware','Product Aware','Most Aware'];
 var _cs = { page: 0, pageSize: 50, total: 0, rows: [], inited: false, editing: null, editingIsNew: false };
 
@@ -973,7 +1013,9 @@ function renderCreatives() {
   // Het besluit eerst, de tabel eronder. Twee losse aanroepen, want als het
   // dagbesluit omvalt hoort de tabel gewoon te laden -- en andersom.
   if (typeof dbsFetch === 'function') dbsFetch();
-  csFetch();
+  /* Eerst het vocabulaire, dan de rijen: zonder de lijst weet csBadge niet
+     welke status verouderd is en zou hij een oud woord als geldig tonen. */
+  csStatussenLaden(function () { csFetch(); csVulStatusFilter(); });
 }
 
 function csFilters() {
@@ -1011,14 +1053,48 @@ function csFetch() {
     }
     _cs.rows = (r && r.data) || [];
     _cs.total = (r && r.count) || 0;
+    csVulStatusFilter();
     csRenderTable();
   }).catch(function (e) { console.warn('creatives select', e); if (wrap) wrap.innerHTML = '<div class="loading-card" style="color:#bd0f0f;">Laden mislukt: ' + csEsc(e.message || e) + '</div>'; });
 }
 
+/* De kleur volgt de fase uit de database en niet een lijst met statusnamen
+   hier: komt er een status bij, dan krijgt hij vanzelf de kleur van zijn fase.
+   Een verouderde status krijgt zijn eigen opmaak én het woord erbij, want een
+   betekenis die alleen in een kleur zit is geen betekenis. */
 function csBadge(status) {
-  var map = { 'To Test': 'cs-b-totest', 'Live': 'cs-b-live', 'Winner': 'cs-b-winner', 'Iterate': 'cs-b-iterate', 'Killed': 'cs-b-killed', 'Not yet': 'cs-b-notyet' };
-  var cls = map[status] || 'cs-b-totest';
-  return '<span class="cs-badge ' + cls + '">' + csEsc(status || 'To Test') + '</span>';
+  if (!status) return '<span class="cs-badge cs-b-notyet">geen status</span>';
+  if (csStatusVerouderd(status)) {
+    return '<span class="cs-badge cs-b-verouderd" title="Deze status komt uit het oude vocabulaire">'
+      + csEsc(status) + ' <em>verouderd</em></span>';
+  }
+  var rij = csStatusLijst().filter(function (s) { return s.status === status; })[0];
+  var fase = rij ? rij.fase : '';
+  var map = { maken: 'cs-b-totest', beoordelen: 'cs-b-iterate', draaien: 'cs-b-live', oordeel: 'cs-b-winner' };
+  return '<span class="cs-badge ' + (map[fase] || 'cs-b-notyet') + '">' + csEsc(status) + '</span>';
+}
+
+/* Het filtermenu stond als <option>-rij in index.html. Dat was de tweede
+   hardgecodeerde statuslijst; hij wordt nu uit dezelfde bron gevuld. */
+function csVulStatusFilter() {
+  var el = document.getElementById('cs-f-status');
+  if (!el) return;
+  var gekozen = el.value;
+  var h = '<option value="">Alle statussen</option>';
+  csStatusLijst().forEach(function (s) {
+    h += '<option value="' + csEsc(s.status) + '">' + csEsc(s.status) + '</option>';
+  });
+  /* Verouderde waarden die nog op rijen staan horen wél filterbaar te zijn —
+     anders kun je niet vinden wat je moet opruimen. */
+  var oud = [];
+  (_cs.rows || []).forEach(function (r) {
+    if (csStatusVerouderd(r.status) && oud.indexOf(r.status) === -1) oud.push(r.status);
+  });
+  oud.forEach(function (v) {
+    h += '<option value="' + csEsc(v) + '">' + csEsc(v) + ' (verouderd)</option>';
+  });
+  el.innerHTML = h;
+  if (gekozen) el.value = gekozen;
 }
 
 function csRenderTable() {
@@ -1076,7 +1152,7 @@ function csOpenDetail(id) {
 
 function csNewRow() {
   if (!csCanWrite()) { toast('Alleen admin/member kan rijen toevoegen', true); return; }
-  _cs.editing = { status: 'To Test', source_type: 'manual' };
+  _cs.editing = { status: csStatusBeginwaarde(), source_type: 'manual' };
   _cs.editingIsNew = true;
   csRenderDetail();
 }
@@ -1094,6 +1170,53 @@ function csSelOpts(list, cur) {
   }
   namen.forEach(function (v) { h += '<option value="' + csEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + csEsc(v) + '</option>'; });
   return h;
+}
+
+/* Het statusveld. Drie gevallen, en ze zien er alle drie anders uit:
+
+   1. de lijst is er en de huidige status staat erin  → gewoon kiezen
+   2. de lijst is er en de status is verouderd        → hij staat er zichtbaar
+      bij als "verouderd", niet te kiezen, met de vraag erbij om er bewust een
+      nieuwe te kiezen. Automatisch verplaatsen zou een oordeel zijn dat alleen
+      een mens kan vellen: 'To Test' kan zowel Concept als Klaar voor review
+      betekenen, en dat verschil weet de code niet.
+   3. de lijst kon niet geladen worden               → op slot, met de reden.
+      Liever niets kunnen kiezen dan iets kiezen dat de database weigert. */
+function csStatusVeld(r, dis) {
+  var huidig = r.status || '';
+  var lijst = csStatusLijst();
+
+  if (!lijst.length) {
+    return '<div class="field"><label class="label">Status</label>'
+      + '<input type="text" value="' + csEsc(huidig) + '" disabled>'
+      + '<div class="cs-status-let-op">De statuslijst kon niet uit de database geladen worden, '
+      + 'dus de status staat op slot. De rest van deze rij kun je gewoon opslaan.</div></div>';
+  }
+
+  var verouderd = csStatusVerouderd(huidig);
+  var h = '<div class="field"><label class="label">Status</label>'
+    + '<select id="csd-status"' + dis + '>';
+  /* De verouderde waarde staat er wél in — anders leest het veld leeg en weet
+     je niet meer wat er stond — maar hij is disabled, dus niet opnieuw te
+     kiezen. */
+  if (verouderd) {
+    h += '<option value="' + csEsc(huidig) + '" selected disabled>'
+      + csEsc(huidig) + ' — verouderd, kies hieronder een nieuwe</option>';
+  } else if (!huidig) {
+    h += '<option value="" selected></option>';
+  }
+  lijst.forEach(function (s) {
+    h += '<option value="' + csEsc(s.status) + '"' + (s.status === huidig ? ' selected' : '') + '>'
+      + csEsc(s.status) + ' — ' + csEsc(s.volgende_stap) + '</option>';
+  });
+  h += '</select>';
+  if (verouderd) {
+    h += '<div class="cs-status-let-op">Deze rij staat nog op <strong>' + csEsc(huidig)
+      + '</strong>, een status uit het oude vocabulaire. Hij blijft staan tot jij er bewust '
+      + 'een nieuwe kiest — de code doet dat niet voor je, want '
+      + '"' + csEsc(huidig) + '" kan meer dan één ding betekenen.</div>';
+  }
+  return h + '</div>';
 }
 
 function csRenderDetail() {
@@ -1145,7 +1268,7 @@ function csRenderDetail() {
   h += fld('Target ROAS', 'csd-target_roas', r.target_roas, 'number');
   h += '</div>';
   h += '<div class="cs-sec-title">Beslissing</div><div class="cs-grid">';
-  h += '<div class="field"><label class="label">Status</label><select id="csd-status"' + dis + '>' + csSelOpts(CS_STATUSES, r.status || 'To Test') + '</select></div>';
+  h += csStatusVeld(r, dis);
   h += fld('Score (1-10)', 'csd-score', r.score, 'number');
   h += ta('Next step', 'csd-next_step', r.next_step, true);
   h += ta('Notes', 'csd-notes', r.notes, true);
@@ -1189,7 +1312,7 @@ function csReadDetail() {
     date_live: t('date_live'), budget: n('budget'), impressions: n('impressions'), hook_rate: n('hook_rate'), hold_rate: n('hold_rate'),
     ctr: n('ctr'), cpm: n('cpm'), cpc: n('cpc'), conversions: n('conversions'), cvr: n('cvr'), cpa: n('cpa'), aov: n('aov'),
     roas: n('roas'), breakeven_roas: n('breakeven_roas'), target_roas: n('target_roas'),
-    score: n('score'), status: t('status') || 'To Test', next_step: t('next_step'), notes: t('notes'), creatives_link: t('creatives_link')
+    score: n('score'), status: t('status') || null, next_step: t('next_step'), notes: t('notes'), creatives_link: t('creatives_link')
   };
 }
 
@@ -1197,6 +1320,13 @@ function csSaveDetail() {
   var sb = csSb(); if (!sb || !csCanWrite()) return;
   var vals = csReadDetail();
   if (!vals.ad_name) { toast('Geef de creative een ad name', true); return; }
+  /* De database weigert sinds 0030 een onbekende status. Dat hier tegenhouden
+     scheelt een foutmelding waar "violates foreign key constraint" in staat —
+     technisch juist en voor niemand leesbaar. */
+  if (csStatusLijst().length && !csStatusBekend(vals.status)) {
+    toast('Kies eerst een geldige status. Deze rij staat nog op een verouderde waarde.', true);
+    return;
+  }
   if (_cs.editingIsNew) {
     vals.brand = csBrand();
     vals.user_id = window._authProfile.id;
@@ -1301,7 +1431,7 @@ function csImport() {
   var rows = [];
   for (var i = 1; i < lines.length; i++) {
     var cells = csSplitLine(lines[i], sep);
-    var row = { brand: csBrand(), source_type: 'import', status: 'To Test' };
+    var row = { brand: csBrand(), source_type: 'import', status: csStatusBeginwaarde() };
     var has = false;
     for (var c = 0; c < cols.length; c++) {
       var col = cols[c]; if (!col) continue;

@@ -1526,7 +1526,7 @@
     <div class="container" style="max-width:1400px;margin:0 auto;padding:0 32px;">
       <div class="proxy-guide-intro" style="margin-bottom:18px;">
         <h1 class="proxy-guide-h1">Creative <em>Strategy</em></h1>
-        <p class="proxy-guide-lede">Het master-overzicht van alle creatives, gedeeld met het hele team: plan, cijfers en beslissing per rij, precies zoals de Test Tracker. Bewaar je een script in de Scriptwriter, dan landt het hier automatisch met status To Test. Vul later de cijfers in, zet de status op Winner, Iterate of Killed, en filter op angle, format of persona om de dots te verbinden.</p>
+        <p class="proxy-guide-lede">Het master-overzicht van alle creatives, gedeeld met het hele team: plan, cijfers en beslissing per rij, precies zoals de Test Tracker. Bewaar je een script in de Scriptwriter, dan landt het hier automatisch als concept. Vul later de cijfers in, kies een status uit de levensloop die het systeem zelf bijhoudt, en filter op angle, format of persona om de dots te verbinden.</p>
       </div>
       <!-- Twee blikken op dezelfde rijen in public.creatives. "Tests" leest de
            testkaart uit 0030 (hypothese, testvariabele, werkstuk, dossier);
@@ -1539,7 +1539,9 @@
       <div id="cs-body">
         <div id="dbs-mount"></div>
         <div class="cs-toolbar">
-          <div class="field"><label class="label">Status</label><select id="cs-f-status"><option value="">Alle statussen</option><option>To Test</option><option>Live</option><option>Winner</option><option>Iterate</option><option>Killed</option><option>Not yet</option></select></div>
+          <!-- Leeg: csVulStatusFilter() vult dit uit marketing_hq.creative_statussen. Een
+               lijst hier zou de tweede waarheid zijn die 0030 juist wegneemt. -->
+          <div class="field"><label class="label">Status</label><select id="cs-f-status"><option value="">Alle statussen</option></select></div>
           <div class="field"><label class="label">Angle type</label><select id="cs-f-angle"><option value="">Alle angles</option></select></div>
           <div class="field"><label class="label">Format</label><select id="cs-f-format"><option value="">Alle formats</option></select></div>
           <div class="field"><label class="label">Product</label><input id="cs-f-product" type="text" placeholder="bijv. Groom Guard"></div>

@@ -117,17 +117,31 @@ comment on column marketing_hq.creative_statussen.vraagt_test is
 comment on column marketing_hq.creative_statussen.verantwoordelijke is
   'Wie er aan zet is. Twee statussen met dezelfde verantwoordelijke, handeling en volgende stap zijn één status.';
 
+-- De console moet de lijst kunnen lezen: zonder deze view zou hij zijn eigen
+-- statuslijst moeten bijhouden, en dan is er weer een tweede waarheid.
+drop view if exists public.hq_creative_statussen;
+create view public.hq_creative_statussen with (security_invoker = true)
+  as select * from marketing_hq.creative_statussen;
+grant select on public.hq_creative_statussen to authenticated, anon;
+
 alter table marketing_hq.creative_statussen enable row level security;
 do $$ begin
   create policy statussen_lezen on marketing_hq.creative_statussen for select using (true);
 exception when duplicate_object then null; end $$;
 grant select on marketing_hq.creative_statussen to authenticated, anon;
 
--- De bestaande waarde 'To Test' hoort bij het oude vocabulaire. Alle zeven
--- rijen op productie staan erop, en ze zijn allemaal nooit gedraaid: dat is
--- 'Concept' in de nieuwe woorden.
-update public.creatives set status = 'Concept' where status = 'To Test';
-update public.creatives set status = 'Concept' where status is null;
+-- Hier stond een automatische omzetting van 'To Test' naar 'Concept'. Die is
+-- eruit gehaald, en dat is een inhoudelijk besluit en geen voorzichtigheid:
+--
+--   'To Test' betekende in het oude vocabulaire zowel "gemaakt, ligt te
+--   wachten" (Concept) als "ingediend, wacht op een oordeel" (Klaar voor
+--   review). Welke van de twee het is, staat nergens in de rij — dat weet
+--   alleen de mens die hem maakte.
+--
+-- Een migratie die dan tóch kiest, verzint een feit en zet het als waarheid in
+-- de database. De zeven bestaande rijen blijven daarom op 'To Test' staan. De
+-- foreign key hieronder is NOT VALID, dus dat mag; de console toont ze als
+-- verouderd en vraagt om een bewuste keuze bij de eerstvolgende bewerking.
 
 -- ── 2. De testcontext op de creative ───────────────────────────────────────
 -- Alleen wat per variant verschilt. Wat de batch deelt staat op het werkstuk.

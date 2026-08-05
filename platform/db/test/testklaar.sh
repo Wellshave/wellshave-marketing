@@ -112,8 +112,9 @@ create table marketing_hq.schedules (id text primary key, agent_id text, kind te
   payload jsonb, enabled boolean default true, last_fired_at timestamptz,
   next_due_at timestamptz, created_at timestamptz default now());
 create table marketing_hq.meta_recommendations (id bigint generated always as identity primary key,
-  ad_id text, creative_id bigint, agent_id text, run_id bigint, verdict text, action text,
-  reasoning text, confidence numeric(3,2), status text default 'open',
+  account_id text, ad_id text, ad_name text, creative_id bigint, agent_id text, run_id bigint,
+  verdict text, action text, reasoning text, confidence numeric(3,2),
+  metrics_snapshot jsonb, window_days int default 7, status text default 'open',
   created_at timestamptz default now());
 create table marketing_hq.pipeline_items    (id bigint generated always as identity primary key, angle text);
 create table marketing_hq.email_drafts      (id bigint generated always as identity primary key, angle text);
