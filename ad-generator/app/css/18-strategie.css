@@ -184,7 +184,10 @@
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 600;
-  white-space: nowrap;
+  /* Mag afbreken: een lange statusnaam hoort de kolom niet op te rekken tot de
+     tabel horizontaal gaat schuiven. Twee regels leest prima. */
+  white-space: normal;
+  max-width: 150px;
   border: 1px solid var(--line-strong);
   color: var(--ink);
   background: var(--surface-3);
@@ -460,4 +463,12 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--ink);
+}
+
+/* Een status uit het oude vocabulaire. Gestippeld en gedempt: hij zegt iets,
+   maar niet iets waar het systeem mee kan rekenen. */
+.str-status--verouderd {
+  background: var(--surface-3);
+  border-style: dashed;
+  color: var(--ink-soft);
 }

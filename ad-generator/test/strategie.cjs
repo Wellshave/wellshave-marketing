@@ -78,6 +78,15 @@ const RIJEN = [
     onderbouwing: 'geen denkstuk — deze test rust nergens op',
     niet_testklaar: 'geen hypothese — een afbeelding zonder hypothese is geen test' },
 
+  /* Een rij zoals de zeven op productie: nog op het oude woord, dus zonder
+     verantwoordelijke en zonder fase uit de statustabel. */
+  { creative_id: 5, brand: 'Wellshave', ad_name: 'WS-OUD-005',
+    product: 'Groom Guard', persona: 'Mark', marketing_angle: 'Onbekend',
+    angle_type: 'legacy', format: 'Static 4:5', heeft_beeld: true,
+    status: 'To Test', status_fase: null, verantwoordelijke: null, volgende_stap: null,
+    created_at: '2026-06-01T09:00:00Z', werkstuk_id: 12, denkstuk_id: null,
+    onderbouwing: 'geen denkstuk — deze test rust nergens op', niet_testklaar: null },
+
   { creative_id: 4, brand: 'Wellshave', ad_name: 'WS-GG-MARK-GRAP-004',
     product: 'Groom Guard', persona: 'Mark', marketing_angle: 'Humor',
     angle_type: 'humor', format: 'Static 4:5', heeft_beeld: true,
@@ -227,8 +236,12 @@ const check = (label, echt, verwacht) => {
   check('het tabblad toont de testtabel', uit.zichtbaar, 'block');
   check('en de beslisvraag staat bovenaan',
     /Welke test vraagt nu om een beslissing\?/.test(uit.vraag || ''), true);
-  check('vier tests, alle vier zichtbaar', uit.rijen.length, 4);
-  check('met een telling erbij', /4 van 4 tests/.test(uit.telling || ''), true);
+  check('vijf tests, alle vijf zichtbaar', uit.rijen.length, 5);
+  check('met een telling erbij', /5 van 5 tests/.test(uit.telling || ''), true);
+  // Een status die de database niet kent, krijgt geen verzonnen betekenis.
+  check('een verouderde status heet verouderd en geen concept',
+    uit.rijen.filter(r => /verouderd/.test(r.status || '')).map(r => r.status),
+    ['To Test · verouderd']);
 
   console.log('\n  tien kolommen, niet vijfentwintig');
   // Alles tegelijk tonen is niet vollediger maar onleesbaar. Zonder deze regel
@@ -272,9 +285,9 @@ const check = (label, echt, verwacht) => {
   await nep(RIJEN, DOSSIER);
   uit = await lees();
   check('elke status staat er in woorden', uit.rijen.map(r => r.status),
-    ['concept', 'wacht op een oordeel', 'live', 'gestopt']);
+    ['concept', 'wacht op een oordeel', 'live', 'gestopt', 'To Test · verouderd']);
   check('en de groepen zijn verschillend', uit.rijen.map(r => r.groep),
-    ['str-rij--concept', 'str-rij--wacht', 'str-rij--live', 'str-rij--gestopt']);
+    ['str-rij--concept', 'str-rij--wacht', 'str-rij--live', 'str-rij--gestopt', 'str-rij--verouderd']);
 
   console.log('\n  zoeken, filteren, sorteren');
   const gefilterd = await page.evaluate(async () => {
@@ -294,7 +307,7 @@ const check = (label, echt, verwacht) => {
   check('zoeken op een hoek vindt die ene test', gefilterd.na, 1);
   check('filteren op status ook', gefilterd.filter, 1);
   check('een rij zonder naam laat dat zien in plaats van leeg', gefilterd.naam, '—');
-  check('filters leeg geeft alles terug', gefilterd.alles, 4);
+  check('filters leeg geeft alles terug', gefilterd.alles, 5);
   check('sorteren op naam zet ze op volgorde',
     gefilterd.gesorteerd[0], 'WS-GG-MARK-BEWIJS-001');
 
@@ -315,7 +328,7 @@ const check = (label, echt, verwacht) => {
     /1 test wacht op jou/.test(wacht.banner || ''), true);
   check('en de rij zegt het ook met een woord', wacht.merken, 1);
   check('je kunt er direct op filteren', wacht.na, 1);
-  check('en weer terug', wacht.terug, 4);
+  check('en weer terug', wacht.terug, 5);
 
   const resultaat = await page.evaluate(async () => {
     strKolomAan('resultaat'); await new Promise(r => setTimeout(r, 200));
@@ -332,7 +345,7 @@ const check = (label, echt, verwacht) => {
   check('resultaat toont de meting waar die er is',
     resultaat.some(c => /ROAS 2,40/.test(c)), true);
   check('en zegt waarom er niets staat waar dat zo is',
-    resultaat.filter(c => c === 'niet live').length, 3);
+    resultaat.filter(c => c === 'niet live').length, 4);
 
   const geenFilter = await page.evaluate(async () => {
     strZoek('bestaatniet'); await new Promise(r => setTimeout(r, 150));

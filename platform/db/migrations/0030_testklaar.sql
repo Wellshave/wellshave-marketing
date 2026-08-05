@@ -222,6 +222,14 @@ on conflict (niveau) do nothing;
 comment on table marketing_hq.sophistication_niveaus is
   'De vijf niveaus van Schwartz, met wat er op elk niveau werkt. Als data omdat een schaal waar iedereen zijn eigen woord voor kiest geen schaal is.';
 
+-- RLS aan, net als bij creative_statussen: marketing_hq staat open voor
+-- PostgREST, dus een tabel zonder policy is een tabel die iedereen kan lezen
+-- zodra er een grant bijkomt. Dit is een lijst met definities en geen data van
+-- iemand, dus de policy is 'lezen mag' — maar hij staat er expliciet.
+alter table marketing_hq.sophistication_niveaus enable row level security;
+do $$ begin
+  create policy sophistication_lezen on marketing_hq.sophistication_niveaus for select using (true);
+exception when duplicate_object then null; end $$;
 grant select on marketing_hq.sophistication_niveaus to authenticated;
 
 alter table marketing_hq.werkstukken
@@ -385,6 +393,10 @@ insert into marketing_hq.naam_conventie (brand, voorvoegsel, patroon, toelichtin
      'Zelfde vorm, ander voorvoegsel.')
 on conflict (brand) do nothing;
 
+alter table marketing_hq.naam_conventie enable row level security;
+do $$ begin
+  create policy naam_conventie_lezen on marketing_hq.naam_conventie for select using (true);
+exception when duplicate_object then null; end $$;
 grant select on marketing_hq.naam_conventie to authenticated;
 --
 -- Het volgnummer telt binnen merk + product + persona + hoek, want dat is waar

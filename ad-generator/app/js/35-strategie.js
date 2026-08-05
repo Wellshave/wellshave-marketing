@@ -216,6 +216,13 @@ function strMensNodig(r) {
 }
 
 function strGroep(r) {
+  /* Een status die de database niet kent is verouderd, en dat hoort er te
+     staan. Hem stilletjes als 'concept' tonen zou een tweede uitleg zijn van
+     wat 'To Test' betekende — precies waarom 0030 die omzetting niet doet.
+     De testkaart geeft geen verantwoordelijke bij een onbekende status, en dat
+     is hier het signaal. */
+  if (r.status && !r.verantwoordelijke && !r.status_fase)
+    return { id: 'verouderd', naam: r.status + ' · verouderd' };
   if (r.status === 'Gestopt') return { id: 'gestopt', naam: 'gestopt' };
   if (['Winner', 'Verliezer', 'Middelmatig', 'Itereren'].indexOf(r.status) > -1)
     return { id: 'oordeel', naam: r.status === 'Winner' ? 'winnaar'
