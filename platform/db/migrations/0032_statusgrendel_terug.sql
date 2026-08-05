@@ -1,8 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 0032 — De statusgrendel terug
 --
--- NOG NIET TOEPASSEN. Deze migratie hoort bij een noodmaatregel van 5 augustus
--- en mag er pas op zodra de nieuwe console live staat op wellshave-werkbank.
+-- TOEGEPAST op 5 augustus 2026, nadat de vier voorwaarden onderaan waren
+-- nagelopen. De noodmaatregel van diezelfde dag is daarmee gesloten.
 --
 -- Wat er gebeurde
 --
@@ -27,13 +27,18 @@
 --   "wanneer gaat hij er weer op" een uitvoerbare stap in plaats van iets dat
 --   iemand moet onthouden.
 --
--- Voorwaarde vóór toepassen, na te lopen en niet aan te nemen
+-- Voorwaarden, nagelopen en niet aangenomen
 --
---   1. https://wellshave-werkbank.netlify.app/js/35-strategie.js geeft 200
---   2. de live bundle bevat geen CS_STATUSES meer
---   3. de live console leest hq_creative_statussen
+--   1. js/34-testklaar.js en js/35-strategie.js geven 200          ✓
+--   2. de live bundel bevat geen CS_STATUSES meer (0x in code)     ✓
+--   3. de live console leest hq_creative_statussen                 ✓
+--   4. geen nieuwe rijen met een oud statuswoord tijdens het
+--      venster: alleen de zeven die er al stonden                  ✓
 --
---   Zonder die drie komt de storing terug op het moment dat dit draait.
+--   Zonder die vier komt de storing terug op het moment dat dit draait.
+--
+-- De live commit waarop dit rust: 1b7c3aa, branch
+-- claude/marketing-system-ai-agents-devt2c, uitgerold 5 augustus 10:58.
 --
 -- NOT VALID, net als in 0030: de zeven bestaande rijen staan nog op 'To Test'
 -- en die blijven staan tot een mens per rij een nieuwe status kiest. Een

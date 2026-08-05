@@ -10,12 +10,16 @@ map die iemand ooit heeft geüpload — niet een commit. Daardoor is "staat mijn
 wijziging live" geen vraag die je kunt beantwoorden zonder de bestanden op te
 halen en te vergelijken.
 
-## Stand op 5 augustus 2026
+## Stand na de koppeling, 5 augustus 2026 10:58
 
 | site | live sinds | bron | commit |
 |---|---|---|---|
-| `wellshave-werkbank` | 4 aug 13:10 | `api` — "Deploy triggered by upload" | geen |
+| `wellshave-werkbank` | 5 aug 10:58 | **branch** `claude/marketing-system-ai-agents-devt2c` | `1b7c3aa` |
 | `wellshave-adgen` | 1 aug 20:43 | `drop` — handmatige upload | geen |
+
+De werkbank hangt sindsdien aan de repository: de deploy noemt een commit, geen
+upload, en 5 redirect-regels zijn verwerkt. `wellshave-adgen` is bewust nog
+niet aangeraakt.
 
 Site-id van werkbank: `3d1af8b8-635c-4be4-8520-275cbf3c3ca6`.
 Site-id van adgen: `4e18bda6-a21e-4442-be99-dbf7e8a30ecb`.
