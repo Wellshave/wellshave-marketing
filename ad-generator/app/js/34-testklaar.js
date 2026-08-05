@@ -88,6 +88,22 @@ function tkVerzamel(i) {
        toetsbaar, en dan valt achteraf niet te zeggen wát het deed. */
     test_variable: '',
 
+    /* Het hele interview gaat mee als ruw materiaal en verhuist naar het
+       werkstuk. Tot nu toe verdween het met de modal; het denkstuk hield alleen
+       de gewogen versie over, zonder de woorden waar die op rustte. */
+    rory_interview: {
+      kernpijn: iw['kern-pijn'] || iw.kernpijn || iw.pijn || '',
+      kernbezwaar: iw['kern-bezwaar'] || iw.kernbezwaar || iw.bezwaar || '',
+      echte_vijand: iw['echte vijand'] || iw.vijand || '',
+      na_situatie: iw['gewenste na-situatie'] || iw.na_situatie || '',
+      waarom_nu: iw['waarom nu'] || m.season || '',
+      hoek: hoek
+    },
+    mens_ingeving: brief.idee || brief.vrij || brief.opdracht || '',
+
+    placement: m.placement || brief.placement || '',
+    product_refs: (m.productRefs || m.product_refs || brief.product_refs || []),
+
     bronnen: (window.iw && window.iw.bronnen) ? window.iw.bronnen : [],
     werkstuk_id: (lg.werkstuk_id || null),
     creative_id: null,

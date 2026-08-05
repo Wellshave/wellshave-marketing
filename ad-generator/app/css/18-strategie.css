@@ -150,20 +150,20 @@
   color: var(--ink);
   background: none;
   border: 0;
-  padding: 10px;
+  padding: 10px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 .str-tabel td {
-  padding: 9px 10px;
+  padding: 9px 8px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   vertical-align: top;
-  max-width: 280px;
+  max-width: 220px;
 }
 .str-rij { cursor: pointer; }
 .str-rij:hover td { background: var(--surface-3); }
-.str-vinkkolom { width: 30px; padding-left: 10px !important; cursor: default; }
+.str-vinkkolom { width: 26px; padding-left: 8px !important; cursor: default; }
 .str-leeg-cel { color: var(--ink-soft); }
 .str-geen {
   padding: 22px 14px !important;
@@ -356,3 +356,86 @@
 .str-overdracht small { color: var(--ink-soft); }
 .str-let-op { color: var(--ink) !important; font-weight: 700; }
 .str-learning small { color: var(--ink-soft); }
+
+/* ── wat op een mens wacht ──────────────────────────────────────────────── */
+
+/* Dit is het enige in de tabel dat om een handeling vraagt, dus het enige dat
+   luid mag zijn. Staat er als zin en niet als kleur: kleur alleen is regel 4.4
+   overtreden, en een tabel van honderd rijen scan je niet op tinten. */
+.str-wacht {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.str-wacht--aan { border-width: 2px; }
+.str-jij {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.str-rij--jij td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+.str-verdict { font-weight: 600; }
+.str-voorstel { color: var(--ink-soft); font-style: italic; }
+
+/* ── het dossier: tijdlijn en losse noten ───────────────────────────────── */
+
+.str-sec-noot { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 8px; max-width: 74ch; }
+.str-blokkade {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.str-tijdlijn { list-style: none; margin: 8px 0 0; padding: 0; }
+.str-tl {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) auto 1fr auto;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 0 8px 14px;
+  border-left: 2px solid var(--line-strong);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+/* Mens en agent zijn het verschil dat de werkbank maakt, dus staat het er in
+   woorden én in de lijn — nooit alleen in kleur. */
+.str-tl--mens { border-left-color: var(--ink); }
+.str-tl-wie { font-weight: 700; }
+.str-tl-door {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.str-tl-wanneer { color: var(--ink-soft); text-align: right; white-space: nowrap; }
+.str-tl-waarom {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  max-width: 74ch;
+}

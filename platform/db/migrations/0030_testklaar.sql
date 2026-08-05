@@ -245,6 +245,69 @@ comment on column marketing_hq.werkstukken.sophistication is
 comment on column marketing_hq.werkstukken.sophistication_bevestigd_door is
   'Een teamlid. Er is met opzet geen agent-variant van deze kolom.';
 
+-- ── 2c. Het Rory-interview en de ingeving die eraan voorafging ─────────────
+-- Het interview verdween tot nu toe met de modal. Het hoort op het werkstuk en
+-- niet op de creative: kernpijn en kernbezwaar zijn van het idee, en vier
+-- varianten op dezelfde hoek delen ze.
+--
+-- Als één jsonb-kolom en niet als vijf tekstkolommen, om één reden: het
+-- interview is ruw materiaal. Het denkstuk is de gewogen versie ervan, met een
+-- zekerheid per antwoord. Kernpijn als kolom náást denkstuk-antwoord 2 zou
+-- twee waarheden opleveren die uit elkaar lopen zodra iemand er één bijwerkt.
+-- Zo staat het er één keer als bron en één keer als oordeel — dat is geen
+-- duplicatie maar het verschil tussen wat er gezegd is en wat wij ervan vinden.
+alter table marketing_hq.werkstukken
+  add column if not exists rory_interview jsonb not null default '{}'::jsonb,
+  add column if not exists mens_ingeving  text;
+
+comment on column marketing_hq.werkstukken.rory_interview is
+  'Het ruwe interview: kernpijn, echte vijand, kernbezwaar, gewenste na-situatie, en wat er verder uit kwam. Bron, geen oordeel — het gewogen antwoord staat in het denkstuk.';
+comment on column marketing_hq.werkstukken.mens_ingeving is
+  'Waar het mee begon, in de woorden van de mens die het bedacht. Zonder dit is achteraf niet te zien of een agent een idee opving of zelf verzon.';
+
+-- ── 2d. Plaatsing en productreferenties, per variant ───────────────────────
+-- Wél op de creative: een 4:5 voor de feed en een 9:16 voor Stories zijn twee
+-- varianten van hetzelfde idee, en welke productfoto's erin gingen verschilt
+-- per beeld.
+alter table public.creatives
+  add column if not exists placement    text,
+  add column if not exists product_refs jsonb not null default '[]'::jsonb;
+
+comment on column public.creatives.placement is
+  'Waar deze advertentie getoond wordt: feed, stories, reels. Leeg betekent: niet vastgelegd, niet "overal".';
+comment on column public.creatives.product_refs is
+  'De productbeelden die als referentie in de generatie gingen. Zo is achteraf te zien wat het model gezien heeft.';
+
+-- ── 2e. De learning, ná het oordeel ────────────────────────────────────────
+-- Deze velden staan bewust leeg tot er een verdict ligt. Ze invullen vóór de
+-- meting is precies de fout die deze hele migratie probeert te voorkomen: een
+-- conclusie die op een verwachting rust in plaats van op een uitkomst.
+--
+-- Bevestigen kan alleen een mens, zelfde vorm als het denkstuk en
+-- sophistication: er is geen kolom waar een agent kan tekenen.
+alter table public.creatives
+  add column if not exists learning_kern         text,
+  add column if not exists learning_behouden     text,
+  add column if not exists learning_veranderen   text,
+  add column if not exists iteratie_voorstel     text,
+  add column if not exists vervolgtests          text,
+  add column if not exists learning_door_agent   text references marketing_hq.agents(id),
+  add column if not exists learning_bevestigd_door uuid references public.team_members(id),
+  add column if not exists learning_bevestigd_op   timestamptz;
+
+alter table public.creatives drop constraint if exists creatives_learning_bevestiging;
+alter table public.creatives
+  add constraint creatives_learning_bevestiging
+  check (learning_bevestigd_door is null
+         or (learning_bevestigd_op is not null
+             and learning_kern is not null and length(trim(learning_kern)) > 0))
+  not valid;
+
+comment on column public.creatives.learning_kern is
+  'Wat we hieruit geleerd hebben. Pas in te vullen als er gemeten is; een learning zonder meting is een mening.';
+comment on column public.creatives.learning_bevestigd_door is
+  'Een teamlid. Een agent mag een learning voorstellen; vastgesteld is hij pas als een mens tekent.';
+
 -- ── 3. Een afbeelding zonder hypothese is geen test ────────────────────────
 -- Eis 5 en 6 uit de opdracht, en ze zijn alleen iets waard als ze in de weg
 -- kunnen zitten. Daarom als trigger op de overgang: zolang je in de fase
@@ -380,6 +443,12 @@ select
   (c.image_b64 is not null)              as heeft_beeld,
   c.hypothesis, c.test_variable,
   c.rory_reasoning, c.theriot_reasoning, c.bronnen,
+  c.placement, c.product_refs,
+  c.learning_kern, c.learning_behouden, c.learning_veranderen,
+  c.iteratie_voorstel, c.vervolgtests, c.learning_door_agent,
+  (c.learning_bevestigd_door is not null) as learning_bevestigd,
+  lb.full_name                           as learning_bevestigd_door,
+  c.learning_bevestigd_op,
   c.status,
   s.fase                                 as status_fase,
   s.betekenis                            as status_betekenis,
@@ -397,6 +466,7 @@ select
 
   w.titel                                as werkstuk,
   w.status                               as werkstuk_status,
+  w.rory_interview, w.mens_ingeving,
   w.sophistication,
   sn.naam                                as sophistication_naam,
   sn.wat_werkt                           as sophistication_wat_werkt,
@@ -431,6 +501,7 @@ left join marketing_hq.creative_statussen s on s.status = c.status
 left join marketing_hq.werkstukken w        on w.id = c.werkstuk_id
 left join marketing_hq.denkstukken d        on d.id = c.denkstuk_id
 left join public.team_members tm            on tm.id = c.klaargezet_door
+left join public.team_members lb            on lb.id = c.learning_bevestigd_door
 left join marketing_hq.sophistication_niveaus sn on sn.niveau = w.sophistication
 left join lateral (
   select count(*) as totaal,
@@ -549,6 +620,16 @@ begin
     returning id into v_werkstuk;
   end if;
 
+  -- 3b. Het interview hoort bij het werkstuk. Alleen invullen als het er nog
+  --     niet staat: een tweede variant uit dezelfde generatie mag het interview
+  --     van de eerste niet overschrijven met een uitgeklede versie.
+  update marketing_hq.werkstukken w
+     set rory_interview = coalesce(p->'rory_interview', '{}'::jsonb),
+         mens_ingeving  = nullif(trim(coalesce(p->>'mens_ingeving','')), '')
+   where w.id = v_werkstuk
+     and w.rory_interview = '{}'::jsonb
+     and coalesce(p->'rory_interview', '{}'::jsonb) <> '{}'::jsonb;
+
   -- 4. Market sophistication hoort bij het werkstuk (correctie van 5 augustus).
   --    Alleen invullen als het er nog niet staat: een tweede variant mag het
   --    oordeel van de eerste niet overschrijven.
@@ -598,6 +679,7 @@ begin
       creative_concept, hook_short, image_b64, source_type,
       hypothesis, test_variable, funnel_stage, headline, body_copy, cta,
       visual_concept, image_prompt, rory_reasoning, theriot_reasoning, bronnen,
+      placement, product_refs,
       werkstuk_id, denkstuk_id, parent_id, klaargezet_door, klaargezet_op, status
     ) values (
       v_brand, v_mens, p->>'user_email', p->>'user_name', v_naam,
@@ -610,6 +692,7 @@ begin
       p->>'visual_concept', p->>'image_prompt',
       p->>'rory_reasoning', p->>'theriot_reasoning',
       coalesce(p->'bronnen', '[]'::jsonb),
+      p->>'placement', coalesce(p->'product_refs', '[]'::jsonb),
       v_werkstuk, v_denkstuk, nullif(p->>'parent_id','')::bigint,
       v_mens, now(), 'Klaar voor review'
     ) returning id into v_creative;
@@ -625,6 +708,8 @@ begin
       rory_reasoning = coalesce(p->>'rory_reasoning', c.rory_reasoning),
       theriot_reasoning = coalesce(p->>'theriot_reasoning', c.theriot_reasoning),
       bronnen = coalesce(p->'bronnen', c.bronnen),
+      placement = coalesce(p->>'placement', c.placement),
+      product_refs = coalesce(p->'product_refs', c.product_refs),
       klaargezet_door = v_mens, klaargezet_op = now(),
       status = 'Klaar voor review'
     where c.id = v_creative;
@@ -658,6 +743,75 @@ create or replace function public.hq_ad_naam_voorstel(
 $$;
 revoke all on function public.hq_ad_naam_voorstel(text, text, text, text) from public, anon;
 grant execute on function public.hq_ad_naam_voorstel(text, text, text, text) to authenticated;
+
+-- ── 6b. De learning vastleggen, ná het oordeel ─────────────────────────────
+-- De console mag public.creatives schrijven, maar niet dit: een learning die
+-- via een los scherm binnenkomt, kan er staan zonder dat er ooit gemeten is.
+-- Daarom één deur, met de twee voorwaarden erin gebakken die er anders niet
+-- zouden zijn.
+create or replace function marketing_hq.creative_learning_vastleggen(p jsonb)
+returns jsonb
+language plpgsql security definer set search_path = public, marketing_hq
+as $$
+declare
+  v_mens     uuid := auth.uid();
+  v_creative bigint := nullif(p->>'creative_id','')::bigint;
+  v_status   text;
+  v_gemeten  boolean;
+begin
+  if v_mens is null or not exists (
+       select 1 from public.team_members t
+        where t.id = v_mens and t.status = 'approved') then
+    raise exception 'Alleen een goedgekeurd teamlid kan een learning vastleggen.';
+  end if;
+  if v_creative is null then
+    raise exception 'Zonder creative_id is er niets om een learning aan te hangen.';
+  end if;
+
+  select c.status into v_status from public.creatives c where c.id = v_creative;
+  if v_status is null then
+    raise exception 'Creative % bestaat niet.', v_creative;
+  end if;
+
+  -- Een learning zonder meting is een mening. Hij mag opgeschreven worden,
+  -- maar niet bevestigd: dan zou hij als vastgesteld feit in de analyse landen.
+  select coalesce(r.beoordeelbaar, false) into v_gemeten
+    from marketing_hq.creative_results r where r.creative_id = v_creative;
+
+  if coalesce((p->>'bevestigen')::boolean, false) and not coalesce(v_gemeten, false) then
+    raise exception
+      'Deze creative is nog niet beoordeelbaar (0008: vier dagen, vijftig euro, duizend vertoningen). Opschrijven mag, bevestigen nog niet.';
+  end if;
+
+  update public.creatives c set
+    learning_kern       = nullif(trim(coalesce(p->>'learning_kern','')), ''),
+    learning_behouden   = nullif(trim(coalesce(p->>'learning_behouden','')), ''),
+    learning_veranderen = nullif(trim(coalesce(p->>'learning_veranderen','')), ''),
+    iteratie_voorstel   = nullif(trim(coalesce(p->>'iteratie_voorstel','')), ''),
+    vervolgtests        = nullif(trim(coalesce(p->>'vervolgtests','')), ''),
+    next_step           = coalesce(nullif(trim(coalesce(p->>'next_step','')), ''), c.next_step),
+    learning_door_agent = nullif(p->>'door_agent',''),
+    learning_bevestigd_door =
+      case when coalesce((p->>'bevestigen')::boolean, false) then v_mens else null end,
+    learning_bevestigd_op =
+      case when coalesce((p->>'bevestigen')::boolean, false) then now() else null end
+  where c.id = v_creative;
+
+  return jsonb_build_object('creative_id', v_creative,
+    'bevestigd', coalesce((p->>'bevestigen')::boolean, false));
+end $$;
+
+comment on function marketing_hq.creative_learning_vastleggen(jsonb) is
+  'De enige deur naar de learningvelden. Opschrijven mag altijd; bevestigen pas als 0008 zegt dat er genoeg gemeten is.';
+
+revoke all on function marketing_hq.creative_learning_vastleggen(jsonb) from public, anon;
+grant execute on function marketing_hq.creative_learning_vastleggen(jsonb) to authenticated;
+
+create or replace function public.hq_creative_learning(p jsonb)
+returns jsonb language sql security definer set search_path = public, marketing_hq
+as $$ select marketing_hq.creative_learning_vastleggen(p) $$;
+revoke all on function public.hq_creative_learning(jsonb) from public, anon;
+grant execute on function public.hq_creative_learning(jsonb) to authenticated;
 
 -- ── 7. Het dossier ─────────────────────────────────────────────────────────
 -- Zes secties uit zes plekken, maar één rij per creative. Niet omdat dat
@@ -752,7 +906,53 @@ select
           order by l.angle_type)
      from marketing_hq.angle_learnings l
     where l.angle_type = t.angle_type
-      and (t.persona is null or l.persona = t.persona)) as learnings
+      and (t.persona is null or l.persona = t.persona)) as learnings,
+
+  -- Tijdlijn: wie deed wat, op volgorde, met mens en agent uit elkaar
+  -- gehouden. Vier bronnen door elkaar, want "wie besloot dit" is één vraag en
+  -- geen vier — en het antwoord staat nu in vier tabellen.
+  (select jsonb_agg(x order by x->>'wanneer')
+     from (
+       select jsonb_build_object(
+                'wanneer', s.afgerond_op, 'soort', 'stap',
+                'wie', coalesce(tm.full_name, ag.name, 'naamloos'),
+                'door', case when s.mens_id is not null then 'mens'
+                             when s.agent_id is not null then 'agent' else 'onbekend' end,
+                'wat', st.naam || ' ' || s.status,
+                'waarom', s.waarom) as x
+         from marketing_hq.werkstuk_stappen s
+         join marketing_hq.werkstuk_stations st on st.station = s.station
+         left join public.team_members tm on tm.id = s.mens_id
+         left join marketing_hq.agents ag on ag.id = s.agent_id
+        where s.werkstuk_id = t.werkstuk_id and s.afgerond_op is not null
+       union all
+       select jsonb_build_object(
+                'wanneer', o.created_at, 'soort', 'overdracht',
+                'wie', coalesce(tm.full_name, ag.name, 'naamloos'),
+                'door', case when o.door_mens is not null then 'mens' else 'agent' end,
+                'wat', o.van_station || ' → ' || coalesce(o.naar_station::text, '?'),
+                'waarom', o.besluit)
+         from marketing_hq.werkstuk_overdrachten o
+         left join public.team_members tm on tm.id = o.door_mens
+         left join marketing_hq.agents ag on ag.id = o.door_agent
+        where o.werkstuk_id = t.werkstuk_id
+       union all
+       select jsonb_build_object(
+                'wanneer', k.created_at, 'soort', 'oordeel',
+                'wie', coalesce(tm.full_name, k.door_agent, 'de Criticus'),
+                'door', case when k.door_mens is not null then 'mens' else 'agent' end,
+                'wat', 'oordeel: ' || k.oordeel, 'waarom', k.reden)
+         from marketing_hq.criticus_oordelen k
+         join marketing_hq.werkstuk_overdrachten o2 on o2.id = k.overdracht_id
+         left join public.team_members tm on tm.id = k.door_mens
+        where o2.werkstuk_id = t.werkstuk_id
+       union all
+       select jsonb_build_object(
+                'wanneer', t.klaargezet_op, 'soort', 'klaargezet',
+                'wie', coalesce(t.klaargezet_door, 'een teamlid'), 'door', 'mens',
+                'wat', 'klaargezet voor test', 'waarom', t.hypothesis)
+        where t.klaargezet_op is not null
+     ) tl)                                          as tijdlijn
 from marketing_hq.testkaart t;
 
 comment on view marketing_hq.creative_dossier is

@@ -398,7 +398,12 @@ check "een teamlid maakt in één keer werkstuk, denkstuk en creative" "ja" \
           'test_variable','de kop toont het mechanisme','format','Before / After',
           'waarom_nu','concurrenten leggen het uit','headline','Dit is het verschil',
           'rory_reasoning','wantrouwen valt weg bij bewijs',
-          'theriot_reasoning','show dont tell: het verschil in beeld')) as r) x")"
+          'theriot_reasoning','show dont tell: het verschil in beeld',
+          'placement','feed','product_refs',jsonb_build_array('groomguard-front.jpg'),
+          'mens_ingeving','viel me op in de reviews',
+          'rory_interview',jsonb_build_object('kernpijn','angst voor sneetjes',
+            'kernbezwaar','weer een abonnement','echte_vijand','de wegwerpmesjes',
+            'na_situatie','een gezicht zonder rode plekken'))) as r) x")"
 check "en de creative staat meteen op Klaar voor review" "Klaar voor review" \
   "$(q "select status from public.creatives where ad_name='WS.Groom-Guard.Mark.safety.02'")"
 check "met een naam volgens de conventie" "WS.Groom-Guard.Mark.safety.02" \
@@ -469,6 +474,57 @@ check "het dossier kent alle zes de onderdelen" "ja" \
 check "een creative zonder meting geeft null en geen fout" "" \
   "$(q "select meting from marketing_hq.creative_dossier
         where ad_name = 'WS.Leeg.Niemand.geen.01'")"
+# De tijdlijn voegt vier tabellen samen tot één vraag: wie deed wat, wanneer.
+# Als "klaargezet voor test" er niet in staat, mist de mens in zijn eigen
+# tijdlijn -- en dat is precies het gat dat dit dossier moet dichten.
+check "de tijdlijn noemt de mens die het klaarzette" "ja" \
+  "$(q "select case when tijdlijn::text like '%klaargezet voor test%'
+                     and tijdlijn::text like '%\"door\": \"mens\"%' then 'ja'
+                    else 'nee: ' || coalesce(tijdlijn::text,'null') end
+        from marketing_hq.creative_dossier where headline='Dit is het verschil'")"
+check "het interview staat op het werkstuk en niet op de variant" "angst voor sneetjes" \
+  "$(q "select w.rory_interview->>'kernpijn' from marketing_hq.werkstukken w
+        where w.id = (select werkstuk_id from public.creatives where headline='Dit is het verschil')")"
+check "en de ingeving van de mens erbij" "viel me op in de reviews" \
+  "$(q "select w.mens_ingeving from marketing_hq.werkstukken w
+        where w.id = (select werkstuk_id from public.creatives where headline='Dit is het verschil')")"
+check "plaatsing en productreferenties staan op de variant" "feed" \
+  "$(q "select placement from public.creatives where headline='Dit is het verschil'")"
+
+echo ""
+echo "  de learning: opschrijven mag, bevestigen pas na de meting"
+# Dit is de kern van eis "beoordeelbaarheid blijft afgeleid": een mens mag zijn
+# conclusie opschrijven, maar hem als vastgesteld feit neerzetten kan pas als
+# 0008 zegt dat er genoeg gemeten is. Zonder deze deur zou een learning zonder
+# meting in de analyse landen als ware hij bewezen.
+check "een onbekende gebruiker legt niets vast" "ja" \
+  "$(weigert "set local test.uid='22222222-2222-2222-2222-222222222222';
+     select marketing_hq.creative_learning_vastleggen(jsonb_build_object(
+       'creative_id',(select id from public.creatives where headline='Dit is het verschil'),
+       'learning_kern','iets'))" "goedgekeurd teamlid")"
+check "opschrijven mag altijd" "bewijs in beeld verlaagt de drempel" \
+  "$(q "set local test.uid='11111111-1111-1111-1111-111111111111';
+        select marketing_hq.creative_learning_vastleggen(jsonb_build_object(
+          'creative_id',(select id from public.creatives where headline='Dit is het verschil'),
+          'learning_kern','bewijs in beeld verlaagt de drempel',
+          'learning_behouden','het mechanisme in de kop',
+          'learning_veranderen','de kleur van de knop'));
+        select learning_kern from public.creatives where headline='Dit is het verschil'" | tail -1)"
+check "en hij staat dan nog niet als bevestigd" "" \
+  "$(q "select learning_bevestigd_op from public.creatives where headline='Dit is het verschil'")"
+check "maar bevestigen niet zolang er niet genoeg gemeten is" "ja" \
+  "$(weigert "set local test.uid='11111111-1111-1111-1111-111111111111';
+     select marketing_hq.creative_learning_vastleggen(jsonb_build_object(
+       'creative_id',(select id from public.creatives where headline='Dit is het verschil'),
+       'learning_kern','te vroeg','bevestigen',true))" "nog niet beoordeelbaar")"
+check "en zonder kern kan hij nooit bevestigd staan" "ja" \
+  "$(weigert "update public.creatives set learning_kern = null,
+       learning_bevestigd_door='11111111-1111-1111-1111-111111111111',
+       learning_bevestigd_op=now() where headline='Dit is het verschil'" \
+     "creatives_learning_bevestiging")"
+
+echo ""
+echo "  het dossier per creative, vervolg"
 check "de testkaart zegt wie er aan zet is" "ja" \
   "$(q "select case when count(*) = 3 then 'ja' else 'nee, ' || count(*) end
         from information_schema.columns

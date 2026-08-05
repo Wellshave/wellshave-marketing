@@ -28,7 +28,7 @@ var _str = {
   rijen: null, fout: null, laden: false, geladen: false,
   dossier: null, dossierLaden: false,
   zoek: '', sorteer: 'created_at', omgekeerd: true,
-  filters: {}, selectie: {}, kolomkiezer: false,
+  filters: {}, selectie: {}, kolomkiezer: false, alleenWacht: false,
   kolommen: null
 };
 
@@ -47,7 +47,7 @@ var STR_KOLOMMEN = [
   { id: 'marketing_angle', naam: 'Angle',       standaard: true },
   { id: 'format',       naam: 'Format',         standaard: true },
   { id: 'status',       naam: 'Status',         standaard: true,  soort: 'status' },
-  { id: 'verantwoordelijke', naam: 'Wie',       standaard: true },
+  { id: 'verantwoordelijke', naam: 'Wie',       standaard: true,  soort: 'wie' },
   { id: 'created_at',   naam: 'Aangemaakt',     standaard: true,  soort: 'datum' },
   { id: 'volgende_stap', naam: 'Volgende stap', standaard: true },
 
@@ -62,10 +62,12 @@ var STR_KOLOMMEN = [
   { id: 'test_variable',        naam: 'Testvariabele' },
   { id: 'onderbouwing',         naam: 'Onderbouwing' },
   { id: 'date_live',            naam: 'Live sinds', soort: 'datum' },
+  { id: 'resultaat',            naam: 'Resultaat',  soort: 'resultaat' },
   { id: 'roas',                 naam: 'ROAS',   soort: 'getal' },
   { id: 'ctr',                  naam: 'CTR',    soort: 'getal' },
-  { id: 'verdict',              naam: 'Verdict' },
-  { id: 'next_step',            naam: 'Learning / vervolg' }
+  { id: 'verdict',              naam: 'Verdict',    soort: 'verdict' },
+  { id: 'learning_kern',        naam: 'Learning',   soort: 'learning' },
+  { id: 'next_step',            naam: 'Vervolg' }
 ];
 
 function strActieveKolommen() {
@@ -169,7 +171,7 @@ function strSorteer(id) {
   else { _str.sorteer = id; _str.omgekeerd = false; }
   strTeken();
 }
-function strFiltersLeeg() { _str.filters = {}; _str.zoek = ''; strTeken(); }
+function strFiltersLeeg() { _str.filters = {}; _str.zoek = ''; _str.alleenWacht = false; strTeken(); }
 
 function strZichtbaar() {
   var rijen = (_str.rijen || []).slice();
@@ -177,6 +179,7 @@ function strZichtbaar() {
     var w = _str.filters[v];
     if (w) rijen = rijen.filter(function (r) { return String(r[v] || '') === w; });
   });
+  if (_str.alleenWacht) rijen = rijen.filter(strMensNodig);
   if (_str.zoek) {
     rijen = rijen.filter(function (r) {
       return ['ad_name', 'product', 'persona', 'marketing_angle', 'hypothesis', 'test_variable', 'headline']
@@ -201,6 +204,17 @@ function strZichtbaar() {
 /* Zes groepen die je verschillend behandelt. De fase komt uit de database, de
    vertaling naar "wacht op jou" gebeurt hier omdat het over jou gaat en niet
    over de rij. */
+/* De verdicts van de agents in gewone taal. Het Engelse woord uit
+   meta_recommendations zegt niets tegen wie de tabel leest. */
+var STR_VERDICT = { winner: 'winnaar', loser: 'verliezer', test: 'blijf testen',
+                    onvoldoende_data: 'te weinig data' };
+
+/* Wacht dit op een mens? De statustabel weet het: daar staat wie er aan zet is.
+   Niet hier nog een keer opsommen — dat zou een tweede waarheid zijn. */
+function strMensNodig(r) {
+  return ['jij', 'de maker', 'een mens'].indexOf(String(r.verantwoordelijke || '')) > -1;
+}
+
 function strGroep(r) {
   if (r.status === 'Gestopt') return { id: 'gestopt', naam: 'gestopt' };
   if (['Winner', 'Verliezer', 'Middelmatig', 'Itereren'].indexOf(r.status) > -1)
@@ -236,6 +250,41 @@ function strCel(r, k) {
     var g = strGroep(r);
     return '<span class="str-status str-status--' + g.id + '">' + strEsc(g.naam) + '</span>';
   }
+  /* Wie er aan zet is komt uit de statustabel. Staat daar "jij" of "de maker",
+     dan wacht het op een mens, en dat mag niet alleen in een kleur zitten:
+     het staat er met een woord bij. */
+  if (k.soort === 'wie') {
+    if (!w) return '<span class="str-leeg-cel">—</span>';
+    return strMensNodig(r)
+      ? '<span class="str-jij">jij bent aan zet</span>'
+      : strEsc(w);
+  }
+  /* Resultaat is één regel uit de meting en nooit iets dat je zelf invult.
+     Staat er niets, dan is er niets gemeten — dat is een uitkomst. */
+  if (k.soort === 'resultaat') {
+    if (r.roas == null && r.ctr == null) {
+      return '<span class="str-leeg-cel">' + (r.date_live ? 'nog niets gemeten' : 'niet live') + '</span>';
+    }
+    /* Nederlandse notatie, net als de rest van de tabel: een punt als
+       decimaalteken leest hier als duizendtal. */
+    var nl = function (x) { return Number(x).toLocaleString('nl-NL',
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var d = [];
+    if (r.roas != null) d.push('ROAS ' + nl(r.roas));
+    if (r.ctr != null) d.push('CTR ' + nl(r.ctr) + '%');
+    return strEsc(d.join(' · '));
+  }
+  if (k.soort === 'verdict') {
+    if (!w) return '<span class="str-leeg-cel">geen oordeel</span>';
+    return '<span class="str-verdict">' + strEsc(STR_VERDICT[w] || w) + '</span>';
+  }
+  /* Een learning die nog niet bevestigd is, is een voorstel. Dat verschil hoort
+     zichtbaar te zijn, anders leest een aanname als vastgesteld feit. */
+  if (k.soort === 'learning') {
+    if (!w) return '<span class="str-leeg-cel">—</span>';
+    return strEsc(String(w).length > 70 ? String(w).slice(0, 68) + '…' : w)
+      + (r.learning_bevestigd ? '' : ' <em class="str-voorstel">(voorstel)</em>');
+  }
   if (k.soort === 'datum') {
     if (!w) return '<span class="str-leeg-cel">—</span>';
     var d = new Date(w);
@@ -246,7 +295,11 @@ function strCel(r, k) {
       : Number(w).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
   }
   if (w == null || String(w).trim() === '') return '<span class="str-leeg-cel">—</span>';
-  return strEsc(String(w).length > 90 ? String(w).slice(0, 88) + '…' : w);
+  /* Afkappen op 46 tekens is geen esthetiek maar de voorwaarde waaronder tien
+     kolommen zonder horizontaal schuiven passen. De hele tekst staat in het
+     dossier, één klik verderop. */
+  return '<span title="' + strEsc(w) + '">'
+    + strEsc(String(w).length > 46 ? String(w).slice(0, 44) + '…' : w) + '</span>';
 }
 
 function strTeken() {
@@ -305,6 +358,18 @@ function strTeken() {
       +  'Alles tegelijk tonen is niet vollediger maar onleesbaar.</p></div>';
   }
 
+  /* Het eerste wat je wilt weten is niet hoeveel er zijn, maar hoeveel er op
+     jou liggen te wachten. Dat staat er dus vóór de tabel en niet als kleurtje
+     in een cel — een tabel van honderd rijen scan je niet op tinten. */
+  var wachtend = alle.filter(strMensNodig).length;
+  if (wachtend) {
+    h += '<div class="str-wacht' + (_str.alleenWacht ? ' str-wacht--aan' : '') + '">'
+      +  '<strong>' + wachtend + (wachtend === 1 ? ' test wacht' : ' tests wachten') + ' op jou.</strong> '
+      +  'Bij de rest is een agent of de meting aan zet. '
+      +  '<button class="str-knop" onclick="strAlleenWacht()">'
+      +  (_str.alleenWacht ? 'toon alles' : 'toon alleen deze') + '</button></div>';
+  }
+
   h += '<p class="str-telling">' + rijen.length + ' van ' + alle.length + ' tests'
     + (gekozen ? ' · <strong>' + gekozen + '</strong> geselecteerd' : '')
     + ' · <a href="javascript:void(0)" onclick="strVernieuw()">vernieuwen</a></p>';
@@ -324,7 +389,8 @@ function strTeken() {
   }
   rijen.forEach(function (r) {
     var g = strGroep(r);
-    h += '<tr class="str-rij str-rij--' + g.id + '" onclick="strDossier(' + r.creative_id + ')">'
+    h += '<tr class="str-rij str-rij--' + g.id + (strMensNodig(r) ? ' str-rij--jij' : '')
+      + '" onclick="strDossier(' + r.creative_id + ')">'
       + '<td class="str-vinkkolom" onclick="event.stopPropagation()">'
       +   '<input type="checkbox"' + (_str.selectie[r.creative_id] ? ' checked' : '')
       +   ' onchange="strKies(' + r.creative_id + ')" aria-label="selecteer"></td>';
@@ -336,6 +402,7 @@ function strTeken() {
 }
 
 function strKies(id) { _str.selectie[id] = !_str.selectie[id]; strTeken(); }
+function strAlleenWacht() { _str.alleenWacht = !_str.alleenWacht; strTeken(); }
 
 /* ── het dossier ─────────────────────────────────────────────────────────── */
 
@@ -367,133 +434,298 @@ function strPaar(label, waarde) {
     + '<dt>' + strEsc(label) + '</dt><dd>' + (leeg ? 'niet vastgelegd' : strEsc(waarde)) + '</dd></div>';
 }
 
+
+/* Een lijst met een reden erbij als hij leeg is. Overal hetzelfde, want "leeg"
+   is in dit dossier nooit hetzelfde als "niets aan de hand": het betekent
+   ofwel nog niet gebeurd, ofwel niet vastgelegd, en dat verschil telt. */
+function strLijst(regels) { return '<dl class="str-dl">' + regels.join('') + '</dl>'; }
+
+function strDatum(w) {
+  if (!w) return null;
+  var d = new Date(w);
+  return isNaN(d) ? String(w) : d.toLocaleDateString('nl-NL',
+    { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function strGetal(w, achter) {
+  if (w == null || w === '') return null;
+  return Number(w).toLocaleString('nl-NL', { maximumFractionDigits: 2 }) + (achter || '');
+}
+
 function strDossierTeken(d) {
   var oud = document.getElementById('str-dos'); if (oud) oud.remove();
   var o = document.createElement('div');
   o.id = 'str-dos'; o.className = 'str-dos-overlay';
 
-  if (d._laden) { o.innerHTML = '<div class="str-dos"><div class="loading-card">Dossier laden...</div></div>'; }
-  else if (d._fout) {
+  if (d._laden) {
+    o.innerHTML = '<div class="str-dos"><div class="loading-card">Dossier laden...</div></div>';
+  } else if (d._fout) {
     o.innerHTML = '<div class="str-dos"><div class="str-dos-kop"><strong>Dossier</strong>'
       + '<button class="str-x" onclick="strDossierSluit()">×</button></div>'
       + '<p class="str-sec-leeg">' + strEsc(d._fout) + '</p></div>';
   } else {
-    var m = d.meting || {}, pub = d.publicatie || {};
-    var h = '<div class="str-dos"><div class="str-dos-kop"><strong>' + strEsc(d.ad_name || 'Creative')
-      + '</strong><span class="str-status str-status--' + strGroep(d).id + '">'
-      + strEsc(strGroep(d).naam) + '</span>'
+    var g = strGroep(d);
+    var h = '<div class="str-dos"><div class="str-dos-kop"><strong>'
+      + strEsc(d.ad_name || 'Nog geen naam') + '</strong>'
+      + '<span class="str-status str-status--' + g.id + '">' + strEsc(g.naam) + '</span>'
+      + (strMensNodig(d) ? '<span class="str-jij">jij bent aan zet</span>' : '')
       + '<button class="str-x" onclick="strDossierSluit()" aria-label="Sluiten">×</button></div>';
 
-    // A. Testsamenvatting
-    h += strSec('A · De test', '<dl class="str-dl">'
-      + strPaar('Status', d.status) + strPaar('Product', d.product)
-      + strPaar('Persona', d.persona) + strPaar('Angle', d.marketing_angle)
-      + strPaar('Awareness', d.awareness_level)
-      + strPaar('Sophistication', d.sophistication_naam
-          ? d.sophistication + ' · ' + d.sophistication_naam
-            + (d.sophistication_bevestigd ? ' (bevestigd)' : ' (voorstel, nog niet bevestigd)') : null)
-      + strPaar('Hypothese', d.hypothesis) + strPaar('Testvariabele', d.test_variable)
-      + strPaar('Verantwoordelijke', d.verantwoordelijke)
-      + strPaar('Volgende stap', d.volgende_stap) + '</dl>');
-
-    // B. Creative
-    h += strSec('B · De creative',
-      (d.heeft_beeld ? '' : '<p class="str-sec-leeg">Er is nog geen beeld gegenereerd.</p>')
-      + '<dl class="str-dl">'
-      + strPaar('Headline', d.headline) + strPaar('Body copy', d.body_copy)
-      + strPaar('CTA', d.cta) + strPaar('Format', d.format)
-      + strPaar('Media type', d.media_type) + strPaar('Kanaal', d.channel)
-      + strPaar('Visueel concept', d.visual_concept)
-      + strPaar('Image prompt', d.image_prompt) + '</dl>');
-
-    // C. Strategische herkomst
-    var regels = d.denkstuk_regels || [];
-    h += strSec('C · Waar dit vandaan komt',
-      '<dl class="str-dl">'
-      + strPaar('Redenering van Rory', d.rory_reasoning)
-      + strPaar('Aanscherping van Theriot', d.theriot_reasoning)
-      + strPaar('Onderbouwing', d.onderbouwing) + '</dl>'
-      + (regels.length
-        ? '<table class="str-mini"><thead><tr><th>Vraag</th><th>Antwoord</th><th>Zekerheid</th></tr></thead><tbody>'
-          + regels.map(function (r) {
-              return '<tr class="str-zeker--' + strEsc(r.zekerheid || 'leeg') + '"><td>' + strEsc(r.tekst) + '</td>'
-                + '<td>' + (r.antwoord ? strEsc(r.antwoord) : '<em>onbeantwoord</em>') + '</td>'
-                + '<td>' + strEsc(r.zekerheid || '—') + (r.bron ? '<br><small>' + strEsc(r.bron) + '</small>' : '')
-                + '</td></tr>'; }).join('')
-          + '</tbody></table>'
-        : '<p class="str-sec-leeg">Er hangt geen denkstuk aan deze creative — deze test rust nergens op.</p>'));
-
-    // D. Werkstuk en agents
-    var stappen = d.stappen || [], overdrachten = d.overdrachten || [],
-        oordelen = d.oordelen || [], discussies = d.discussies || [];
-    h += strSec('D · Het werkstuk en wie wat deed',
-      (d.werkstuk ? '<p class="str-werkstuk">' + strEsc(d.werkstuk) + '</p>' : '')
-      + (stappen.length
-        ? '<table class="str-mini"><thead><tr><th>Station</th><th>Wie</th><th>Status</th><th>Waarom</th></tr></thead><tbody>'
-          + stappen.map(function (s) {
-              return '<tr><td>' + s.station + ' · ' + strEsc(s.naam) + '</td><td>' + strEsc(s.wie)
-                + '</td><td>' + strEsc(s.status) + '</td><td>' + strEsc(s.waarom || '—') + '</td></tr>'; }).join('')
-          + '</tbody></table>' : '')
-      + (oordelen.length
-        ? '<div class="str-oordeel"><strong>Criticus: ' + strEsc(oordelen[0].oordeel) + '</strong> — '
-          + strEsc(oordelen[0].reden) + '</div>'
-        : '<p class="str-sec-leeg">De Criticus heeft hier nog geen oordeel over geveld.</p>')
-      + (overdrachten.length
-        ? overdrachten.map(function (t) {
-            return '<div class="str-overdracht"><strong>' + t.van_station + ' → ' + (t.naar_station || '?')
-              + '</strong> ' + strEsc(t.besluit)
-              + '<br><small>Te controleren: ' + strEsc(t.controleren) + '</small>'
-              + (t.mens_nodig ? '<br><small class="str-let-op">Er moet een mens bij.</small>' : '')
-              + '</div>'; }).join('') : '')
-      + (discussies.length
-        ? '<div class="str-sub">Discussies</div>' + discussies.map(function (b) {
-            return '<div class="str-bericht"><strong>' + strEsc(b.van) + ' → ' + strEsc(b.aan) + '</strong> '
-              + strEsc(b.onderwerp) + (b.gelezen ? '' : ' <em>(nooit opgehaald)</em>')
-              + '<p>' + strEsc(b.body) + '</p></div>'; }).join('')
-        : ''));
-
-    // E. Publicatie en performance — alleen gemeten, nooit ingevuld
-    h += strSec('E · Live en gemeten',
-      (m.spend != null || pub.status
-        ? '<dl class="str-dl">'
-          + strPaar('Account', pub.account_id) + strPaar('Publicatiestatus', pub.status)
-          + strPaar('Live sinds', d.date_live) + strPaar('Spend', m.spend)
-          + strPaar('Impressies', m.impressions) + strPaar('CTR', m.ctr)
-          + strPaar('CPA', m.cpa) + strPaar('ROAS', m.roas)
-          + strPaar('Dagen live', m.dagen_live)
-          + strPaar('Beoordeelbaar', m.beoordeelbaar == null ? null
-              : (m.beoordeelbaar ? 'ja' : 'nog niet — onder de drempel van 0008'))
-          + strPaar('Alle dagen definitief', m.alles_definitief == null ? null
-              : (m.alles_definitief ? 'ja' : 'nee, de attributie loopt nog na'))
-          + '</dl>'
-        : null),
-      'Deze creative heeft nog niet gedraaid. Zodra hij live staat, vult Atlas dit vanzelf.');
-
-    // F. Learning en vervolg
-    var l = d.learnings || [];
-    /* De volgende stap hoort erbij, maar hij mag de lege sectie niet vullen:
-       anders leest "nog niets geleerd" als "er staat iets" terwijl er alleen
-       een vervolgveld is. Vandaar het aparte staartje ná de sectie-uitleg. */
-    var vervolg = '<dl class="str-dl">' + strPaar('Volgende stap', d.next_step) + '</dl>';
-    h += strSec('F · Wat we hieruit leerden',
-      (l.length
-        ? l.map(function (x) {
-            return '<div class="str-learning"><strong>' + strEsc(x.hoek) + ' bij ' + strEsc(x.persona)
-              + '</strong><br>' + x.advertenties + ' advertenties, € '
-              + Number(x.spend || 0).toLocaleString('nl-NL', { maximumFractionDigits: 0 })
-              + ', ROAS ' + (x.roas == null ? '—' : Number(x.roas).toFixed(2))
-              + '<br><small>' + (x.betrouwbaar
-                  ? 'Betrouwbaar: genoeg advertenties en budget om iets te mogen zeggen.'
-                  : 'Nog niet betrouwbaar — onder drie advertenties of onder €300 blijft dit een aanname.')
-              + '</small></div>'; }).join('') + vervolg
-        : null),
-      'Er is nog niets geleerd op deze hoek. Dat komt pas als een batch is afgerond.');
-    if (!l.length) h = h.replace(/<\/section>$/, vervolg + '</section>');
-
+    h += strDosA(d) + strDosB(d) + strDosC(d) + strDosD(d) + strDosE(d) + strDosF(d);
     h += '</div>';
     o.innerHTML = h;
   }
 
   document.body.appendChild(o);
   o.addEventListener('click', function (e) { if (e.target === o) strDossierSluit(); });
+}
+
+/* ── 1. Testsamenvatting ─────────────────────────────────────────────────── */
+
+function strDosA(d) {
+  /* "Wat de test moet uitwijzen" is denkstukvraag 6 en geen nieuw veld: die
+     vraag stond er al sinds 0023, en hem hier nog eens apart laten intypen zou
+     twee antwoorden op dezelfde vraag opleveren. */
+  var v6 = (d.denkstuk_regels || []).filter(function (r) { return r.vraag === 6; })[0];
+  return strSec('1 · Testsamenvatting', strLijst([
+    strPaar('Ad name', d.ad_name),
+    strPaar('Status', d.status ? d.status + ' — ' + (d.status_betekenis || '') : null),
+    strPaar('Product', d.product),
+    strPaar('Persona', d.persona),
+    strPaar('Marketingangle', d.marketing_angle),
+    strPaar('Awarenessniveau', d.awareness_level),
+    strPaar('Funnelstadium', d.funnel_stage),
+    strPaar('Market sophistication', d.sophistication
+      ? d.sophistication + ' · ' + (d.sophistication_naam || '')
+        + (d.sophistication_bevestigd ? ' (bevestigd)' : ' (voorstel, nog niet bevestigd)')
+      : null),
+    strPaar('Hypothese', d.hypothesis),
+    strPaar('Testvariabele', d.test_variable),
+    strPaar('Wat de test moet uitwijzen', v6 ? v6.antwoord : null),
+    strPaar('Verantwoordelijke', d.verantwoordelijke),
+    strPaar('Volgende stap', d.volgende_stap)
+  ]) + (d.niet_testklaar
+    ? '<p class="str-blokkade">Deze creative is nog niet testklaar: ' + strEsc(d.niet_testklaar) + '</p>'
+    : ''));
+}
+
+/* ── 2. Creative ─────────────────────────────────────────────────────────── */
+
+function strDosB(d) {
+  var refs = d.product_refs || [];
+  return strSec('2 · Creative',
+    (d.heeft_beeld
+      ? '<p class="str-sec-noot">Er is een beeld gegenereerd. Het staat in de bibliotheek '
+        + 'en wordt hier niet opnieuw geladen — dat zou het dossier traag maken.</p>'
+      : '<p class="str-sec-leeg">Er is nog geen beeld gegenereerd.</p>')
+    + strLijst([
+      strPaar('Headline', d.headline),
+      strPaar('Body copy', d.body_copy),
+      strPaar('CTA', d.cta),
+      strPaar('Format', d.format),
+      strPaar('Plaatsing', d.placement),
+      strPaar('Media type', d.media_type),
+      strPaar('Kanaal', d.channel),
+      strPaar('Visueel concept', d.visual_concept),
+      strPaar('Image prompt', d.image_prompt),
+      strPaar('Productreferenties', refs.length
+        ? refs.map(function (r) { return typeof r === 'string' ? r : (r.naam || r.url || ''); }).join(', ')
+        : null)
+    ]));
+}
+
+/* ── 3. Strategische herkomst ────────────────────────────────────────────── */
+
+function strDosC(d) {
+  var iv = d.rory_interview || {};
+  var regels = d.denkstuk_regels || [];
+  var bronnen = d.bronnen || [];
+
+  /* De zekerheid per antwoord is het hele punt van het denkstuk: wat is
+     gemeten, wat is aangenomen, wat weten we niet. Die drie tellingen staan er
+     als zin en niet als drie getallen, want een getal zonder woord eromheen
+     leest als een score. */
+  var stand = (d.onderbouwd || 0) + ' onderbouwd, ' + (d.aanname || 0) + ' aanname'
+    + ((d.aanname || 0) === 1 ? '' : 's') + ', ' + (d.open_gelaten || 0) + ' open gelaten';
+
+  return strSec('3 · Strategische herkomst',
+    strLijst([
+      strPaar('Oorspronkelijke menselijke ingeving', d.mens_ingeving),
+      strPaar('Kernpijn', iv.kernpijn),
+      strPaar('Echte vijand', iv.echte_vijand),
+      strPaar('Kernbezwaar', iv.kernbezwaar),
+      strPaar('Gewenste na-situatie', iv.na_situatie),
+      strPaar('Rory reasoning', d.rory_reasoning),
+      strPaar('Theriot-aanscherping', d.theriot_reasoning),
+      strPaar('Onderbouwingsstatus', regels.length ? stand : null),
+      strPaar('Gebruikte bronnen', bronnen.length
+        ? bronnen.map(function (b) { return typeof b === 'string' ? b : (b.titel || b.bron || b.url || ''); }).join(' · ')
+        : null)
+    ])
+    + (regels.length
+      ? '<div class="str-sub">Het Rory-interview, vraag voor vraag</div>'
+        + '<table class="str-mini"><thead><tr><th>Vraag</th><th>Antwoord</th>'
+        + '<th>Zekerheid</th></tr></thead><tbody>'
+        + regels.map(function (r) {
+            return '<tr class="str-zeker--' + strEsc(r.zekerheid || 'leeg') + '">'
+              + '<td>' + strEsc(r.tekst) + '</td>'
+              + '<td>' + (r.antwoord ? strEsc(r.antwoord) : '<em>onbeantwoord</em>') + '</td>'
+              + '<td>' + strEsc(r.zekerheid || '—')
+              + (r.bron ? '<br><small>' + strEsc(r.bron) + '</small>' : '') + '</td></tr>';
+          }).join('')
+        + '</tbody></table>'
+      : '<p class="str-sec-leeg">Er hangt geen denkstuk aan deze creative — deze test rust nergens op.</p>'));
+}
+
+/* ── 4. Werkstuk en samenwerking ─────────────────────────────────────────── */
+
+function strDosD(d) {
+  var tl = d.tijdlijn || [], overdrachten = d.overdrachten || [],
+      oordelen = d.oordelen || [], discussies = d.discussies || [];
+
+  var h = strLijst([
+    strPaar('Gekoppeld werkstuk', d.werkstuk_id ? '#' + d.werkstuk_id + ' · ' + (d.werkstuk || '') : null),
+    strPaar('Denkstuk', d.denkstuk_id
+      ? '#' + d.denkstuk_id + ' · ' + (d.denkstuk_status === 'bevestigd'
+          ? 'afgetekend door een mens' : 'nog niet afgetekend') : null)
+  ]);
+
+  /* Eén tijdlijn uit vier tabellen. "Wie besloot dit" is één vraag, en het
+     antwoord stond tot nu toe verspreid over stappen, overdrachten, oordelen
+     en de post. Mens en agent staan er met een woord bij: dat verschil is het
+     hele punt van de werkbank. */
+  h += '<div class="str-sub">Tijdlijn: wie deed wat</div>'
+    + (tl.length
+      ? '<ol class="str-tijdlijn">' + tl.map(function (t) {
+          return '<li class="str-tl str-tl--' + strEsc(t.door || 'onbekend') + '">'
+            + '<span class="str-tl-wie">' + strEsc(t.wie) + '</span>'
+            + '<span class="str-tl-door">' + (t.door === 'mens' ? 'mens' : t.door === 'agent' ? 'agent' : 'onbekend') + '</span>'
+            + '<span class="str-tl-wat">' + strEsc(t.wat) + '</span>'
+            + '<span class="str-tl-wanneer">' + strEsc(strDatum(t.wanneer) || '') + '</span>'
+            + (t.waarom ? '<p class="str-tl-waarom">' + strEsc(t.waarom) + '</p>' : '')
+            + '</li>';
+        }).join('') + '</ol>'
+      : '<p class="str-sec-leeg">Er is nog niets vastgelegd aan stappen of overdrachten.</p>');
+
+  h += '<div class="str-sub">Oordeel van De Criticus</div>'
+    + (oordelen.length
+      ? oordelen.map(function (k) {
+          return '<div class="str-oordeel"><strong>' + strEsc(k.oordeel) + '</strong> — '
+            + strEsc(k.reden) + '<br><small>' + strEsc(k.door || 'de Criticus') + '</small></div>';
+        }).join('')
+      : '<p class="str-sec-leeg">De Criticus heeft hier nog geen oordeel over geveld.</p>');
+
+  if (overdrachten.length) {
+    h += '<div class="str-sub">Overdrachten</div>' + overdrachten.map(function (t) {
+      return '<div class="str-overdracht"><strong>' + t.van_station + ' → '
+        + (t.naar_station == null ? '?' : t.naar_station) + '</strong> ' + strEsc(t.besluit)
+        + '<br><small>Te controleren: ' + strEsc(t.controleren || 'niets opgegeven') + '</small>'
+        + (t.onzekerheden ? '<br><small>Onzeker: ' + strEsc(t.onzekerheden) + '</small>' : '')
+        + (t.mens_nodig ? '<br><small class="str-let-op">Er moet een mens bij.</small>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  h += '<div class="str-sub">Discussies en meningsverschillen</div>'
+    + (discussies.length
+      ? discussies.map(function (b) {
+          return '<div class="str-bericht"><strong>' + strEsc(b.van) + ' → ' + strEsc(b.aan) + '</strong> '
+            + strEsc(b.onderwerp)
+            + (b.gelezen ? '' : ' <em class="str-let-op">(nooit opgehaald)</em>')
+            + '<p>' + strEsc(b.body) + '</p></div>';
+        }).join('')
+      : '<p class="str-sec-leeg">De agents hebben hier niets over aan elkaar geschreven.</p>');
+
+  return strSec('4 · Werkstuk en samenwerking', h);
+}
+
+/* ── 5. Publicatie en performance ────────────────────────────────────────── */
+
+function strDosE(d) {
+  var m = d.meting || {}, pub = d.publicatie || {};
+  var heeft = (m.spend != null) || pub.status || d.date_live;
+  if (!heeft) {
+    return strSec('5 · Publicatie en performance', null,
+      'Deze creative heeft nog niet gedraaid. Zodra hij live staat vult Atlas dit '
+      + 'vanzelf uit de metingen — hier wordt niets met de hand ingevuld.');
+  }
+  /* Beoordeelbaarheid is afgeleid uit de meting (0008: vier dagen, vijftig
+     euro, duizend vertoningen) en nergens instelbaar. Daarom staat de reden er
+     altijd bij: anders leest "nee" als een fout in plaats van als geduld. */
+  return strSec('5 · Publicatie en performance', strLijst([
+    strPaar('Kanaal', d.channel),
+    strPaar('Advertentieaccount', pub.account_id),
+    strPaar('Publicatiestatus', pub.status),
+    strPaar('Datum live', strDatum(d.date_live)),
+    strPaar('Spend', strGetal(m.spend) ? '€ ' + strGetal(m.spend) : null),
+    strPaar('Impressies', strGetal(m.impressions)),
+    strPaar('Resultaten', m.purchases == null ? null
+      : m.purchases + ' aankopen · € ' + (strGetal(m.omzet) || '0') + ' omzet'),
+    strPaar('CTR', strGetal(m.ctr, '%')),
+    strPaar('CPA', strGetal(m.cpa) ? '€ ' + strGetal(m.cpa) : null),
+    strPaar('ROAS', strGetal(m.roas)),
+    strPaar('Dagen live', m.dagen_live),
+    strPaar('Beoordeelbaarheid', m.beoordeelbaar == null ? null
+      : (m.beoordeelbaar
+          ? 'ja — genoeg dagen, budget en vertoningen om iets te mogen zeggen'
+          : 'nog niet — onder de drempel van vier dagen, vijftig euro en duizend vertoningen')),
+    strPaar('Datakwaliteit', m.alles_definitief == null ? null
+      : (m.alles_definitief
+          ? 'alle meetdagen zijn definitief'
+          : 'de attributie loopt nog na; deze cijfers kunnen nog bewegen')),
+    strPaar('Verdict', d.verdict
+      ? (STR_VERDICT[d.verdict] || d.verdict)
+        + (d.verdict_actie ? ' · ' + d.verdict_actie : '')
+        + (d.verdict_reden ? ' — ' + d.verdict_reden : '')
+      : null)
+  ]));
+}
+
+/* ── 6. Learning en vervolg ──────────────────────────────────────────────── */
+
+function strDosF(d) {
+  var l = d.learnings || [];
+  var eigen = d.learning_kern || d.learning_behouden || d.learning_veranderen
+           || d.iteratie_voorstel || d.vervolgtests || d.next_step;
+
+  var h = eigen
+    ? strLijst([
+        strPaar('Belangrijkste learning', d.learning_kern),
+        strPaar('Wat behouden moet blijven', d.learning_behouden),
+        strPaar('Wat veranderd moet worden', d.learning_veranderen),
+        strPaar('Aanbevolen iteratie', d.iteratie_voorstel),
+        strPaar('Mogelijke vervolgtests', d.vervolgtests),
+        strPaar('Vervolgstap', d.next_step),
+        /* Een learning die nog niet getekend is, is een voorstel. Dat verschil
+           staat er in woorden: een agent mag voorstellen, een mens bevestigt. */
+        strPaar('Menselijke bevestiging', d.learning_bevestigd
+          ? 'bevestigd door ' + (d.learning_bevestigd_door || 'een teamlid')
+            + ' op ' + (strDatum(d.learning_bevestigd_op) || 'onbekende datum')
+          : (d.learning_kern
+              ? 'nog niet bevestigd — dit is een voorstel'
+              + (d.learning_door_agent ? ' van ' + d.learning_door_agent : '')
+              : null))
+      ])
+    : '<p class="str-sec-leeg">Er is nog geen learning vastgelegd voor deze creative. '
+      + 'Dat kan pas zinvol als er gemeten is — een conclusie zonder meting is een mening.</p>';
+
+  /* De learning op de hoek staat eronder en niet erin: die gaat over alle
+     advertenties op deze hoek samen, en dat is een andere uitspraak dan wat
+     déze test opleverde. */
+  h += '<div class="str-sub">Wat we op deze hoek al weten</div>'
+    + (l.length
+      ? l.map(function (x) {
+          return '<div class="str-learning"><strong>' + strEsc(x.hoek) + ' bij ' + strEsc(x.persona)
+            + '</strong><br>' + x.advertenties + ' advertenties, € '
+            + Number(x.spend || 0).toLocaleString('nl-NL', { maximumFractionDigits: 0 })
+            + ', ROAS ' + (x.roas == null ? '—' : Number(x.roas).toFixed(2))
+            + (x.winnaars != null ? ', ' + x.winnaars + ' winnaar(s)' : '')
+            + '<br><small>' + (x.betrouwbaar
+                ? 'Betrouwbaar: genoeg advertenties en budget om iets te mogen zeggen.'
+                : 'Nog niet betrouwbaar — onder drie advertenties of onder €300 blijft dit een aanname.')
+            + '</small></div>';
+        }).join('')
+      : '<p class="str-sec-leeg">Er is nog niets geleerd op deze hoek. Dat komt pas als een '
+        + 'batch is afgerond.</p>');
+
+  return strSec('6 · Learning en vervolg', h);
 }
