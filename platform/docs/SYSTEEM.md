@@ -447,14 +447,17 @@ creatives. Het wacht op het oordeel van de Criticus.
 
 **Bekende fouten, gevonden bij de eerste echte run vandaag:**
 
-3. **`date_preset: last_4d` bestaat niet bij Meta.** De code maakt van "vier
-   dagen terug" een waarde die Meta niet kent (alleen 3, 7, 14, 28, 30, 90 zijn
-   toegestaan). Beide accounts werden daardoor geweigerd. Het is geen
-   rechtenprobleem — de foutmelding zegt alleen ten onrechte "Meta weigerde
-   account", wat je het verkeerde bos in stuurt.
-4. **Atlas kent het databaseschema niet** en gokt kolomnamen. Twee van zijn
-   twaalf tool-rondes gingen daaraan op.
-5. **De post wordt niet bezorgd** (zie hoofdstuk 4).
+3. ~~`date_preset: last_4d` bestaat niet bij Meta~~ — **opgelost**, wacht op een
+   worker-deploy. De aanroep gebruikt nu `time_range` met een expliciete begin-
+   en einddatum: exact het gevraagde venster, voor elk aantal dagen. Afronden
+   naar zeven zou betekenen dat Atlas om vier dagen vraagt en er zeven meet.
+4. ~~De melding zei "Meta weigerde account"~~ — **opgelost**. Dat las als een
+   rechtenprobleem en stuurde je naar Business Settings voor iets wat in onze
+   eigen code stond. De melding citeert nu wat Meta terugstuurde.
+5. ~~Atlas gokt kolomnamen~~ — **opgelost**. Bij een onbekende kolom krijgt hij
+   nu de echte kolomnamen van die tabel terug in plaats van nog een keer te
+   moeten raden.
+6. **De post wordt niet bezorgd** (zie hoofdstuk 4). Nog open.
 
 **Nog niet gebouwd:**
 

@@ -51,6 +51,7 @@ function triggerVoorlopig(rij) {
   return rij;
 }
 
+const metaAanroepen = [];
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   const methode = opts.method || 'GET';
@@ -127,6 +128,19 @@ globalThis.fetch = async (url, opts = {}) => {
   }
 
   if (url.includes('graph.facebook.com')) {
+    metaAanroepen.push(new URL(url));
+    /* Meta accepteert maar zes date_preset-waarden, en 'last_4d' hoort daar
+       niet bij. Op 4 augustus vroeg Atlas vier dagen (de attributiestaart loopt
+       na) en werden beide accounts afgewezen. De nep-Meta hier gaf altijd
+       netjes antwoord en merkte dus niets -- vandaar dat hij nu weigert wat de
+       echte ook weigert. */
+    const preset = new URL(url).searchParams.get('date_preset');
+    if (preset && !['today','yesterday','this_month','last_month','this_quarter','maximum',
+                    'data_maximum','last_3d','last_7d','last_14d','last_28d','last_30d',
+                    'last_90d','last_week_mon_sun','last_week_sun_sat','last_quarter',
+                    'last_year','this_week_mon_today','this_week_sun_today','this_year'].includes(preset)) {
+      return ok({ error: { message: `(#100) For field 'insights': date_preset must be one of the following values: ...` } });
+    }
     return ok({ data: [{ date_start: '2026-07-28', spend: '412.50', impressions: '88000', clicks: '1400', actions: [{ action_type: 'purchase', value: '31' }], action_values: [{ action_type: 'purchase', value: '1655.20' }] }] });
   }
   throw new Error('onverwachte fetch in test: ' + url);
@@ -196,6 +210,21 @@ check('team_members staat niet op de leeslijst', !!geweigerd.error, true);
 check('en de weigering noemt de tabellen die wél mogen',
   geweigerd.toegestaan.includes('meting_dekking'), true);
 check('meting_dekking wel', uitkomstVan(claudeAanroepen[1], 't1').aantal, 4);
+/* ── Het venster dat aan Meta gevraagd wordt ────────────────────────────── */
+console.log('\n  het venster naar Meta');
+const meta = metaAanroepen[0];
+check('er is een aanroep naar Meta gedaan', !!meta, true);
+// De kern: geen date_preset meer, want daar bestaan maar zes waarden van en
+// "vier dagen" is er geen van. Afronden naar zeven zou betekenen dat Atlas om
+// vier dagen vraagt en er zeven meet, zonder dat iemand dat ziet.
+check('er wordt geen date_preset meegestuurd', meta.searchParams.get('date_preset'), null);
+const venster = JSON.parse(meta.searchParams.get('time_range') || '{}');
+check('maar een expliciet venster met begin en eind',
+  [typeof venster.since, typeof venster.until], ['string', 'string']);
+const dagen = Math.round((Date.parse(venster.until) - Date.parse(venster.since)) / 86400000) + 1;
+check('en dat venster is precies zo lang als gevraagd (4 dagen)', dagen, 4);
+check('einddatum is vandaag', venster.until, new Date().toISOString().slice(0, 10));
+
 const tools = claudeAanroepen[0].tools.map(t => t.name).sort();
 check('Atlas houdt zijn eigen toolset', tools, ['db_query', 'meta_insights', 'meta_publiek', 'request_approval', 'send_message', 'write_report']);
 

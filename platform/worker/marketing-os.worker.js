@@ -358,8 +358,28 @@ const TOOLS = {
       if (input.filter) q.push(input.filter);
       if (input.order) q.push('order=' + encodeURIComponent(input.order));
       q.push('limit=' + Math.min(Number(input.limit) || 50, 200));
-      const rows = isHq ? await sbSelect(env, t, q.join('&')) : await sbPublic(env, t, q.join('&'));
-      return { rows: rows, aantal: rows.length };
+      /* Een onbekende kolom is de meest gemaakte fout van een agent: hij kent
+         het schema niet en gokt (meta_insights_daily.date bestaat niet, het is
+         insight_date). Postgres zegt precies wélke kolom niet bestaat maar niet
+         welke er wél zijn — dus dan gokt hij nog een keer, en gaan er twee van
+         zijn twaalf tool-rondes op aan raden. Eén lege rij ophalen kost niets
+         en levert de echte kolomnamen. */
+      try {
+        const rows = isHq ? await sbSelect(env, t, q.join('&')) : await sbPublic(env, t, q.join('&'));
+        return { rows: rows, aantal: rows.length };
+      } catch (e) {
+        const fout = String(e && e.message || e);
+        if (!/does not exist|42703/.test(fout)) throw e;
+        let kolommen = null;
+        try {
+          const proef = isHq ? await sbSelect(env, t, 'select=*&limit=1')
+                             : await sbPublic(env, t, 'select=*&limit=1');
+          if (proef && proef[0]) kolommen = Object.keys(proef[0]);
+        } catch (e2) { /* dan zonder lijst; de fout zelf is al bruikbaar */ }
+        return kolommen
+          ? { error: fout, kolommen_in_deze_tabel: kolommen }
+          : { error: fout };
+      }
     }
   },
 
@@ -396,8 +416,14 @@ const TOOLS = {
         try {
           rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day, acc.account_id);
         } catch (e) {
-          gaten.push({ account_id: acc.account_id, naam: acc.naam, reden: String(e && e.message || e) });
-          await logEvent(env, ctx, 'warn', `Meta weigerde account ${acc.naam}`, { fout: String(e) });
+          const reden = String(e && e.message || e);
+          gaten.push({ account_id: acc.account_id, naam: acc.naam, reden: reden });
+          /* Niet "weigerde account": dat leest als een rechtenprobleem, en dan
+             ga je bij Meta naar Business Settings zoeken naar iets wat hier
+             gebeurde. Wat Meta terugstuurde staat in de melding zelf; de
+             samenvatting hoort ernaar te verwijzen, niet erover te oordelen. */
+          await logEvent(env, ctx, 'warn',
+            `Meta gaf geen cijfers voor ${acc.naam}: ${reden.slice(0, 160)}`, { fout: reden });
           continue;
         }
         if (rows.length) {
@@ -830,6 +856,29 @@ async function accountVoorMerk(env, merk) {
   return rijen[0].account_id;
 }
 
+/* Meta accepteert maar een handvol date_preset-waarden: last_3d, last_7d,
+   last_14d, last_28d, last_30d, last_90d. "last_4d" bestaat niet, en dat is
+   precies wat er uit 'last_' + days + 'd' rolde toen Atlas vier dagen vroeg —
+   de attributiestaart loopt na, dus vier dagen is een normale vraag. Meta wees
+   beide accounts af met een lijst toegestane waarden, en de melding daarboven
+   maakte er "Meta weigerde account" van: dat leest als een rechtenprobleem en
+   stuurt je naar Business Settings terwijl de fout hier stond.
+
+   Afronden naar de dichtstbijzijnde toegestane waarde is geen oplossing: dan
+   vraagt Atlas vier dagen en meet hij er zeven, zonder dat iemand dat ziet.
+   time_range met een expliciete begin- en einddatum geeft exact het venster
+   dat gevraagd is, voor elk aantal dagen.
+
+   Vandaag telt mee (Meta rekent inclusief), dus het venster loopt van
+   days-1 dagen geleden tot en met vandaag — bij days=4 zijn dat vier dagen. */
+function metaVenster(days) {
+  var n = Math.max(1, Math.min(Number(days) || 7, 365));
+  var eind = new Date();
+  var start = new Date(eind.getTime() - (n - 1) * 86400000);
+  var dag = function (d) { return d.toISOString().slice(0, 10); };
+  return JSON.stringify({ since: dag(start), until: dag(eind) });
+}
+
 async function metaInsights(env, level, days, perDag, accountId) {
   const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
@@ -842,7 +891,7 @@ async function metaInsights(env, level, days, perDag, accountId) {
     access_token: env.META_ACCESS_TOKEN,
     level: level,
     fields: velden.join(','),
-    date_preset: 'last_' + days + 'd',
+    time_range: metaVenster(days),
     limit: '200'
   });
   if (perDag) p.set('time_increment', '1');
@@ -1245,7 +1294,7 @@ async function metaPubliek(env, days, accountId) {
     level: 'account',
     fields: 'spend,impressions,reach',
     breakdowns: 'user_segment_key',
-    date_preset: 'last_' + days + 'd',
+    time_range: metaVenster(days),
     limit: '50'
   });
   const r = await fetch(`${META_API}/act_${account}/insights?${p}`);
