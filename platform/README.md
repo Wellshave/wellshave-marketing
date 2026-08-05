@@ -39,6 +39,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/migrations/0025_dossier.sql` | Het dossier per station — stap 5 van het Werkbank-raamwerk |
 | `db/migrations/0029_blokkade.sql` | Wat een werkstuk tegenhoudt, zichtbaar in de werkbank |
+| `db/migrations/0030_testklaar.sql` | Een variant testklaar maken: statussen, naamconventie, testkaart |
 | `db/migrations/0026_criticus.sql` | De Criticus — stap 6, de grendel tussen creatie en lancering |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
 | `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
@@ -302,6 +303,7 @@ bash platform/db/test/criticus.sh              # de grendel tussen creatie en la
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
 bash platform/db/test/blokkade.sh              # wat een werkstuk tegenhoudt — 32 controles
+bash platform/db/test/testklaar.sh             # een variant testklaar maken — 30 controles
 node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
