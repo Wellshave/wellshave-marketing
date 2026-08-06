@@ -141,7 +141,26 @@ globalThis.fetch = async (url, opts = {}) => {
                     'last_year','this_week_mon_today','this_week_sun_today','this_year'].includes(preset)) {
       return ok({ error: { message: `(#100) For field 'insights': date_preset must be one of the following values: ...` } });
     }
-    return ok({ data: [{ date_start: '2026-07-28', spend: '412.50', impressions: '88000', clicks: '1400', actions: [{ action_type: 'purchase', value: '31' }], action_values: [{ action_type: 'purchase', value: '1655.20' }] }] });
+    /* Dezelfde nalatigheid zat in de veldenlijst: de nep-Meta slikte elke naam,
+       dus ook video_3_sec_watched_actions, dat uit de Graph API verdwenen is.
+       De echte weigert het hele verzoek om één onbekend veld — niet alleen dat
+       veld — en daarom bleef meta_insights_daily tien dagen leeg terwijl de
+       date_preset-fout allang was opgelost in de broncode. Een nep-Meta die
+       alles goedkeurt kan dat soort fouten per definitie niet vinden. */
+    const bekend = new Set(['spend', 'impressions', 'reach', 'frequency', 'clicks',
+      'inline_link_clicks', 'ctr', 'cpc', 'cpm', 'actions', 'action_values',
+      'purchase_roas', 'quality_ranking', 'engagement_rate_ranking',
+      'conversion_rate_ranking', 'video_play_actions', 'video_thruplay_watched_actions',
+      'campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name']);
+    const gevraagd = (new URL(url).searchParams.get('fields') || '').split(',').filter(Boolean);
+    const onbekend = gevraagd.filter(v => !bekend.has(v));
+    if (onbekend.length) {
+      return ok({ error: { message: `(#100) Tried accessing nonexisting field (${onbekend[0]}) on node type 'AdsInsights'` } });
+    }
+    return ok({ data: [{ date_start: '2026-07-28', spend: '412.50', impressions: '88000', clicks: '1400',
+      actions: [{ action_type: 'purchase', value: '31' }], action_values: [{ action_type: 'purchase', value: '1655.20' }],
+      video_play_actions: [{ action_type: 'video_view', value: '22000' }],
+      video_thruplay_watched_actions: [{ action_type: 'video_view', value: '5500' }] }] });
   }
   throw new Error('onverwachte fetch in test: ' + url);
 };
@@ -224,6 +243,23 @@ check('maar een expliciet venster met begin en eind',
 const dagen = Math.round((Date.parse(venster.until) - Date.parse(venster.since)) / 86400000) + 1;
 check('en dat venster is precies zo lang als gevraagd (4 dagen)', dagen, 4);
 check('einddatum is vandaag', venster.until, new Date().toISOString().slice(0, 10));
+
+/* ── De velden die aan Meta gevraagd worden ─────────────────────────────── */
+console.log('\n  de velden naar Meta');
+const gevraagdeVelden = (meta.searchParams.get('fields') || '').split(',');
+check('video_3_sec_watched_actions wordt niet meer gevraagd',
+  gevraagdeVelden.includes('video_3_sec_watched_actions'), false);
+check('video_play_actions wel', gevraagdeVelden.includes('video_play_actions'), true);
+/* Het bewijs dat het niet bij vragen blijft: Meta gaf antwoord en de cijfers
+   staan in de rij die weggeschreven wordt. Zonder deze twee is hook rate
+   (starts gedeeld door vertoningen) en hold rate (thruplay gedeeld door
+   starts) niet te berekenen, en dat zijn precies de twee getallen waarop een
+   video-creative beoordeeld wordt. */
+const metaUitkomst = uitkomstVan(claudeAanroepen[2], 't2');
+check('Meta weigerde het verzoek niet', metaUitkomst.error, undefined);
+const rij = metaUitkomst.accounts && metaUitkomst.per_account[0].rijen[0];
+check('het aantal videostarts is bewaard', rij && rij.video_3s, 22000);
+check('en de thruplays ook, die kolom bleef tot nu toe leeg', rij && rij.video_thruplay, 5500);
 
 const tools = claudeAanroepen[0].tools.map(t => t.name).sort();
 check('Atlas houdt zijn eigen toolset', tools, ['db_query', 'meta_insights', 'meta_publiek', 'request_approval', 'send_message', 'write_report']);

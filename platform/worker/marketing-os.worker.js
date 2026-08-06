@@ -884,7 +884,18 @@ async function metaInsights(env, level, days, perDag, accountId) {
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
     'ctr', 'cpc', 'cpm', 'actions', 'action_values', 'purchase_roas',
     'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
-    'video_3_sec_watched_actions'];
+    /* Niet video_3_sec_watched_actions: dat veld is uit de Graph API
+       verwijderd en wij praten met v21.0. Meta keurt een verzoek per veld,
+       niet per verzoek — één onbekende naam laat de hele call stuklopen, ook
+       bij een venster dat wél klopt. Dat is de reden dat meta_insights_daily
+       tien dagen leeg bleef terwijl de accounts gewoon geld uitgaven, en het
+       is ook waarom alleen de time_range-correctie uitrollen niets had
+       opgelost: dan blijft deze fout over en lijkt de deploy mislukt.
+
+       video_play_actions telt hoe vaak de video start (zonder herhalingen) en
+       is wat Meta zelf in de plaats stelde. De verhouding blijft dus dezelfde:
+       gestart gedeeld door vertoond is de hook rate. */
+    'video_play_actions', 'video_thruplay_watched_actions'];
   if (level !== 'account') velden.push(level + '_id', level + '_name');
 
   const p = new URLSearchParams({
@@ -935,7 +946,12 @@ async function metaInsights(env, level, days, perDag, accountId) {
          onbruikbaar. Bij één campagne stonden er 37 tegenover 477. */
       view_content: metaActie(acties, 'view_content') || metaActie(acties, 'omni_view_content'),
       add_payment_info: metaActie(acties, 'add_payment_info') || metaActie(acties, 'omni_add_payment_info'),
-      video_3s: metaActie(row.video_3_sec_watched_actions, 'video_view'),
+      video_3s: metaActie(row.video_play_actions, 'video_view'),
+      /* video_thruplay stond sinds 0005 in het schema en werd nooit gevuld.
+         Daardoor was hold_rate (thruplay gedeeld door starts) altijd leeg —
+         niet omdat er geen video draaide, maar omdat de helft van de breuk
+         nooit werd opgehaald. */
+      video_thruplay: metaActie(row.video_thruplay_watched_actions, 'video_view'),
       quality_ranking: row.quality_ranking || null,
       engagement_rate_ranking: row.engagement_rate_ranking || null,
       conversion_rate_ranking: row.conversion_rate_ranking || null,
