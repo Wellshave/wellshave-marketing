@@ -150,6 +150,16 @@ const DOSSIER = Object.assign({}, RIJEN[0], {
     roas: 2.1, winnaars: 1, betrouwbaar: true }],
 });
 
+/* Het dossier van een creative van vóór de testflow: geen denkstuk, geen
+   interview, geen hypothese. Precies de zeven die op productie staan. */
+const DOSSIER_OUD = Object.assign({}, RIJEN[3], {
+  werkstuk: 'Oud werkstuk', mens_ingeving: null, rory_interview: null,
+  rory_reasoning: null, theriot_reasoning: null, bronnen: [],
+  denkstuk_regels: null, stappen: null, overdrachten: null, oordelen: null,
+  discussies: null, publicatie: null, meting: null, learnings: null, tijdlijn: null,
+  learning_kern: null, next_step: null,
+});
+
 const DOSSIER_LEEG = Object.assign({}, RIJEN[1], {
   werkstuk: 'Groom Guard bij twijfelende Mark',
   denkstuk_regels: null, stappen: null, overdrachten: null, oordelen: null,
@@ -356,77 +366,111 @@ const check = (label, echt, verwacht) => {
   check('geen resultaat zegt dat dat een uitkomst is',
     /Dat is een uitkomst, geen fout/.test(geenFilter || ''), true);
 
-  console.log('\n  het dossier: zes secties, ook de lege (regel 0.4)');
+  console.log('\n  het dossier opent met het antwoord, niet met de brondata');
   await nep(RIJEN, DOSSIER);
   const dos = await page.evaluate(async () => {
     document.querySelectorAll('#str-mount .str-rij')[0].click();
     await new Promise(r => setTimeout(r, 300));
     const o = document.getElementById('str-dos');
+    const zichtbaar = el => el && el.getClientRects().length > 0;
     return {
-      secties: [...o.querySelectorAll('.str-sec h3')].map(e => e.textContent.trim()),
       titel: o.querySelector('.str-dos-kop strong').textContent.trim(),
-      paren: [...o.querySelectorAll('.str-paar dt')].map(e => e.textContent.trim()),
-      leegParen: [...o.querySelectorAll('.str-paar--leeg dd')].map(e => e.textContent.trim()),
-      aannames: o.querySelectorAll('.str-zeker--aanname').length,
-      mini: [...o.querySelectorAll('.str-mini tbody tr')].length,
-      tijdlijn: [...o.querySelectorAll('.str-tl')].map(e => e.textContent.trim()),
-      tijdlijnDoor: [...o.querySelectorAll('.str-tl-door')].map(e => e.textContent.trim()),
+      oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
+      waarom: (o.querySelector('.str-oordeel-waarom') || {}).textContent,
+      actie: (o.querySelector('.str-actie-knop') || {}).textContent,
+      hoe: (o.querySelector('.str-actie-hoe') || {}).textContent,
+      chips: [...o.querySelectorAll('.str-chip')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),
+      groepen: [...o.querySelectorAll('.str-groep')].map(g => ({
+        titel: g.querySelector('.str-groep-titel').textContent.trim(),
+        samenvatting: g.querySelector('.str-groep-samenvatting').textContent.trim(),
+        open: g.hasAttribute('open'),
+        waarschuwing: (g.querySelector('.str-waarschuwing') || {}).textContent || null,
+      })),
+      // Wat je ziet zónder iets open te klappen.
+      zichtbaarTekst: [...o.querySelectorAll('.str-besluit, .str-samenvatting, .str-groep-kop')]
+        .map(e => e.textContent.replace(/\s+/g, ' ').trim()).join(' '),
+      veldenZichtbaar: [...o.querySelectorAll('.str-paar')].filter(zichtbaar).length,
       alles: o.textContent.replace(/\s+/g, ' ').trim(),
     };
   });
-  check('zes secties, A tot en met F', dos.secties.length, 6);
-  check('en ze zeggen waar ze over gaan', dos.secties,
-    ['1 · Testsamenvatting', '2 · Creative', '3 · Strategische herkomst',
-     '4 · Werkstuk en samenwerking', '5 · Publicatie en performance',
-     '6 · Learning en vervolg']);
   check('de kop noemt de advertentie', dos.titel, 'WS-GG-MARK-BEWIJS-001');
-  check('1 toont de hypothese', /Bewijs verlaagt de drempel/.test(dos.alles), true);
-  check('en de testvariabele', dos.paren.indexOf('Testvariabele') > -1, true);
-  check('en of sophistication bevestigd is', /Mechanisme \(bevestigd\)/.test(dos.alles), true);
-  check('1 zegt ook wat de test moet uitwijzen',
-    /Of bewijs in beeld de CTR verhoogt/.test(dos.alles), true);
-  check('2 noemt de plaatsing en de productreferenties',
-    /feed/.test(dos.alles) && /groomguard-front\.jpg/.test(dos.alles), true);
-  check('3 toont het denkstuk vraag voor vraag', dos.mini >= 4, true);
-  check('3 toont de ingeving waar het mee begon',
-    /Viel me op in de reviews/.test(dos.alles), true);
-  check('en de kernpijn, het kernbezwaar en de echte vijand uit het interview',
-    /angst voor sneetjes/.test(dos.alles) && /weer een abonnement/.test(dos.alles)
-      && /de wegwerpmesjes/.test(dos.alles), true);
-  check('met de onderbouwingsstatus in woorden',
-    /1 onderbouwd, 1 aanname, 1 open gelaten/.test(dos.alles), true);
-  check('en de gebruikte bronnen', /review-export mei/.test(dos.alles), true);
-  // Een aanname mag er niet uitzien als een meting: anders lees je een gok als
-  // feit en bouw je de volgende test op zand.
-  check('een aanname is te onderscheiden van een meting', dos.aannames, 1);
-  check('een onbeantwoorde vraag zegt dat met een woord', /onbeantwoord/.test(dos.alles), true);
-  check('4 noemt het oordeel van de Criticus', /twijfel/.test(dos.alles), true);
-  // De tijdlijn is de enige plek waar "wie besloot dit" in één keer te lezen
-  // is. Mens en agent moeten er met een woord bij staan, niet met een kleur.
-  check('4 zet mens en agent in één tijdlijn', dos.tijdlijn.length, 2);
+
+  // Het oordeel is een zin die een mens leest, geen statuscode. 'Live' zegt
+  // niets over wat je nu moet doen; "heeft genoeg data voor een verdict" wel.
+  check('bovenaan staat een oordeel in mensentaal',
+    dos.oordeel, 'Deze test heeft genoeg data voor een verdict');
+  check('met de reden erbij, in twee zinnen',
+    /6 dagen live, € 312,4, 41\.022 vertoningen\. Daarmee is de drempel gehaald/.test(dos.waarom || ''),
+    true);
+  check('en één primaire actie', dos.actie, 'Verdict beoordelen');
+  check('met wat de agents voorstellen', /blijf testen/.test(dos.hoe || ''), true);
+
+  // Tien seconden: dat kan alleen als er niet eerst een veldlijst staat.
+  check('geen enkele veldregel staat standaard open', dos.veldenZichtbaar, 0);
+  check('de compacte samenvatting staat er wel, als chips', dos.chips.length >= 6, true);
+  check('en noemt product, persona en angle',
+    dos.chips.map(c => c.replace(/^(Product|Persona|Angle|Format|Status|Werkstuk|Wie)/, '$1: '))
+      .filter(c => /^(Product|Persona|Angle):/.test(c)),
+    ['Product: Groom Guard', 'Persona: Mark', 'Angle: Sociaal bewijs']);
+
+  console.log('\n  progressive disclosure: vijf groepen, allemaal dicht');
+  check('vijf inklapbare groepen', dos.groepen.length, 5);
+  check('en ze heten waar ze over gaan', dos.groepen.map(g => g.titel),
+    ['Creative', 'Strategie', 'Samenwerking', 'Publicatie en performance', 'Learning en vervolg']);
+  check('alle vijf staan standaard dicht', dos.groepen.filter(g => g.open).length, 0);
+  // Inklappen mag alleen als de kop zegt of er iets te halen valt.
+  check('elke kop draagt een samenvatting',
+    dos.groepen.every(g => g.samenvatting.length > 3), true);
+  check('de learninggroep zegt dat hij op bevestiging wacht',
+    dos.groepen[4].waarschuwing, 'wacht op bevestiging');
+
+  console.log('\n  de volledige onderbouwing blijft bereikbaar');
+  const open = await page.evaluate(async () => {
+    document.querySelectorAll('#str-dos .str-groep').forEach(g => g.setAttribute('open', ''));
+    await new Promise(r => setTimeout(r, 150));
+    const o = document.getElementById('str-dos');
+    return {
+      velden: [...o.querySelectorAll('.str-paar')].length,
+      alles: o.textContent.replace(/\s+/g, ' ').trim(),
+      mini: o.querySelectorAll('.str-mini tbody tr').length,
+      aannames: o.querySelectorAll('.str-zeker--aanname').length,
+      tijdlijn: [...o.querySelectorAll('.str-tl')].length,
+      tijdlijnDoor: [...o.querySelectorAll('.str-tl-door')].map(e => e.textContent.trim()),
+      tijdlijnWat: [...o.querySelectorAll('.str-tl-wat')].map(e => e.textContent.trim()),
+    };
+  });
+  check('opengeklapt staan alle velden er weer', open.velden > 20, true);
+  check('de hypothese', /Bewijs verlaagt de drempel/.test(open.alles), true);
+  check('het interview', /angst voor sneetjes/.test(open.alles)
+    && /weer een abonnement/.test(open.alles) && /de wegwerpmesjes/.test(open.alles), true);
+  check('de ingeving waar het mee begon', /Viel me op in de reviews/.test(open.alles), true);
+  check('het denkstuk vraag voor vraag', open.mini >= 4, true);
+  check('een aanname blijft te onderscheiden van een meting', open.aannames, 1);
+  check('de onderbouwingsstatus', /1 onderbouwd, 1 aanname, 1 open gelaten/.test(open.alles), true);
+  check('de bronnen', /review-export mei/.test(open.alles), true);
+  check('het oordeel van de Criticus', /twijfel/.test(open.alles), true);
+  check('de meting', /41022|41\.022/.test(open.alles), true);
+  check('en de learning', /Bewijs in beeld verlaagt de drempel/.test(open.alles), true);
+
+  console.log('\n  de tijdlijn is te scannen en spreekt geen databasetaal');
+  check('twee gebeurtenissen', open.tijdlijn, 2);
   check('met bij elke regel of het een mens of een agent was',
-    dos.tijdlijnDoor, ['mens', 'agent']);
-  check('4 noemt het werkstuk en het denkstuk',
-    /#11/.test(dos.alles) && /#4/.test(dos.alles), true);
-  check('en de overdracht met wat er te controleren valt',
-    /Dat het beeld op mobiel leesbaar blijft/.test(dos.alles), true);
-  check('post die nooit is opgehaald staat er ook', /nooit opgehaald/.test(dos.alles), true);
-  check('5 toont wat gemeten is', /41022|41\.022/.test(dos.alles), true);
-  check('en waarom iets wel of niet beoordeelbaar is',
-    /genoeg dagen, budget en vertoningen/.test(dos.alles), true);
-  check('en dat de attributie nog naloopt', /de attributie loopt nog na/.test(dos.alles), true);
-  check('5 vertaalt het verdict naar gewone taal', /blijf testen/.test(dos.alles), true);
-  check('6 toont de learning van deze test',
-    /Bewijs in beeld verlaagt de drempel/.test(dos.alles), true);
-  // Een learning die niemand getekend heeft is een voorstel. Zonder dit
-  // onderscheid landt een gok als vastgesteld feit in de analyse.
-  check('en dat hij nog een voorstel is', /nog niet bevestigd — dit is een voorstel/.test(dos.alles), true);
-  check('6 toont wat behouden en wat veranderd moet worden',
-    /Het getal in de kop/.test(dos.alles) && /De kleur van de knop/.test(dos.alles), true);
-  check('6 toont de learning op de hoek apart',
-    /Betrouwbaar: genoeg advertenties en budget/.test(dos.alles), true);
-  check('een niet ingevuld veld zegt dat in woorden',
-    dos.leegParen.every(t => t === 'niet vastgelegd'), true);
+    open.tijdlijnDoor, ['mens', 'agent']);
+  // "2 → 3" is geen zin. Zonder deze vertaling moet je de werkbank uit je hoofd
+  // kennen om je eigen tijdlijn te lezen.
+  check('een overdracht staat er als zin', open.tijdlijnWat.join(' | '),
+    'Klaargezet voor test | Oordeel van De Criticus: twijfel');
+  const stations = await page.evaluate(() => [
+    strWat({ wat: '2 → 3' }), strWat({ wat: '3 → 4' }), strWat({ wat: '5 → ?' })]);
+  check('en de stations bij naam', stations, [
+    'Briefing droeg over aan Creatie',
+    'Creatie droeg over aan Live',
+    'Meting droeg over, maar niet aan wie']);
+
+  console.log('\n  nergens een ruw object of een databasewaarde');
+  check('geen [object Object]', /\[object Object\]/.test(open.alles), false);
+  check('geen undefined of null in beeld',
+    /\bundefined\b|\bNaN\b/.test(open.alles), false);
 
   const leegDos = await page.evaluate(async () => {
     strDossierSluit();
@@ -435,29 +479,69 @@ const check = (label, echt, verwacht) => {
   });
   check('het dossier sluit weer', leegDos, true);
 
+  console.log('\n  een test die nog niet beoordeelbaar is');
   await nep(RIJEN, DOSSIER_LEEG);
   const leeg = await page.evaluate(async () => {
     document.querySelectorAll('#str-mount .str-rij')[1].click();
     await new Promise(r => setTimeout(r, 300));
     const o = document.getElementById('str-dos');
-    return { secties: o.querySelectorAll('.str-sec').length,
-             uitleg: [...o.querySelectorAll('.str-sec-leeg')].map(e => e.textContent.trim()),
-             alles: o.textContent.replace(/\s+/g, ' ').trim() };
+    return {
+      oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
+      actie: o.querySelector('.str-actie-knop'),
+      hoe: (o.querySelector('.str-actie-hoe') || {}).textContent,
+      legacy: (o.querySelector('.str-legacy') || {}).textContent,
+      groepen: [...o.querySelectorAll('.str-groep')].map(g => ({
+        titel: g.querySelector('.str-groep-titel').textContent.trim(),
+        samenvatting: g.querySelector('.str-groep-samenvatting').textContent.trim(),
+      })),
+      groepenWaarschuwing: [...o.querySelectorAll('.str-groep')].map(g =>
+        (g.querySelector('.str-waarschuwing') || {}).textContent || null),
+      // Hoe vaak staat "niet vastgelegd" op het scherm, ook opengeklapt?
+      nietVastgelegd: (o.textContent.match(/niet vastgelegd/g) || []).length,
+      alles: o.textContent.replace(/\s+/g, ' ').trim(),
+    };
   });
-  check('een test zonder meting toont nog steeds zes secties', leeg.secties, 6);
-  check('sectie 5 toont wat er wél gemeten is', /820/.test(leeg.alles), true);
-  check('een test die nog niet lang genoeg draait zegt waarom hij dat niet is',
-    /onder de drempel van vier dagen, vijftig euro en duizend vertoningen/.test(leeg.alles), true);
-  check('en waarom er nog geen learning is',
-    /een conclusie zonder meting is een mening/.test(leeg.alles), true);
-  check('en waarom er niets op de hoek staat',
-    /Er is nog niets geleerd op deze hoek/.test(leeg.alles), true);
-  check('en dat de agents er niets over schreven',
-    /niets over aan elkaar geschreven/.test(leeg.alles), true);
-  check('en dat de Criticus nog niets vond',
-    /De Criticus heeft hier nog geen oordeel/.test(leeg.alles), true);
-  check('nergens een leeg vlak zonder reden',
-    leeg.uitleg.every(t => t.length > 12), true);
+  check('het oordeel zegt dat hij wacht op data',
+    leeg.oordeel, 'Deze creative wacht op De Criticus');
+  check('vijf groepen, ook hier', leeg.groepen.length, 5);
+  // Als er niets te doen is, hoort dat er te staan in plaats van een lege plek.
+  // Deze draait twee dagen: er is wél gemeten, maar niet genoeg. De kop zegt
+  // wat er staat, het waarschuwingslabel zegt dat het nog niet telt.
+  check('de performancegroep vat de meting samen in de kop',
+    leeg.groepen[3].samenvatting, '2 dagen live, € 61,2, 820 vertoningen');
+  check('met een waarschuwing dat het nog niet genoeg is',
+    leeg.groepenWaarschuwing[3], 'nog onvoldoende data');
+  check('en de learninggroep zegt dat er niets is', leeg.groepen[4].samenvatting, 'Nog geen learning');
+
+  console.log('\n  legacy: één melding in plaats van twintig lege velden');
+  await nep(RIJEN, DOSSIER_OUD);
+  const oud = await page.evaluate(async () => {
+    document.querySelectorAll('#str-mount .str-rij')[4].click();
+    await new Promise(r => setTimeout(r, 300));
+    const o = document.getElementById('str-dos');
+    document.querySelectorAll('#str-dos .str-groep').forEach(g => g.setAttribute('open', ''));
+    await new Promise(r => setTimeout(r, 150));
+    return {
+      oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
+      actie: (o.querySelector('.str-actie-knop') || {}).textContent,
+      legacy: (o.querySelector('.str-legacy') || {}).textContent,
+      nietVastgelegd: (o.textContent.match(/niet vastgelegd/g) || []).length,
+      strategieKop: [...o.querySelectorAll('.str-groep')]
+        .map(g => g.querySelector('.str-groep-samenvatting').textContent.trim())[1],
+      alles: o.textContent.replace(/\s+/g, ' ').trim(),
+    };
+  });
+  check('een verouderde status krijgt geen verzonnen betekenis',
+    oud.oordeel, 'Oude status — deze creative moet opnieuw beoordeeld worden');
+  check('met een actie die een mens kan uitvoeren', oud.actie, 'Kies een geldige status');
+  // Twintig keer "niet vastgelegd" is geen informatie maar ruis. Eén zin die
+  // zegt waarom het ontbreekt, is bruikbaar.
+  check('één melding legt uit waarom de strategie ontbreekt',
+    /gemaakt vóór de nieuwe testflow/.test(oud.legacy || ''), true);
+  check('en niet twintig losse lege velden', oud.nietVastgelegd <= 3, true);
+  check('de strategiegroep zegt het ook in zijn kop',
+    oud.strategieKop, 'niet vastgelegd — van vóór de testflow');
+
   const leegContrast = await page.evaluate(() => {
     const lum = c => {
       const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number).map(v => {
@@ -553,7 +637,12 @@ const check = (label, echt, verwacht) => {
       tijdlijnWaarom: meet('.str-tl-waarom'),
       dossierLabel: meet('.str-paar dt'),
       dossierWaarde: meet('.str-paar dd'),
-      dossierKop: meet('.str-sec h3'),
+      dossierKop: meet('.str-groep-titel'),
+      oordeelKop: meet('.str-oordeel-kop'),
+      oordeelWaarom: meet('.str-oordeel-waarom'),
+      actieHoe: meet('.str-actie-hoe'),
+      groepSamenvatting: meet('.str-groep-samenvatting'),
+      chipLabel: meet('.str-chip-l'),
       dossierAanname: meet('.str-zeker--aanname td'),
     };
   });
