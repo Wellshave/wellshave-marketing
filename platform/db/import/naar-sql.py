@@ -158,6 +158,11 @@ def main():
         print(f'let op: dubbele advertentienaam in de bron, hernoemd naar {n!r}',
               file=sys.stderr)
 
+    if '--json' in sys.argv:
+        print(json_rijen(rijen))
+        print(f'-- {len(rijen)} rijen', file=sys.stderr)
+        return
+
     uit = []
     uit.append('-- Gegenereerd door platform/db/import/naar-sql.py.')
     uit.append('-- Niet met de hand bijwerken: pas de CSV aan en draai het script opnieuw.')
@@ -186,6 +191,40 @@ def main():
     uit.append('commit;')
     print('\n'.join(uit))
     print(f'-- {len(rijen)} rijen', file=sys.stderr)
+
+
+def json_rijen(rijen):
+    """Dezelfde vertaling, maar als JSON-rijen voor een insert via PostgREST.
+
+    Niet omdat JSON beter is, maar omdat 435 kB SQL niet door elk kanaal past.
+    De vertaling zit met opzet in dezelfde functies als de SQL-tak: twee keer
+    dezelfde regels uitschrijven is twee keer dezelfde regels onderhouden, en
+    de tweede versie is degene die stilletjes gaat afwijken.
+    """
+    import json
+
+    def leeg(v):
+        return None if v in ('null', '') else v
+
+    def num(s):
+        return None if s == 'null' else float(s)
+
+    out = []
+    for r in rijen:
+        bron_status = r['Status'].strip()
+        rij = {
+            'brand': MERK, 'bron_bestand': BRON, 'bron_rij': int(r['bron_rij']),
+            'bron_status': bron_status or None,
+            'status': STATUS[bron_status],
+            'date_live': leeg(datum(r['Date Live']).strip("'")),
+        }
+        for csvk, dbk in TEKST:
+            rij[dbk] = (r.get(csvk, '').strip() or None)
+        for csvk, dbk in GETAL:
+            g = getal(r.get(csvk), dbk in GEHEEL)
+            rij[dbk] = None if g == 'null' else (int(g) if dbk in GEHEEL else float(g))
+        out.append(rij)
+    return json.dumps(out, ensure_ascii=False)
 
 
 if __name__ == '__main__':

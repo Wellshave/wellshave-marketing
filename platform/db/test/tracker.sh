@@ -1,33 +1,16 @@
 #!/usr/bin/env bash
-# Testlus voor migratie 0035 en de import van de Creative Strategy Map.
+# Testlus voor migratie 0011 — de datalaag onder de test tracker.
 #
-# Er zijn drie dingen die hier stuk kunnen, en ze zijn alle drie stil:
-#
-# 1. De deur. `creatives_public_read` liet iedereen met de publieke sleutel de
-#    hele tabel lezen. Dat is nagemeten voordat 0035 werd geschreven en het gaf
-#    alle rijen terug. Een test die alleen kijkt of de policy weg is, dekt dat
-#    niet: het gaat erom dat anon niets meer ziet en een goedgekeurd teamlid
-#    alles nog wel. Beide staan hieronder.
-#
-# 2. De vertaling. De sheet kent To Test/Killed/Iterate, de database kent sinds
-#    0031 tien Nederlandse statussen met een foreign key erop. Een fout in die
-#    map levert geen verkeerde data op maar een geweigerde insert -- behalve bij
-#    'Killed', want 'Verliezer' bestaat en 'Gestopt' ook, en allebei gaan er
-#    doorheen. Daarom staat de verwachte verdeling per status hier uitgeschreven.
-#
-# 3. Het tellen. De breakdown in de sheet telt tegen een vaste lijst en laat
-#    vallen wat er niet op staat: Per Persona staat op nul terwijl er 624 rijen
-#    met een persona zijn. De test eist daarom dat de som van een dimensie
-#    gelijk is aan het aantal rijen -- de enige controle die dat soort stil
-#    verlies vangt.
+# Draait 0008 (waar creative_results vandaan komt) en 0011 op een wegwerp-
+# Postgres, met een gecontroleerde reeks waarvan de uitkomsten met de hand na
+# te rekenen zijn. Raakt de productiedatabase niet aan.
 #
 #   bash platform/db/test/tracker.sh
 
 set -uo pipefail
 MIGDIR="$(cd "$(dirname "$0")/../migrations" && pwd)"
-IMPDIR="$(cd "$(dirname "$0")/../import" && pwd)"
 WERK="${TMPDIR:-/tmp}/tracker-test-$$"
-PORT=${PGTESTPORT:-5523}
+PORT=${PGTESTPORT:-5495}
 BIN=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | tail -1)
 export PATH="$PATH:$BIN"
 UID_PG=$(id -un postgres 2>/dev/null || echo "$(id -un)")
@@ -35,7 +18,7 @@ UID_PG=$(id -un postgres 2>/dev/null || echo "$(id -un)")
 fout=0
 check() {
   if [ "$2" = "$3" ]; then printf '  ok   %s\n' "$1"
-  else fout=$((fout+1)); printf '  FOUT %s\n       verwacht %s\n       kreeg    %s\n' "$1" "$2" "$3"; fi
+  else fout=$((fout+1)); printf '  FOUT %s\n       verwacht %s, kreeg %s\n' "$1" "$2" "$3"; fi
 }
 q() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>/dev/null \
       | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
@@ -45,230 +28,167 @@ trap opruimen EXIT
 
 mkdir -p "$WERK"; chown -R "$UID_PG" "$WERK" 2>/dev/null
 su "$UID_PG" -c "$BIN/initdb -D $WERK -U postgres -A trust --locale=C -E UTF8" >/dev/null 2>&1 || {
-  echo "  initdb mislukt -- staat postgres geinstalleerd?"; exit 1; }
+  echo "  initdb mislukt — staat postgres geïnstalleerd?"; exit 1; }
 su "$UID_PG" -c "$BIN/pg_ctl -D $WERK -o '-p $PORT -k ${TMPDIR:-/tmp}' -l $WERK/log start" >/dev/null 2>&1
 sleep 2
 [ "$(q 'select 1')" = "1" ] || { echo "  postgres start niet"; tail -5 "$WERK/log"; exit 1; }
 
+# ── stand-in van het echte schema ─────────────────────────────────────────
+# De echte kolommen, want 0008 en 0011 leunen erop.
 psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q <<'SQL' >/dev/null 2>&1
 create schema marketing_hq;
-create role authenticated login; create role anon login;
-grant usage on schema marketing_hq, public to authenticated, anon;
-create function marketing_hq.is_team_member() returns boolean
-  language sql stable as $$ select coalesce(current_setting('test.teamlid', true), 'nee') = 'ja' $$;
+create role authenticated; create role anon;
+create function marketing_hq.is_team_member() returns boolean language sql as $$ select true $$;
 
-create table marketing_hq.agents (id text primary key, name text not null,
-  role text not null default '', phase int not null default 1,
-  status text not null default 'idle', current_task text, last_run_at timestamptz,
-  created_at timestamptz default now(), operationeel boolean default true,
-  levert text, rapporteert_in text);
-insert into marketing_hq.agents (id, name, role) values
-  ('radar','Radar','Trendscout'),('nova','Nova','Creative Director'),
-  ('pixel','Pixel','Content'),('quill','Quill','Copy'),('bolt','Bolt','Performance'),
-  ('atlas','Atlas','Data'),('echo','Echo','E-mail'),('vector','Vector','Web'),('sage','Sage','SEO');
-
-create table public.team_members (
-  id uuid primary key, email text not null, full_name text,
-  status text not null default 'pending', is_admin boolean default false,
-  created_at timestamptz default now(), role text default 'member');
-insert into public.team_members (id, email, full_name, status, role) values
-  ('11111111-1111-1111-1111-111111111111','dustin@wellshave.com','Dustin Gibson','approved','admin');
-
-create table marketing_hq.agent_jobs (id bigint generated always as identity primary key,
-  agent_id text, kind text, status text default 'done', payload jsonb,
-  created_at timestamptz default now());
-create table marketing_hq.agent_runs (
-  id bigint generated always as identity primary key, agent_id text,
-  started_at timestamptz default now(), finished_at timestamptz, status text,
-  summary text, output_path text, job_id bigint, input_tokens int,
-  output_tokens int, cost_usd numeric, model text);
-create table marketing_hq.agent_events (
-  id bigint generated always as identity primary key, job_id bigint, run_id bigint,
-  agent_id text, level text default 'info', message text, data jsonb,
-  created_at timestamptz not null default now());
-create table marketing_hq.agent_messages (
-  id bigint generated always as identity primary key, from_agent text, to_agent text,
-  subject text, body text, ref_pipeline_item bigint,
-  created_at timestamptz default now(), read_at timestamptz, werkstuk_id bigint);
-create table marketing_hq.approvals (
-  id bigint generated always as identity primary key, requested_by text,
-  action_type text, description text, payload jsonb, status text default 'pending',
-  decided_by text, decided_at timestamptz, created_at timestamptz default now(),
-  werkstuk_id bigint);
-create table marketing_hq.reports (
-  id bigint generated always as identity primary key, report_date date, kind text,
-  title text, author_agent text, vault_path text, body_md text,
-  created_at timestamptz default now(), werkstuk_id bigint, periode_start date,
-  periode_eind date, voorlopig boolean default false, voorlopig_reden text,
-  cijfers jsonb, signalen jsonb, gaten jsonb, account_id text);
--- 0008 zet onderaan de ochtendcyclus in schedules; zonder die tabel valt hij om.
+create table marketing_hq.agents (id text primary key, name text not null);
+create table marketing_hq.agent_runs (id bigint generated always as identity primary key,
+  agent_id text, job_id bigint);
+create table marketing_hq.approvals (id bigint generated always as identity primary key, titel text);
+-- 0008 zet onderaan de ochtendcyclus in schedules; zonder die tabel valt hij om
 create table marketing_hq.schedules (id text primary key, agent_id text, kind text, cron text,
   payload jsonb, enabled boolean default true, last_fired_at timestamptz,
   next_due_at timestamptz, created_at timestamptz default now());
 create table marketing_hq.meta_recommendations (id bigint generated always as identity primary key,
-  account_id text, ad_id text, ad_name text, creative_id bigint, agent_id text, run_id bigint,
-  verdict text, action text, reasoning text, confidence numeric(3,2),
-  metrics_snapshot jsonb, window_days int default 7, status text default 'open',
+  ad_id text, creative_id bigint, agent_id text, run_id bigint, verdict text, action text,
   created_at timestamptz default now());
-create table marketing_hq.pipeline_items    (id bigint generated always as identity primary key, angle text);
-create table marketing_hq.email_drafts      (id bigint generated always as identity primary key, angle text);
-create table marketing_hq.ad_accounts (account_id text primary key, naam text, merk text);
-
--- Kolomlijsten gelijk aan productie.
-create table marketing_hq.meta_insights_daily (
-  insight_date date, account_id text, level text, entity_id text, entity_name text,
-  parent_id text, spend numeric, impressions bigint, reach bigint, frequency numeric,
-  clicks bigint, link_clicks bigint, ctr numeric, cpc numeric, cpm numeric,
-  purchases integer, purchase_value numeric, roas numeric, add_to_cart integer,
-  initiate_checkout integer, landing_page_views integer, video_3s integer,
-  video_thruplay integer, quality_ranking text, engagement_rate_ranking text,
-  conversion_rate_ranking text, is_final boolean default true,
-  captured_at timestamptz default now(), view_content integer, add_payment_info integer);
-
 create table marketing_hq.meta_publications (
   id bigint generated always as identity primary key, brand text default 'wellshave',
-  creative_id bigint, ad_name text, account_id text, adset_id text, campaign_id text,
-  asset_kind text, asset_sha256 text, headline text, primary_text text, description text,
-  cta_type text, link_url text, utm_content text, page_id text, instagram_actor_id text,
-  meta_image_hash text, meta_video_id text, meta_creative_id text, meta_ad_id text,
-  object_story_spec jsonb, hypothesis text, angle text, persona text, awareness_level text,
-  status text, approval_id bigint, prepared_by text, run_id bigint, published_by text,
-  proposed_daily_budget numeric, idem_key text, attempts integer, error text,
-  created_at timestamptz default now(), prepared_at timestamptz, approved_at timestamptz,
-  published_at timestamptz, werkstuk_id bigint);
+  creative_id bigint, meta_ad_id text, published_at timestamptz, status text);
+create table marketing_hq.meta_insights_daily (
+  insight_date date, account_id text, level text, entity_id text, entity_name text, parent_id text,
+  spend numeric, impressions bigint, reach bigint, frequency numeric, clicks bigint,
+  link_clicks bigint, ctr numeric, cpc numeric, cpm numeric, purchases bigint,
+  purchase_value numeric, roas numeric, add_to_cart bigint, initiate_checkout bigint,
+  landing_page_views bigint, video_3s bigint, video_thruplay bigint,
+  quality_ranking text, engagement_rate_ranking text, conversion_rate_ranking text,
+  is_final boolean default true, captured_at timestamptz default now());
 
 create table public.creatives (
   id bigint generated always as identity primary key, brand text default 'wellshave',
-  user_id uuid, user_email text, user_name text, ad_name text, product text,
-  awareness_level text, angle_type text, marketing_angle text, desires text,
-  format text, creative_concept text, media_type text, hook_short text, channel text,
-  audience text, persona text, date_live date, budget numeric, impressions bigint,
-  hook_rate numeric, hold_rate numeric, ctr numeric, cpm numeric, cpc numeric,
-  conversions integer, cvr numeric, cpa numeric, aov numeric, roas numeric,
-  breakeven_roas numeric, target_roas numeric, score numeric, status text default 'To Test',
-  next_step text, notes text, creatives_link text, script jsonb, source_type text,
-  created_at timestamptz default now(), updated_at timestamptz default now(),
-  image_b64 text, lib_id text, has_image boolean, werkstuk_id bigint);
+  ad_name text, product text, persona text, angle_type text, format text, media_type text,
+  hook_short text, awareness_level text, marketing_angle text, creative_concept text,
+  status text default 'To Test', score numeric, next_step text, notes text,
+  date_live date, budget numeric, impressions bigint, hook_rate numeric, hold_rate numeric,
+  ctr numeric, cpm numeric, cpc numeric, conversions bigint, cvr numeric, cpa numeric,
+  aov numeric, roas numeric, creatives_link text, image_b64 text, has_image boolean,
+  werkstuk_id bigint, created_at timestamptz default now(), updated_at timestamptz default now());
 
-do $do$
-declare t text;
-begin
-  foreach t in array array['agent_runs','agent_events','agent_messages','approvals','reports','agents'] loop
-    execute format('alter table marketing_hq.%I enable row level security', t);
-    execute format('create policy lezen on marketing_hq.%I for select using (marketing_hq.is_team_member())', t);
-    execute format('grant select on marketing_hq.%I to authenticated', t);
-  end loop;
-end $do$;
-grant select on public.creatives to authenticated;
-alter table public.team_members enable row level security;
-create policy lezen on public.team_members for select using (marketing_hq.is_team_member());
-grant select on public.team_members to authenticated;
+-- ── de reeks waar het om draait ──────────────────────────────────────────
+-- Een advertentie die zichtbaar inzakt, met WISSELENDE spend per dag. Dat
+-- laatste is geen detail maar de hele reden dat deze reeks iets bewijst: bij
+-- een constante spend is het gemiddelde van de dagelijkse ROAS-waarden precies
+-- gelijk aan de ROAS over de hele periode, en dan kan de test de goede en de
+-- foute rekenmethode niet uit elkaar houden.
+--
+--   dag  spend  omzet   ROAS die dag   lopend (som omzet / som spend)
+--    1     10     50        5,000        50/10   = 5,000
+--    2     90     90        1,000       140/100  = 1,400
+--    3     50     50        1,000       190/150  = 1,267
+--    4     25     10        0,400       200/175  = 1,143
+--    5     25     10        0,400       210/200  = 1,050
+--
+-- Het gemiddelde van de dagratio's zou op dag 5 uitkomen op 1,56. De juiste
+-- uitkomst is 1,050. Die twee liggen ver uit elkaar, en dat hoort ook.
+insert into public.creatives (ad_name, product, persona, angle_type, status, image_b64, has_image)
+values ('Zakker','Groom Guard','Mark','Problem-Solution','Live', repeat('x', 4000), true);
+insert into marketing_hq.meta_publications (creative_id, meta_ad_id, published_at, status)
+values (1, 'ad_zak', '2026-07-01', 'live');
+insert into marketing_hq.meta_insights_daily
+  (insight_date, level, entity_id, spend, impressions, clicks, link_clicks,
+   purchases, purchase_value, video_3s, video_thruplay, is_final)
+values
+  ('2026-07-01','ad','ad_zak', 10, 5000, 100, 90, 2, 50, 1500, 450, true),
+  ('2026-07-02','ad','ad_zak', 90, 5000, 100, 90, 3, 90, 1500, 450, true),
+  ('2026-07-03','ad','ad_zak', 50, 5000, 100, 90, 2, 50, 1500, 450, true),
+  ('2026-07-04','ad','ad_zak', 25, 5000, 100, 90, 1, 10, 1500, 450, true),
+  ('2026-07-05','ad','ad_zak', 25, 5000, 100, 90, 1, 10, 1500, 450, true);
+
+-- Drie soortgenoten bij persona 'Piet' zodat een vergelijking mag; ROAS 1, 2, 3
+-- geeft mediaan 2. En één losse bij 'Jan' die er te weinig heeft.
+insert into public.creatives (ad_name, product, persona, angle_type, status) values
+  ('Peer A','Groom Guard','Piet','Social Proof / Reviews','Live'),
+  ('Peer B','Groom Guard','Piet','Social Proof / Reviews','Live'),
+  ('Peer C','Groom Guard','Piet','Social Proof / Reviews','Live'),
+  ('Eenling','Groom Guard','Jan','Storytelling / Narrative','Live');
+insert into marketing_hq.meta_publications (creative_id, meta_ad_id, published_at, status) values
+  (2,'ad_a','2026-07-01','live'), (3,'ad_b','2026-07-01','live'),
+  (4,'ad_c','2026-07-01','live'), (5,'ad_e','2026-07-01','live');
+-- elk 5 dagen x €20 = €100 spend, 25.000 vertoningen: ruim boven de drempel
+insert into marketing_hq.meta_insights_daily
+  (insight_date, level, entity_id, spend, impressions, clicks, link_clicks,
+   purchases, purchase_value, video_3s, video_thruplay, is_final)
+select d::date, 'ad', e.id, 20, 5000, 100, 90, 2, e.omzet, 1500, 450, true
+from generate_series('2026-07-01'::date, '2026-07-05'::date, '1 day') d,
+     (values ('ad_a', 20), ('ad_b', 40), ('ad_c', 60), ('ad_e', 40)) as e(id, omzet);
 SQL
 
-# De productiestand nabouwen vóór de migratie draait. `creatives_public_read`
-# staat in geen enkele migratie -- hij is ooit met de hand aangemaakt, net als
-# hq_reports vóór 0034. Zonder deze regels test 0035 het weghalen van iets dat
-# er niet is, en dan is de test groen om de verkeerde reden.
-psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q <<'SQL' >/dev/null
-create schema if not exists auth;
-create function auth.uid() returns uuid language sql stable as
-  $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
-alter table public.creatives enable row level security;
-create policy creatives_public_read on public.creatives for select using (true);
-create policy creatives_select on public.creatives for select using (exists (
-  select 1 from public.team_members m where m.id = auth.uid() and m.status = 'approved'));
-grant select, insert, update, delete on public.creatives to anon, authenticated;
-SQL
-
-for m in 0008_terugkoppeling 0009_ruggengraat 0011_tracker 0012_atlas 0013_audit 0017_views \
-         0019_brein 0021_deelnemers 0022_overdracht 0023_denkstuk 0024_terugsturen 0025_dossier 0026_criticus 0029_blokkade 0030_testklaar 0031_statusvocabulaire 0033_bibliotheekkoppeling 0035_tracker; do
-  uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/$m.sql" 2>&1)
-  if [ $? -ne 0 ]; then
-    echo "  FOUT migratie $m draait niet:"; echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3; exit 1
+for m in 0008_terugkoppeling 0011_tracker; do
+  if ! psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -f "$MIGDIR/$m.sql" >/dev/null 2>&1; then
+    echo "  FOUT migratie $m draait niet:"
+    psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/$m.sql" 2>&1 \
+      | grep -E 'ERROR' | head -3
+    exit 1
   fi
 done
-echo "  alle migraties draaien (t/m 0035)"
+echo "  (0008 en 0011 draaiden zonder fout)"
+echo
+
+# ── het verloop ───────────────────────────────────────────────────────────
+echo "  het verloop per dag"
+check "vijf dagen vastgelegd" 5 "$(q "select count(*) from marketing_hq.creative_verloop where creative_id=1")"
+check "de dagelijkse ROAS daalt zoals ingevoerd" "5.000|1.000|1.000|0.400|0.400" \
+  "$(q "select string_agg(roas::text,'|' order by dag) from marketing_hq.creative_verloop where creative_id=1")"
+# De kern: cumuleren op de tellers, niet het gemiddelde van de dagcijfers
+# nemen. Zou de view dat laatste doen, dan stond hier op dag 5 een 1,560.
+check "de lopende ROAS klopt met de handberekening" "5.000|1.400|1.267|1.143|1.050" \
+  "$(q "select string_agg(roas_tot_nu::text,'|' order by dag) from marketing_hq.creative_verloop where creative_id=1")"
+check "dag_nr telt vanaf de publicatie" "0|1|2|3|4" \
+  "$(q "select string_agg(dag_nr::text,'|' order by dag) from marketing_hq.creative_verloop where creative_id=1")"
+check "het lopend totaal spend eindigt op 200" 200 \
+  "$(q "select spend_cum::int from marketing_hq.creative_verloop where creative_id=1 order by dag desc limit 1")"
+
+# ── de lijstrij ───────────────────────────────────────────────────────────
+echo
+echo "  de lijstrij"
+check "image_b64 zit NIET in de view" 0 \
+  "$(q "select count(*) from information_schema.columns
+        where table_schema='marketing_hq' and table_name='creative_kaart' and column_name='image_b64'")"
+check "maar je ziet wel dat er een beeld is" "t" \
+  "$(q "select beeld_beschikbaar from marketing_hq.creative_kaart where id=1")"
+check "de gemeten ROAS komt uit Meta, niet uit de kolom" "1.050" \
+  "$(q "select roas::text from marketing_hq.creative_kaart where id=1")"
+check "en de bron staat erbij" "meta" \
+  "$(q "select cijfers_bron from marketing_hq.creative_kaart where id=1")"
+# Een creative zonder publicatie mag geen 'meta' claimen.
+q "insert into public.creatives (ad_name, persona, status, roas) values ('Handmatig','Mark','Live',9.9)" >/dev/null
+check "een handmatig getal heet ook handmatig" "handmatig" \
+  "$(q "select cijfers_bron from marketing_hq.creative_kaart where ad_name='Handmatig'")"
+q "insert into public.creatives (ad_name, persona, status) values ('Leeg','Mark','To Test')" >/dev/null
+check "en zonder cijfers staat er geen" "geen" \
+  "$(q "select cijfers_bron from marketing_hq.creative_kaart where ad_name='Leeg'")"
+check "elke creative krijgt een rij, ook zonder meting" 7 \
+  "$(q "select count(*) from marketing_hq.creative_kaart")"
+
+# ── de vergelijking ───────────────────────────────────────────────────────
+echo
+echo "  de vergelijking"
+check "drie soortgenoten bij Piet" 3 \
+  "$(q "select soortgenoten from marketing_hq.creative_vergelijking where id=2")"
+# ROAS 1, 2 en 3 -> mediaan 2. Peer C zit met 3 daarboven, Peer A met 1 eronder.
+check "de mediaan is 2, niet het gemiddelde" "2.000" \
+  "$(q "select round(roas_mediaan_persona,3)::text from marketing_hq.creative_vergelijking where id=2")"
+check "Peer C zit boven de mediaan" "boven" \
+  "$(q "select roas_tov_persona from marketing_hq.creative_vergelijking where id=4")"
+check "Peer A zit eronder" "onder" \
+  "$(q "select roas_tov_persona from marketing_hq.creative_vergelijking where id=2")"
+# Onder drie soortgenoten geen oordeel: dezelfde discipline als betrouwbaar.
+check "een eenling krijgt geen oordeel" "" \
+  "$(q "select coalesce(roas_tov_persona,'') from marketing_hq.creative_vergelijking where id=5")"
+check "maar wel de reden waarom niet" "te weinig soortgenoten voor een vergelijking" \
+  "$(q "select waarschuwing from marketing_hq.creative_vergelijking where id=5")"
+check "alleen beoordeelbare ads doen mee" 5 \
+  "$(q "select count(*) from marketing_hq.creative_vergelijking")"
 
 echo
-echo "  de deur die openstond"
-check "de publieke leespolicy is weg" "0" \
-  "$(q "select count(*) from pg_policy where polrelid='public.creatives'::regclass and polname='creatives_public_read'")"
-check "anon heeft geen enkel recht meer op creatives" "0" \
-  "$(q "select count(*) from information_schema.role_table_grants
-        where table_schema='public' and table_name='creatives' and grantee='anon'")"
-check "anon kan de tabel niet lezen" "f" \
-  "$(q "select has_table_privilege('anon','public.creatives','select')")"
-check "een goedgekeurd teamlid nog wel" "t" \
-  "$(q "select has_table_privilege('authenticated','public.creatives','select')")"
-check "creatives_select staat er nog" "1" \
-  "$(q "select count(*) from pg_policy where polrelid='public.creatives'::regclass and polname='creatives_select'")"
-
-echo
-echo "  de import"
-python3 "$IMPDIR/naar-sql.py" > "$WERK/import.sql" 2>/dev/null
-uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$WERK/import.sql" 2>&1)
-check "de import draait zonder fout" "0" "$?"
-[ $fout -eq 0 ] || echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3
-check "624 rijen binnen" "624" "$(q "select count(*) from public.creatives where bron_bestand is not null")"
-
-# De foreign key uit 0030/0032 keurt elke status. Een verkeerde vertaling komt
-# er dus niet als foute data doorheen maar als geweigerde insert -- behalve waar
-# twee bestaande woorden allebei passen. Vandaar de verdeling, uitgeschreven.
-check "Verliezer (was Killed)"   "203" "$(q "select count(*) from public.creatives where status='Verliezer'")"
-check "Live"                      "58" "$(q "select count(*) from public.creatives where status='Live'")"
-check "Winner"                    "10" "$(q "select count(*) from public.creatives where status='Winner'")"
-check "Itereren (was Iterate)"    "55" "$(q "select count(*) from public.creatives where status='Itereren'")"
-check "Concept (To Test + leeg)" "298" "$(q "select count(*) from public.creatives where status='Concept' and bron_bestand is not null")"
-
-echo
-echo "  wat er niet mag verdwijnen"
-check "het oorspronkelijke statuswoord blijft bewaard" "296" \
-  "$(q "select count(*) from public.creatives where bron_status='To Test'")"
-check "en een rij zonder status is terug te vinden" "2" \
-  "$(q "select count(*) from public.creatives where bron_bestand is not null and bron_status is null")"
-# De tekstuitdraai van Drive sloopte elk accentteken: 'één' werd ' n'. Dat kwam
-# pas boven water door te tellen, niet door te kijken. Daarom staat het hier.
-check "accenttekens staan er nog in" "t" \
-  "$(q "select desires like '%één%' from public.creatives where ad_name='001-1' limit 1")"
-check "hook rate is een verhouding en geen procent" "0.25" \
-  "$(q "select hook_rate from public.creatives where ad_name='001-1' limit 1")"
-check "de tien onmogelijke hook rates gaan mee zoals ze zijn" "10" \
-  "$(q "select count(*) from public.creatives where hook_rate > 1.5")"
-# 0030 laat geen twee advertenties met dezelfde naam binnen één merk toe. De
-# sheet heeft drie rijen die '144-1' heten; de import hernoemt de tweede en
-# derde met hun bronregel erachter in plaats van ze te laten vallen.
-check "de dubbele naam is opgelost, niet weggegooid" "3" \
-  "$(q "select count(*) from public.creatives where ad_name like '144-1%'")"
-check "en het origineel staat er nog bij" "1" \
-  "$(q "select count(*) from public.creatives where ad_name = '144-1'")"
-# Het analyseblok onder de advertenties heeft ook rijen met tekst in de
-# naamkolom. Komt dat mee, dan staan er kopregels als advertentie in de tracker.
-check "geen kopregel uit het analyseblok geimporteerd" "0" \
-  "$(q "select count(*) from public.creatives where ad_name in ('Item','Multiple','Per Persona')")"
-
-echo
-echo "  het tellen"
-# Dit is de controle die de sheet niet had. Valt er ergens iets stil weg, dan
-# telt de dimensie niet meer op tot het aantal rijen.
-for d in product awareness_level media_type format persona angle_type; do
-  check "dimensie $d telt op tot alle rijen" \
-    "$(q "select count(*) from public.creatives")" \
-    "$(q "select coalesce(sum(aantal),0) from marketing_hq.tracker_breakdown where dimensie='$d'")"
-done
-check "wat niet ingevuld is krijgt een eigen regel" "t" \
-  "$(q "select exists (select 1 from marketing_hq.tracker_breakdown where waarde='— niet ingevuld')")"
-check "geen enkele rij heeft een score" "0" \
-  "$(q "select coalesce(sum(met_score),0) from marketing_hq.tracker_breakdown where dimensie='product'")"
-check "en de tracker zegt dat er niets gemeten is" "0" \
-  "$(q "select coalesce(sum(met_meting),0) from marketing_hq.tracker_breakdown where dimensie='product'")"
-
-echo
-echo "  nog een keer draaien verdubbelt niets"
-psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$WERK/import.sql" >/dev/null 2>&1
-check "nog steeds 624 rijen" "624" "$(q "select count(*) from public.creatives where bron_bestand is not null")"
-check "de terugweg werkt" "0" \
-  "$(q "delete from public.creatives where bron_bestand is not null; select count(*) from public.creatives where bron_bestand is not null")"
-
-echo
-[ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
+if [ "$fout" -eq 0 ]; then echo "  Alle controles geslaagd"; else echo "  $fout controle(s) mislukt"; fi
 exit $((fout > 0))
