@@ -136,27 +136,29 @@ const check = (naam, echt, verwacht) => {
   await page.goto(`http://127.0.0.1:${poort}/`, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
 
-  const nep = async (rijen, vlakken, { ingelogd = true, fout = null } = {}) =>
-    await page.evaluate(async ({ rijen, vlakken, ingelogd, fout }) => {
+  const nep = async (rijen, vlakken, { ingelogd = true, fout = null, sync = null } = {}) =>
+    await page.evaluate(async ({ rijen, vlakken, ingelogd, fout, sync }) => {
       window._sb = ingelogd ? { from: function (tabel) {
         const q = {};
         ['select', 'eq', 'ilike', 'or', 'in', 'order', 'range', 'limit'].forEach(m => { q[m] = () => q; });
         const antwoord = fout ? { error: { message: fout } }
-          : { data: tabel === 'hq_tracker_breakdown' ? vlakken : rijen };
+          : { data: tabel === 'hq_tracker_breakdown' ? vlakken
+                  : tabel === 'hq_meta_sync_status' ? (sync ? [sync] : [])
+                  : rijen };
         q.then = (res, rej) => Promise.resolve(antwoord).then(res, rej);
         return q;
       }} : null;
       window._authProfile = ingelogd ? { id: 'test' } : null;
       window._userRole = 'admin';
       localStorage.setItem('str_weergave_v1', 'tracker');
-      _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.fout = null;
+      _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.sync = null; _trk.fout = null;
       _trk.zoek = ''; _trk.filters = {}; _trk.toon = 100;
       _trk.dimensie = 'awareness_level'; _trk.sorteer = 'ad_name'; _trk.omgekeerd = false;
       switchMainTab('creatives');
       strWisselTeken();
       await new Promise(r => setTimeout(r, 400));
       return null;
-    }, { rijen, vlakken, ingelogd, fout });
+    }, { rijen, vlakken, ingelogd, fout, sync });
 
   const lees = async () => await page.evaluate(() => {
     const m = document.getElementById('trk-mount');
@@ -294,6 +296,54 @@ const check = (naam, echt, verwacht) => {
   check('de hoogste ROAS staat bovenaan', gesorteerd[0], '110-2');
   check('en de rijen zonder ROAS onderaan', gesorteerd.slice(-3).sort(),
     ['020-1', '144-1', '151-1']);
+
+
+  console.log('\n  een kapotte sync leest anders dan een lege');
+  /* Dit is het geval dat twee dagen doorliep: de worker draaide, het token
+     werkte, en Meta weigerde elke ochtend om een veld dat niet meer bestaat.
+     Het scherm zei "geen metingen", wat leest als "staat nog niet aan". */
+  await nep(zonderMeta, VLAKKEN, { sync: {
+    toestand: 'kapot', gemeten_rijen: 0, mislukte_pogingen_36u: 30,
+    laatste_fout: '(#100) video_3_sec_watched_actions is not valid for fields param'
+  }});
+  const kapot = await lees();
+  check('het scherm zegt dat de koppeling eruit ligt',
+    /De Meta-koppeling ligt eruit/.test(kapot.melding || ''), true);
+  check('met het aantal mislukte pogingen', /30 mislukte pogingen/.test(kapot.melding || ''), true);
+  check('en de fout van Meta zelf erbij',
+    /video_3_sec_watched_actions/.test(kapot.melding || ''), true);
+  check('en het zegt dat het zichzelf niet oplost',
+    /lost zichzelf niet op/.test(kapot.melding || ''), true);
+  check('de melding is als storing gemarkeerd, niet als waarschuwing',
+    await page.evaluate(() => !!document.querySelector('#trk-mount .trk-melding--kapot')), true);
+
+  await nep(zonderMeta, VLAKKEN, { sync: { toestand: 'nooit gedraaid', gemeten_rijen: 0, mislukte_pogingen_36u: 0 } });
+  const nooit = await lees();
+  check('nooit gedraaid leest anders dan kapot',
+    /nog nooit iets opgehaald/.test(nooit.melding || ''), true);
+  check('en is geen storing', await page.evaluate(() =>
+    !!document.querySelector('#trk-mount .trk-melding--kapot')), false);
+
+  console.log('\n  handmatig blijft kunnen naast de meting');
+  /* Meta meet niet altijd goed. Zet iemand een cijfer recht, dan moet dat
+     blijven staan en moet je kunnen zien dat het een besluit was. */
+  const metVast = RIJEN.map(r => r.ad_name === '003-1'
+    ? { ...r, cijfers_bron: 'handmatig-vast', cijfers_vastgezet: true,
+        cijfers_vastgezet_naam: 'Dustin Gibson', gemeten_roas: 9.99 }
+    : r);
+  await nep(metVast, VLAKKEN, { sync: { toestand: 'werkt', gemeten_rijen: 400, mislukte_pogingen_36u: 0 } });
+  const vast = await lees();
+  check('een vastgezet cijfer heet vastgezet en niet handmatig',
+    vast.rijen[1].bron, 'vastgezet');
+  check('en niet zomaar Meta', vast.rijen[1].bron === 'Meta', false);
+  const titel = await page.evaluate(() => {
+    const b = document.querySelector('#trk-mount .trk-bron--handmatig-vast');
+    return b ? b.getAttribute('title') : null;
+  });
+  check('wie het vastzette staat erbij', /Dustin Gibson/.test(titel || ''), true);
+  /* Zonder de gemeten waarde ernaast is niet te zien hoe ver de correctie van
+     de meting af staat, en dan is vastzetten een vrijbrief. */
+  check('en wat Meta zelf mat', /9\.99/.test(titel || ''), true);
 
   console.log('\n  de andere twee blikken blijven bereikbaar');
   const wissel = await page.evaluate(async () => {

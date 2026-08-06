@@ -414,7 +414,7 @@ const TOOLS = {
       for (const acc of lijst) {
         let rows;
         try {
-          rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day, acc.account_id);
+          rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day, acc.account_id, ctx);
         } catch (e) {
           const reden = String(e && e.message || e);
           gaten.push({ account_id: acc.account_id, naam: acc.naam, reden: reden });
@@ -879,7 +879,7 @@ function metaVenster(days) {
   return JSON.stringify({ since: dag(start), until: dag(eind) });
 }
 
-async function metaInsights(env, level, days, perDag, accountId) {
+async function metaInsights(env, level, days, perDag, accountId, ctx) {
   const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
     'ctr', 'cpc', 'cpm', 'actions', 'action_values', 'purchase_roas',
@@ -898,18 +898,67 @@ async function metaInsights(env, level, days, perDag, accountId) {
     'video_play_actions', 'video_thruplay_watched_actions'];
   if (level !== 'account') velden.push(level + '_id', level + '_name');
 
-  const p = new URLSearchParams({
-    access_token: env.META_ACCESS_TOKEN,
-    level: level,
-    fields: velden.join(','),
-    time_range: metaVenster(days),
-    limit: '200'
-  });
-  if (perDag) p.set('time_increment', '1');
+  const bouw = (lijst) => {
+    const p = new URLSearchParams({
+      access_token: env.META_ACCESS_TOKEN,
+      level: level,
+      fields: lijst.join(','),
+      time_range: metaVenster(days),
+      limit: '200'
+    });
+    if (perDag) p.set('time_increment', '1');
+    return p;
+  };
 
-  const r = await fetch(`${META_API}/act_${account}/insights?${p}`);
-  const data = await r.json();
-  if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
+  /* Meta keurt een verzoek per veld en weigert het geheel bij één onbekende
+     naam. Dat is twee keer gebeurd met hetzelfde veld: eerst tien dagen, daarna
+     nog twee omdat de reparatie wel in Git stond en niet op de worker. Beide
+     keren gaven de accounts gewoon geld uit en stond meet-Nederland stil om één
+     woord in een lijst van twintig.
+
+     Het patroon is het probleem, niet dat ene veld: Meta schrapt periodiek
+     velden, en dan valt de hele sync om in plaats van één kolom. Daarom wordt
+     de naam die Meta noemt uit de lijst gehaald en gaat het verzoek opnieuw.
+     Wat eruit viel komt mee terug, zodat het zichtbaar is in plaats van stil
+     minder te gaan meten -- een sync die stilletjes één kolom minder ophaalt is
+     erger dan een die klaagt.
+
+     Een grens van vijf: bij meer dan vijf onbruikbare velden is er iets anders
+     aan de hand (een verlopen token, een nieuwe API-versie) en is doorgaan met
+     een uitgeklede lijst geen meting meer maar een gok. */
+  let lijst = velden.slice();
+  const gesneuveld = [];
+  let data = null;
+  for (let poging = 0; poging <= 5; poging++) {
+    const r = await fetch(`${META_API}/act_${account}/insights?${bouw(lijst)}`);
+    data = await r.json();
+    if (!data.error) break;
+
+    const bericht = data.error.message || JSON.stringify(data.error);
+    /* Meta noemt het onbruikbare veld in twee verschillende formuleringen,
+       afhankelijk van waar de afkeuring vandaan komt. De eerste is wat er in
+       productie stond toen dit misging; de tweede gebruikt Meta elders. Op
+       maar één van de twee matchen betekent dat de reparatie de helft van de
+       gevallen niet ziet. */
+    const m = /\(#100\)\s+([a-z0-9_]+)\s+is not valid for fields param/i.exec(bericht)
+           || /nonexisting field \(([a-z0-9_]+)\)/i.exec(bericht);
+    const weg = m && lijst.indexOf(m[1]) > -1 ? m[1] : null;
+    if (!weg) throw new Error('Meta: ' + bericht);
+
+    lijst = lijst.filter(v => v !== weg);
+    gesneuveld.push(weg);
+    data = null;
+  }
+  if (!data || data.error) {
+    throw new Error('Meta: te veel onbruikbare velden (' + gesneuveld.join(', ')
+      + ') — controleer de API-versie ' + META_API.split('/').pop() + ' en het token');
+  }
+  if (gesneuveld.length) {
+    /* Geen throw: er zijn wél cijfers, ze zijn alleen smaller. Wel luid, want
+       dit is de enige plek waar zichtbaar wordt dat Meta iets heeft geschrapt. */
+    await logEvent(env, ctx || {}, 'warn', 'Meta kent deze velden niet meer; zonder verder gemeten',
+      { velden: gesneuveld, api: META_API.split('/').pop(), account: account });
+  }
 
   return (data.data || []).map(row => {
     const acties = row.actions || [];

@@ -236,3 +236,29 @@
   .trk-hook { max-width: 150px; }
   .trk-kaart-n { font-size: 22px; }
 }
+
+/* Een storing is geen waarschuwing. De gele melding zegt "let op, er ontbreekt
+   iets"; deze zegt "er is iets stuk en het lost zichzelf niet op". Dat verschil
+   moet je van een meter afstand kunnen zien, want de vorige versie van dit
+   scherm liet een sync twee dagen kapot staan zonder dat iemand het merkte. */
+.trk-melding--kapot {
+  background: rgba(192, 73, 47, 0.07);
+  border-color: rgba(192, 73, 47, 0.45);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+.trk-melding--kapot strong { color: var(--red); }
+.trk-fout {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 7px;
+  word-break: break-word;
+}
+
+/* Vastgezet is met de hand, maar bewust en met een naam eronder. Niet groen —
+   het is geen meting — en niet grijs, want er is een besluit genomen. */
+.trk-bron--handmatig-vast { color: var(--amber-deep); font-weight: 600; }

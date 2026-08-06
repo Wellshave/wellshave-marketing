@@ -52,6 +52,7 @@ function triggerVoorlopig(rij) {
 }
 
 const metaAanroepen = [];
+const geschraptDoorMeta = new Set();
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   const methode = opts.method || 'GET';
@@ -152,15 +153,27 @@ globalThis.fetch = async (url, opts = {}) => {
       'purchase_roas', 'quality_ranking', 'engagement_rate_ranking',
       'conversion_rate_ranking', 'video_play_actions', 'video_thruplay_watched_actions',
       'campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name']);
+    /* Meta schrapt periodiek velden. `geschraptDoorMeta` laat de test dat
+       naspelen zonder te wachten tot het echt gebeurt. */
+    for (const v of geschraptDoorMeta) bekend.delete(v);
     const gevraagd = (new URL(url).searchParams.get('fields') || '').split(',').filter(Boolean);
     const onbekend = gevraagd.filter(v => !bekend.has(v));
     if (onbekend.length) {
-      return ok({ error: { message: `(#100) Tried accessing nonexisting field (${onbekend[0]}) on node type 'AdsInsights'` } });
+      /* Letterlijk de melding die op 6 augustus in agent_events stond. De
+         nep-Meta gebruikte hier een andere formulering, en een reparatie die
+         alleen op die andere matcht ziet het echte geval niet. */
+      return ok({ error: { message: `(#100) ${onbekend[0]} is not valid for fields param. please check https://developers.facebook.com/docs/marketing-api/reference/ads-insights/ for all valid values` } });
     }
-    return ok({ data: [{ date_start: '2026-07-28', spend: '412.50', impressions: '88000', clicks: '1400',
+    /* Alleen teruggeven wat gevraagd is. De echte Meta stuurt geen veld terug
+       dat niet in de fields-param stond, en een nep-Meta die dat wel doet laat
+       een sync die met een uitgeklede lijst draait er volledig uitzien. */
+    const volledig = { date_start: '2026-07-28', spend: '412.50', impressions: '88000', clicks: '1400',
       actions: [{ action_type: 'purchase', value: '31' }], action_values: [{ action_type: 'purchase', value: '1655.20' }],
       video_play_actions: [{ action_type: 'video_view', value: '22000' }],
-      video_thruplay_watched_actions: [{ action_type: 'video_view', value: '5500' }] }] });
+      video_thruplay_watched_actions: [{ action_type: 'video_view', value: '5500' }] };
+    const rij = { date_start: volledig.date_start };
+    for (const v of gevraagd) if (v in volledig) rij[v] = volledig[v];
+    return ok({ data: [rij] });
   }
   throw new Error('onverwachte fetch in test: ' + url);
 };
@@ -264,5 +277,43 @@ check('en de thruplays ook, die kolom bleef tot nu toe leeg', rij && rij.video_t
 const tools = claudeAanroepen[0].tools.map(t => t.name).sort();
 check('Atlas houdt zijn eigen toolset', tools, ['db_query', 'meta_insights', 'meta_publiek', 'request_approval', 'send_message', 'write_report']);
 
-console.log(fouten ? `\n${fouten} controle(s) mislukt` : '\nAlle controles geslaagd');
-process.exit(fouten ? 1 : 0);
+
+/* ── Als Meta weer een veld schrapt ─────────────────────────────────────── */
+/* Dit is twee keer misgegaan met hetzelfde veld: eerst tien dagen, daarna nog
+   twee omdat de reparatie wel in Git stond en niet op de worker. Beide keren
+   gaven de accounts geld uit en werd er niets gemeten, om één woord in een
+   lijst van twintig. Het patroon is het probleem, niet dat ene veld — dus moet
+   de sync een geschrapt veld overleven in plaats van eraan onderdoor te gaan.
+
+   De naspeelbare versie: Meta kent video_play_actions ineens niet meer. */
+console.log('\n  Meta schrapt een veld');
+geschraptDoorMeta.add('video_play_actions');
+metaAanroepen.length = 0;
+const eventsVoor = db.agent_events.length;
+await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'atlas', kind: 'daily_report' }) }), env);
+await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+await new Promise(r => setTimeout(r, 50));
+
+const velden = metaAanroepen.map(u => (u.searchParams.get('fields') || '').split(','));
+check('het eerste verzoek vraagt het geschrapte veld nog',
+  velden.length > 0 && velden[0].includes('video_play_actions'), true);
+check('en er komt een tweede verzoek zonder dat veld',
+  velden.length > 1 && !velden[1].includes('video_play_actions'), true);
+/* De kern: de rest wordt nog steeds gemeten. Zonder de herkansing was dit een
+   dag zonder enig cijfer, terwijl er alleen één kolom weg is. */
+const naSchrap = db.meta_insights_daily || [];
+check('en er is gewoon gemeten', naSchrap.length > 0, true);
+check('spend staat er nog', naSchrap.length > 0 && Number(naSchrap[naSchrap.length - 1].spend) > 0, true);
+check('alleen het aantal videostarts is leeg',
+  naSchrap.length > 0 && naSchrap[naSchrap.length - 1].video_3s, null);
+/* Stil doorgaan met minder kolommen is erger dan omvallen: dan zakt hook rate
+   weg en weet niemand waarom. */
+const nieuweEvents = db.agent_events.slice(eventsVoor);
+check('en het staat als waarschuwing in het logboek',
+  nieuweEvents.some(e => e.level === 'warn' && /kent deze velden niet meer/.test(e.message)), true);
+check('met de naam van het veld erbij',
+  nieuweEvents.some(e => e.data && Array.isArray(e.data.velden) && e.data.velden.includes('video_play_actions')), true);
+geschraptDoorMeta.clear();
+
+console.log(fouten === 0 ? '\nAlle controles geslaagd' : `\n${fouten} controle(s) mislukt`);
+process.exit(fouten === 0 ? 0 : 1);

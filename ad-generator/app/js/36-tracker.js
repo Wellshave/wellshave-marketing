@@ -37,7 +37,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 var _trk = {
-  rijen: null, vlakken: null, fout: null, laden: false, geladen: false,
+  rijen: null, vlakken: null, sync: null, fout: null, laden: false, geladen: false,
   zoek: '', filters: {}, sorteer: 'ad_name', omgekeerd: false,
   dimensie: 'awareness_level', toon: 100
 };
@@ -64,13 +64,21 @@ function renderTracker() {
      van tellen op twee plekken en gaat er één afwijken. */
   Promise.all([
     sb.from('hq_creative_kaart').select('*').limit(3000),
-    sb.from('hq_tracker_breakdown').select('*')
+    sb.from('hq_tracker_breakdown').select('*'),
+    sb.from('hq_meta_sync_status').select('*')
   ]).then(function (r) {
     _trk.laden = false; _trk.geladen = true;
-    var a = r[0], b = r[1];
+    var a = r[0], b = r[1], c = r[2];
     if (a && a.error) { _trk.fout = a.error.message; }
     else if (b && b.error) { _trk.fout = b.error.message; }
-    else { _trk.rijen = (a && a.data) || []; _trk.vlakken = (b && b.data) || []; }
+    else {
+      _trk.rijen = (a && a.data) || [];
+      _trk.vlakken = (b && b.data) || [];
+      /* De sync-status mag ontbreken zonder het scherm te breken: dit is de
+         nieuwste view en een console die vooruitloopt op de migratie hoort
+         gewoon de tracker te tonen. */
+      _trk.sync = (c && c.data && c.data[0]) || null;
+    }
     trkTeken();
   }).catch(function (e) {
     _trk.laden = false; _trk.geladen = true;
@@ -78,7 +86,7 @@ function renderTracker() {
   });
 }
 function trkVernieuw() {
-  _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.fout = null;
+  _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.sync = null; _trk.fout = null;
   renderTracker();
 }
 
@@ -182,11 +190,20 @@ function trkRoas(r) {
 var TRK_BRON = {
   meta:      { label: 'Meta',      uitleg: 'Gemeten via de Meta-koppeling' },
   handmatig: { label: 'handmatig', uitleg: 'Met de hand ingetypt, niet gemeten' },
+  /* Vastgezet is niet hetzelfde als ingetypt: hier heeft iemand de meting
+     bewust overschreven. Dat moet je kunnen zien zonder de rij te openen,
+     anders is het een stille afwijking. */
+  'handmatig-vast': { label: 'vastgezet', uitleg: 'Met de hand rechtgezet; blijft staan ook als Meta iets anders meet' },
   geen:      { label: '–',         uitleg: 'Geen cijfers' }
 };
 function trkBron(r) {
   var b = TRK_BRON[r.cijfers_bron] || TRK_BRON.geen;
-  return '<span class="trk-bron trk-bron--' + trkEsc(r.cijfers_bron) + '" title="' + trkEsc(b.uitleg) + '">'
+  var uitleg = b.uitleg;
+  if (r.cijfers_bron === 'handmatig-vast') {
+    if (r.cijfers_vastgezet_naam) uitleg += ' — door ' + r.cijfers_vastgezet_naam;
+    if (r.gemeten_roas != null) uitleg += '. Meta mat een ROAS van ' + r.gemeten_roas;
+  }
+  return '<span class="trk-bron trk-bron--' + trkEsc(r.cijfers_bron) + '" title="' + trkEsc(uitleg) + '">'
     + trkEsc(b.label) + '</span>';
 }
 
@@ -195,6 +212,7 @@ function trkBron(r) {
 function trkKaarten(alle) {
   var t = function (s) { return alle.filter(function (r) { return r.status === s; }).length; };
   var gemeten = alle.filter(function (r) { return r.cijfers_bron === 'meta'; }).length;
+  var vast = alle.filter(function (r) { return r.cijfers_bron === 'handmatig-vast'; }).length;
   var kaarten = [
     { n: alle.length, label: 'advertenties', bij: 'in de tracker' },
     { n: t('Live'),      label: 'live',       bij: 'draaien nu',        klasse: 'live' },
@@ -212,11 +230,29 @@ function trkKaarten(alle) {
   });
   h += '</div>';
 
-  /* De kaart die de sheet niet had, en de enige die vandaag echt iets zegt.
-     Zolang dit nul is, is elk cijfer in deze tabel met de hand ingetypt en
-     staat er geen enkele meting achter. Dat hoort bovenaan te staan en niet
-     in een voetnoot. */
-  if (!gemeten) {
+  /* Hier stond eerst alleen "geen enkele advertentie heeft een Meta-meting".
+     Dat klopte, en het was het verkeerde bericht: het las als "de koppeling
+     staat nog niet aan" terwijl de worker draaide, het token werkte en Meta
+     elke ochtend opnieuw weigerde om één veld dat niet meer bestaat. Die
+     storing liep twee dagen door omdat hij alleen in agent_events stond.
+
+     Wachten en ingrijpen zijn verschillende dingen, en dit is de plek waar
+     dat verschil zichtbaar hoort te zijn. Vandaar de toestand uit
+     hq_meta_sync_status en niet een telling van lege kolommen. */
+  var s = _trk.sync;
+  if (s && s.toestand === 'kapot') {
+    h += '<div class="trk-melding trk-melding--kapot">'
+      +  '<strong>De Meta-koppeling ligt eruit.</strong> '
+      +  (s.mislukte_pogingen_36u ? s.mislukte_pogingen_36u + ' mislukte pogingen in 36 uur. ' : '')
+      +  'Er komt niets binnen, en de cijfers hieronder zijn met de hand ingevuld. '
+      +  'Dit lost zichzelf niet op.'
+      +  (s.laatste_fout ? '<br><code class="trk-fout">' + trkEsc(s.laatste_fout) + '</code>' : '')
+      +  '</div>';
+  } else if (s && s.toestand === 'nooit gedraaid') {
+    h += '<div class="trk-melding trk-melding--let-op">'
+      +  '<strong>De Meta-koppeling heeft nog nooit iets opgehaald.</strong> '
+      +  'Alle cijfers hieronder zijn met de hand ingevuld.</div>';
+  } else if (!gemeten) {
     h += '<div class="trk-melding trk-melding--let-op">'
       +  '<strong>Geen enkele advertentie is gekoppeld aan een Meta-meting.</strong> '
       +  'Alle cijfers hieronder zijn met de hand ingevuld. Zodra de Meta-koppeling '
@@ -224,7 +260,8 @@ function trkKaarten(alle) {
       +  'kolom mee — er hoeft niets overgetypt te worden.</div>';
   } else {
     h += '<p class="trk-telling">' + gemeten + ' van ' + alle.length
-      +  ' advertenties heeft een Meta-meting; de rest is met de hand ingevuld.</p>';
+      +  ' advertenties heeft een Meta-meting; de rest is met de hand ingevuld'
+      +  (vast ? ', waarvan ' + vast + ' bewust vastgezet' : '') + '.</p>';
   }
   return h;
 }

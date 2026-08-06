@@ -371,5 +371,90 @@ check "zonder break-even ook niet" "0" \
         where breakeven_roas is null and boven_breakeven is not null")"
 
 echo
+echo "  0038: handmatig blijft kunnen"
+uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0038_handmatig.sql" 2>&1)
+check "0038 draait zonder fout" "0" "$?"
+[ $fout -eq 0 ] || echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3
+
+# Een gemeten rij naast een handmatige, zodat de voorrang te zien is.
+# creative_results is een view over ad_totals, niet een tabel: een meting
+# ontstaat uit een publicatie plus dagcijfers. Rechtstreeks in de view prikken
+# lukt niet en zou ook niet meten wat er in productie gebeurt.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+update public.creatives set roas = 1.10, hook_rate = 0.10 where ad_name = '003-1';
+insert into marketing_hq.meta_publications (creative_id, meta_ad_id, account_id, published_at)
+select id, 'ad-003-1', '242238038391551', now() - interval '10 days'
+  from public.creatives where ad_name = '003-1';
+-- spend 100 met 999 omzet geeft roas 9,99; 9000 starts op 10000 vertoningen
+-- geeft hook rate 0,90. Ronde getallen, zodat een afwijking een fout is en
+-- geen afrondingsverschil.
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, spend, impressions, clicks,
+   link_clicks, purchases, purchase_value, video_3s, video_thruplay, is_final)
+values
+  (current_date - 5, '242238038391551', 'ad', 'ad-003-1', 100, 10000, 200,
+   180, 10, 999, 9000, 4500, true);
+SQL
+check "zonder vastzetten wint de meting" "9.990" \
+  "$(q "select roas from marketing_hq.creative_kaart where ad_name='003-1'")"
+check "en dat staat er ook bij" "meta" \
+  "$(q "select cijfers_bron from marketing_hq.creative_kaart where ad_name='003-1'")"
+
+# Nu zet een mens het cijfer vast, omdat de meting niet klopt.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+update public.creatives
+   set cijfers_vastgezet = true,
+       cijfers_vastgezet_door = '11111111-1111-1111-1111-111111111111',
+       cijfers_vastgezet_op = now()
+ where ad_name = '003-1';
+SQL
+check "vastgezet wint de handmatige waarde" "1.10" \
+  "$(q "select roas from marketing_hq.creative_kaart where ad_name='003-1'")"
+check "de bron zegt dat het vastgezet is" "handmatig-vast" \
+  "$(q "select cijfers_bron from marketing_hq.creative_kaart where ad_name='003-1'")"
+check "met de naam van wie dat deed" "Dustin Gibson" \
+  "$(q "select cijfers_vastgezet_naam from marketing_hq.creative_kaart where ad_name='003-1'")"
+# Zonder dit is niet te zien hoe ver de correctie van de meting af staat, en
+# dan is vastzetten een vrijbrief in plaats van iets wat iemand kan nakijken.
+check "en de meting blijft zichtbaar naast de correctie" "9.990" \
+  "$(q "select gemeten_roas from marketing_hq.creative_kaart where ad_name='003-1'")"
+# Het oordeel volgt de vastgezette waarde, niet de meting: anders staat er een
+# groen bandje bij een getal dat er niet meer staat.
+check "de band volgt het vastgezette cijfer" "matig" \
+  "$(q "select hook_band from marketing_hq.creative_kaart where ad_name='003-1'")"
+
+check "vastzetten zonder naam kan niet" "ja" \
+  "$(weigert "update public.creatives set cijfers_vastgezet = true
+              where ad_name = '001-1'" 'creatives_vastzetten_heeft_naam')"
+
+echo
+echo "  0038: doet de sync het nog"
+# Drie toestanden, en het verschil ertussen is de hele reden dat deze view
+# bestaat. Er staat nu een verse meting van de fixture hierboven.
+check "met een verse meting: werkt" "werkt" \
+  "$(q "select toestand from marketing_hq.meta_sync_status")"
+
+# Dit is het geval dat twee dagen onzichtbaar bleef: de worker draait, het
+# token werkt, en er komt niets binnen. "geen cijfers" en "de sync ligt eruit"
+# zijn verschillende dingen, en alleen het tweede vraagt om ingrijpen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+insert into marketing_hq.agent_events (agent_id, level, message, data)
+values ('atlas','warn','Meta gaf geen cijfers voor Wellshave®: (#100) veld_x is not valid',
+        '{"fout":"(#100) veld_x is not valid for fields param"}'::jsonb);
+SQL
+check "niets binnen maar wel klachten: kapot" "kapot" \
+  "$(q "select toestand from marketing_hq.meta_sync_status")"
+check "en de fout staat er leesbaar bij, niet alleen dat het misging" "t" \
+  "$(q "select laatste_fout like '%not valid for fields param%' from marketing_hq.meta_sync_status")"
+check "met een teller hoe vaak het vandaag misging" "1" \
+  "$(q "select mislukte_pogingen_36u from marketing_hq.meta_sync_status")"
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 \
+  -c "delete from marketing_hq.agent_events where message like 'Meta gaf geen cijfers%'"
+check "niets binnen en geen klacht: nooit gedraaid" "nooit gedraaid" \
+  "$(q "select toestand from marketing_hq.meta_sync_status")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
