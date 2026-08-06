@@ -529,7 +529,21 @@ function strOordeel(d) {
   var m = d.meting || {}, pub = d.publicatie || {};
   var oordeelVanCriticus = (d.oordelen || [])[0];
 
-  /* 0. Een status die de statustabel niet kent. Dan weet het systeem niet in
+  /* 0. Geen beeld en geen verwijzing naar de bibliotheek. Dit staat vooraan
+        omdat je een advertentie die je niet kunt zien ook niet kunt
+        beoordelen: elke andere vraag komt daarna. */
+  if (!d.heeft_beeld && !d.bibliotheek_id) {
+    return { id: 'geen-koppeling', ernst: 'blokkade',
+      oordeel: 'Deze creative is niet gekoppeld aan zijn bibliotheekvariant',
+      waarom: 'Er staat geen beeld en geen copy bij deze rij, en er is geen verwijzing '
+        + 'naar het bibliotheekitem waar hij uit komt. Zo is niet te zien wélke '
+        + 'advertentie dit is.',
+      actie: 'Koppel aan de bibliotheek',
+      hoe: 'Kies zelf welke variant hierbij hoort. Het systeem koppelt niet op een '
+         + 'gelijke titel — twee varianten uit één generatie kunnen dezelfde kop hebben.' };
+  }
+
+  /* 1. Een status die de statustabel niet kent. Dan weet het systeem niet in
         welke fase deze creative zit, en elk verder oordeel zou gokwerk zijn. */
   if (d.status && !d.status_fase && !d.verantwoordelijke) {
     return { id: 'verouderd', ernst: 'let-op',
@@ -542,7 +556,7 @@ function strOordeel(d) {
          + 'woord kon meer dan één ding betekenen.' };
   }
 
-  /* 1. Niet testklaar. De reden staat al in de database uitgerekend, in
+  /* 2. Niet testklaar. De reden staat al in de database uitgerekend, in
         dezelfde woorden als de werkbank hem gebruikt. */
   if (d.niet_testklaar) {
     return { id: 'niet-testklaar', ernst: 'blokkade',
@@ -719,7 +733,7 @@ function strDossierTeken(d) {
       +  '<h3 class="str-oordeel-kop">' + strEsc(w.oordeel) + '</h3>'
       +  '<p class="str-oordeel-waarom">' + strEsc(w.waarom) + '</p>'
       +  '<div class="str-actie">'
-      +    (w.actie ? '<span class="str-actie-knop">' + strEsc(w.actie) + '</span>' : '')
+      +    strActieKnop(d, w)
       +    '<span class="str-actie-hoe">' + strEsc(w.hoe) + '</span>'
       +  '</div></div>';
 
@@ -747,6 +761,49 @@ function strDossierTeken(d) {
 
   document.body.appendChild(o);
   o.addEventListener('click', function (e) { if (e.target === o) strDossierSluit(); });
+}
+
+/* De actie zag eruit als een knop en was er geen: een <span> zonder klik.
+   Dat is erger dan geen knop, want het kost een poging en een moment twijfel
+   voordat je doorhebt dat er niets gebeurt.
+
+   Nu is hij een echte knop waar de console de handeling kan uitvoeren, en
+   anders een label dat er niet uitziet als iets waarop je kunt drukken. Wat je
+   dan wél moet doen staat ernaast. */
+var STR_ACTIES = {
+  'verouderd': function (d) {
+    return { doen: 'strNaarStatus(' + d.creative_id + ')' };
+  },
+  'geen-koppeling': function (d) {
+    return { doen: 'strKoppelOpen(' + d.creative_id + ')' };
+  }
+};
+
+function strActieKnop(d, w) {
+  if (!w.actie) return '';
+  var kan = STR_ACTIES[w.id] ? STR_ACTIES[w.id](d) : null;
+  if (kan) {
+    return '<button class="str-actie-knop" onclick="' + kan.doen + '">'
+      + strEsc(w.actie) + '</button>';
+  }
+  /* Geen knop maar een label: deze handeling gebeurt ergens anders, en doen
+     alsof hij hier zit is een belofte die niet klopt. */
+  return '<span class="str-actie-label">' + strEsc(w.actie) + '</span>';
+}
+
+/* Naar de bewerkbare tabel, met deze rij open. Dat is waar de status gekozen
+   wordt; het dossier leest alleen. */
+function strNaarStatus(id) {
+  strDossierSluit();
+  strWissel('tabel');
+  if (typeof csOpenDetail === 'function') {
+    if (!(_cs.rows || []).some(function (r) { return r.id === id; })) {
+      if (typeof csFetch === 'function') csFetch();
+      setTimeout(function () { csOpenDetail(id); }, 600);
+    } else {
+      csOpenDetail(id);
+    }
+  }
 }
 
 function strChip(label, waarde) {
@@ -787,6 +844,11 @@ function strDosGroep(id, titel, inhoud) {
 /* ── A. Creative ─────────────────────────────────────────────────────────── */
 
 function strDosCreative(d) {
+  /* Het beeld hoort in het dossier en niet alleen in de bibliotheek: wie een
+     creative beoordeelt, moet hem kunnen zien. Staat hij niet in de database,
+     dan wordt hij uit het bibliotheekitem gehaald — dezelfde variant, dezelfde
+     bytes, opgezocht op id en niet op titel. */
+  var beeld = strBeeld(d);
   var regels = [
     strPaar('Headline', strTekst(d.headline)),
     strPaar('Body copy', strTekst(d.body_copy)),
@@ -797,13 +859,51 @@ function strDosCreative(d) {
     strPaar('Image prompt', strTekst(d.image_prompt))
   ];
   var gevuld = [d.headline, d.body_copy, d.cta, d.visual_concept].filter(Boolean).length;
+  var lijst = strLijst(regels);
+  var body = (beeld.html || '') + lijst;
   return {
-    kop: d.heeft_beeld ? (gevuld ? 'beeld en tekst' : 'alleen een beeld')
-                       : (gevuld ? 'tekst, nog geen beeld' : 'nog leeg'),
-    blokkade: d.heeft_beeld ? null : 'geen beeld',
-    body: strLijst(regels) || null,
+    kop: beeld.aanwezig ? (gevuld ? 'beeld en tekst' : 'alleen een beeld')
+                        : (gevuld ? 'tekst, nog geen beeld' : (beeld.reden || 'nog leeg')),
+    blokkade: beeld.aanwezig ? null : (d.bibliotheek_id ? 'beeld staat in de bibliotheek'
+                                                        : 'niet gekoppeld'),
+    body: body || null,
     leeg: 'Er is nog geen beeld of tekst voor deze creative.'
   };
+}
+
+/* Het beeld, in volgorde van betrouwbaarheid: eerst wat in de database staat,
+   dan het bibliotheekitem waar deze creative aan gekoppeld is. Nooit zoeken op
+   titel — twee varianten uit één generatie kunnen dezelfde kop hebben, en dan
+   toont het dossier de verkeerde advertentie zonder dat iemand het merkt. */
+function strBibItem(id) {
+  if (!id || typeof state === 'undefined' || !state.library) return null;
+  for (var i = 0; i < state.library.length; i++) {
+    if (state.library[i] && state.library[i].id === id) return state.library[i];
+  }
+  return null;
+}
+function strBeeld(d) {
+  if (d.image_b64) {
+    return { aanwezig: true, html: '<img class="str-dos-beeld" alt="" src="'
+      + strEsc(d.image_b64.indexOf('data:') === 0 ? d.image_b64
+                                                  : 'data:image/png;base64,' + d.image_b64) + '">' };
+  }
+  var item = strBibItem(d.bibliotheek_id);
+  if (item && item.image) {
+    return { aanwezig: true, html: '<img class="str-dos-beeld" alt="" src="' + strEsc(item.image) + '">'
+      + '<p class="str-sec-noot">Dit beeld komt uit de bibliotheek (' + strEsc(d.bibliotheek_id)
+      + '), niet uit de database.</p>' };
+  }
+  if (d.bibliotheek_id) {
+    return { aanwezig: false, reden: 'beeld staat in de bibliotheek',
+      html: '<p class="str-sec-leeg">Deze creative is gekoppeld aan bibliotheekitem '
+        + strEsc(d.bibliotheek_id) + ', maar dat item staat niet in deze browser. '
+        + 'Open de Bibliotheek een keer, dan is het beeld hier ook zichtbaar.</p>' };
+  }
+  return { aanwezig: false, reden: 'niet gekoppeld',
+    html: '<p class="str-sec-leeg">Er is geen beeld, en geen verwijzing naar een '
+      + 'bibliotheekvariant. Wat deze advertentie liet zien, is vanuit hier niet te '
+      + 'achterhalen.</p>' };
 }
 
 /* ── B. Strategie ────────────────────────────────────────────────────────── */
@@ -1063,4 +1163,143 @@ function strDosLearning(d) {
     leeg: 'Er is nog geen learning vastgelegd. Dat kan pas zinvol als er gemeten is — '
         + 'een conclusie zonder meting is een mening.'
   };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   De koppeling leggen
+
+   De drie Google Search-varianten staan in de bibliotheek met hun beeld en hun
+   copy, en in public.creatives als drie stubs. Ze horen bij elkaar, maar geen
+   veld zegt welke bij welke.
+
+   Automatisch koppelen op een gelijke kop zou hier werken en is toch fout: twee
+   varianten uit één generatie kunnen dezelfde headline hebben, en dan hangt het
+   beeld van variant 1 onder variant 2 zonder dat iemand het merkt. Een fout die
+   je niet kunt zien is erger dan een vraag die je moet beantwoorden.
+
+   Daarom kiest een mens, één keer, met de beelden ernaast.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var _strKoppel = { creative: null, gekozen: null, bezig: false, fout: null };
+
+/* De kandidaten: alles uit de bibliotheek dat nog nergens aan hangt. Gesorteerd
+   op dezelfde generatie eerst, want daar zit het antwoord meestal. */
+function strKandidaten(d) {
+  var alles = (typeof state !== 'undefined' && state.library) ? state.library : [];
+  var bezet = {};
+  (_str.rijen || []).forEach(function (r) { if (r.bibliotheek_id) bezet[r.bibliotheek_id] = r.creative_id; });
+  return alles
+    .filter(function (i) { return i && i.id && !bezet[i.id]; })
+    .map(function (i) {
+      var v = i.variation || {}, m = i.metadata || {};
+      return {
+        id: i.id, batch_id: i.batch_id || null,
+        variant_index: (i.variant_index == null ? null : i.variant_index),
+        headline: v.headline_nl || v.headline || '',
+        body: v.body_copy_nl || v.body_copy || '',
+        cta: v.cta_nl || v.cta || '',
+        visual: v.visual_nl || '', prompt: v.image_prompt_en || '',
+        product: m.product || '', format: m.format || i.batch_title || '',
+        image: i.image || null,
+        zelfde: !!(d.batch_id && i.batch_id === d.batch_id)
+      };
+    })
+    .sort(function (a, b) {
+      if (a.zelfde !== b.zelfde) return a.zelfde ? -1 : 1;
+      return (a.variant_index || 0) - (b.variant_index || 0);
+    });
+}
+
+function strKoppelOpen(id) {
+  var d = _str.dossier;
+  if (!d || d.creative_id !== id) return;
+  _strKoppel = { creative: d, gekozen: null, bezig: false, fout: null };
+  strKoppelTeken();
+}
+function strKoppelSluit() {
+  _strKoppel.creative = null;
+  var o = document.getElementById('str-koppel'); if (o) o.remove();
+}
+function strKoppelKies(libId) { _strKoppel.gekozen = libId; strKoppelTeken(); }
+
+function strKoppelTeken() {
+  var oud = document.getElementById('str-koppel'); if (oud) oud.remove();
+  var d = _strKoppel.creative; if (!d) return;
+  var kandidaten = strKandidaten(d);
+
+  var o = document.createElement('div');
+  o.id = 'str-koppel'; o.className = 'str-dos-overlay';
+  var h = '<div class="str-dos str-koppel">'
+    + '<div class="str-dos-kop"><strong>Welke variant is dit?</strong>'
+    + '<button class="str-x" onclick="strKoppelSluit()" aria-label="Sluiten">×</button></div>'
+    + '<p class="str-sec-noot">De rij in Creative Strategy heet <em>' + strEsc(d.ad_name || 'naamloos')
+    + '</em>. Kies hieronder welk bibliotheekitem daarbij hoort. Het systeem doet dit niet '
+    + 'voor je: twee varianten uit één generatie kunnen dezelfde kop hebben, en dan zou het '
+    + 'beeld van de een onder de ander belanden.</p>';
+
+  if (!kandidaten.length) {
+    h += '<p class="str-sec-leeg">Er staat geen enkele vrije bibliotheekvariant in deze browser. '
+      + 'Open eerst de Bibliotheek — die wordt per browser bewaard, dus hij moet een keer '
+      + 'geladen zijn voordat hij hier te kiezen is.</p>';
+  } else {
+    h += '<div class="str-kandidaten">' + kandidaten.map(function (k) {
+      return '<label class="str-kandidaat' + (_strKoppel.gekozen === k.id ? ' str-kandidaat--aan' : '')
+        + (k.zelfde ? ' str-kandidaat--zelfde' : '') + '">'
+        + '<input type="radio" name="str-kandidaat"' + (_strKoppel.gekozen === k.id ? ' checked' : '')
+        +   ' onchange="strKoppelKies(\'' + strEsc(k.id) + '\')">'
+        + (k.image ? '<img alt="" src="' + strEsc(k.image) + '">'
+                   : '<span class="str-kandidaat-geenbeeld">geen beeld</span>')
+        + '<span class="str-kandidaat-tekst">'
+        +   '<strong>' + strEsc(k.headline || 'geen kop') + '</strong>'
+        +   (k.variant_index != null ? '<span class="str-kandidaat-nr">variant '
+              + (k.variant_index + 1) + '</span>' : '')
+        +   '<small>' + strEsc(k.id) + '</small>'
+        +   (k.zelfde ? '<small class="str-let-op">uit dezelfde generatie</small>' : '')
+        + '</span></label>';
+    }).join('') + '</div>';
+  }
+
+  if (_strKoppel.fout) h += '<p class="str-fout">' + strEsc(_strKoppel.fout) + '</p>';
+
+  h += '<div class="str-acties">'
+    + '<button class="str-knop str-knop--aan" ' + (_strKoppel.gekozen && !_strKoppel.bezig ? '' : 'disabled ')
+    +   'onclick="strKoppelBevestig()">' + (_strKoppel.bezig ? 'Bezig...' : 'Koppel deze variant') + '</button>'
+    + '<button class="str-knop" onclick="strKoppelSluit()">Annuleren</button>'
+    + '<span class="str-actie-hoe">Dit legt de koppeling vast en vult alleen velden die nu leeg zijn. '
+    +   'Wat er al staat blijft staan.</span>'
+    + '</div></div>';
+
+  o.innerHTML = h;
+  document.body.appendChild(o);
+  o.addEventListener('click', function (e) { if (e.target === o) strKoppelSluit(); });
+}
+
+function strKoppelBevestig() {
+  var sb = strSb(), d = _strKoppel.creative;
+  if (!sb || !d || !_strKoppel.gekozen) return;
+  var k = strKandidaten(d).filter(function (x) { return x.id === _strKoppel.gekozen; })[0];
+  if (!k) return;
+  _strKoppel.bezig = true; _strKoppel.fout = null; strKoppelTeken();
+
+  sb.rpc('hq_creative_koppelen', { p: {
+    creative_id: d.creative_id, bibliotheek_id: k.id,
+    batch_id: k.batch_id, variant_index: k.variant_index,
+    headline: k.headline, body_copy: k.body, cta: k.cta,
+    visual_concept: k.visual, image_prompt: k.prompt, format: k.format,
+    image_b64: k.image || null
+  }}).then(function (r) {
+    _strKoppel.bezig = false;
+    if (r && r.error) { _strKoppel.fout = r.error.message; strKoppelTeken(); return; }
+    strKoppelSluit();
+    if (typeof toast === 'function') toast('Gekoppeld aan ' + k.id);
+    /* De tabel én het open dossier opnieuw ophalen: de rij is veranderd, en
+       een scherm dat de oude stand blijft tonen is een tweede waarheid. */
+    var id = d.creative_id;
+    strVernieuw();
+    setTimeout(function () { strDossier(id); }, 400);
+  }).catch(function (e) {
+    _strKoppel.bezig = false;
+    _strKoppel.fout = (e && e.message) || 'De koppeling lukte niet.';
+    strKoppelTeken();
+  });
 }

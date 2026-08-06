@@ -101,6 +101,12 @@ function tkVerzamel(i) {
     },
     mens_ingeving: brief.idee || brief.vrij || brief.opdracht || '',
 
+    /* De variant die in de bibliotheek staat is dezelfde variant als deze.
+       Zonder dit id is achteraf niet te zien welk beeld erbij hoorde. */
+    bibliotheek_id: (v._libId || v.lib_id || (lg.libIds && lg.libIds[i]) || null),
+    batch_id: (lg.batch_id || m.batchId || null),
+    variant_index: i,
+
     placement: m.placement || brief.placement || '',
     product_refs: (m.productRefs || m.product_refs || brief.product_refs || []),
 

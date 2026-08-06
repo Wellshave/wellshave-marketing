@@ -78,6 +78,17 @@ const RIJEN = [
     onderbouwing: 'geen denkstuk — deze test rust nergens op',
     niet_testklaar: 'geen hypothese — een afbeelding zonder hypothese is geen test' },
 
+  /* Een rij zoals de drie Google Search-varianten op productie: een stub
+     zonder beeld, zonder copy en zonder verwijzing naar de bibliotheek. */
+  { creative_id: 6, brand: 'Wellshave', ad_name: '23:47. Incognito. Wij weten wat je zoekt.',
+    product: 'Groom Guard', persona: 'Mark', marketing_angle: 'Search',
+    angle_type: 'search', format: null, heeft_beeld: false, bibliotheek_id: null,
+    batch_id: null, variant_index: null, status: 'Concept', status_fase: 'maken',
+    verantwoordelijke: 'de maker', volgende_stap: 'indienen voor review',
+    created_at: '2026-07-23T09:00:00Z', werkstuk_id: 9, denkstuk_id: null,
+    beeld_herkomst: 'niet gekoppeld aan een bibliotheekvariant — beeld en copy zijn niet terug te vinden',
+    onderbouwing: 'geen denkstuk', niet_testklaar: null },
+
   /* Een rij zoals de zeven op productie: nog op het oude woord, dus zonder
      verantwoordelijke en zonder fase uit de statustabel. */
   { creative_id: 5, brand: 'Wellshave', ad_name: 'WS-OUD-005',
@@ -150,9 +161,17 @@ const DOSSIER = Object.assign({}, RIJEN[0], {
     roas: 2.1, winnaars: 1, betrouwbaar: true }],
 });
 
+/* Een creative die zijn bibliotheekvariant kwijt is: geen beeld, geen copy,
+   geen verwijzing. Precies de drie Google Search-varianten op productie. */
+const DOSSIER_LOS = Object.assign({}, RIJEN[3], {
+  werkstuk: 'Niemand praat erover, maar iedereen googelt het',
+  denkstuk_regels: null, stappen: null, overdrachten: null, oordelen: null,
+  discussies: null, publicatie: null, meting: null, learnings: null, tijdlijn: null,
+});
+
 /* Het dossier van een creative van vóór de testflow: geen denkstuk, geen
    interview, geen hypothese. Precies de zeven die op productie staan. */
-const DOSSIER_OUD = Object.assign({}, RIJEN[3], {
+const DOSSIER_OUD = Object.assign({}, RIJEN[4], {
   werkstuk: 'Oud werkstuk', mens_ingeving: null, rory_interview: null,
   rory_reasoning: null, theriot_reasoning: null, bronnen: [],
   denkstuk_regels: null, stappen: null, overdrachten: null, oordelen: null,
@@ -246,8 +265,8 @@ const check = (label, echt, verwacht) => {
   check('het tabblad toont de testtabel', uit.zichtbaar, 'block');
   check('en de beslisvraag staat bovenaan',
     /Welke test vraagt nu om een beslissing\?/.test(uit.vraag || ''), true);
-  check('vijf tests, alle vijf zichtbaar', uit.rijen.length, 5);
-  check('met een telling erbij', /5 van 5 tests/.test(uit.telling || ''), true);
+  check('zes tests, alle zes zichtbaar', uit.rijen.length, 6);
+  check('met een telling erbij', /6 van 6 tests/.test(uit.telling || ''), true);
   // Een status die de database niet kent, krijgt geen verzonnen betekenis.
   check('een verouderde status heet verouderd en geen concept',
     uit.rijen.filter(r => /verouderd/.test(r.status || '')).map(r => r.status),
@@ -295,9 +314,10 @@ const check = (label, echt, verwacht) => {
   await nep(RIJEN, DOSSIER);
   uit = await lees();
   check('elke status staat er in woorden', uit.rijen.map(r => r.status),
-    ['concept', 'wacht op een oordeel', 'live', 'gestopt', 'To Test · verouderd']);
+    ['concept', 'wacht op een oordeel', 'concept', 'live', 'gestopt', 'To Test · verouderd']);
   check('en de groepen zijn verschillend', uit.rijen.map(r => r.groep),
-    ['str-rij--concept', 'str-rij--wacht', 'str-rij--live', 'str-rij--gestopt', 'str-rij--verouderd']);
+    ['str-rij--concept', 'str-rij--wacht', 'str-rij--concept', 'str-rij--live',
+     'str-rij--gestopt', 'str-rij--verouderd']);
 
   console.log('\n  zoeken, filteren, sorteren');
   const gefilterd = await page.evaluate(async () => {
@@ -317,9 +337,9 @@ const check = (label, echt, verwacht) => {
   check('zoeken op een hoek vindt die ene test', gefilterd.na, 1);
   check('filteren op status ook', gefilterd.filter, 1);
   check('een rij zonder naam laat dat zien in plaats van leeg', gefilterd.naam, '—');
-  check('filters leeg geeft alles terug', gefilterd.alles, 5);
+  check('filters leeg geeft alles terug', gefilterd.alles, 6);
   check('sorteren op naam zet ze op volgorde',
-    gefilterd.gesorteerd[0], 'WS-GG-MARK-BEWIJS-001');
+    gefilterd.gesorteerd[0], '23:47. Incognito. Wij weten wat je zoekt.');
 
   console.log('\n  wat op een mens wacht, staat er in woorden');
   // De kern van "duidelijke aanduiding wanneer menselijke actie nodig is":
@@ -335,10 +355,10 @@ const check = (label, echt, verwacht) => {
     return { banner, merken, na, terug: [...document.querySelectorAll('#str-mount .str-rij')].length };
   });
   check('het aantal wachtende tests staat bovenaan',
-    /1 test wacht op jou/.test(wacht.banner || ''), true);
-  check('en de rij zegt het ook met een woord', wacht.merken, 1);
-  check('je kunt er direct op filteren', wacht.na, 1);
-  check('en weer terug', wacht.terug, 5);
+    /2 tests wachten op jou/.test(wacht.banner || ''), true);
+  check('en de rij zegt het ook met een woord', wacht.merken, 2);
+  check('je kunt er direct op filteren', wacht.na, 2);
+  check('en weer terug', wacht.terug, 6);
 
   const resultaat = await page.evaluate(async () => {
     strKolomAan('resultaat'); await new Promise(r => setTimeout(r, 200));
@@ -355,7 +375,7 @@ const check = (label, echt, verwacht) => {
   check('resultaat toont de meting waar die er is',
     resultaat.some(c => /ROAS 2,40/.test(c)), true);
   check('en zegt waarom er niets staat waar dat zo is',
-    resultaat.filter(c => c === 'niet live').length, 4);
+    resultaat.filter(c => c === 'niet live').length, 5);
 
   const geenFilter = await page.evaluate(async () => {
     strZoek('bestaatniet'); await new Promise(r => setTimeout(r, 150));
@@ -377,7 +397,8 @@ const check = (label, echt, verwacht) => {
       titel: o.querySelector('.str-dos-kop strong').textContent.trim(),
       oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
       waarom: (o.querySelector('.str-oordeel-waarom') || {}).textContent,
-      actie: (o.querySelector('.str-actie-knop') || {}).textContent,
+      actie: (o.querySelector('.str-actie-knop, .str-actie-label') || {}).textContent,
+      actieIsKnop: !!o.querySelector('button.str-actie-knop'),
       hoe: (o.querySelector('.str-actie-hoe') || {}).textContent,
       chips: [...o.querySelectorAll('.str-chip')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),
       groepen: [...o.querySelectorAll('.str-groep')].map(g => ({
@@ -403,6 +424,9 @@ const check = (label, echt, verwacht) => {
     /6 dagen live, € 312,4, 41\.022 vertoningen\. Daarmee is de drempel gehaald/.test(dos.waarom || ''),
     true);
   check('en één primaire actie', dos.actie, 'Verdict beoordelen');
+  // Deze handeling gebeurt niet in de console, dus is het een label en geen
+  // knop: doen alsof je erop kunt drukken is een belofte die niet klopt.
+  check('een actie die hier niet uitgevoerd kan worden is geen knop', dos.actieIsKnop, false);
   check('met wat de agents voorstellen', /blijf testen/.test(dos.hoe || ''), true);
 
   // Tien seconden: dat kan alleen als er niet eerst een veldlijst staat.
@@ -487,7 +511,7 @@ const check = (label, echt, verwacht) => {
     const o = document.getElementById('str-dos');
     return {
       oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
-      actie: o.querySelector('.str-actie-knop'),
+      actie: o.querySelector('.str-actie-knop, .str-actie-label'),
       hoe: (o.querySelector('.str-actie-hoe') || {}).textContent,
       legacy: (o.querySelector('.str-legacy') || {}).textContent,
       groepen: [...o.querySelectorAll('.str-groep')].map(g => ({
@@ -516,14 +540,15 @@ const check = (label, echt, verwacht) => {
   console.log('\n  legacy: één melding in plaats van twintig lege velden');
   await nep(RIJEN, DOSSIER_OUD);
   const oud = await page.evaluate(async () => {
-    document.querySelectorAll('#str-mount .str-rij')[4].click();
+    document.querySelectorAll('#str-mount .str-rij')[5].click();
     await new Promise(r => setTimeout(r, 300));
     const o = document.getElementById('str-dos');
     document.querySelectorAll('#str-dos .str-groep').forEach(g => g.setAttribute('open', ''));
     await new Promise(r => setTimeout(r, 150));
     return {
       oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
-      actie: (o.querySelector('.str-actie-knop') || {}).textContent,
+      actie: (o.querySelector('.str-actie-knop, .str-actie-label') || {}).textContent,
+      actieIsKnop: !!o.querySelector('button.str-actie-knop'),
       legacy: (o.querySelector('.str-legacy') || {}).textContent,
       nietVastgelegd: (o.textContent.match(/niet vastgelegd/g) || []).length,
       strategieKop: [...o.querySelectorAll('.str-groep')]
@@ -534,6 +559,9 @@ const check = (label, echt, verwacht) => {
   check('een verouderde status krijgt geen verzonnen betekenis',
     oud.oordeel, 'Oude status — deze creative moet opnieuw beoordeeld worden');
   check('met een actie die een mens kan uitvoeren', oud.actie, 'Kies een geldige status');
+  // De knop zag eruit als een knop en deed niets. Een actie die de console zelf
+  // kan uitvoeren hoort een echte <button> te zijn.
+  check('en dat is een echte knop, geen plaatje van een knop', oud.actieIsKnop, true);
   // Twintig keer "niet vastgelegd" is geen informatie maar ruis. Eén zin die
   // zegt waarom het ontbreekt, is bruikbaar.
   check('één melding legt uit waarom de strategie ontbreekt',
@@ -589,6 +617,156 @@ const check = (label, echt, verwacht) => {
   await nep(RIJEN, DOSSIER, { ingelogd: false });
   uit = await lees();
   check('niet ingelogd zegt waarom er niets staat', uit.leegKop, 'Log in om de tests te zien.');
+
+  console.log('\n  een creative die zijn bibliotheekvariant kwijt is');
+  await nep(RIJEN, DOSSIER_LOS);
+  const los = await page.evaluate(async () => {
+    document.querySelectorAll('#str-mount .str-rij')[2].click();
+    await new Promise(r => setTimeout(r, 300));
+    const o = document.getElementById('str-dos');
+    return {
+      oordeel: (o.querySelector('.str-oordeel-kop') || {}).textContent,
+      waarom: (o.querySelector('.str-oordeel-waarom') || {}).textContent,
+      actie: (o.querySelector('.str-actie-knop, .str-actie-label') || {}).textContent,
+      isKnop: !!o.querySelector('button.str-actie-knop'),
+      hoe: (o.querySelector('.str-actie-hoe') || {}).textContent,
+      creativeKop: [...o.querySelectorAll('.str-groep')]
+        .map(g => g.querySelector('.str-groep-samenvatting').textContent.trim())[0],
+      alles: o.textContent.replace(/\s+/g, ' ').trim(),
+    };
+  });
+  // Dit staat vooraan omdat je een advertentie die je niet kunt zien ook niet
+  // kunt beoordelen. Een leeg dossier zonder uitleg is de fout die gemeld werd.
+  check('het ontbreken van de koppeling is het hoofdoordeel',
+    los.oordeel, 'Deze creative is niet gekoppeld aan zijn bibliotheekvariant');
+  check('met de reden erbij', /geen verwijzing naar het bibliotheekitem/.test(los.waarom || ''), true);
+  check('en een actie die de console zelf uitvoert', los.actie, 'Koppel aan de bibliotheek');
+  check('als echte knop', los.isKnop, true);
+  check('met de reden dat het systeem het niet zelf doet',
+    /koppelt niet op een gelijke titel/.test(los.hoe || ''), true);
+  check('de creativegroep zegt dat hij niet gekoppeld is',
+    /niet gekoppeld/.test(los.creativeKop || ''), true);
+
+  console.log('\n  de koppelkeuze: een mens kiest, met de beelden ernaast');
+  const koppel = await page.evaluate(async () => {
+    /* Een bibliotheek met drie varianten uit dezelfde generatie, waarvan er
+       twee dezelfde kop hebben. Zou de koppeling op naam gaan, dan is dit
+       precies het geval waarin het misgaat. */
+    state.library = [
+      { id: 'lib-a', batch_id: 'batch-1', variant_index: 0, image: 'data:image/png;base64,AAA',
+        variation: { headline_nl: 'Jij googelt het ook.', body_copy_nl: 'B1', cta_nl: 'Shop' },
+        metadata: { product: 'Groom Guard' } },
+      { id: 'lib-b', batch_id: 'batch-1', variant_index: 1, image: 'data:image/png;base64,BBB',
+        variation: { headline_nl: 'Jij googelt het ook.', body_copy_nl: 'B2', cta_nl: 'Shop' },
+        metadata: { product: 'Groom Guard' } },
+      { id: 'lib-c', batch_id: 'batch-2', variant_index: 0, image: 'data:image/png;base64,CCC',
+        variation: { headline_nl: 'Iets heel anders', body_copy_nl: 'B3', cta_nl: 'Nu' },
+        metadata: { product: 'Groom Guard' } },
+    ];
+    document.querySelector('button.str-actie-knop').click();
+    await new Promise(r => setTimeout(r, 250));
+    const o = document.getElementById('str-koppel');
+    const eerst = o.querySelector('.str-kandidaat input');
+    const knopVoor = o.querySelector('.str-acties .str-knop--aan').disabled;
+    eerst.click();
+    await new Promise(r => setTimeout(r, 200));
+    const o2 = document.getElementById('str-koppel');
+    return {
+      kandidaten: [...o.querySelectorAll('.str-kandidaat')].length,
+      beelden: [...o.querySelectorAll('.str-kandidaat img')].length,
+      ids: [...o.querySelectorAll('.str-kandidaat-tekst small')].map(e => e.textContent.trim()),
+      knopVoor: knopVoor,
+      knopNa: o2.querySelector('.str-acties .str-knop--aan').disabled,
+      uitleg: (o.querySelector('.str-sec-noot') || {}).textContent,
+    };
+  });
+  check('alle drie de varianten staan er', koppel.kandidaten, 3);
+  // Zonder beeld is de vraag onbeantwoordbaar: twee varianten hebben dezelfde
+  // kop, dus alleen het beeld zegt welke het is.
+  check('elk met zijn beeld', koppel.beelden, 3);
+  // Deze creative heeft zelf geen generatie, dus is er niets om op voor te
+  // sorteren; ze staan op variantnummer. Wél met hun id erbij en niet met
+  // alleen hun titel, want twee titels zijn hier gelijk.
+  check('en met hun id erbij, niet hun titel', koppel.ids.sort(), ['lib-a', 'lib-b', 'lib-c']);
+  check('er is niets voorgeselecteerd', koppel.knopVoor, true);
+  check('pas na een keuze kun je koppelen', koppel.knopNa, false);
+  check('met de reden waarom het systeem dit niet zelf doet',
+    /dezelfde kop hebben/.test(koppel.uitleg || ''), true);
+
+  const gestuurd = await page.evaluate(async () => {
+    let payload = null;
+    window._sb.rpc = function (naam, args) { payload = { naam: naam, args: args };
+      return Promise.resolve({ data: {}, error: null }); };
+    document.querySelector('#str-koppel .str-acties .str-knop--aan').click();
+    await new Promise(r => setTimeout(r, 250));
+    return payload;
+  });
+  // De koppeling gaat via de gecontroleerde deur, met het id als sleutel.
+  check('de koppeling gaat via hq_creative_koppelen', gestuurd.naam, 'hq_creative_koppelen');
+  check('met het bibliotheek-id als sleutel', gestuurd.args.p.bibliotheek_id, 'lib-a');
+  check('en niet met de titel', gestuurd.args.p.headline !== undefined
+    && Object.keys(gestuurd.args.p).indexOf('ad_name'), -1);
+  check('het variantnummer gaat mee', gestuurd.args.p.variant_index, 0);
+  check('en de generatie', gestuurd.args.p.batch_id, 'batch-1');
+
+  console.log('\n  het beeld komt uit de gekoppelde variant, niet uit de eerste de beste');
+  const beeld = await page.evaluate(async () => {
+    strKoppelSluit(); strDossierSluit();
+    /* De koppelbevestiging hierboven heropent het dossier na 400 ms. Even
+       wachten, anders overschrijft die het dossier dat we hier neerzetten. */
+    await new Promise(r => setTimeout(r, 700));
+    strDossierSluit();
+    /* Twee varianten met dezelfde kop, verschillende beelden. Wordt het beeld
+       op titel gezocht in plaats van op id, dan toont het dossier hier het
+       beeld van de ander — een fout die je niet ziet tenzij je hem meet. */
+    state.library = [
+      { id: 'lib-a', batch_id: 'batch-1', variant_index: 0, image: 'data:image/png;base64,AAA',
+        variation: { headline_nl: 'Jij googelt het ook.' }, metadata: {} },
+      { id: 'lib-b', batch_id: 'batch-1', variant_index: 1, image: 'data:image/png;base64,BBB',
+        variation: { headline_nl: 'Jij googelt het ook.' }, metadata: {} },
+    ];
+    strDossierTeken({ creative_id: 99, ad_name: 'Jij googelt het ook.',
+      status: 'Concept', status_fase: 'maken', verantwoordelijke: 'de maker',
+      heeft_beeld: false, bibliotheek_id: 'lib-b', batch_id: 'batch-1', variant_index: 1 });
+    await new Promise(r => setTimeout(r, 200));
+    document.querySelectorAll('#str-dos .str-groep').forEach(g => g.setAttribute('open', ''));
+    await new Promise(r => setTimeout(r, 150));
+    const img = document.querySelector('#str-dos .str-dos-beeld');
+    return { src: img ? img.getAttribute('src') : null,
+             noot: (document.querySelector('#str-dos .str-sec-noot') || {}).textContent };
+  });
+  check('het beeld van de gekoppelde variant wordt getoond',
+    beeld.src, 'data:image/png;base64,BBB');
+  check('met erbij dat het uit de bibliotheek komt',
+    /komt uit de bibliotheek \(lib-b\)/.test(beeld.noot || ''), true);
+
+  console.log('\n  wat de bibliotheek wegschrijft naar Creative Strategy');
+  const weggeschreven = await page.evaluate(async () => {
+    let rij = null;
+    window._sb = { from: function () {
+      return { insert: function (r) { rij = r; return { then: function (res) {
+        return Promise.resolve({ error: null }).then(res); } }; } };
+    }};
+    window._authProfile = { id: 't', email: 'x@y.nl' };
+    window._userRole = 'admin';
+    window._pxAngleContext = { angle_id: 'a1', angle_title: 'Search', persona_name: 'Mark', stage: 'problem' };
+    state.lastGenerated = { variations: [{}, {}, {}], _pxAngle: window._pxAngleContext };
+    pxTagCreative({ id: 'lib-x', batch_id: 'batch-x', variant_index: 2,
+      image: 'data:image/png;base64,XXX',
+      variation: { headline_nl: 'Kop', body_copy_nl: 'Body', cta_nl: 'Shop',
+                   visual_nl: 'Visueel', image_prompt_en: 'prompt' },
+      metadata: { product: 'Groom Guard', format: 'feed11' } });
+    await new Promise(r => setTimeout(r, 150));
+    return rij;
+  });
+  // Dit is de plek waar het misging: de rij werd een stub met alleen een naam.
+  check('de rij draagt het bibliotheek-id', weggeschreven.bibliotheek_id, 'lib-x');
+  check('de generatie en het variantnummer', 
+    [weggeschreven.batch_id, weggeschreven.variant_index], ['batch-x', 2]);
+  check('het beeld gaat mee', weggeschreven.image_b64, 'data:image/png;base64,XXX');
+  check('en de copy ook',
+    [weggeschreven.headline, weggeschreven.body_copy, weggeschreven.cta],
+    ['Kop', 'Body', 'Shop']);
 
   console.log('\n  regel 4.5 — kleuren uit het tokenblok');
   const css = fs.readFileSync(path.join(APP, 'css', '18-strategie.css'), 'utf8');

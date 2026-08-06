@@ -172,7 +172,7 @@ grant select on public.team_members to authenticated;
 SQL
 
 for m in 0008_terugkoppeling 0009_ruggengraat 0011_tracker 0012_atlas 0013_audit 0017_views \
-         0019_brein 0021_deelnemers 0022_overdracht 0023_denkstuk 0024_terugsturen 0025_dossier 0026_criticus 0029_blokkade 0030_testklaar; do
+         0019_brein 0021_deelnemers 0022_overdracht 0023_denkstuk 0024_terugsturen 0025_dossier 0026_criticus 0029_blokkade 0030_testklaar 0031_statusvocabulaire 0033_bibliotheekkoppeling; do
   uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/$m.sql" 2>&1)
   if [ $? -ne 0 ]; then
     echo "  FOUT migratie $m draait niet:"; echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3; exit 1
@@ -532,11 +532,120 @@ check "de testkaart zegt wie er aan zet is" "ja" \
         where table_schema='marketing_hq' and table_name='testkaart'
           and column_name in ('verantwoordelijke','volgende_stap','verdict')")"
 
+# ── 5c. De koppeling met de bibliotheek ────────────────────────────────────
+# De keten variant → bibliotheekitem → creative → werkstuk mag nergens op een
+# naam rusten. Drie varianten uit één generatie kunnen dezelfde kop hebben; hun
+# id nooit.
+echo ""
+echo "  de koppeling met de bibliotheek"
+
+q "set local test.uid='11111111-1111-1111-1111-111111111111';
+   select marketing_hq.creative_testklaar_maken(jsonb_build_object(
+     'brand','wellshave','ad_name','KOP.variant.1','product','Groom Guard','persona','Mark',
+     'angle_type','search','hypothesis','Als we A, dan B, omdat C','test_variable','de kop',
+     'bibliotheek_id','lib-test-0001','batch_id','batch-test','variant_index',0,
+     'headline','Jij googelt het ook.','image_b64','iVBORw0KG'))" >/dev/null
+# De tweede en derde krijgen het werkstuk van de eerste mee -- precies wat de
+# console doet, die het onthoudt in state.lastGenerated.werkstuk_id. Drie
+# varianten op één idee horen aan één werkstuk.
+WS=$(q "select werkstuk_id from public.creatives where bibliotheek_id='lib-test-0001'")
+q "set local test.uid='11111111-1111-1111-1111-111111111111';
+   select marketing_hq.creative_testklaar_maken(jsonb_build_object(
+     'brand','wellshave','ad_name','KOP.variant.2','product','Groom Guard','persona','Mark',
+     'angle_type','search','hypothesis','Als we A, dan B, omdat C','test_variable','het beeld',
+     'bibliotheek_id','lib-test-0002','batch_id','batch-test','variant_index',1,
+     'werkstuk_id','$WS',
+     'headline','Jij googelt het ook.','image_b64','iVBORw0KG'))" >/dev/null
+q "set local test.uid='11111111-1111-1111-1111-111111111111';
+   select marketing_hq.creative_testklaar_maken(jsonb_build_object(
+     'brand','wellshave','ad_name','KOP.variant.3','product','Groom Guard','persona','Mark',
+     'angle_type','search','hypothesis','Als we A, dan B, omdat C','test_variable','de cta',
+     'bibliotheek_id','lib-test-0003','batch_id','batch-test','variant_index',2,
+     'werkstuk_id','$WS',
+     'headline','Iets anders.','image_b64','iVBORw0KG'))" >/dev/null
+
+check "elke variant krijgt zijn eigen creative" "3" \
+  "$(q "select count(distinct id) from public.creatives where batch_id='batch-test'")"
+check "en zijn eigen bibliotheek-id" "3" \
+  "$(q "select count(distinct bibliotheek_id) from public.creatives where batch_id='batch-test'")"
+# Twee van de drie hebben met opzet DEZELFDE kop. Zou de koppeling op naam
+# rusten, dan zouden die twee samenvallen -- precies de fout die dit voorkomt.
+check "twee varianten met dezelfde kop blijven twee creatives" "2" \
+  "$(q "select count(*) from public.creatives
+        where batch_id='batch-test' and headline='Jij googelt het ook.'")"
+check "de variantnummers blijven staan" "0,1,2" \
+  "$(q "select string_agg(variant_index::text, ',' order by variant_index)
+        from public.creatives where batch_id='batch-test'")"
+check "het beeld staat op de rij en niet alleen in de bibliotheek" "3" \
+  "$(q "select count(*) from public.creatives where batch_id='batch-test' and image_b64 is not null")"
+check "de testkaart geeft de koppeling door" "3" \
+  "$(q "select count(*) from marketing_hq.testkaart
+        where batch_id='batch-test' and bibliotheek_id is not null")"
+check "het dossier noemt de andere varianten uit dezelfde generatie" "3" \
+  "$(q "select jsonb_array_length(zusjes) from marketing_hq.creative_dossier
+        where bibliotheek_id='lib-test-0001'")"
+check "de drie hangen aan hetzelfde werkstuk" "1" \
+  "$(q "select count(distinct werkstuk_id) from public.creatives where batch_id='batch-test'")"
+# ...maar blijven wel drie afzonderlijke creatives binnen dat werkstuk.
+check "en zijn daarbinnen alle drie apart aanklikbaar" "3" \
+  "$(q "select count(*) from marketing_hq.testkaart where werkstuk_id = $WS")"
+# Zonder deze regel kan hetzelfde bibliotheekitem aan twee creatives hangen, en
+# dan wijst een verwijzing uit een rapport naar twee dingen.
+check "hetzelfde bibliotheekitem kan niet aan twee creatives hangen" "ja" \
+  "$(weigert "update public.creatives set bibliotheek_id='lib-test-0001'
+              where bibliotheek_id='lib-test-0002'" "creatives_bibliotheek_uniek")"
+check "een variantnummer zonder generatie kan niet" "ja" \
+  "$(weigert "insert into public.creatives (brand, ad_name, status, variant_index)
+              values ('wellshave','KOP.los','Concept',3)" "creatives_variant_heeft_batch")"
+
+echo ""
+echo "  een ontbrekende koppeling valt op"
+q "insert into public.creatives (brand, ad_name, status) values ('wellshave','KOP.stub','Concept')" >/dev/null
+# Een stub zonder beeld en zonder koppeling mag niet lijken op een creative die
+# nog gemaakt moet worden: het eerste is een fout, het tweede is geduld.
+check "de testkaart zegt waarom er geen beeld is" \
+  "niet gekoppeld aan een bibliotheekvariant — beeld en copy zijn niet terug te vinden" \
+  "$(q "select beeld_herkomst from marketing_hq.testkaart where ad_name='KOP.stub'")"
+check "en bij een gekoppelde rij zonder beeld staat er iets anders" \
+  "het beeld staat in de bibliotheek, niet in de database" \
+  "$(q "update public.creatives set image_b64=null where bibliotheek_id='lib-test-0003';
+        select beeld_herkomst from marketing_hq.testkaart where bibliotheek_id='lib-test-0003'" | tail -1)"
+
+echo ""
+echo "  koppelen doet een mens, via één deur"
+check "een onbekende gebruiker koppelt niets" "ja" \
+  "$(weigert "set local test.uid='22222222-2222-2222-2222-222222222222';
+     select marketing_hq.creative_koppelen(jsonb_build_object(
+       'creative_id',(select id from public.creatives where ad_name='KOP.stub'),
+       'bibliotheek_id','lib-test-0009'))" "goedgekeurd teamlid")"
+check "een teamlid koppelt wel" "lib-test-0009" \
+  "$(q "set local test.uid='11111111-1111-1111-1111-111111111111';
+        select marketing_hq.creative_koppelen(jsonb_build_object(
+          'creative_id',(select id from public.creatives where ad_name='KOP.stub'),
+          'bibliotheek_id','lib-test-0009','headline','Uit de bibliotheek',
+          'image_b64','iVBORw0KG'))->>'bibliotheek_id'")"
+check "en het beeld staat er daarna bij" "t" \
+  "$(q "select image_b64 is not null from public.creatives where ad_name='KOP.stub'")"
+check "een variant die al bezet is wordt geweigerd" "ja" \
+  "$(weigert "set local test.uid='11111111-1111-1111-1111-111111111111';
+     select marketing_hq.creative_koppelen(jsonb_build_object(
+       'creative_id',(select id from public.creatives where ad_name='KOP.variant.2'),
+       'bibliotheek_id','lib-test-0001'))" "hangt al aan creative")"
+# Wat er al stond blijft staan: koppelen vult gaten, het overschrijft niet.
+check "koppelen overschrijft geen bestaande kop" "Jij googelt het ook." \
+  "$(q "set local test.uid='11111111-1111-1111-1111-111111111111';
+        select marketing_hq.creative_koppelen(jsonb_build_object(
+          'creative_id',(select id from public.creatives where ad_name='KOP.variant.1'),
+          'bibliotheek_id','lib-test-0001','headline','ANDERE KOP'));
+        select headline from public.creatives where ad_name='KOP.variant.1'" | tail -1)"
+
 # ── 6. Nog een keer ────────────────────────────────────────────────────────
 echo
 echo "  de migratie nog een keer"
-uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0030_testklaar.sql" 2>&1)
-check "0030 draait twee keer zonder klagen" "" "$(echo "$uit" | grep -o 'ERROR' | head -1)"
+# De laatste migratie is degene die de views in hun huidige vorm zet; 0030 nog
+# een keer draaien zou de oude kolomvolgorde terugvragen en terecht klagen.
+uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0033_bibliotheekkoppeling.sql" 2>&1)
+check "0033 draait twee keer zonder klagen" "" "$(echo "$uit" | grep -o 'ERROR' | head -1)"
 check "en er zijn nog steeds tien statussen" "10" \
   "$(q "select count(*) from marketing_hq.creative_statussen")"
 

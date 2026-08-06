@@ -78,6 +78,18 @@ async function saveToLibraryFromCard(varIndex) {
     batch_title: (state.lastGenerated && state.lastGenerated._batch_title) || '',
     variant_index: varIndex
   };
+  /* Het id terugschrijven op de variatie in het geheugen. Zonder dit weet
+     "Klaarzetten voor test" straks niet uit welk bibliotheekitem deze variant
+     komt, en dan moet het achteraf op de kop gezocht worden — precies de
+     koppeling op naam die we niet willen. */
+  try {
+    if (state.lastGenerated && state.lastGenerated.variations && varIndex != null
+        && state.lastGenerated.variations[varIndex]) {
+      state.lastGenerated.variations[varIndex]._libId = item.id;
+    }
+    if (state.lastGenerated) state.lastGenerated.batch_id = item.batch_id;
+  } catch (e) {}
+
   try { if (typeof pxTagCreative === 'function') pxTagCreative(item); } catch(e){}
 
   if (existingIdx >= 0) {
@@ -359,9 +371,26 @@ function pxTagCreative(item){
   var sb=window._sb; if(!sb||!window._authProfile||!window._authProfile.id) return;
   if(typeof window._userRole!=='undefined' && window._userRole==='guest') return;
   var v=(item&&item.variation)||{}; var m=(item&&item.metadata)||{};
+  /* Alles wat het bibliotheekitem weet gaat mee, inclusief zijn id.
+
+     Hiervoor schreef deze functie alleen de naam en de hoek weg: het beeld en
+     de copy bleven achter in de bibliotheek-blob, en de rij in Creative
+     Strategy was een stub waar je niet aan kon zien wélke advertentie het was.
+     Dat is precies wat er met de drie Google Search-varianten gebeurde.
+
+     De koppeling is het id en niet de kop. Twee varianten uit één generatie
+     kunnen dezelfde kop hebben; hun id nooit. */
   var row={ brand:pxBrand(), user_id:window._authProfile.id, user_email:window._authProfile.email||null, user_name:window._authProfile.full_name||window._authProfile.email||null,
     ad_name:v.headline_nl||ctx.angle_title||'Static', product:m.product||null, persona:ctx.persona_name||null,
     marketing_angle:ctx.angle_title||null, awareness_level:ctx.stage||null, angle_id:ctx.angle_id,
+    bibliotheek_id:(item&&item.id)||null,
+    batch_id:(item&&item.batch_id)||null,
+    variant_index:(item&&item.variant_index!=null)?item.variant_index:null,
+    headline:v.headline_nl||null, body_copy:v.body_copy_nl||null, cta:v.cta_nl||null,
+    visual_concept:v.visual_nl||null, image_prompt:v.image_prompt_en||null,
+    creative_concept:v.visual_nl||m.concept||null,
+    format:m.format||(item&&item.batch_title)||null,
+    image_b64:(item&&item.image)||null,
     media_type:'Static', source_type:'static',
     /* De status komt uit creative_statussen en niet uit een woord hier: sinds
        0030 weigert de database een status die hij niet kent. */

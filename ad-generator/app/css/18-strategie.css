@@ -606,3 +606,87 @@
    niet, want dit is de reden dat de creative vastzit. */
 .str-paar--nodig dd { color: var(--ink); font-style: italic; }
 .str-paar--nodig dt { color: var(--ink); }
+
+/* Een actie die de console zelf kan uitvoeren is een knop. Een actie die
+   ergens anders gebeurt is een label — het mag er niet uitzien alsof je erop
+   kunt drukken, want dat kost een poging en een moment twijfel. */
+button.str-actie-knop { border: 0; font: inherit; cursor: pointer; }
+button.str-actie-knop:hover { opacity: .88; }
+.str-actie-label {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── de koppelkeuze ──────────────────────────────────────────────────────── */
+
+/* Beelden naast elkaar, groot genoeg om te herkennen. Dit is het enige moment
+   waarop de gebruiker moet zien wélke advertentie het is; een lijstje met
+   koppen zou de vraag onbeantwoordbaar maken. */
+.str-koppel { width: 820px; }
+.str-kandidaten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.str-kandidaat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.str-kandidaat:hover { background: var(--surface-3); }
+.str-kandidaat--aan { border-color: var(--ink); border-width: 2px; padding: 9px; }
+/* Uit dezelfde generatie: waarschijnlijk het antwoord, maar niet zeker — dus
+   een hint en geen voorselectie. */
+.str-kandidaat--zelfde { background: var(--amber-wash); }
+.str-kandidaat img { width: 100%; border-radius: 8px; display: block; }
+.str-kandidaat-geenbeeld {
+  display: flex;
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.str-kandidaat-tekst { display: flex; flex-direction: column; gap: 3px; }
+.str-kandidaat-tekst strong { font-size: 13px; line-height: 1.35; color: var(--ink); }
+.str-kandidaat-tekst small { font-size: 11px; color: var(--ink-soft); word-break: break-all; }
+.str-kandidaat-nr {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 11px;
+  color: var(--ink);
+}
+.str-dos-beeld {
+  width: 100%;
+  max-width: 340px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  display: block;
+  margin-bottom: 10px;
+}
+.str-fout {
+  margin: 10px 0 0;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 13px;
+  color: var(--ink);
+}
