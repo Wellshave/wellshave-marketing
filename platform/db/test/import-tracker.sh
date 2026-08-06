@@ -41,6 +41,11 @@ check() {
 q() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>/dev/null \
       | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
 
+weigert() {
+  local uit; uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>&1 | tr '\n' ' ')
+  case "$uit" in *"$2"*) echo ja ;; *ERROR*) echo "andere fout: $uit" ;; *) echo nee ;; esac
+}
+
 opruimen() { su "$UID_PG" -c "$BIN/pg_ctl -D $WERK -m immediate stop" >/dev/null 2>&1; rm -rf "$WERK"; }
 trap opruimen EXIT
 
@@ -269,6 +274,63 @@ psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$WERK
 check "nog steeds 624 rijen" "624" "$(q "select count(*) from public.creatives where bron_bestand is not null")"
 check "de terugweg werkt" "0" \
   "$(q "delete from public.creatives where bron_bestand is not null; select count(*) from public.creatives where bron_bestand is not null")"
+
+# De controle hierboven heeft de tabel leeggehaald. Alles wat hierna komt gaat
+# over de geimporteerde rijen, dus die moeten er weer in -- anders slagen de
+# tellingen hieronder op een lege tabel, en dat is geen bewijs maar een leegte.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$WERK/import.sql" >/dev/null 2>&1
+check "de rijen staan er weer in" "624" \
+  "$(q "select count(*) from public.creatives where bron_bestand is not null")"
+
+echo
+echo "  de nieuwe werkwijze geldt vanaf de nieuwe creatives"
+# Dit is de kern van de uitzondering uit 0035, en het is de regressie die je
+# niet ziet: als hij te ruim staat, glipt voortaan elke nieuwe creative langs
+# de eis uit 0030 en merk je dat pas als er niets meer wordt vastgelegd.
+check "een nieuwe creative kan niet live zonder hypothese" "ja" \
+  "$(weigert "insert into public.creatives (brand, ad_name, product, status)
+              values ('wellshave','proef-nieuw','Groom Guard','Live')" 'niet testklaar')"
+check "ook niet met alleen een hypothese" "ja" \
+  "$(weigert "insert into public.creatives (brand, ad_name, product, status, hypothesis)
+              values ('wellshave','proef-nieuw-2','Groom Guard','Live','als we X, dan Y, omdat Z')" 'werkstuk')"
+check "een geimporteerde rij mag er wel in" "ja" \
+  "$(q "insert into public.creatives (brand, ad_name, product, status, bron_bestand)
+        values ('wellshave','proef-bron','Groom Guard','Live','1. Creative Strategy Map.xlsx')
+        returning 'ja'")"
+# en zodra iemand zo'n rij verder helpt, geldt de eis alsnog
+check "maar hem daarna verplaatsen kan niet zomaar" "ja" \
+  "$(weigert "update public.creatives set status='Winner' where ad_name='proef-bron'" 'niet testklaar')"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -c "delete from public.creatives where ad_name like 'proef-%'" >/dev/null 2>&1
+
+echo
+echo "  0036: de banden en het invullen"
+uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0036_benchmarks.sql" 2>&1)
+check "0036 draait zonder fout" "0" "$?"
+[ $fout -eq 0 ] || echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3
+
+check "0,25 is prima"                    "prima"      "$(q "select marketing_hq.benchmark_band('hook_rate', 0.25)")"
+check "0,34 is goed"                     "goed"       "$(q "select marketing_hq.benchmark_band('hook_rate', 0.34)")"
+check "0,42 is uitstekend"               "uitstekend" "$(q "select marketing_hq.benchmark_band('hook_rate', 0.42)")"
+check "0,19 is matig"                    "matig"      "$(q "select marketing_hq.benchmark_band('hook_rate', 0.19)")"
+# De sheet kleurt 1233% donkergroen. Dat is de fout die deze functie niet maakt.
+check "12,33 is onmogelijk, niet uitstekend" "onmogelijk" "$(q "select marketing_hq.benchmark_band('hook_rate', 12.33)")"
+check "nul krijgt geen oordeel"          ""           "$(q "select marketing_hq.benchmark_band('hook_rate', 0)")"
+check "leeg krijgt geen oordeel"         ""           "$(q "select marketing_hq.benchmark_band('hook_rate', null)")"
+check "de grens hoort bij de bovenste band" "goed"    "$(q "select marketing_hq.benchmark_band('hook_rate', 0.30)")"
+check "ctr heeft eigen grenzen"          "prima"      "$(q "select marketing_hq.benchmark_band('ctr', 0.01)")"
+
+# Invullen mag alleen waar het een opzoeking is. Deze drie tellingen zijn de
+# hele afspraak: eenduidig wel, dubbelzinnig niet, geen bron niet.
+check "er zijn Groom Guard-rijen om over te oordelen" "275" \
+  "$(q "select count(*) from public.creatives where product='Groom Guard'")"
+check "Groom Guard heeft nergens meer een gat" "0" \
+  "$(q "select count(*) from public.creatives where product='Groom Guard' and breakeven_roas is null")"
+check "Groom Guard PRO blijft leeg waar het dubbelzinnig is" "3" \
+  "$(q "select count(*) from public.creatives where product='Groom Guard PRO' and breakeven_roas is null")"
+check "een product zonder enige waarde blijft leeg" "9" \
+  "$(q "select count(*) from public.creatives where product='Alle producten' and breakeven_roas is null")"
+check "en er is nog steeds geen enkele score verzonnen" "0" \
+  "$(q "select count(*) from public.creatives where score is not null")"
 
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"

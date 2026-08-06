@@ -55,7 +55,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/denkstuk.sh` | Testlus voor 0023 — 52 controles; de kern is dat geen agent het denkstuk kan aftekenen |
 | `db/test/terugsturen.sh` | Testlus voor 0024 — 44 controles; de kern is dat twee agents elkaar niet eindeloos heen en weer sturen |
 | `db/test/agentzicht.sh` | Testlus voor 0034 — 13 controles; de kern is dat de acht oude kolommen van hq_reports niet verschuiven |
-| `db/test/import-tracker.sh` | Testlus voor 0035 en de import van de Creative Strategy Map — 30 controles; de kern is dat een breakdown optelt tot het aantal rijen |
+| `db/test/import-tracker.sh` | Testlus voor 0035 en 0036 — 48 controles; de kern is dat een breakdown optelt tot het aantal rijen en dat een nieuwe creative niet langs de eis uit 0030 glipt |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
 | `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
