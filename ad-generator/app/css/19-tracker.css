@@ -1,0 +1,238 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Creative Strategy — de tracker
+
+   Eén regel bepaalt alles hieronder: kleur betekent iets, of hij staat er
+   niet. Een tabel van zeshonderd rijen met twintig kolommen wordt gescand,
+   en elke kleur die niets zegt maakt de kleur die wél iets zegt onleesbaar.
+
+   Daarom krijgen precies drie dingen kleur:
+
+     · de vier metrics die tegen een benchmarkband gehouden worden
+     · de ROAS, maar alleen als er een break-even naast staat
+     · de statusgroep, in de rustigste variant die nog leesbaar is
+
+   Al het andere is grijs, en wat ontbreekt is lichtgrijs. Dat laatste is geen
+   detail: bij deze data is 'niet ingevuld' de meest voorkomende waarde, en die
+   moet zichtbaar zijn zonder de aandacht te trekken die een cijfer verdient.
+
+   De banden zelf staan in de database (0036). Hier staat alleen welke kleur
+   erbij hoort; de grenzen niet.
+
+   Alle kleuren komen uit het tokenblok in 08-atelier-v6-daylight.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── de kaarten ─────────────────────────────────────────────────────────── */
+
+.trk-kaarten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.trk-kaart {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+/* Een dun streepje links in plaats van een gekleurd vlak: genoeg om de
+   kaarten uit elkaar te houden, niet genoeg om te schreeuwen. */
+.trk-kaart--live    { box-shadow: inset 3px 0 0 var(--gold); }
+.trk-kaart--winner  { box-shadow: inset 3px 0 0 var(--green); }
+.trk-kaart--iter    { box-shadow: inset 3px 0 0 var(--amber-deep); }
+.trk-kaart--verlies { box-shadow: inset 3px 0 0 var(--red); }
+
+.trk-kaart-n {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--ink);
+}
+.trk-kaart-l { font-size: 12px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+.trk-kaart-b { font-size: 11px; color: var(--ink-faint); }
+
+.trk-melding {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+  background: var(--surface-2);
+}
+.trk-melding--let-op {
+  background: var(--amber-wash);
+  border-color: var(--gold-line);
+}
+.trk-melding strong { color: var(--ink); }
+
+.trk-telling { font-size: 12px; color: var(--ink-faint); margin: 10px 0; }
+
+/* ── de tabel ───────────────────────────────────────────────────────────── */
+
+.trk-tabelwrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.trk-tabel { width: 100%; border-collapse: collapse; font-size: 12px; }
+.trk-tabel--smal { border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
+
+/* De drie blokken uit de Test Tracker: plan, wat het deed, wat we vinden.
+   De scheiding tussen de blokken is een lijn en geen kleurvlak — de blokken
+   moeten te onderscheiden zijn, niet op te vallen. */
+.trk-blokrij .trk-blok {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 9px 10px 5px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.trk-blok--live,
+.trk-blok--besluit,
+.trk-th--live,
+.trk-th--besluit,
+.trk-td--live,
+.trk-td--besluit { border-left: 1px solid var(--line-strong); }
+
+.trk-th {
+  text-align: left;
+  padding: 6px 10px 8px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.trk-td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  color: var(--ink-soft);
+}
+.trk-rij:hover .trk-td { background: var(--glass-hover); }
+
+/* Twintig kolommen passen niet op een scherm, en dat is geen fout om weg te
+   ontwerpen: plan, cijfers en besluit hóren naast elkaar te staan. Wel moet je
+   weten waar je naar kijkt als je naar rechts schuift. Daarom blijft de
+   advertentienaam staan. Zonder dit is de kolom Besluit een rij getallen
+   zonder onderwerp. */
+.trk-th:first-child, .trk-td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-right: 1px solid var(--line-strong);
+}
+.trk-th:first-child { z-index: 3; background: var(--surface-2); }
+.trk-rij:hover .trk-td:first-child { background: var(--glass-hover); }
+/* De blokkop blijft juist NIET staan. Hij beslaat zeven kolommen, dus sticky
+   maken betekent dat 'Plan' bij het naar rechts schuiven over 'Besluit' heen
+   gaat liggen. De advertentienaam eronder is smal genoeg en doet het werk. */
+.trk-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.trk-leeg { color: var(--ink-faint); }
+.trk-cijfer { font-variant-numeric: tabular-nums; color: var(--ink); }
+.trk-cijfer--stil { color: var(--ink-faint); }
+
+/* Alles op één regel. 'UGC Talking Head Testimonial' maakt een rij anders vier
+   regels hoog, en dan zie je er vier tegelijk in plaats van vijftien — bij
+   zeshonderd advertenties is dat het verschil tussen scannen en bladeren. De
+   hele tekst blijft bereikbaar in de title. */
+.trk-kort, .trk-hook {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trk-kort { max-width: 104px; }
+.trk-hook { max-width: 210px; }
+
+/* ── de banden ──────────────────────────────────────────────────────────── */
+
+/* Vier tinten voor vier banden, en een vijfde die niet in de sheet bestond:
+   'onmogelijk'. Die is met opzet niet groen. Een hook rate van 1233% is een
+   invoerfout, en hem donkergroen kleuren — zoals de sheet doet — zet hem
+   bovenaan elke ranglijst waar hij niet hoort. */
+.trk-band {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.trk-band--matig      { background: rgba(192, 73, 47, 0.10);  color: var(--red); }
+.trk-band--prima      { background: var(--surface-3);          color: var(--ink-soft); }
+.trk-band--goed       { background: rgba(23, 145, 92, 0.10);   color: var(--green); }
+.trk-band--uitstekend { background: rgba(23, 145, 92, 0.20);   color: var(--green); font-weight: 700; }
+.trk-band--onmogelijk {
+  background: repeating-linear-gradient(135deg,
+    rgba(22, 21, 15, 0.06) 0 4px, transparent 4px 8px);
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+
+/* Waar een getal vandaan komt. 'handmatig' is niet fout, maar het is wel iets
+   anders dan gemeten, en dat verschil hoort in de rij te staan en niet in een
+   uitleg eronder. */
+.trk-bron { font-size: 11px; }
+.trk-bron--meta      { color: var(--green); font-weight: 600; }
+.trk-bron--handmatig { color: var(--ink-faint); }
+.trk-bron--geen      { color: var(--ink-faint); }
+
+.trk-status { font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+.trk-status--live       { color: var(--gold); }
+.trk-status--winner     { color: var(--green); }
+.trk-status--verliezer  { color: var(--red); }
+.trk-status--itereren   { color: var(--amber-deep); }
+
+/* ── de doorsneden ──────────────────────────────────────────────────────── */
+
+.trk-doorsnede { margin-top: 26px; }
+.trk-doorsnede-kop {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.trk-h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px; font-weight: 500; color: var(--ink); margin: 0;
+}
+.trk-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.trk-tabel--smal th {
+  text-align: left; padding: 7px 10px; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--ink-soft); background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+}
+.trk-tabel--smal td { padding: 7px 10px; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
+.trk-rij--leegwaarde td { background: var(--surface-3); font-style: italic; }
+
+/* Het staafje is de kern van deze tabel: het laat zien waar een regel op
+   rust. Een doorsnede met 97 advertenties en nul metingen ziet er anders uit
+   dan een met 97 metingen, en zonder dit staafje niet. */
+.trk-staaf {
+  display: flex; height: 7px; width: 100%; min-width: 90px;
+  border-radius: 4px; overflow: hidden; background: var(--surface-3);
+}
+.trk-staaf > i { display: block; height: 100%; }
+.trk-staaf--meta { background: var(--green); }
+.trk-staaf--hand { background: var(--amber); }
+.trk-staaf--geen { background: var(--surface-3); }
+
+.trk-legenda { font-size: 11px; color: var(--ink-faint); margin-top: 8px; line-height: 1.6; }
+.trk-vlek {
+  display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+  margin: 0 3px 0 10px; vertical-align: baseline;
+}
+.trk-vlek.trk-staaf--geen { border: 1px solid var(--line-strong); }
+
+@media (max-width: 820px) {
+  .trk-hook { max-width: 150px; }
+  .trk-kaart-n { font-size: 22px; }
+}

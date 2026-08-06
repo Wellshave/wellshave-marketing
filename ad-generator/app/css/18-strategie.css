@@ -57,6 +57,13 @@
   color: var(--ink);
 }
 .str-filter {
+  /* 01-basis.css zet `select { width: 100% }` voor het hele formulierenpak.
+     In een flexbalk betekent dat: elk filter eist een eigen regel, en dan staan
+     er zeven balken onder elkaar in plaats van een rij knopjes. Deze drie
+     regels zetten dat terug; zonder de eerste is de rest zinloos. */
+  width: auto;
+  max-width: 210px;
+  flex: 0 1 auto;
   font: inherit;
   font-size: 12.5px;
   padding: 7px 10px;

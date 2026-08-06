@@ -100,7 +100,7 @@ function strKolommenTerug() {
    status met de hand bijwerken. Dit is er een tweede vraag naast, geen
    vervanging — beide lezen public.creatives, dus er is één waarheid. */
 function strWeergave() {
-  try { return localStorage.getItem('str_weergave_v1') || 'tests'; } catch (e) { return 'tests'; }
+  try { return localStorage.getItem('str_weergave_v1') || 'tracker'; } catch (e) { return 'tracker'; }
 }
 function strWissel(v) {
   try { localStorage.setItem('str_weergave_v1', v); } catch (e) {}
@@ -111,16 +111,21 @@ function strWisselTeken() {
   var knoppen = document.getElementById('str-wissel');
   var mount = document.getElementById('str-mount');
   var klassiek = document.getElementById('cs-klassiek');
+  var tracker = document.getElementById('trk-mount');
   if (knoppen) {
     knoppen.innerHTML =
-      '<button class="str-knop' + (w === 'tests' ? ' str-knop--aan' : '') + '"'
+      '<button class="str-knop' + (w === 'tracker' ? ' str-knop--aan' : '') + '"'
+      + ' onclick="strWissel(\'tracker\')">Tracker</button>'
+      + '<button class="str-knop' + (w === 'tests' ? ' str-knop--aan' : '') + '"'
       + ' onclick="strWissel(\'tests\')">Tests en dossier</button>'
       + '<button class="str-knop' + (w === 'tabel' ? ' str-knop--aan' : '') + '"'
       + ' onclick="strWissel(\'tabel\')">Bewerken (cijfers en status)</button>';
   }
-  if (mount) mount.style.display = (w === 'tests') ? '' : 'none';
-  if (klassiek) klassiek.style.display = (w === 'tests') ? 'none' : '';
-  if (w === 'tests') renderStrategie();
+  if (mount)    mount.style.display    = (w === 'tests')   ? '' : 'none';
+  if (tracker)  tracker.style.display  = (w === 'tracker') ? '' : 'none';
+  if (klassiek) klassiek.style.display = (w === 'tabel')   ? '' : 'none';
+  if (w === 'tests')   renderStrategie();
+  if (w === 'tracker' && typeof renderTracker === 'function') renderTracker();
 }
 
 /* ── ophalen ─────────────────────────────────────────────────────────────── */

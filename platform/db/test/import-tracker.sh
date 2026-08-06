@@ -333,5 +333,43 @@ check "en er is nog steeds geen enkele score verzonnen" "0" \
   "$(q "select count(*) from public.creatives where score is not null")"
 
 echo
+echo "  0037: de trackerrij"
+uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0037_trackerrij.sql" 2>&1)
+check "0037 draait zonder fout" "0" "$?"
+[ $fout -eq 0 ] || echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3
+
+# De oude kolommen mogen niet verschuiven: alles wat nu select * doet rekent
+# op de volgorde uit 0011.
+check "de eerste achttien kolommen staan nog op hun plek" \
+  "id,brand,werkstuk_id,ad_name,product,persona,angle_type,format,media_type,hook_short,awareness_level,marketing_angle,creative_concept,status,score,next_step,date_live,notes" \
+  "$(q "select string_agg(column_name, ',' order by ordinal_position)
+        from information_schema.columns
+        where table_schema='public' and table_name='hq_creative_kaart' and ordinal_position <= 18")"
+check "de nieuwe kolommen zijn er ook in de publieke view" "t" \
+  "$(q "select count(*) = 12 from information_schema.columns
+        where table_schema='public' and table_name='hq_creative_kaart'
+          and column_name in ('desires','channel','audience','budget','conversions','breakeven_roas',
+                              'target_roas','hook_band','hold_band','ctr_band','cvr_band','boven_breakeven')")"
+
+# Het oordeel komt uit de database en niet uit het scherm. Zonder deze twee
+# kan een browser zijn eigen grenzen gaan bijhouden.
+check "een hook rate van 0,3422 heet goed"  "goed"       \
+  "$(q "select hook_band from marketing_hq.creative_kaart where ad_name='003-1'")"
+check "en 0,25 heet prima"                  "prima"      \
+  "$(q "select hook_band from marketing_hq.creative_kaart where ad_name='001-1'")"
+check "de tien invoerfouten heten onmogelijk" "10"       \
+  "$(q "select count(*) from marketing_hq.creative_kaart where hook_band='onmogelijk'")"
+
+# 003-1 heeft ROAS 1,82 bij een break-even van 1,90: net eronder. Dat is de
+# rij waar een verkeerde vergelijkingsrichting zich zou verstoppen.
+check "1,82 bij break-even 1,90 is eronder" "f" \
+  "$(q "select boven_breakeven from marketing_hq.creative_kaart where ad_name='003-1'")"
+check "een ROAS van nul krijgt geen oordeel" "" \
+  "$(q "select boven_breakeven from marketing_hq.creative_kaart where ad_name='001-1'")"
+check "zonder break-even ook niet" "0" \
+  "$(q "select count(*) from marketing_hq.creative_kaart
+        where breakeven_roas is null and boven_breakeven is not null")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))

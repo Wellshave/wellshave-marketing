@@ -225,7 +225,11 @@ const check = (label, echt, verwacht) => {
       }} : null;
       window._authProfile = ingelogd ? { id: 'test' } : null;
       window._userRole = 'admin';
-      if (wis) { localStorage.removeItem('str_kolommen_v1'); localStorage.removeItem('str_weergave_v1'); }
+      /* Expliciet 'tests' en niet wissen: sinds de tracker erbij kwam is dat de
+         standaardweergave, en deze lus gaat over de testtabel ernaast. Wissen
+         zou hier de tracker openen en elke controle hieronder laten falen op
+         een verborgen element. */
+      if (wis) { localStorage.removeItem('str_kolommen_v1'); localStorage.setItem('str_weergave_v1', 'tests'); }
       _str.kolommen = null;
       _str.geladen = false; _str.rijen = null; _str.fout = null;
       _str.zoek = ''; _str.filters = {}; _str.selectie = {}; _str.kolomkiezer = false;
@@ -600,8 +604,11 @@ const check = (label, echt, verwacht) => {
   check('en de testtabel wijkt dan', wissel.tests, 'none');
   check('de keuze wordt onthouden', wissel.bewaard, 'tabel');
   check('en je kunt terug', wissel.terug, 'block');
-  check('beide staan er met een woord bij', wissel.knoppen,
-    ['Tests en dossier', 'Bewerken (cijfers en status)']);
+  /* Drie sinds de tracker erbij kwam. De volgorde is de volgorde van gebruik:
+     eerst kijken wat er gebeurd is, dan wat om een beslissing vraagt, dan
+     bijwerken. */
+  check('alle drie staan er met een woord bij', wissel.knoppen,
+    ['Tracker', 'Tests en dossier', 'Bewerken (cijfers en status)']);
 
   console.log('\n  regel 0.4 — nooit een leeg vlak');
   await nep([], null);
