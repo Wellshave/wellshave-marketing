@@ -1,14 +1,24 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (5 approvals, waarvan 1 met verzwaarde
+**Status:** 🟡 wacht op akkoord (**7 approvals**, waarvan 1 met verzwaarde
 urgentie)
-**Laatste run:** 2026-08-03 · ochtendcyclus
-**Huidige taak:** correctienotitie toegevoegd aan rapport 1/8; twee
-prioritaire pipeline-items bijgewerkt met vervolgonderzoek
+**Laatste run:** 2026-08-06 · ochtendcyclus
+**Huidige taak:** eerste prioritaire kans gearchiveerd als niet-doorgekomen;
+2 nieuwe voorstellen (#6 budgetverdeling, #7 creditbudget)
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-06** · **Eerste prioritaire kans teruggetrokken:** de Cloud Nine
+  Airshot Pro-kans (2/8) is **gearchiveerd** — het signaal liep dood en
+  dat is expliciet vastgelegd, inclusief het leerpunt dat één rankdelta op
+  een verse ad zwakker weegt dan looptijd of varianten. Nieuwe prioritaire
+  kans toegevoegd (Cloud Nine Summer Sale-bundel); BALZY-item voor de 3e
+  keer bevestigd. Nieuwe voorstellen **#6** (scheve budgetverdeling
+  Wellshave: kleinste campagne levert het meeste) en **#7** (Radars
+  creditbudget herzien). Approval #4 verscherpt naar accountniveau na 4
+  nuldagen bij Wellshine; #1 en #3 aangescherpt. Watch-item Brothers in
+  Style opgelost.
 - **2026-08-03** · Correctienotitie toegevoegd aan
   [[../Reports/Daily/2026-08-01|het rapport van 1/8]]: de
   "002 – CBO – Advertorials"-campagne is na twee grondige zoekacties niet

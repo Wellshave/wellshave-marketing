@@ -4,26 +4,38 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 3 augustus 2026
-- ⚠️ **De "002 – CBO – Advertorials"-discrepantie is voor de tweede keer
-  onderzocht en niet opgelost gevonden** — een grondiger zoekactie
-  (volledige historie, alle accounts) vond opnieuw niets. 31/7 is nu
-  **definitief bevestigd** op €168,61/ROAS 1,10. De balans van bewijs
-  wijst op een foutieve rapportage op 1/8, maar 100% zekerheid vraagt nog
-  een handmatige check — zie approval #5. Correctienotitie toegevoegd aan
-  het rapport van 1 augustus.
-- 🔻 **De "sterkste dag in weken" van 1/8 bleek een piek, geen kanteling.**
-  GroomGuard-test: 2,10 → **0,93**. Advertorial Pages: 3,15 → **geen
-  enkele gemeten aankoop** (op de hoogste spenddag tot nu toe, €48,45).
-  Extreme volatiliteit blijft het dominante patroon.
-- 🔴 Wellshine: Airstyler Nova nu **8 nuldagen op rij**; Hairdryer Briza
-  weer terug naar nul na de goede dag van 1/8.
-- ✅ 30/7 en 31/7 zijn nu definitief.
-- 📡 [[Briefings/2026-08-03|Trendbriefing]]: beide prioritaire kansen
-  (BALZY-bundel, Cloud Nine Airshot Pro) een 2e dag bevestigd — maar
-  Trendtrack noemt Cloud Nine zelf **"too early to call"** (ad pas 6
-  dagen actief). Nieuw watch-item: Brothers in Style's LP-impressies
-  dalen 2 dagen op rij (-85k), vermoedelijk trackinganomalie.
+## Vandaag — 6 augustus 2026
+
+> ⚠️ **Inhaalronde:** er zijn geen rapporten voor 4 en 5 augustus (technisch
+> probleem). Atlas' cijfers zijn volledig ingehaald over 2–5 augustus;
+> Radars marktscan van die twee dagen is definitief verloren — Trendtrack
+> toont geen historie.
+
+- 📊 **De kleinste campagne levert het meeste op — en krijgt het minste
+  budget.** `TOFU – CBO – GroomGuard` deed **5,47** op €25,75 (5/8) en 2,58
+  de dag ervoor, terwijl `001 – CBO – GroomGuard` op diezelfde dag ruim
+  drie keer zoveel budget kreeg voor **0,70**. Twee dagen is nog geen
+  patroon — nieuw voorstel **#6** om dit gericht te volgen.
+- 🔴 **Wellshine leverde vier volle dagen niets op:** €239,94 spend (2–5/8),
+  geen enkele gemeten aankoop. Airstyler Nova staat op **11 nuldagen op
+  rij**. Approval #4 verscherpt — dit is een accountprobleem, geen
+  campagneprobleem.
+- ❌ **Prioritaire kans teruggetrokken:** de Cloud Nine Airshot Pro-kans
+  (2/8) is **gearchiveerd** — de testad schaalde niet door (reach 2–96,
+  dalende rank). Trendtracks eigen "too early to call" bleek terecht. Het
+  item is nooit in productie geweest; het leerpunt staat vastgelegd in
+  [[Pipeline/Board|het board]].
+- 🔥 Wél doorgeschaald: **BALZY's bundel** (3e bevestiging, 43→**54**
+  varianten) en een **nieuwe** Cloud Nine Summer Sale-campagne
+  (**394 nieuwe ads in 24u**).
+- ✅ Watch-item opgelost: Brothers in Style's LP-impressies herstelden
+  (+95k reach op één ad) — geen daling meer.
+- 📡 [[Briefings/2026-08-06|Trendbriefing]]: 491 nieuwe ads, hoogste ooit
+  gemeten. Nieuwe concurrent in de tracking: **manscaped.com** (526 actieve
+  ads). Radars creditbudget werd overschreden (192 vs ~150) — gemeld als
+  voorstel **#7**.
+- 📧 E-mailkanaal dag 55; lijst groeide **+59 naar 4.223** — de sterkste
+  groei tot nu toe, naar een kanaal waar niets naartoe gaat.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

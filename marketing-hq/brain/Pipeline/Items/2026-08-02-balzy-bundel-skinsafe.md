@@ -33,6 +33,14 @@ nieuwste varianten (+11.509, +1.586, +1.568 reach in 1 dag). Herhaalde
 hook blijft consistent: "Vandaag besteld, morgen kaal", UGC-testimonials,
 de WorldPride-invalshoek.
 
+**Update 6/8 — derde bevestiging, nog altijd groeiend.** Varianten van
+**43 → 54** op één dag. Twee ads met rankDelta +206 (reach 38.753) en
++187 (reach 22.145), beide met dezelfde UGC-opening ("Eerlijk? Ik werk
+niet zomaar met merken samen…"). Drie scans op rij bevestigd — dit is de
+best-onderbouwde kans op het board, en de enige van de twee oorspronkelijke
+prioriteringen die standhoudt (de Cloud Nine Airshot Pro-kans is op 6/8
+gearchiveerd omdat het signaal doodliep).
+
 ## 4. Waarom relevant voor Wellshave/Wellshine
 BALZY's lichaamshaarverwijdering-voor-mannen concurreert rechtstreeks met
 Wellshave's SkinSafe Body Shaver. Het is de sterkste, best-onderbouwde

@@ -1,14 +1,23 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-03 · ochtendcyclus
-**Huidige taak:** klaar; Brothers in Style LP-impressiedaling blijven
-volgen (2 dagen op rij, watch-item); Cloud Nine Airshot Pro nog 1-2 scans
-aanhouden vóór verdere prioritering (Trendtrack: "too early to call")
+**Laatste run:** 2026-08-06 · ochtendcyclus
+**Huidige taak:** klaar; creditbudget vraagt herziening (voorstel #7);
+manscaped.com-baseline opbouwen; Kevin Junior "Skeleton Pro Detailer"
+(0 impressies) volgende scan hercontroleren
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-06** · [[../Briefings/2026-08-06|Trendbriefing]]: **491 nieuwe
+  ads — hoogste ooit gemeten**, waarvan 394 van Cloud Nine alleen. Twee
+  prioritaire kansen: een **nieuwe** Cloud Nine Summer Sale-bundel en
+  BALZY's bundel (3e bevestiging, 43→54 varianten). ❌ De Airshot
+  Pro-kans van 2/8 is **niet doorgekomen** — geen breakout, dalende rank;
+  gearchiveerd. ✅ Brothers in Style-watch-item opgelost (impressies
+  herstelden). Nieuw getrackt merk: manscaped.com. ⚠️ Creditbudget
+  overschreden: 192 vs ~150 — gemeld als voorstel #7. Scans van 4 en 5/8
+  zijn definitief verloren (geen historie beschikbaar).
 - **2026-08-03** · [[../Briefings/2026-08-03|Trendbriefing]]: beide
   prioritaire kansen een 2e dag bevestigd — BALZY-bundel schaalt door (43
   varianten), Cloud Nine Airshot Pro's hook nu bekend (technologie/

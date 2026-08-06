@@ -1,14 +1,22 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-03 · ochtendcyclus
-**Huidige taak:** klaar; discrepantie "002 – CBO – Advertorials" tweemaal
-grondig onderzocht en niet gevonden, wacht op laatste handmatige check
-(approval #5); Wellshine als geheel volgen (8 nuldagen Airstyler Nova)
+**Laatste run:** 2026-08-06 · ochtendcyclus (inhaalronde, 4 dagen)
+**Huidige taak:** klaar; TOFU-campagne gericht volgen (voorstel #6);
+Wellshine-account als geheel (11 nuldagen Airstyler Nova, 4 dagen nul op
+accountniveau)
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-06** · [[../Reports/Daily/2026-08-06|Dagrapport]] (inhaalronde
+  over 2–5 augustus, na twee gemiste cycli): `TOFU – CBO – GroomGuard` deed
+  **5,47** op €25,75 (5/8) en 2,58 op 4/8, terwijl de driemaal zo dure
+  hoofdcampagne op 0,70 bleef — scheve budgetverdeling gesignaleerd als
+  voorstel #6. Wellshine leverde over 4 volle dagen **geen enkele gemeten
+  aankoop** op €239,94 spend; Airstyler Nova 11 nuldagen op rij. 2/8 en 3/8
+  definitief (3/8 met 0,36 de zwakste dag). Klaviyo dag 55; lijst +59 naar
+  4.223.
 - **2026-08-03** · [[../Reports/Daily/2026-08-03|Dagrapport]]: ⚠️
   "002 – CBO – Advertorials" voor de tweede keer grondig gezocht (volledige
   historie, alle accounts) en niet gevonden — 31/7 definitief bevestigd op

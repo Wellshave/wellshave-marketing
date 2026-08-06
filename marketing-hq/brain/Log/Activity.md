@@ -4,6 +4,33 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-06** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-06** · Nova · **Eerste prioritaire kans gearchiveerd als
+  niet-doorgekomen** (Cloud Nine Airshot Pro, 2/8) — inclusief leerpunt
+  over signaalsterkte. Nieuwe prioritaire kans toegevoegd (Cloud Nine
+  Summer Sale-bundel); BALZY-item 3e keer bevestigd. Voorstellen #6
+  (scheve budgetverdeling Wellshave) en #7 (creditbudget Radar)
+  aangemaakt; #4 verscherpt naar accountniveau; #1 en #3 aangescherpt;
+  watch-item Brothers in Style opgelost.
+- **2026-08-06** · Radar · Marktscan: 491 nieuwe ads (hoogste ooit), 394
+  van Cloud Nine. Nieuwe prioritaire kans (Cloud Nine Summer Sale),
+  BALZY-bundel 3e bevestiging (43→54 varianten). Airshot Pro-kans van 2/8
+  niet doorgekomen. Brothers in Style hersteld. Nieuw merk getrackt:
+  manscaped.com. **192 credits gebruikt — boven het budget van ~150,
+  gemeld conform guardrail** (7.569 resterend).
+- **2026-08-06** · Atlas · Ochtendcyclus (inhaalronde 2–5 augustus, na 2
+  gemiste cycli): TOFU-campagne deed 5,47 op €25,75 terwijl de 3× duurdere
+  hoofdcampagne op 0,70 bleef — scheve budgetverdeling gesignaleerd.
+  Wellshine 4 volle dagen zonder gemeten aankoop op €239,94; Airstyler
+  Nova 11 nuldagen op rij. 2/8 en 3/8 definitief. Klaviyo dag 55, lijst
+  +59 naar 4.223.
+- **2026-08-04/05** · Systeem · **Geen ochtendcyclus uitgevoerd** — de
+  achtergrondprocessen van beide runs zijn verloren gegaan door een
+  technisch probleem. Atlas' cijfers zijn op 6/8 volledig ingehaald (Meta
+  levert historie na); **Radars marktscans van deze twee dagen zijn
+  definitief verloren** — Trendtrack toont geen historie.
 - **2026-08-03** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

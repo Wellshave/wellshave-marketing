@@ -1,10 +1,35 @@
-# 🔥 Prioritaire kans — Cloud Nine Airshot Pro → Wellshine Airstyler/Hairdryer
+# ❌ Gearchiveerd — Cloud Nine Airshot Pro → Wellshine Airstyler/Hairdryer
 
-- **Type:** static/campagne · **Status:** hypothese (vroeg, vervolgonderzoek nodig) · **Eigenaar:** Nova
+- **Type:** static/campagne · **Status:** **gearchiveerd (6/8) — signaal niet doorgekomen** · **Eigenaar:** Nova
 - **Aangemaakt:** 2 augustus 2026, door Radar's marktscan (`brain/Briefings/2026-08-02.md`)
-- **Classificatie:** prioritaire kans door aantoonbare concurrentietractie
+- **Gearchiveerd:** 6 augustus 2026 (`brain/Briefings/2026-08-06.md`)
+- **Classificatie was:** prioritaire kans door aantoonbare concurrentietractie
   (één sterke Trendtrack-bron, zie `docs/architecture.md` §"Onderbouwing
   van kansen")
+
+> ## ❌ Uitkomst: de hypothese is niet uitgekomen
+>
+> De testcohort achter deze ad (36 video-ads, live sinds 27/7) is **niet
+> doorgeschaald**. Na 8 dagen tonen alle 170 ads op de landingspagina zeer
+> lage reach (2–96) en overwegend **dalende** rank — posities 570–620 van
+> Cloud Nine's 627 ads. Geen breakout; genormaliseerd op laag niveau.
+>
+> Trendtracks eigen "testing phase — too early to call"-verdict, dat we op
+> 3/8 als risico in dit item hadden opgenomen, is dus uitgekomen in het
+> nadeel van de hypothese.
+>
+> **Wat dit waard was:** het item is nooit in productie genomen — het bleef
+> een testvoorstel, precies zoals de regel voorschrijft. Er is dus geen
+> creative-tijd of budget verspild aan een signaal dat doodliep.
+>
+> **Leerpunt voor de prioritaire-kans-regel:** één sterke rankdelta op een
+> ad die pas een paar dagen draait is een zwakker signaal dan dezelfde
+> delta op een ad met looptijd of varianten eronder. Trendtracks eigen
+> "too early to call"-oordeel verdient meer gewicht in de afweging.
+>
+> **Let op:** Cloud Nine heeft sindsdien een *andere*, wél schalende
+> Summer Sale-bundelcampagne gelanceerd (zie briefing 6/8). Dat is een
+> apart initiatief, geen voortzetting van deze ad.
 
 ## 1. Concurrent
 Cloud Nine — hairstyling (airstylers, föhns, stijltangen).
@@ -82,6 +107,7 @@ productie zonder te weten wélke hook het drijft.
   overige vijf zijn nog niet gecontroleerd.
 
 ## Status
-Blijft een **testvoorstel**, geen actie. Gezien het "too early to call"-
-verdict van Trendtrack: nog niet naar productie — eerst nog 1–2 scans
-afwachten om te zien of dit signaal aanhoudt buiten de eerste testfase.
+**Gearchiveerd op 6 augustus 2026** — het signaal is niet doorgekomen (zie
+het kader bovenaan). Nooit in productie geweest. Dit item blijft bewaard
+als vastgelegde uitkomst: niet elk geprioriteerd signaal wordt een
+winnaar, en dat expliciet vastleggen is onderdeel van de regel.
