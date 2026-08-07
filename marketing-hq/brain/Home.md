@@ -4,38 +4,39 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 6 augustus 2026
+## Vandaag — 7 augustus 2026
 
-> ⚠️ **Inhaalronde:** er zijn geen rapporten voor 4 en 5 augustus (technisch
-> probleem). Atlas' cijfers zijn volledig ingehaald over 2–5 augustus;
-> Radars marktscan van die twee dagen is definitief verloren — Trendtrack
-> toont geen historie.
+> ⚠️ **Twee correcties op gisteren.** De scaling-cijfers van `daily_radar`
+> bleken **gecachet** — de prioriteitenlijst van 6/8 stond op verouderde
+> data. En het beeld bij Wellshave kantelde binnen één dag volledig om.
+> Beide zijn hieronder rechtgezet.
 
-- 📊 **De kleinste campagne levert het meeste op — en krijgt het minste
-  budget.** `TOFU – CBO – GroomGuard` deed **5,47** op €25,75 (5/8) en 2,58
-  de dag ervoor, terwijl `001 – CBO – GroomGuard` op diezelfde dag ruim
-  drie keer zoveel budget kreeg voor **0,70**. Twee dagen is nog geen
-  patroon — nieuw voorstel **#6** om dit gericht te volgen.
-- 🔴 **Wellshine leverde vier volle dagen niets op:** €239,94 spend (2–5/8),
-  geen enkele gemeten aankoop. Airstyler Nova staat op **11 nuldagen op
-  rij**. Approval #4 verscherpt — dit is een accountprobleem, geen
-  campagneprobleem.
-- ❌ **Prioritaire kans teruggetrokken:** de Cloud Nine Airshot Pro-kans
-  (2/8) is **gearchiveerd** — de testad schaalde niet door (reach 2–96,
-  dalende rank). Trendtracks eigen "too early to call" bleek terecht. Het
-  item is nooit in productie geweest; het leerpunt staat vastgelegd in
-  [[Pipeline/Board|het board]].
-- 🔥 Wél doorgeschaald: **BALZY's bundel** (3e bevestiging, 43→**54**
-  varianten) en een **nieuwe** Cloud Nine Summer Sale-campagne
-  (**394 nieuwe ads in 24u**).
-- ✅ Watch-item opgelost: Brothers in Style's LP-impressies herstelden
-  (+95k reach op één ad) — geen daling meer.
-- 📡 [[Briefings/2026-08-06|Trendbriefing]]: 491 nieuwe ads, hoogste ooit
-  gemeten. Nieuwe concurrent in de tracking: **manscaped.com** (526 actieve
-  ads). Radars creditbudget werd overschreden (192 vs ~150) — gemeld als
-  voorstel **#7**.
-- 📧 E-mailkanaal dag 55; lijst groeide **+59 naar 4.223** — de sterkste
-  groei tot nu toe, naar een kanaal waar niets naartoe gaat.
+- ❌ **Voorstel #6 ingetrokken.** Gisteren leek TOFU (5,47) de veel duurdere
+  campagne 001 (0,70) te overklassen. Eén dag later: **TOFU nul aankopen,
+  001 een ROAS van 3,00** met de volledige accountomzet. De kanttekening
+  "twee dagen is geen bewezen patroon" bleek terecht — er is nooit budget
+  verschoven.
+- ↗ **Wellshave klimt drie dagen op rij** (0,36 → 1,33 → 1,41 → **1,68**),
+  maar elke dag draagt een ándere campagne het resultaat — het
+  accounttotaal is stabieler dan wat eronder zit.
+- 🔴 **Wellshine: vijf volle dagen, €302,58, nul gemeten aankopen.**
+  Airstyler Nova op **12 nuldagen op rij**. Het langst lopende onopgeloste
+  probleem in de operatie — approval #4 wacht nog steeds op een besluit.
+- 🔥 **BALZY's dossier is fors sterker dan gedacht:** de echte motor viel
+  buiten de gecachete radar-lijst — een ad met **58 dagen looptijd**,
+  **371.631 reach** en **+198.808 in één dag**. Precies het signaalprofiel
+  dat we willen zien.
+- 🔥 **Nieuwe prioritaire kans: manscaped.com** — gecoördineerde uitrol
+  over 8+ markten, 18/18 ads identieke copy, eigen LP per regio. En een
+  **convergentiesignaal**: hun "beard-and-balls-bundle" is vrijwel
+  hetzelfde concept als BALZY's topperformer.
+- ↘ **Cloud Nine Summer Sale gedegradeerd** van prioritair naar
+  testwaardig: de "394 nieuwe ads" waarop gisteren geprioriteerd werd,
+  waren er vandaag **67** — een eenmalige bulk-registratie.
+- ✅ **Voorstel #7 opgelost zonder besluit:** het creditbudget hoefde niet
+  omhoog — gerichte focus-calls brachten de scan van 192 naar **87
+  credits** met dezelfde opbrengst.
+- 📧 E-mailkanaal dag 56; lijst **+15 naar 4.238**.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

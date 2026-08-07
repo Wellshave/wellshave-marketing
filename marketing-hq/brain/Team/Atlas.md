@@ -1,14 +1,22 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-06 · ochtendcyclus (inhaalronde, 4 dagen)
-**Huidige taak:** klaar; TOFU-campagne gericht volgen (voorstel #6);
-Wellshine-account als geheel (11 nuldagen Airstyler Nova, 4 dagen nul op
-accountniveau)
+**Laatste run:** 2026-08-07 · ochtendcyclus
+**Huidige taak:** klaar; Wellshine-account (12 nuldagen Airstyler Nova, 5
+dagen nul op accountniveau) blijft het scherpste openstaande punt
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-07** · [[../Reports/Daily/2026-08-07|Dagrapport]]: het beeld van
+  gisteren kantelde binnen één dag — **TOFU viel terug naar nul** en
+  **001 deed 3,00** (5 aankopen, €293,74, de volledige accountomzet).
+  Voorstel #6 daarop ingetrokken. Wellshave klimt drie dagen op rij naar
+  1,68, maar telkens op een andere campagne. Wellshine: vijf volle dagen,
+  €302,58, nul gemeten aankopen; Airstyler Nova 12 nuldagen op rij. 3/8 en
+  4/8 definitief. Klaviyo dag 56; lijst +15 naar 4.238. Meetkundige noot
+  vastgelegd: de API geeft nergens een *gemeten* nul-ROAS — elke nul
+  betekent "geen gemeten aankopen".
 - **2026-08-06** · [[../Reports/Daily/2026-08-06|Dagrapport]] (inhaalronde
   over 2–5 augustus, na twee gemiste cycli): `TOFU – CBO – GroomGuard` deed
   **5,47** op €25,75 (5/8) en 2,58 op 4/8, terwijl de driemaal zo dure

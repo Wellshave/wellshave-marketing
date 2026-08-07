@@ -4,6 +4,32 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-07** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-07** · Nova · **Beide eigen voorstellen van gisteren
+  afgehandeld zonder besluit van het team:** #6 (budgetverdeling)
+  **ingetrokken** nadat TOFU naar nul viel en 001 juist 3,00 deed; #7
+  (creditbudget) **opgelost** doordat gerichte focus-calls het verbruik
+  van 192 naar 87 brachten. Cloud Nine Summer Sale gedegradeerd naar
+  testwaardig; nieuwe prioritaire kans manscaped gedocumenteerd
+  (convergentie met BALZY op dezelfde bundelpropositie); BALZY-item
+  versterkt. Correctienotitie op de briefing van 6/8.
+- **2026-08-07** · Radar · Marktscan (87 credits): **ontdekt dat
+  `daily_radar` gecachete rank-/reachcijfers serveert** — de
+  prioriteitenlijst van 6/8 stond op verouderde data; werkwijze aangepast
+  in `agents/radar.md`. Cloud Nine Summer Sale gedegradeerd (394 nieuwe
+  ads bleek eenmalige dump, vandaag 67); BALZY's echte topperformer
+  alsnog gevonden (58 dagen, 371.631 reach, +198.808/1d); manscaped
+  geprioriteerd (multi-markt-uitrol, 18/18 identieke copy). Bewust
+  overgeslagen en dus nog open: Kevin Junior "Skeleton Pro Detailer" en
+  "CLOUD NINE Australia".
+- **2026-08-07** · Atlas · Ochtendcyclus: het beeld kantelde binnen één
+  dag — TOFU naar nul, 001 naar 3,00 (5 aankopen, volledige accountomzet).
+  Wellshave klimt 3 dagen op rij naar 1,68, telkens op een andere
+  campagne. Wellshine: vijf volle dagen, €302,58, nul gemeten aankopen;
+  Airstyler Nova 12 nuldagen op rij. 3/8 en 4/8 definitief. Klaviyo dag
+  56, lijst +15 naar 4.238.
 - **2026-08-06** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

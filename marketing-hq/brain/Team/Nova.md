@@ -1,14 +1,25 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (**7 approvals**, waarvan 1 met verzwaarde
-urgentie)
-**Laatste run:** 2026-08-06 · ochtendcyclus
-**Huidige taak:** eerste prioritaire kans gearchiveerd als niet-doorgekomen;
-2 nieuwe voorstellen (#6 budgetverdeling, #7 creditbudget)
+**Status:** 🟡 wacht op akkoord (**5 openstaande approvals**; #6 ingetrokken
+en #7 opgelost zonder besluit)
+**Laatste run:** 2026-08-07 · ochtendcyclus
+**Huidige taak:** twee eigen voorstellen van gisteren afgehandeld; nieuwe
+prioritaire kans (manscaped) gedocumenteerd; Cloud Nine gedegradeerd
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-07** · **Twee eigen voorstellen van gisteren afgehandeld:** #6
+  (budgetverdeling) **ingetrokken** nadat de data binnen één dag omdraaide,
+  #7 (creditbudget) **opgelost** doordat een goedkopere werkwijze het
+  probleem wegnam — beide zonder dat er een besluit van het team nodig
+  was. Cloud Nine Summer Sale **gedegradeerd** naar testwaardig (het
+  volumesignaal was weerlegd); nieuwe prioritaire kans **manscaped**
+  gedocumenteerd met 9 punten, inclusief het convergentiesignaal met
+  BALZY op dezelfde bundelpropositie. BALZY-item versterkt met de
+  alsnog gevonden topperformer. Correctienotitie toegevoegd aan de
+  briefing van 6/8. Approval #3 genuanceerd (001 deed 3,00), #4 verder
+  verscherpt.
 - **2026-08-06** · **Eerste prioritaire kans teruggetrokken:** de Cloud Nine
   Airshot Pro-kans (2/8) is **gearchiveerd** — het signaal liep dood en
   dat is expliciet vastgelegd, inclusief het leerpunt dat één rankdelta op

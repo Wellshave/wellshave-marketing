@@ -21,16 +21,26 @@
 - 🔥 **BALZY-bundel → SkinSafe Body Shaver** · static/bundle · Nova
   *Prioritaire kans (2/8, zie
   [[../Pipeline/Items/2026-08-02-balzy-bundel-skinsafe|volledige notitie]]):
-  BALZY's "Beard Balls Bundle" (2+1-gratis, confidence-hook). **6/8: derde
-  bevestiging op rij** — varianten 43→**54** op één dag, rankDelta +206
-  (reach 38.753) en +187. Directe categorie-concurrent van SkinSafe Body
-  Shaver. De best-onderbouwde kans op het board*
-- 🔥 **Cloud Nine Summer Sale-bundel → Wellshine** · static/campagne · Nova
-  *Prioritaire kans (6/8, zie [[../Briefings/2026-08-06|briefing]]): nieuwe
-  sale-campagne (£100 korting op Contouring-set), reach 32.138/28.812,
-  rankDelta +331/+299, en **394 nieuwe ads in 24u** — ongekend volume voor
-  dit merk. Let op: dit is een **ander initiatief** dan de gearchiveerde
-  Airshot Pro-testad. Bundelmechaniek sluit aan bij de bundel-testhypothese*
+  **7/8: dossier fors versterkt.** De echte motor bleek buiten beeld te
+  vallen door gecachete radar-data — een ad met **58 dagen looptijd**,
+  reach **371.631** en **+198.808 in één dag** (8 duplicates). Vier
+  signalen mét looptijd en varianten eronder. De best-onderbouwde kans op
+  het board*
+- 🔥 **manscaped multi-markt sale-uitrol** · campagne/static · Nova
+  *Prioritaire kans (7/8, zie
+  [[../Pipeline/Items/2026-08-07-manscaped-multimarkt-sale|volledige notitie]]):
+  gecoördineerde uitrol over 8+ markten, **18/18 ads identieke copy**,
+  zescijferige 7d-reachdelta's, eigen LP per regio. Geen rankpiek maar
+  distributiekracht. **Convergentiesignaal:** manscaped's
+  "beard-and-balls-bundle" is vrijwel hetzelfde concept als BALZY's
+  topperformer — twee concurrenten op dezelfde bundelpropositie*
+- **Cloud Nine Summer Sale-bundel → Wellshine** · static/campagne · Nova
+  *↘ **Gedegradeerd 7/8 van prioritair naar testwaardig.** De prioritering
+  van 6/8 berustte op "394 nieuwe ads in 24u"; dat waren er een dag later
+  **67** (−83%) — een eenmalige bulk-registratie, geen opschaling. Er is
+  wél reële tractie (62 schalende varianten, verse reachdelta's tot
+  155.104), maar GB-only, tijdgebonden en hairstyling i.p.v. scheren.
+  Blijft interessant voor het Wellshine-segment, niet urgent*
 - **Dedicated hoofd-scheerapparaat landingspagina** · landing_page · Nova
   *Gepromoot 27/7: Brothers in Style bewijst het patroon overtuigend —
   hun hoofd-scheerapparaat-LP staat op **2,5M all-time impressies** over

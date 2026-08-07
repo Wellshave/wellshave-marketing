@@ -1,14 +1,23 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-06 · ochtendcyclus
-**Huidige taak:** klaar; creditbudget vraagt herziening (voorstel #7);
-manscaped.com-baseline opbouwen; Kevin Junior "Skeleton Pro Detailer"
-(0 impressies) volgende scan hercontroleren
+**Laatste run:** 2026-08-07 · ochtendcyclus (87 credits — ruim binnen budget)
+**Huidige taak:** klaar. **Nog open:** hercontrole Kevin Junior "Skeleton
+Pro Detailer" (0 impressies bij 5 ad-gebruiken) en partnerpagina "CLOUD
+NINE Australia" — beide bewust overgeslagen om binnen budget te blijven;
+manscaped-baseline opnieuw opbouwen (metrics stale sinds ~2/8)
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-07** · [[../Briefings/2026-08-07|Trendbriefing]]: ⚠️ ontdekt dat
+  **`daily_radar` gecachete rank-/reachcijfers serveert** — de
+  prioriteitenlijst van 6/8 stond op verouderde data. Werkwijze
+  aangepast in `agents/radar.md`. Gevolgen: Cloud Nine Summer Sale
+  **gedegradeerd** (394 nieuwe ads bleek eenmalige dump, vandaag 67), en
+  BALZY's echte topperformer alsnog gevonden (58 dagen, 371.631 reach,
+  +198.808/1d). Nieuwe prioritaire kans: **manscaped** multi-markt-uitrol.
+  Creditbudget opgelost via gerichte focus-calls: **87 i.p.v. 192**.
 - **2026-08-06** · [[../Briefings/2026-08-06|Trendbriefing]]: **491 nieuwe
   ads — hoogste ooit gemeten**, waarvan 394 van Cloud Nine alleen. Twee
   prioritaire kansen: een **nieuwe** Cloud Nine Summer Sale-bundel en

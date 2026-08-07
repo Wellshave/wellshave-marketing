@@ -41,6 +41,26 @@ best-onderbouwde kans op het board, en de enige van de twee oorspronkelijke
 prioriteringen die standhoudt (de Cloud Nine Airshot Pro-kans is op 6/8
 gearchiveerd omdat het signaal doodliep).
 
+**Update 7/8 — het dossier is fors sterker dan we dachten.** De cijfers
+hierboven (38.753 / 22.145) kwamen uit de gecachete `daily_radar`-sectie en
+**misten de hoofdmotor**: een video-ad die **58 dagen** draait (sinds 7/6),
+**8 duplicates** heeft, en op **371.631 reach** staat met **+198.808 in één
+dag** (+298.866 over 7 dagen), rank 8, geschatte spend €3.345. Dit is
+precies het signaalprofiel dat we willen zien — looptijd én varianten én
+volgehouden groei, in plaats van één rankpiek.
+
+*Twee kanttekeningen:* (1) de variantenreeks 43→54 is **gestopt** — vandaag
+opnieuw 54, dus BALZY consolideert op creative-niveau en schaalt op
+budget/bereik; (2) +198.808 op één dag bij een 58 dagen oude ad kan ook een
+backfill-artefact zijn — één dag doormeten voor we hier zwaardere
+conclusies aan verbinden.
+
+**Extra onderbouwing van buitenaf (7/8):** manscaped.com voert een
+vrijwel identieke bundelpropositie ("the-beard-and-balls-bundle"). Twee
+onafhankelijke concurrenten die hun sterkste kaart op hetzelfde concept
+zetten is convergerend bewijs — zie
+[[2026-08-07-manscaped-multimarkt-sale|het manscaped-item]].
+
 ## 4. Waarom relevant voor Wellshave/Wellshine
 BALZY's lichaamshaarverwijdering-voor-mannen concurreert rechtstreeks met
 Wellshave's SkinSafe Body Shaver. Het is de sterkste, best-onderbouwde
