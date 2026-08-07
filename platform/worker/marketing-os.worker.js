@@ -391,7 +391,7 @@ const TOOLS = {
         type: 'object',
         properties: {
           level: { type: 'string', enum: ['account', 'campaign', 'adset', 'ad'], description: 'Detailniveau' },
-          days: { type: 'integer', description: 'Aantal dagen terug, 1-30. Default 7.' },
+          days: { type: 'integer', description: 'Aantal dagen terug, 1-400. Default 7. Meer dan 30 is voor het inhalen van historie, niet voor de dagelijkse run.' },
           breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen in plaats van één totaal over de periode' },
           account: { type: 'string', description: 'Eén specifiek advertentieaccount. Laat leeg om alle draaiende accounts op te halen — dat is bijna altijd wat je wilt.' }
         },
@@ -402,7 +402,7 @@ const TOOLS = {
       if (!env.META_ACCESS_TOKEN) {
         return { error: 'Meta is niet gekoppeld op deze worker (META_ACCESS_TOKEN ontbreekt). Werk verder met wat er in meta_insights_daily staat.' };
       }
-      const days = Math.min(Math.max(Number(input.days) || 7, 1), 30);
+      const days = Math.min(Math.max(Number(input.days) || 7, 1), 400);
       const lijst = await actieveAccounts(env, input.account);
       if (!lijst.length) return { error: 'er staat geen enkel draaiend account in ad_accounts' };
 
@@ -871,8 +871,11 @@ async function accountVoorMerk(env, merk) {
 
    Vandaag telt mee (Meta rekent inclusief), dus het venster loopt van
    days-1 dagen geleden tot en met vandaag — bij days=4 zijn dat vier dagen. */
+/* Tot 400 dagen en niet 365: de Creative Strategy Map begint op 4 augustus
+   2025, en dat is net over een jaar. Op 365 blijft de eerste week van de map
+   onbereikbaar -- precies de rijen waar het inhaalslagje om begonnen was. */
 function metaVenster(days) {
-  var n = Math.max(1, Math.min(Number(days) || 7, 365));
+  var n = Math.max(1, Math.min(Number(days) || 7, 400));
   var eind = new Date();
   var start = new Date(eind.getTime() - (n - 1) * 86400000);
   var dag = function (d) { return d.toISOString().slice(0, 10); };
@@ -904,7 +907,7 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
       level: level,
       fields: lijst.join(','),
       time_range: metaVenster(days),
-      limit: '200'
+      limit: '500'
     });
     if (perDag) p.set('time_increment', '1');
     return p;
@@ -960,7 +963,44 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
       { velden: gesneuveld, api: META_API.split('/').pop(), account: account });
   }
 
-  return (data.data || []).map(row => {
+  /* Meta geeft één pagina en een verwijzing naar de volgende. Die verwijzing
+     werd nooit gevolgd. Op accountniveau over zeven dagen valt dat niet op --
+     dat zijn zeven rijen -- maar op advertentieniveau over een half jaar zijn
+     het er duizenden, en dan stopte het bij de eerste 500 zonder dat er iets
+     misging. Een sync die stilletjes de helft laat liggen ziet er precies zo
+     uit als een die klopt, en dat is het gevaarlijkste wat een meting kan doen.
+
+     De grens van veertig pagina's is een noodrem, geen verwachting: bij 500
+     per pagina zijn dat 20.000 rijen. Wordt hij geraakt, dan is dat te zien in
+     plaats van te raden. */
+  const rijen = (data.data || []).slice();
+  let volgende = data.paging && data.paging.next;
+  let paginas = 1;
+  let gebroken = false;
+  while (volgende && paginas < 40) {
+    const r = await fetch(volgende);
+    const p = await r.json();
+    if (p.error) {
+      await logEvent(env, ctx || {}, 'warn',
+        `Meta brak af na ${paginas} pagina('s) voor ${account}: ${String(p.error.message || '').slice(0, 160)}`,
+        { fout: p.error, paginas: paginas, level: level });
+      gebroken = true;
+      break;
+    }
+    rijen.push(...(p.data || []));
+    volgende = p.paging && p.paging.next;
+    paginas++;
+  }
+  /* Alleen als de noodrem het einde was. Brak Meta zelf af, dan staat dat er
+     al bij, en zou dit erbovenop beweren dat er veertig pagina's waren -- een
+     verkeerd getal is erger dan geen getal, want daar gaat iemand naar zoeken. */
+  if (volgende && !gebroken) {
+    await logEvent(env, ctx || {}, 'warn',
+      `Meta had na 40 pagina's nog meer voor ${account} op ${level}-niveau; de rest is niet opgehaald`,
+      { paginas: paginas, rijen: rijen.length, level: level, account: account });
+  }
+
+  return rijen.map(row => {
     const acties = row.actions || [];
     const waarden = row.action_values || [];
     const aankopen = metaActie(acties, 'purchase') || metaActie(acties, 'omni_purchase');

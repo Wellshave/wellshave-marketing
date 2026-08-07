@@ -55,7 +55,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/denkstuk.sh` | Testlus voor 0023 — 52 controles; de kern is dat geen agent het denkstuk kan aftekenen |
 | `db/test/terugsturen.sh` | Testlus voor 0024 — 44 controles; de kern is dat twee agents elkaar niet eindeloos heen en weer sturen |
 | `db/test/agentzicht.sh` | Testlus voor 0034 — 13 controles; de kern is dat de acht oude kolommen van hq_reports niet verschuiven |
-| `db/test/import-tracker.sh` | Testlus voor 0035 t/m 0041 — 103 controles; de kern is dat een breakdown optelt tot het aantal rijen, dat een nieuwe creative niet langs de eis uit 0030 glipt, dat een vastgezet cijfer wint van de meting, dat een werkende koppeling zonder ad-metingen ook als zodanig geteld wordt, en dat elke hq_*-view écht leesbaar is als `authenticated` en niet alleen volgens `has_table_privilege` |
+| `db/test/import-tracker.sh` | Testlus voor 0035 t/m 0043 — 142 controles; de kern is dat een breakdown optelt tot het aantal rijen, dat een nieuwe creative niet langs de eis uit 0030 glipt, dat een vastgezet cijfer wint van de meting, dat een werkende koppeling zonder ad-metingen ook als zodanig geteld wordt, dat vier schrijfwijzen van dezelfde advertentie op één sleutel uitkomen terwijl BFCM een eigen reeks houdt, en dat elke hq_*-view écht leesbaar is als `authenticated` en niet alleen volgens `has_table_privilege` |
 | `../ad-generator/test/tracker.cjs` | Testlus voor het trackerscherm — 41 controles; de kern is dat een cijfer zegt waar het vandaan komt, dat een onmogelijke waarde geen groen krijgt, en dat een kapotte sync anders leest dan een lege |
 | `../ad-generator/test/team.cjs` | Testlus voor de teampagina — 26 controles; de kern is dat de feiten naast een agent uit de database komen en niet uit zijn eigen tekst, en dat een leeg profiel een gat blijft |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
@@ -65,6 +65,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
 | `worker/test/atlas.mjs` | Testlus voor Atlas' kant in de runtime — 19 controles |
 | `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
+| `worker/test/paginatie.mjs` | Testlus voor de paginatie in metaInsights — 10 controles; de nagemaakte Meta geeft hier wél een `paging.next`, want zonder dat bewees geen enkele test dat er meer dan één pagina wordt opgehaald |
 | `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
 | `worker/test/bolt.mjs` | Testlus voor Bolt in de runtime — 31 controles; de kern is dat er geen weg naar buiten is |

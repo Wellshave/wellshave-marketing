@@ -661,5 +661,165 @@ check "zonder meta_ad_id telt hij niet mee"   "0" \
   "$(q "select gekoppelde_advertenties from marketing_hq.meta_sync_status")"
 
 echo
+echo "  0042: de map aan Meta knopen op naam"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0042_naamkoppeling.sql" >/dev/null 2>&1
+check "0042 draait zonder fout" "0" "$?"
+
+# De vertaler, tegen namen die letterlijk zo in het Wellshave-account staan.
+# Verzonnen voorbeelden zouden hier niets bewijzen: het gaat er juist om dat
+# vier verschillende schrijfwijzen van hetzelfde nummer op één sleutel uitkomen.
+sleutel() { q "select coalesce(marketing_hq.meta_naam_sleutel(\$\$$1\$\$), '—')"; }
+
+check "WS-061 - 3 - ASC+ wordt 61:3"          "61:3"     "$(sleutel 'WS-061 - 3 - ASC+')"
+check "WS - 110 - 2 wordt 110:2"              "110:2"    "$(sleutel 'WS - 110 - 2')"
+check "005 - 3 wordt 5:3"                     "5:3"      "$(sleutel '005 - 3')"
+check "@WS-037 - 3 wordt 37:3"                "37:3"     "$(sleutel '@WS-037 - 3')"
+check "@WS038 -1 wordt 38:1"                  "38:1"     "$(sleutel '@WS038 -1')"
+check "WS - 103 - 2 - Copy 2 wordt 103:2"     "103:2"    "$(sleutel 'WS - 103 - 2 - Copy 2')"
+# De halve kastlijn komt echt voor in het account en ziet er identiek uit.
+check "een kastlijn telt als streepje"        "34:2"     "$(sleutel 'WS-034 - 2 – Copy 2')"
+# En de map-kant moet op exact dezelfde sleutel uitkomen, anders koppelt er niets.
+check "de map schrijft 061-3 en bedoelt 61:3" "61:3"     "$(sleutel '061-3')"
+
+# De reeksen zitten ín de sleutel. Zonder dat zou € 691 aan BFCM-spend op een
+# map-rij van € 18 belanden.
+check "BFCM houdt zijn eigen reeks"           "BFCM:2:2" "$(sleutel 'WS - BFCM - 002 - 2')"
+check "ook met een dubbele spatie"            "BFCM:34:1" "$(sleutel 'WS - BFCM  - 034 - 1')"
+check "de C-reeks ook"                        "C:36:1"   "$(sleutel 'WS - C - 036 - 1')"
+check "en BFCM raakt de gewone reeks niet"    "f" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WS - BFCM - 002 - 2')
+             = marketing_hq.meta_naam_sleutel('002-2')")"
+
+# Liever niets dan een gok. Deze vier zijn geen losse creative.
+check "een FLEX-bundel krijgt geen sleutel"   "—" "$(sleutel '@WS052 -> FLEX (4 Videos) Herfst')"
+check "twee nummers in één ad ook niet"       "—" "$(sleutel 'WS - BFCM - 045 & 046 - FLEX')"
+check "een pijl is geen variantnummer"        "—" "$(sleutel '@WS046 -> 3')"
+check "en Catalog Ads hoort niet in de map"   "—" "$(sleutel 'Catalog Ads -> 2')"
+
+# Nu de koppeling zelf. Creative 061-3 draaide onder vier namen; de map kende
+# alleen de eerste. Opgeteld is het viervoud, en dat is de hele reden voor 0042.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+delete from marketing_hq.meta_publications;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, purchases, purchase_value, is_final)
+values
+  (current_date - 6, '242238038391551', 'ad', 'a1', 'WS-061 - 3',              567.29,  94334, 10, 1661.16, true),
+  (current_date - 5, '242238038391551', 'ad', 'a2', 'WS-061 - 3 - ASC+',      9473.42, 1498744, 200, 28000.00, true),
+  (current_date - 4, '242238038391551', 'ad', 'a3', 'WS-061 - 3 - ASC+ - Copy', 310.32,  80981,  5,  700.00, true),
+  (current_date - 3, '242238038391551', 'ad', 'a4', 'WS - BFCM - 061 - 3',     999.99,  50000, 30, 5000.00, true),
+  (current_date - 3, '242238038391551', 'ad', 'a5', 'Catalog Ads -> 2',        192.96,  20851,  4,  600.00, true);
+SQL
+
+check "de vier varianten tellen als één creative" "1" \
+  "$(q "select count(*) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '061-3'")"
+# 567,29 + 9473,42 + 310,32 = 10351,03. De map stond op 567,29: 5,5% van de waarheid.
+check "en tellen op tot het volle bedrag"      "10351.03" \
+  "$(q "select sum(spend)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '061-3'")"
+# De BFCM-advertentie met hetzelfde nummer mag daar niet bij zitten.
+check "BFCM blijft er buiten"                  "0" \
+  "$(q "select count(*) from marketing_hq.creative_meta_koppeling
+         where meta_naam = 'WS - BFCM - 061 - 3' and creative_id is not null")"
+check "en heet ook zo in de koppeling"         "geen creative met deze sleutel" \
+  "$(q "select toestand from marketing_hq.creative_meta_koppeling
+         where meta_naam = 'WS - BFCM - 061 - 3'")"
+check "een onontleedbare naam valt op"         "naam niet te ontleden" \
+  "$(q "select toestand from marketing_hq.creative_meta_koppeling
+         where meta_naam = 'Catalog Ads -> 2'")"
+
+# Een publicatie weet zeker welke advertentie het is; de naam leidt het af.
+# Staan ze allebei op dezelfde creative, dan telt hij één keer -- anders zou
+# elke join eronder verdubbelen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.meta_publications (creative_id, meta_ad_id, account_id, published_at)
+select id, 'a1', '242238038391551', now() - interval '7 days'
+  from public.creatives where ad_name = '061-3';
+SQL
+check "publicatie en naam geven samen één rij" "1" \
+  "$(q "select count(*) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '061-3'")"
+check "en de publicatie wint"                  "567.29" \
+  "$(q "select sum(spend)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '061-3'")"
+
+# Een ander merk met hetzelfde nummer mag niet aanschuiven.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_publications;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values (current_date - 2, '1301619051500441', 'ad', 'b1', 'WS-061 - 3', 5000, 100000, true);
+SQL
+check "Wellshine telt niet mee bij Wellshave"  "10351.03" \
+  "$(q "select sum(spend)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '061-3'")"
+
+# 0038 beloofde dat vastgezette cijfers blijven staan. sync_creative_results
+# schreef daar dwars doorheen; zolang er geen ad-data was viel dat niet op.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+update public.creatives
+   set roas = 9.99, budget = 42, cijfers_vastgezet = true,
+       cijfers_vastgezet_door = '11111111-1111-1111-1111-111111111111',
+       cijfers_vastgezet_op = now()
+ where ad_name = '061-3';
+select marketing_hq.sync_creative_results();
+SQL
+check "een vastgezet cijfer overleeft de sync" "9.99" \
+  "$(q "select roas::numeric(10,2) from public.creatives where ad_name = '061-3'")"
+check "en het vastgezette budget ook"          "42.00" \
+  "$(q "select budget::numeric(10,2) from public.creatives where ad_name = '061-3'")"
+
+# En het scherm moet er ook bij kunnen.
+check "hq_creative_meta_koppeling is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_creative_meta_koppeling limit 1;" | grep -o 'ok' | head -1)"
+
+echo
+echo "  0043: twee gaten die de echte data liet zien"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0043_sleutelgaten.sql" >/dev/null 2>&1
+check "0043 draait zonder fout" "0" "$?"
+
+# Varianten lopen in de map van 1 tot en met 10. Op één cijfer viel 165-10
+# eruit: geen fout, geen waarschuwing, alleen een creative die voor de analyse
+# nooit bestaan heeft.
+check "een variant van twee cijfers krijgt een sleutel" "165:10" \
+  "$(q "select marketing_hq.meta_naam_sleutel('165-10')")"
+check "en matcht met de Meta-kant"                      "165:10" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WS - 165 - 10 - Copy')")"
+# De bewaking erachter moet blijven staan, anders leest 223 als variant 22.
+check "drie cijfers blijft geweigerd"                   "—" \
+  "$(q "select coalesce(marketing_hq.meta_naam_sleutel('WS - 103 - 223'), '—')")"
+check "en 61:3 verandert niet"                          "61:3" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WS-061 - 3 - ASC+')")"
+
+# Drie rijen heten 144-1. Zonder drager zouden ze alle drie hetzelfde bedrag
+# krijgen, en telt één advertentie drie keer mee in elke telling per persona.
+check "drie rijen delen de sleutel 144:1" "3" \
+  "$(q "select delers from marketing_hq.creative_sleutel
+         where sleutel = '144:1' and draagt_meting")"
+check "maar één van hen draagt de meting" "1" \
+  "$(q "select count(*) from marketing_hq.creative_sleutel
+         where sleutel = '144:1' and draagt_meting")"
+check "en dat is de oudste"               "t" \
+  "$(q "select creative_id = (select min(id) from public.creatives where ad_name like '144-1%')
+         from marketing_hq.creative_sleutel where sleutel = '144:1' and draagt_meting")"
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+delete from marketing_hq.meta_publications;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values (current_date - 3, '242238038391551', 'ad', 'd1', 'WS - 144 - 1', 300, 30000, true);
+SQL
+check "de € 300 telt één keer, niet drie keer" "300.00" \
+  "$(q "select coalesce(sum(t.spend),0)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name like '144-1%'")"
+check "en maar één van de drie is gemeten"     "1" \
+  "$(q "select count(*) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name like '144-1%'")"
+check "de koppeling zegt dat er rijen delen"   "gekoppeld, maar 3 rijen delen deze naam" \
+  "$(q "select toestand from marketing_hq.creative_meta_koppeling where meta_naam = 'WS - 144 - 1'")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
