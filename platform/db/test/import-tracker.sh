@@ -614,5 +614,52 @@ check "Echo zegt zelf dat hij uitstaat" "t" \
   "$(q "select voorstellen like '%sta ik uit%' from marketing_hq.agents where id='echo'")"
 
 echo
+echo "  0041: werkt is niet hetzelfde als meet"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0041_meetdekking.sql" >/dev/null 2>&1
+check "0041 draait zonder fout" "0" "$?"
+
+# De situatie van 7 augustus, nagespeeld: data op account- en campagneniveau,
+# niets op advertentieniveau, geen publicatie om aan te koppelen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+delete from marketing_hq.meta_publications;
+delete from marketing_hq.agent_events where message like 'Meta gaf geen cijfers%';
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, spend, impressions, video_3s, video_thruplay)
+values (current_date - 1, '242238038391551', 'account',  '242238038391551', 200, 20000, 9000, 2000),
+       (current_date - 1, '242238038391551', 'campaign', 'c-1',              120, 12000, 5000, 1200);
+SQL
+check "de koppeling heet werkend"            "werkt" \
+  "$(q "select toestand from marketing_hq.meta_sync_status")"
+# En precies dat is de valkuil: 'werkt' terwijl de tracker niets ziet.
+check "maar er is niets op advertentieniveau" "0" \
+  "$(q "select metingen_advertentieniveau from marketing_hq.meta_sync_status")"
+check "en niets om aan te koppelen"           "0" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.meta_sync_status")"
+check "de niveaus staan er in woorden bij"    "account, campaign" \
+  "$(q "select gemeten_niveaus from marketing_hq.meta_sync_status")"
+
+# Zodra er wel op advertentieniveau gemeten wordt en er een publicatie is,
+# telt de dekking mee.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, spend, impressions)
+values (current_date - 1, '242238038391551', 'ad', 'ad-1', 60, 6000);
+insert into marketing_hq.meta_publications (creative_id, meta_ad_id, account_id, published_at)
+select id, 'ad-1', '242238038391551', now() - interval '5 days'
+  from public.creatives where ad_name = '001-1';
+SQL
+check "met een ad-meting telt de dekking mee" "1" \
+  "$(q "select metingen_advertentieniveau from marketing_hq.meta_sync_status")"
+check "en de koppeling ook"                   "1" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.meta_sync_status")"
+# Een publicatie zonder meta_ad_id is geen koppeling: dan is een ad-meting een
+# getal zonder eigenaar.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 \
+  -c "update marketing_hq.meta_publications set meta_ad_id = null where meta_ad_id = 'ad-1'"
+check "zonder meta_ad_id telt hij niet mee"   "0" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.meta_sync_status")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))

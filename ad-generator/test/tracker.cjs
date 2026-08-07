@@ -317,6 +317,27 @@ const check = (naam, echt, verwacht) => {
   check('de melding is als storing gemarkeerd, niet als waarschuwing',
     await page.evaluate(() => !!document.querySelector('#trk-mount .trk-melding--kapot')), true);
 
+  /* Het geval van 7 augustus: de koppeling haalt data op, maar op account- en
+     campagneniveau. De tracker heeft advertentieniveau nodig plus een
+     koppeling. Zei het scherm hier "zodra de koppeling draait verandert deze
+     kolom mee", dan gaat de lezer wachten op iets wat al gebeurd is. */
+  await nep(zonderMeta, VLAKKEN, { sync: {
+    toestand: 'werkt', gemeten_rijen: 19, mislukte_pogingen_36u: 0,
+    gemeten_niveaus: 'account, campaign', metingen_advertentieniveau: 0,
+    gekoppelde_advertenties: 0
+  }});
+  const werktNietPerAd = await lees();
+  check('werkend maar niet per advertentie leest anders',
+    /werkt, maar meet niet per advertentie/.test(werktNietPerAd.melding || ''), true);
+  check('met de niveaus die wel binnenkomen',
+    /account, campaign/.test(werktNietPerAd.melding || ''), true);
+  check('en de twee tellingen die het gat verklaren',
+    /0 metingen op advertentieniveau, 0 gekoppelde advertenties/.test(werktNietPerAd.melding || ''), true);
+  check('het is geen storing', await page.evaluate(() =>
+    !!document.querySelector('#trk-mount .trk-melding--kapot')), false);
+  check('en het belooft niet dat wachten helpt',
+    /Zodra de Meta-koppeling draait/.test(werktNietPerAd.melding || ''), false);
+
   await nep(zonderMeta, VLAKKEN, { sync: { toestand: 'nooit gedraaid', gemeten_rijen: 0, mislukte_pogingen_36u: 0 } });
   const nooit = await lees();
   check('nooit gedraaid leest anders dan kapot',

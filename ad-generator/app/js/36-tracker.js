@@ -248,6 +248,21 @@ function trkKaarten(alle) {
       +  'Dit lost zichzelf niet op.'
       +  (s.laatste_fout ? '<br><code class="trk-fout">' + trkEsc(s.laatste_fout) + '</code>' : '')
       +  '</div>';
+  } else if (s && s.toestand === 'werkt' && !gemeten) {
+    /* De koppeling haalt data op, maar niet op het niveau waar de tracker iets
+       aan heeft. Dat verschil moet er staan: de vorige tekst zei "zodra de
+       koppeling draait verandert deze kolom mee", en dat klopte toen hij stuk
+       was. Nu draait hij, verandert er niets, en gaat de lezer wachten op iets
+       wat al gebeurd is. */
+    h += '<div class="trk-melding trk-melding--let-op">'
+      +  '<strong>De Meta-koppeling werkt, maar meet niet per advertentie.</strong> '
+      +  'Er komen cijfers binnen op ' + trkEsc(s.gemeten_niveaus || 'accountniveau')
+      +  ' — genoeg voor het dagrapport, niet voor deze tabel. Een advertentie krijgt hier pas '
+      +  'een gemeten cijfer als er op advertentieniveau gemeten wordt '
+      +  '<em>en</em> de advertentie aan een Meta-ad gekoppeld is.'
+      +  '<br>Nu: ' + (Number(s.metingen_advertentieniveau) || 0) + ' metingen op advertentieniveau, '
+      +  (Number(s.gekoppelde_advertenties) || 0) + ' gekoppelde advertenties.'
+      +  '</div>';
   } else if (s && s.toestand === 'nooit gedraaid') {
     h += '<div class="trk-melding trk-melding--let-op">'
       +  '<strong>De Meta-koppeling heeft nog nooit iets opgehaald.</strong> '
