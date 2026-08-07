@@ -41,6 +41,24 @@ check() {
 q() { psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>/dev/null \
       | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
 
+# Lezen zoals de console het doet: als `authenticated`, met een goedgekeurd
+# teamlid in auth.uid(). Alle andere controles hier draaien als `postgres`, en
+# die is superuser -- die gaat langs elke grant en elke policy heen. Precies
+# daardoor kon de tracker groen zijn in de test en leeg op productie met
+# "permission denied for table benchmarks".
+alsTeamlid() {
+  # In een transactie, anders klaagt `set local` en verdrinkt de uitkomst in
+  # waarschuwingen.
+  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA 2>&1 <<SQL | tr '\n' ' '
+begin;
+set local role authenticated;
+set local test.uid = '11111111-1111-1111-1111-111111111111';
+set local test.teamlid = 'ja';
+$1
+rollback;
+SQL
+}
+
 weigert() {
   local uit; uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>&1 | tr '\n' ' ')
   case "$uit" in *"$2"*) echo ja ;; *ERROR*) echo "andere fout: $uit" ;; *) echo nee ;; esac
@@ -166,6 +184,15 @@ begin
   end loop;
 end $do$;
 grant select on public.creatives to authenticated;
+-- Productie geeft authenticated leesrecht op deze twee (0016/0017). De fixture
+-- deed dat niet, en daardoor kon een view die eroverheen ligt hier groen zijn
+-- en op productie "permission denied" geven -- precies wat er met de tracker
+-- gebeurde. Een fixture die ruimer of krapper is dan productie test iets anders.
+grant select on marketing_hq.meta_insights_daily, marketing_hq.meta_publications to authenticated;
+alter table marketing_hq.meta_insights_daily enable row level security;
+alter table marketing_hq.meta_publications   enable row level security;
+create policy lezen on marketing_hq.meta_insights_daily for select using (marketing_hq.is_team_member());
+create policy lezen on marketing_hq.meta_publications   for select using (marketing_hq.is_team_member());
 alter table public.team_members enable row level security;
 create policy lezen on public.team_members for select using (marketing_hq.is_team_member());
 grant select on public.team_members to authenticated;
@@ -454,6 +481,45 @@ psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 \
   -c "delete from marketing_hq.agent_events where message like 'Meta gaf geen cijfers%'"
 check "niets binnen en geen klacht: nooit gedraaid" "nooit gedraaid" \
   "$(q "select toestand from marketing_hq.meta_sync_status")"
+
+echo
+echo "  0039: kan het team het scherm ook echt lezen"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0039_rechten.sql" >/dev/null 2>&1
+check "0039 draait zonder fout" "0" "$?"
+
+# Dit is de controle die ontbrak. Niet has_table_privilege -- dat is een vraag
+# over rechten -- maar echt een rij ophalen als de rol die het scherm gebruikt.
+# Elke hq_*-view apart, want ze hangen aan verschillende tabellen en falen dus
+# ook apart.
+for v in hq_creative_kaart hq_tracker_breakdown hq_benchmarks hq_meta_sync_status; do
+  uit=$(alsTeamlid "select 1 from public.$v limit 1;")
+  case "$uit" in
+    *ERROR*|*"permission denied"*)
+      fout=$((fout+1))
+      printf '  FOUT %s is niet leesbaar voor een teamlid\n       %s\n' "$v" "$(echo "$uit" | head -c 150)" ;;
+    *) printf '  ok   %s is leesbaar voor een teamlid\n' "$v" ;;
+  esac
+done
+
+# En de tabel vier lagen diep waar het op stukliep: benchmark_band() leest hem,
+# creative_kaart roept die functie aan, en de view eromheen draait op de
+# rechten van wie kijkt.
+uit=$(alsTeamlid "select marketing_hq.benchmark_band('hook_rate', 0.34);")
+case "$uit" in
+  *goed*) echo "  ok   het oordeel werkt ook onder de rechten van een teamlid" ;;
+  *) fout=$((fout+1)); printf '  FOUT benchmark_band mislukt als teamlid\n       %s\n' "$(echo "$uit" | head -c 150)" ;;
+esac
+
+# De andere kant: wie geen teamlid is, ziet nog steeds niets.
+geenLid=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA 2>&1 <<'SQL' | tr -d '\n '
+begin;
+set local role authenticated;
+set local test.teamlid = 'nee';
+select count(*) from marketing_hq.benchmarks;
+rollback;
+SQL
+)
+check "een ingelogde niet-teamlid ziet geen benchmarks" "0" "$geenLid"
 
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
