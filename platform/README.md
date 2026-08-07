@@ -191,6 +191,24 @@ Secrets die er nog niet staan:
 
 `ANTHROPIC_KEY` en `OPENAI_KEY` staan er al.
 
+### Een agent op hold zetten
+
+`marketing_hq.agents.operationeel` is de schakelaar, en sinds 7 augustus zit
+hij ergens aan vast: de runtime weigert een taak voor een agent die op false
+staat, zowel bij `/agents/run` (meteen, met een leesbare melding) als bij het
+uitvoeren van een taak die al in de rij stond. Daarvóór was het alleen een
+label in de console.
+
+```sql
+update marketing_hq.agents set operationeel = false where id = 'echo';   -- op hold
+update marketing_hq.agents set operationeel = true  where id = 'echo';   -- weer aan
+```
+
+Echo staat sinds 7 augustus op hold, samen met de Klaviyo-koppeling: het werk
+gaat eerst over de marketingsite. `KLAVIYO_API_KEY` staat bewust niet op de
+worker, dus de klaviyo-tools geven een nette melding in plaats van te draaien.
+Beide zijn met één regel terug te draaien; er is niets weggegooid.
+
 `META_AD_ACCOUNT_ID` hoeft niet meer. Sinds 0014 staan de accounts in
 `marketing_hq.ad_accounts`; het secret werkt nog als noodrem wanneer die tabel
 onleesbaar is, en `/agents/status` meldt het als hij daarop terugvalt.

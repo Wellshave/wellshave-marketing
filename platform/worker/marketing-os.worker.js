@@ -1444,6 +1444,21 @@ async function runAgent(env, job) {
   const agent = AGENTS[job.agent_id];
   if (!agent) throw new Error(`agent "${job.agent_id}" heeft nog geen runtime-instructie`);
 
+  /* `operationeel` stond sinds 0004 in de tabel en werd nergens gelezen. Een
+     agent op non-actief zetten veranderde dus alleen wat de console liet zien,
+     en niet wat de runtime deed — dat is een schakelaar die aan niets vastzit,
+     en die is erger dan geen schakelaar: je denkt dat iets uit staat.
+
+     Hier en niet alleen bij /agents/run, want dit is de plek waar élke job
+     langskomt: cron, console, en wat er nog in de wachtrij stond toen iemand
+     de agent op hold zette. De check kost één query en staat vóór het model,
+     dus een agent op hold kost ook niets. */
+  const [rij] = await sbSelect(env, 'agents', `id=eq.${job.agent_id}&select=operationeel,name`);
+  if (rij && rij.operationeel === false) {
+    throw new Error(`${rij.name || job.agent_id} staat op hold (operationeel = false in marketing_hq.agents). `
+      + 'Zet hem daar weer aan om deze taak te laten draaien.');
+  }
+
   const ctx = { agentId: job.agent_id, jobId: job.id, runId: null };
 
   const run = (await sbInsert(env, 'agent_runs', {
@@ -1769,6 +1784,18 @@ export default {
         if (!body.kind) return json({ error: 'kind is verplicht' }, 400);
         if (!AGENTS[agentId] && !SYSTEEMTAKEN[body.kind]) {
           return json({ error: `onbekende agent "${agentId}"`, beschikbaar: Object.keys(AGENTS) }, 400);
+        }
+        /* Ook hier, en niet alleen bij het uitvoeren: anders zet iemand een taak
+           klaar die pas een minuut later stilletjes omvalt, en dan zoek je de
+           reden in de logs in plaats van hem meteen te lezen. */
+        if (AGENTS[agentId]) {
+          const [a] = await sbSelect(env, 'agents', `id=eq.${agentId}&select=operationeel,name`);
+          if (a && a.operationeel === false) {
+            return json({
+              error: `${a.name || agentId} staat op hold en neemt geen taken aan.`,
+              hint: 'Zet operationeel weer op true in marketing_hq.agents om hem te starten.'
+            }, 409);
+          }
         }
         const rij = (await sbInsert(env, 'agent_jobs', {
           agent_id: agentId,

@@ -14,7 +14,8 @@
 import worker from '../marketing-os.worker.js';
 
 const db = {
-  agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }],
+  agents: [{ id: 'atlas', name: 'Atlas', status: 'idle', operationeel: true },
+           { id: 'echo', name: 'Echo', status: 'idle', operationeel: false }],
   schedules: [],
   agent_jobs: [], agent_runs: [], agent_events: [], reports: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }],
@@ -94,6 +95,14 @@ globalThis.fetch = async (url, opts = {}) => {
       return ok(doelen);
     }
     let rijen = db[tabel];
+    /* Ook op id filteren. De nep-Supabase deed dat niet en gaf bij
+       `id=eq.echo` doodleuk alle agents terug -- waardoor code die één rij
+       opvraagt de eerste de beste kreeg en er nooit iets misging. De echte
+       PostgREST geeft er precies één of geen. */
+    const idM = url.match(/[?&]id=eq\.([^&]+)/);
+    if (idM) rijen = rijen.filter(r => String(r.id) === decodeURIComponent(idM[1]));
+    const agentM = url.match(/agent_id=eq\.([^&]+)/);
+    if (agentM) rijen = rijen.filter(r => String(r.agent_id) === decodeURIComponent(agentM[1]));
     const statusM = url.match(/status=eq\.([^&]+)/);
     if (statusM) rijen = rijen.filter(r => r.status === statusM[1]);
     const limM = url.match(/limit=(\d+)/);
@@ -314,6 +323,53 @@ check('en het staat als waarschuwing in het logboek',
 check('met de naam van het veld erbij',
   nieuweEvents.some(e => e.data && Array.isArray(e.data.velden) && e.data.velden.includes('video_play_actions')), true);
 geschraptDoorMeta.clear();
+
+
+/* ── Een agent op hold ──────────────────────────────────────────────────── */
+/* `operationeel` stond sinds 0004 in marketing_hq.agents en werd door de
+   runtime nergens gelezen. Een agent uitzetten veranderde dus alleen wat de
+   console toonde. Dat is erger dan geen schakelaar: je denkt dat iets uit
+   staat terwijl het gewoon draait, en bij Echo betekent dat een model dat
+   e-mails zit te bedenken die niemand besteld heeft.
+
+   Twee plekken, want er zijn twee manieren om bij een agent te komen. */
+console.log('\n  een agent op hold neemt niets aan');
+const echoVerzoek = await worker.fetch(new Request('https://w/agents/run', {
+  method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'echo', kind: 'weekly_email_audit' })
+}), env);
+const echoAntwoord = await echoVerzoek.json();
+check('de console krijgt meteen een weigering', echoVerzoek.status, 409);
+check('met de naam van de agent erin', /Echo staat op hold/.test(echoAntwoord.error || ''), true);
+check('en hoe je hem weer aanzet', /operationeel/.test(echoAntwoord.hint || ''), true);
+check('er is geen taak aangemaakt', db.agent_jobs.some(j => j.agent_id === 'echo'), false);
+
+/* De tweede weg: een taak die al klaarstond toen iemand de agent op hold zette.
+   Die mag niet alsnog gaan draaien, en vooral: er mag geen model aan te pas
+   komen, want dat kost geld aan werk dat niemand wil. */
+const claudeVoor = claudeAanroepen.length;
+db.agent_jobs.push({ id: 999, agent_id: 'echo', kind: 'weekly_email_audit', status: 'queued',
+  payload: {}, attempts: 0, max_attempts: 3, priority: 5, source: 'cron',
+  scheduled_for: new Date(Date.now() - 1000).toISOString() });
+await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+await new Promise(r => setTimeout(r, 80));
+const echoJob = db.agent_jobs.find(j => j.id === 999);
+/* Dit is het enige dat telt: er is niets gedraaid en er is geen model
+   aangeroepen. Dat de taak daarna op `queued` staat en niet op `failed` is de
+   bestaande retry-politiek uit werkRijAf -- drie pogingen met backoff -- en
+   die is niet van deze wijziging. Ik leg hier vast wat er gebeurt, niet wat ik
+   liever had gezien. */
+check('er is geen model aangeroepen', claudeAanroepen.length, claudeVoor);
+check('de reden staat bij de taak', /staat op hold/.test(echoJob.error || ''), true);
+check('en hij staat niet op done', echoJob.status === 'done', false);
+/* Na de laatste poging blijft hij liggen als mislukt, met dezelfde reden. Zo
+   verdwijnt een taak voor een agent op hold niet stilletjes uit de rij. */
+echoJob.attempts = 3;
+echoJob.status = 'queued';
+echoJob.scheduled_for = new Date(Date.now() - 1000).toISOString();
+await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+await new Promise(r => setTimeout(r, 80));
+check('en na de laatste poging blijft hij als mislukt liggen',
+  db.agent_jobs.find(j => j.id === 999).status, 'failed');
 
 console.log(fouten === 0 ? '\nAlle controles geslaagd' : `\n${fouten} controle(s) mislukt`);
 process.exit(fouten === 0 ? 0 : 1);
