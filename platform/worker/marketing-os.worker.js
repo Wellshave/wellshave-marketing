@@ -34,6 +34,23 @@
  * en wacht op een mens. Een agent kan daar niet omheen praten.
  * ============================================================ */
 
+/* Welke versie hier draait. Handmatig bijhouden, en dat is precies de bedoeling:
+   dit nummer verandert alleen als iemand het bewust ophoogt, dus als /health een
+   ouder nummer teruggeeft dan wat er in Git staat, is de deploy niet gebeurd.
+
+   Dat is twee keer misgegaan en beide keren op dezelfde manier. Een reparatie
+   stond in Git, niemand deployde hem, en het systeem gedroeg zich dagenlang
+   alsof de reparatie er niet was -- terwijl elke controle in de repository groen
+   stond. Er was geen enkele manier om van buitenaf te zien welke code er draaide.
+   Nu wel: één curl naar /health en je weet het.
+
+   Ophogen bij elke deploy die gedrag verandert. VERSIE_DATUM is de datum van de
+   wijziging, niet van de deploy -- staat die ver in het verleden terwijl er net
+   iets is aangepast, dan draait er oude code. */
+const VERSIE = 12;
+const VERSIE_DATUM = '2026-08-07';
+const VERSIE_WAT = 'paginatie in metaInsights, venster tot 400 dagen, naamkoppeling naar de Creative Strategy Map';
+
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
 /* Wie de worker rechtstreeks vanuit de browser mag aanroepen. Staat een
@@ -1781,6 +1798,12 @@ export default {
       return json({
         ok: true,
         service: 'marketing-os',
+        /* Bewust ook op de open route: dit lekt niets over het bedrijf en het
+           is precies de vraag die je wilt kunnen stellen zonder eerst in te
+           loggen -- draait er wat ik denk dat er draait. */
+        versie: VERSIE,
+        versie_datum: VERSIE_DATUM,
+        versie_wat: VERSIE_WAT,
         runtime: env.SUPABASE_SERVICE_KEY ? 'actief' : 'uit (SUPABASE_SERVICE_KEY ontbreekt)',
         koppelingen: {
           claude: !!env.ANTHROPIC_KEY,

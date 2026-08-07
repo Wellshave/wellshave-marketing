@@ -821,5 +821,112 @@ check "de koppeling zegt dat er rijen delen"   "gekoppeld, maar 3 rijen delen de
   "$(q "select toestand from marketing_hq.creative_meta_koppeling where meta_naam = 'WS - 144 - 1'")"
 
 echo
+echo "  0044: waar rust dit cijfer op"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0044_herkomst.sql" >/dev/null 2>&1
+check "0044 draait zonder fout" "0" "$?"
+
+# De situatie van 061-3, nagespeeld: vier advertenties in Meta, waarvan het
+# sheet er één kende. Dat is de kern van wat 0042 blootlegde.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+delete from marketing_hq.meta_publications;
+update public.creatives set cijfers_vastgezet = false, cijfers_vastgezet_door = null,
+       cijfers_vastgezet_op = null, budget = 567.29 where ad_name = '061-3';
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values
+  (current_date - 6, '242238038391551', 'ad', 'a1', 'WS-061 - 3',               567.29,   94334, true),
+  (current_date - 5, '242238038391551', 'ad', 'a2', 'WS-061 - 3 - ASC+',       9473.42, 1498744, true),
+  (current_date - 4, '242238038391551', 'ad', 'a3', 'WS-061 - 3 - ASC+ - Copy', 310.32,   80981, true),
+  (current_date - 3, '242238038391551', 'ad', 'a4', 'Catalog Ads -> 2',         192.96,   20851, true);
+SQL
+
+check "061-3 hangt aan drie advertenties" "3" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.creative_herkomst where ad_name = '061-3'")"
+check "en hun namen staan erbij"          "t" \
+  "$(q "select meta_namen like '%ASC+%' from marketing_hq.creative_herkomst where ad_name = '061-3'")"
+# 10351,03 / 567,29 = 18,2. Dat is de hele reden dat de map onbruikbaar was.
+check "het gemeten bedrag is 18,2x het ingetypte" "18.2" \
+  "$(q "select factor_op_ingetypt from marketing_hq.creative_herkomst where ad_name = '061-3'")"
+check "en dat wordt met zoveel woorden gezegd" "t" \
+  "$(q "select randgeval like '%18.2× wat er in de map stond%'
+        from marketing_hq.creative_herkomst where ad_name = '061-3'")"
+
+# Een rij zonder advertentie in Meta moet dat zeggen, niet zwijgen.
+check "een ongemeten rij noemt zichzelf ongemeten" "t" \
+  "$(q "select randgeval like 'niet gemeten%' from marketing_hq.creative_herkomst
+         where ad_name = '005-1'")"
+# En een rij waar niets bijzonders aan is, hoort géén melding te krijgen --
+# anders staat het scherm vol waarschuwingen en leest niemand ze meer. Eén
+# advertentie, één rij, gemeten bedrag gelijk aan het ingetypte: schoon.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+update public.creatives set budget = 39.20 where ad_name = '005-2';
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values (current_date - 5, '242238038391551', 'ad', 'z1', 'WS - 005 - 2', 39.20, 4000, true);
+SQL
+check "een schone rij krijgt geen randgeval" "LEEG" \
+  "$(q "select coalesce(randgeval,'LEEG') from marketing_hq.creative_herkomst
+         where ad_name = '005-2'")"
+check "maar wel gewoon een meting"           "1" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.creative_herkomst
+         where ad_name = '005-2'")"
+
+# Wie de meting niet draagt hoort te weten waar hij dan wel staat.
+check "een deler weet dat de meting elders staat" "t" \
+  "$(q "select randgeval like 'deelt de naam%met 2 andere rij(en)%'
+        from marketing_hq.creative_herkomst
+        where ad_name like '144-1 (bron%' limit 1")"
+# En hij mag de advertenties van de drager niet als de zijne opvoeren: dan
+# staat er bij alle drie hetzelfde aantal en lijkt het drie keer bewezen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values (current_date - 2, '242238038391551', 'ad', 'y1', 'WS - 144 - 1', 100, 10000, true);
+SQL
+check "de drager telt de advertentie"        "1" \
+  "$(q "select gekoppelde_advertenties from marketing_hq.creative_herkomst
+         where ad_name = '144-1'")"
+check "en de twee delers tellen er nul"      "0 0" \
+  "$(q "select string_agg(gekoppelde_advertenties::text, ' ' order by creative_id)
+         from marketing_hq.creative_herkomst where ad_name like '144-1 (bron%'")"
+
+# De dekking: € 10.351,03 van de € 10.543,99 komt terug in de map. De
+# catalogusadvertentie hoort er niet in, en dat mag geen 100% opleveren.
+# Niet tegen een vast bedrag: dat verschuift bij elke fixture die erbij komt en
+# dan vervangt iemand het getal in plaats van de vraag te stellen. De eis is de
+# invariant -- de noemer is álle ad-spend, en die valt uiteen in binnen en
+# buiten de map zonder dat er iets weglekt.
+check "de noemer is alle ad-spend, niet alleen wat koppelt" "t" \
+  "$(q "select d.spend_totaal = (select round(sum(spend),2) from marketing_hq.meta_insights_daily
+                                  where level = 'ad' and account_id = '242238038391551')
+        from marketing_hq.map_dekking d where d.brand = 'wellshave'")"
+check "binnen plus buiten is het totaal"                    "t" \
+  "$(q "select spend_in_de_map + spend_buiten_de_map = spend_totaal
+        from marketing_hq.map_dekking where brand = 'wellshave'")"
+# De catalogusadvertentie is geen creative uit de map en hoort er dus buiten te
+# vallen -- 100% dekking zou hier betekenen dat de noemer is opgeschoond.
+check "de catalogusadvertentie valt erbuiten"               "192.96" \
+  "$(q "select spend_buiten_de_map from marketing_hq.map_dekking where brand = 'wellshave'")"
+check "dus geen 100 procent"                                "t" \
+  "$(q "select dekking_procent > 90 and dekking_procent < 100
+        from marketing_hq.map_dekking where brand = 'wellshave'")"
+
+# Een merk waar niets van gemeten is hoort een rij te krijgen die dat zegt.
+# Nul rijen leest als een kapotte view, en dan gaat iemand de verkeerde fout
+# zoeken -- exact wat 0041 bij de sync wegnam.
+check "een merk zonder metingen staat er wel in" "nog niets gemeten op advertentieniveau" \
+  "$(q "select toestand from marketing_hq.map_dekking where brand = 'wellshine'")"
+check "met nul euro en niet met null"            "0.00" \
+  "$(q "select spend_totaal from marketing_hq.map_dekking where brand = 'wellshine'")"
+check "en wellshave zegt dat er wel gemeten is"  "gemeten" \
+  "$(q "select toestand from marketing_hq.map_dekking where brand = 'wellshave'")"
+
+check "hq_creative_herkomst is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_creative_herkomst limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_dekking ook"                                "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_dekking limit 1;" | grep -o 'ok' | head -1)"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
