@@ -59,6 +59,21 @@ rollback;
 SQL
 }
 
+# Dezelfde rol, maar met commit. `alsTeamlid` rolt met opzet terug zodat een
+# leescontrole niets achterlaat; een schrijfcontrole heeft juist nodig dat het
+# blijft staan, anders test je of een functie 1 teruggeeft en niet of er iets
+# gebeurt.
+alsTeamlidSchrijf() {
+  psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA 2>&1 <<SQL | tr '\n' ' '
+begin;
+set local role authenticated;
+set local test.uid = '$2';
+set local test.teamlid = 'ja';
+$1
+commit;
+SQL
+}
+
 weigert() {
   local uit; uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA -c "$1" 2>&1 | tr '\n' ' ')
   case "$uit" in *"$2"*) echo ja ;; *ERROR*) echo "andere fout: $uit" ;; *) echo nee ;; esac
@@ -520,6 +535,83 @@ rollback;
 SQL
 )
 check "een ingelogde niet-teamlid ziet geen benchmarks" "0" "$geenLid"
+
+echo
+echo "  0040: de teampagina"
+# auth.uid() is in de fixture een stub die test.uid leest; de view gebruikt hem
+# om te bepalen wie er kijkt.
+uit=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -f "$MIGDIR/0040_teampagina.sql" 2>&1)
+check "0040 draait zonder fout" "0" "$?"
+[ $fout -eq 0 ] || echo "$uit" | grep -E '^ERROR|^psql:.*ERROR' | head -3
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into public.team_members (id, email, full_name, status, role) values
+  ('22222222-2222-2222-2222-222222222222','willem@wellshave.com','Willem de Groot','approved','member'),
+  ('33333333-3333-3333-3333-333333333333','nieuw@wellshave.com','Nog Niet Goedgekeurd','pending','member');
+SQL
+
+check "mensen en agents staan in dezelfde lijst" "10 2" \
+  "$(alsTeamlid "select count(*) filter (where soort='agent') || ' ' ||
+                        count(*) filter (where soort='mens') from public.hq_team;" | tr -s ' ' | sed 's/ *$//')"
+# Dit was het hele probleem: de tabelpolicy laat een teamlid alleen zichzelf
+# zien, dus zonder de view zou Willem hier alleen Willem vinden.
+check "een teamlid ziet zijn collega ook" "1" \
+  "$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA 2>&1 <<'SQL' | tr -d '\n '
+begin;
+set local role authenticated;
+set local test.uid = '22222222-2222-2222-2222-222222222222';
+select count(*) from public.hq_team where naam = 'Dustin Gibson';
+rollback;
+SQL
+)"
+check "wie nog op goedkeuring wacht staat er niet in" "0" \
+  "$(alsTeamlid "select count(*) from public.hq_team where naam like 'Nog Niet%';" | tr -d ' ')"
+
+# Een definer-view laat zonder deze controle iedereen alles zien.
+geenLid=$(psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -qtA 2>&1 <<'SQL' | tr -d '\n '
+begin;
+set local role authenticated;
+set local test.uid = '99999999-9999-9999-9999-999999999999';
+select count(*) from public.hq_team;
+rollback;
+SQL
+)
+check "wie geen teamlid is ziet niemand" "0" "$geenLid"
+
+# Wat er niet doorheen mag komen: het is een directory, geen ledenadministratie.
+check "geen e-mailadres in de view" "0" \
+  "$(q "select count(*) from information_schema.columns
+        where table_schema='public' and table_name='hq_team'
+          and column_name in ('email','status','is_admin')")"
+
+echo
+echo "  0040: jezelf voorstellen"
+check "een teamlid kan zichzelf voorstellen" "true" \
+  "$(alsTeamlidSchrijf "select public.hq_stel_jezelf_voor('{\"voorstellen\":\"Ik doe de merkkant.\",\"rol_titel\":\"Merkstrateeg\"}'::jsonb)->>'ok';" '11111111-1111-1111-1111-111111111111' | tr -d ' ')"
+check "en het staat er ook echt" "Ik doe de merkkant." \
+  "$(q "select voorstellen from public.team_members where id='11111111-1111-1111-1111-111111111111'")"
+check "de roltitel komt in de lijst terecht" "Merkstrateeg" \
+  "$(alsTeamlid "select rol from public.hq_team where naam='Dustin Gibson';" | sed 's/^ *//; s/ *$//')"
+
+# De valkuil waar een policy in getrapt zou zijn: RLS werkt per rij, niet per
+# kolom. Wie zijn eigen introductie mag schrijven, mag daarmee niet ook zijn
+# eigen rechten opschroeven.
+check "maar niet zijn eigen rechten opschroeven" "f" \
+  "$(alsTeamlidSchrijf "select public.hq_stel_jezelf_voor('{\"voorstellen\":\"x\",\"is_admin\":true,\"status\":\"approved\",\"role\":\"admin\"}'::jsonb);" '22222222-2222-2222-2222-222222222222' >/dev/null 2>&1; q "select coalesce(is_admin,false) from public.team_members where id='22222222-2222-2222-2222-222222222222'")"
+# Twee mensen hebben nu zichzelf voorgesteld, elk hun eigen rij: de functie
+# schrijft altijd in de rij van wie hem aanroept en nergens anders.
+check "ieder schrijft alleen in zijn eigen rij" "Ik doe de merkkant.|x" \
+  "$(q "select string_agg(voorstellen, '|' order by id) from public.team_members where voorstellen is not null")"
+
+# De introductie van een agent mag geen cadans of status noemen: die staan in
+# de data ernaast en veranderen zonder dat de tekst meeverandert.
+check "geen agent noemt een tijdstip in zijn introductie" "0" \
+  "$(q "select count(*) from marketing_hq.agents
+        where voorstellen ~ '[0-9]{1,2}:[0-9]{2}'")"
+check "alle tien stellen zich voor" "10" \
+  "$(q "select count(*) from marketing_hq.agents where voorstellen is not null")"
+check "Echo zegt zelf dat hij uitstaat" "t" \
+  "$(q "select voorstellen like '%sta ik uit%' from marketing_hq.agents where id='echo'")"
 
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"

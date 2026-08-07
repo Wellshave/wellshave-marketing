@@ -215,7 +215,9 @@ function switchMainTab(tab) {
   const copywriterBtn = document.getElementById('main-tab-btn-copywriter');
   const scriptwriterView = document.getElementById('main-tab-scriptwriter');
   const scriptwriterBtn = document.getElementById('main-tab-btn-scriptwriter');
-  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, werkbankBtn, logboekBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  const teamView = document.getElementById('main-tab-team');
+  const teamBtn = document.getElementById('main-tab-btn-team');
+  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, werkbankBtn, logboekBtn, teamBtn].forEach(b => { if (b) b.classList.remove('active'); });
   if (genView) genView.style.display = 'none';
   if (proxyView) proxyView.style.display = 'none';
   if (libView) libView.style.display = 'none';
@@ -231,6 +233,7 @@ function switchMainTab(tab) {
   if (creativesView) creativesView.style.display = 'none';
   if (werkbankView) werkbankView.style.display = 'none';
   if (logboekView) logboekView.style.display = 'none';
+  if (teamView) teamView.style.display = 'none';
   if (tab === 'library') {
     if (libView) libView.style.display = 'block';
     if (libBtn) libBtn.classList.add('active');
@@ -243,6 +246,10 @@ function switchMainTab(tab) {
     if (genView) genView.style.display = 'block';
     if (iterBtn) iterBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('iterate');
+  } else if (tab === 'team') {
+    if (teamView) teamView.style.display = 'block';
+    if (teamBtn) teamBtn.classList.add('active');
+    if (typeof renderTeam === 'function') renderTeam();
   } else if (tab === 'sop') {
     if (sopView) sopView.style.display = 'block';
     if (sopBtn) sopBtn.classList.add('active');
@@ -303,7 +310,7 @@ function switchMainTab(tab) {
     if (genBtn) genBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('scratch');
   }
-  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', werkbank: 'Werkbank', logboek: 'Logboek' };
+  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', werkbank: 'Werkbank', logboek: 'Logboek', team: 'Team' };
   const tEl = document.getElementById('ws-page-title');
   if (tEl) tEl.textContent = titleMap[tab] || 'Generator';
   window.scrollTo({ top: 0, behavior: 'smooth' });

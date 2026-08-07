@@ -1,0 +1,144 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Het team — mensen en agents naast elkaar
+
+   Eén keuze bepaalt het beeld: mensen en agents krijgen dezelfde kaart. Niet
+   omdat het hetzelfde is, maar omdat de vraag dezelfde is — wie is dit en wat
+   doet die voor mij. Een agent in een apart, technischer ogend blok maakt hem
+   iets waar je niet aan hoort te twijfelen, en dat is precies verkeerd: aan
+   een agent hoor je net zo goed te twijfelen als aan een collega.
+
+   Het onderscheid zit in één letter en één tint in het rondje, en verder in
+   wat eronder staat. Een mens heeft een introductie en meer niet; bij een
+   agent staat wat hij werkelijk gedaan heeft.
+
+   Een agent die uitstaat wordt bleker, niet rood. Het is geen storing, het is
+   een keuze — meestal die van iemand in dit team.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.team-sectie { margin-bottom: 34px; }
+.team-h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 20px; font-weight: 500; color: var(--ink); margin: 0 0 4px;
+}
+.team-h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px; font-weight: 500; color: var(--ink); margin: 0 0 6px;
+}
+.team-sectie-uitleg {
+  font-size: 13px; line-height: 1.55; color: var(--ink-soft);
+  margin: 0 0 14px; max-width: 68ch;
+}
+.team-sectie-uitleg strong { color: var(--ink); }
+
+.team-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.team-kaart {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* Jouw eigen kaart: één streepje, zodat je hem meteen vindt zonder dat de
+   pagina over jou gaat. */
+.team-kaart--ik { box-shadow: inset 3px 0 0 var(--gold); }
+/* Uit is bleek en niet rood: dit is een keuze, geen storing. */
+.team-kaart--uit { background: var(--surface-2); }
+.team-kaart--uit .team-naam,
+.team-kaart--uit .team-voorstellen { color: var(--ink-soft); }
+
+.team-kop { display: flex; align-items: center; gap: 12px; }
+.team-avatar {
+  width: 38px; height: 38px; flex: 0 0 38px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px; font-weight: 600;
+}
+.team-avatar--mens  { background: var(--amber-wash); color: var(--amber-deep); }
+.team-avatar--agent { background: var(--surface-3);  color: var(--ink-soft); }
+
+.team-naam {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 16px; font-weight: 600; color: var(--ink); margin: 0;
+}
+.team-jij {
+  font-family: inherit; font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--gold); vertical-align: middle; margin-left: 4px;
+}
+.team-rol { font-size: 12px; color: var(--ink-faint); margin: 1px 0 0; }
+
+.team-voorstellen { font-size: 13.5px; line-height: 1.6; color: var(--ink); margin: 0; }
+
+/* Een gat moet eruitzien als een gat. Een nette standaardzin blijft twee jaar
+   staan; een lege plek met een knop wordt ingevuld. */
+.team-leeg {
+  font-size: 13px; line-height: 1.6; color: var(--ink-faint);
+  margin: 0; font-style: italic;
+}
+.team-leeg .str-knop { font-style: normal; margin-left: 4px; }
+
+.team-feiten {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 5px;
+}
+.team-feit {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.team-feit--aan  { background: rgba(23, 145, 92, 0.12); color: var(--green); font-weight: 600; }
+.team-feit--uit  { background: var(--surface-3); color: var(--ink-faint); font-weight: 600; }
+.team-feit--stil { color: var(--ink-faint); }
+
+.team-regel { font-size: 12px; color: var(--ink-soft); margin: 0; }
+.team-regel span {
+  display: inline-block; min-width: 76px;
+  color: var(--ink-faint); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.team-regel code { font-size: 11.5px; color: var(--ink-soft); }
+
+.team-bewerk { align-self: flex-start; margin-top: 2px; }
+
+/* ── het formulier ──────────────────────────────────────────────────────── */
+
+.team-formulier {
+  background: var(--surface);
+  border: 1px solid var(--gold-line);
+  border-radius: 12px;
+  padding: 18px 20px 20px;
+  margin-bottom: 24px;
+  max-width: 620px;
+}
+.team-uitleg { font-size: 13px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 14px; }
+.team-label {
+  display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--ink-faint); margin: 12px 0 5px;
+}
+.team-input { width: 100%; max-width: 100%; }
+.team-textarea {
+  width: 100%;
+  font: inherit; font-size: 13.5px; line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+}
+.team-knoppen { display: flex; gap: 8px; margin-top: 14px; }
+
+@media (max-width: 640px) {
+  .team-raster { grid-template-columns: 1fr; }
+}
