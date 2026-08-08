@@ -23,15 +23,18 @@ boodschap over meerdere markten met regionale landingspagina-varianten
 - **Herhaald gebruik van dezelfde hook (signaal 6):** **18 van de 18**
   scaling-ads voeren identieke copy: "Week Of Shavings Sale", 20% korting,
   "Trusted by over 14 million men", SkinSafe®, 30-Day Money Back.
-- **Groei in bereik (signaal 1):** zescijferige 7-daagse reachdelta's op
-  zes afzonderlijke ads — 379.435 (+314.478), 296.161 (+253.188), 215.238
-  (+143.238), 161.106 (+150.011), 158.735 (+107.062).
-- **Varianten (signaal 3):** 4 duplicates op meerdere creatives; 23 nieuwe
-  ads in de laatste 24u.
+- ~~**Groei in bereik (signaal 1)**~~ — **ingetrokken op 8/8.** De cijfers
+  379.435 / 296.161 / 161.106 waren **geen 7-daagse groei maar totale
+  reach**, en zijn bovendien standen van 4 augustus (de dataset blijkt
+  bevroren). Zie de briefing van 8/8.
+- **Varianten (signaal 3):** 4 duplicates op meerdere creatives.
 
-Vier signalen. Belangrijker dan het aantal: er is **geen enkele rankpiek**
-— dit is een gecoördineerde internationale uitrol, een structureel ander
-en steviger signaaltype dan één stijgende ad.
+**Twee structurele signalen blijven staan** (4 en 6) — en dat volstaat.
+Belangrijker dan het aantal: er is **geen enkele rankpiek** — dit is een
+gecoördineerde internationale uitrol, een structureel ander en steviger
+signaaltype dan één stijgende ad, en het is aantoonbaar zónder
+reachcijfers (landensets, regionale LP's en identieke copy zijn direct
+telbaar).
 
 ## 4. Waarom relevant voor Wellshave/Wellshine
 Direct concurrerend op ons kernsegment (mannengrooming, bodyshaving).

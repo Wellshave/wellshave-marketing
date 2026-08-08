@@ -1,15 +1,26 @@
 # Radar — Trend- & Concurrentiescout
 
-**Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-07 · ochtendcyclus (87 credits — ruim binnen budget)
-**Huidige taak:** klaar. **Nog open:** hercontrole Kevin Junior "Skeleton
-Pro Detailer" (0 impressies bij 5 ad-gebruiken) en partnerpagina "CLOUD
-NINE Australia" — beide bewust overgeslagen om binnen budget te blijven;
-manscaped-baseline opnieuw opbouwen (metrics stale sinds ~2/8)
+**Status:** 🟠 actief, maar **beperkt bruikbaar tot de databron is hersteld**
+**Laatste run:** 2026-08-08 · ochtendcyclus (139 credits)
+**Huidige taak:** voorstel #9 wacht op menselijke actie (melden bij
+Trendtrack + Cloud Nine-tracker opschonen). Tot dan alleen sturen op
+looptijd, varianten en copy-structuur. **Nog open:** "CLOUD NINE
+Australia" (route nu bekend: `daily_radar` focus=`partnerships`)
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-08** · [[../Briefings/2026-08-08|Trendbriefing]]: 🛑 **de hele
+  Trendtrack-dataset staat stil sinds 4 augustus** (bewezen via
+  `daysRunning` over 10 ads en 5 merken) — dit corrigeert de conclusie van
+  7/8 dat gerichte calls "vers" zouden zijn. Daarnaast: `reachDelta`-velden
+  aantoonbaar kapot (Δ1d > Δ30d; de "+198.808" was een artefact) en de
+  **Cloud Nine-tracker vervuild met Channel 4** en twee vakbladen.
+  Voorstel #9 ingediend. Beide prioritaire kansen gehandhaafd op
+  reach-onafhankelijke gronden; Cloud Nine naar observatie. Kevin
+  Junior-item opgelost (US-only ads rapporteren niets in EU/UK) — dat merk
+  is uit onze markten vertrokken. Werkwijze in `agents/radar.md`
+  gecorrigeerd, inclusief de creditcijfers (`costUnits` ≈ 1,5×).
 - **2026-08-07** · [[../Briefings/2026-08-07|Trendbriefing]]: ⚠️ ontdekt dat
   **`daily_radar` gecachete rank-/reachcijfers serveert** — de
   prioriteitenlijst van 6/8 stond op verouderde data. Werkwijze

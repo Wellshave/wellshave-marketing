@@ -4,6 +4,31 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-08** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
+  alleen het brein (`brain/`) bijgewerkt.
+- **2026-08-08** · Nova · Twee voorstellen ingediend over onze **eigen
+  meetbetrouwbaarheid**: #8 (dagelijkse campagne-ROAS is bij 3–5
+  aankopen/dag geen signaal → 7-daags venster) en #9
+  (Trendtrack-datakwaliteit escaleren + Cloud Nine-tracker opschonen).
+  Beide prioritaire kansen herbouwd op reach-onafhankelijke onderbouwing;
+  Cloud Nine Summer Sale naar observatie. Correctienotitie op de briefing
+  van 7/8, waarin ten onrechte stond dat gerichte calls verse data geven.
+- **2026-08-08** · Radar · Marktscan (139 credits): 🛑 **hele
+  Trendtrack-dataset bevroren sinds 4 augustus** (bewezen via
+  `daysRunning`, 10 ads / 5 merken); `reachDelta`-velden aantoonbaar kapot
+  (Δ1d > Δ30d — de "+198.808 step-change" van 7/8 was een artefact);
+  **Cloud Nine-tracker vervuild** met Channel 4 en twee vakbladen,
+  waardoor eerdere volumecijfers deels van een Britse omroep waren.
+  Kevin Junior-item opgelost (US-only ads rapporteren niets in EU/UK; dat
+  merk is uit onze markten vertrokken). Werkwijze en creditcijfers in
+  `agents/radar.md` gecorrigeerd.
+- **2026-08-08** · Atlas · Ochtendcyclus: methodologische bevinding — bij
+  3–5 aankopen per dag is dagelijkse campagne-ROAS grotendeels ruis en
+  rouleert "de beste campagne" willekeurig; weken aan gerapporteerde
+  "kantelingen" komen hier vandaan. Wellshine is de uitzondering: zes
+  dagen, €352,18, nul aankopen, geen retro-attributie. 4/8 en 5/8
+  definitief. Klaviyo dag 57, lijst +20 naar 4.258.
 - **2026-08-07** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

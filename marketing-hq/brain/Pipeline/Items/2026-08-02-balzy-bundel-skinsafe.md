@@ -61,6 +61,27 @@ onafhankelijke concurrenten die hun sterkste kaart op hetzelfde concept
 zetten is convergerend bewijs — zie
 [[2026-08-07-manscaped-multimarkt-sale|het manscaped-item]].
 
+**⚠️ Update 8/8 — de reach-onderbouwing wordt ingetrokken, het dossier
+blijft staan.** De Trendtrack-dataset blijkt **bevroren sinds 4 augustus**
+en de `reachDelta`-velden zijn aantoonbaar kapot (Δ1d > Δ30d op meerdere
+ads). De "+198.808 in één dag" uit de update van 7/8 is daarmee een
+**artefact**, geen step-change. Ook de reachcijfers 371.631 / 38.753 /
+22.145 zijn standen van 4/8, niet van vandaag.
+
+**Wat overeind blijft — en dat is genoeg:** de onderbouwing rust nu
+volledig op feiten die niet van reach afhangen.
+- **Looptijd:** 5 actieve ads op deze LP met **58, 58, 58, 92 en 103
+  dagen**; 12 ads ≥50 dagen.
+- **Varianten:** duplicates 8 / 8 / 7 / 5 / 4 / 3 / 2.
+- **Herhaalde hook:** twee copy-clusters — identieke influencer-UGC (code
+  RICK10) over 3 ads, en een review-opener ("Mijn vriend gebruikt hem nu
+  voor zijn baard én de rest") over 2 ads.
+
+Drie signalen, allemaal telbaar en verifieerbaar. Dat een concurrent
+dezelfde advertentie 58 tot 103 dagen laat draaien in acht duplicaten is
+op zichzelf al een sterk commercieel signaal — daar is geen reachcijfer
+voor nodig.
+
 ## 4. Waarom relevant voor Wellshave/Wellshine
 BALZY's lichaamshaarverwijdering-voor-mannen concurreert rechtstreeks met
 Wellshave's SkinSafe Body Shaver. Het is de sterkste, best-onderbouwde

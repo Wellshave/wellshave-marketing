@@ -1,13 +1,23 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-07 · ochtendcyclus
-**Huidige taak:** klaar; Wellshine-account (12 nuldagen Airstyler Nova, 5
-dagen nul op accountniveau) blijft het scherpste openstaande punt
+**Laatste run:** 2026-08-08 · ochtendcyclus
+**Huidige taak:** klaar; voorstel #8 (7-daags venster) wacht op besluit;
+Wellshine (13 nuldagen Airstyler Nova, 6 dagen nul op accountniveau)
+blijft het scherpste openstaande punt
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-08** · [[../Reports/Daily/2026-08-08|Dagrapport]]:
+  **methodologische bevinding** — het account doet 3–5 aankopen per dag,
+  waardoor dagelijkse campagne-ROAS grotendeels ruis is en "de beste
+  campagne" willekeurig rouleert (TOFU → TOFU → 001 → Advertorial, geen
+  enkele twee dagen op rij). Wij hebben hier weken signaal in gelezen;
+  voorstel #8 ingediend om op een 7-daags venster over te stappen.
+  Wellshine expliciet de uitzondering: zes dagen, €352,18, nul aankopen,
+  geen retro-attributie. 4/8 en 5/8 definitief. Klaviyo dag 57; lijst +20
+  naar 4.258.
 - **2026-08-07** · [[../Reports/Daily/2026-08-07|Dagrapport]]: het beeld van
   gisteren kantelde binnen één dag — **TOFU viel terug naar nul** en
   **001 deed 3,00** (5 aankopen, €293,74, de volledige accountomzet).

@@ -1,14 +1,24 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (**5 openstaande approvals**; #6 ingetrokken
-en #7 opgelost zonder besluit)
-**Laatste run:** 2026-08-07 · ochtendcyclus
-**Huidige taak:** twee eigen voorstellen van gisteren afgehandeld; nieuwe
-prioritaire kans (manscaped) gedocumenteerd; Cloud Nine gedegradeerd
+**Status:** 🟡 wacht op akkoord (**7 openstaande approvals**, waarvan 2 met
+actie vereist: #5 en #9)
+**Laatste run:** 2026-08-08 · ochtendcyclus
+**Huidige taak:** twee nieuwe voorstellen (#8 meetvenster, #9
+Trendtrack-datakwaliteit); beide prioritaire kansen herbouwd op
+reach-onafhankelijke onderbouwing
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-08** · Twee nieuwe voorstellen ingediend die beide over onze
+  **eigen meetbetrouwbaarheid** gaan: **#8** (dagelijkse campagne-ROAS is
+  bij 3–5 aankopen/dag geen signaal — overstappen op een 7-daags venster)
+  en **#9** (Trendtrack-dataset bevroren sinds 4/8, deltavelden kapot,
+  Cloud Nine-tracker vervuild met Channel 4 — vraagt menselijke actie).
+  Beide prioritaire kansen **herbouwd zonder reach-onderbouwing**: BALZY
+  op looptijd (58–103 dagen), duplicates en copy-clusters; manscaped op
+  landensets en identieke copy. Cloud Nine Summer Sale naar **observatie**
+  wegens trackercontaminatie. Correctienotitie op de briefing van 7/8.
 - **2026-08-07** · **Twee eigen voorstellen van gisteren afgehandeld:** #6
   (budgetverdeling) **ingetrokken** nadat de data binnen één dag omdraaide,
   #7 (creditbudget) **opgelost** doordat een goedkopere werkwijze het

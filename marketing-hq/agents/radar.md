@@ -23,15 +23,37 @@ Trendtrack (Wellgroup-workspace), Foreplay (ad-library en Spyder).
 
 ## Werkwijze — geleerde lessen over de data
 
+- **Begin élke ronde met een freshness-check.** Neem een ad met bekende
+  `firstSeenAt` en tel `daysRunning` op bij die datum: komt dat op vandaag
+  uit? Zo nee, dan staat de dataset stil en zijn álle reach- en rankcijfers
+  van die ronde onbruikbaar. Op 8/8/2026 bleek de hele workspace bevroren
+  sinds 4 augustus (10 ads, 5 merken, allemaal wijzend op 4/8).
+- **`reachDelta1d` / `reachDelta7d` / `reachDelta30d` zijn onbetrouwbaar**
+  en mogen niet als bewijs dienen. Aangetoond met rekenkundig onmogelijke
+  waarden (Δ1d > Δ30d; Δ7d > Δ30d). Eén "step-change" van +198.808 die
+  hierop berustte, bleek een artefact.
 - **`daily_radar` serveert gecachete rank- en reachcijfers** (vastgesteld
-  7/8/2026: byte-identieke waarden op twee opeenvolgende dagen). Gebruik
-  het uitsluitend om te zien *welke merken bewegen*; haal alle rank- en
-  reachcijfers waarop je een kans onderbouwt op via een gerichte
-  `get_brandtracker_scaling_ads`-call. Twee onterechte prioriteringen zijn
-  op deze cache terug te voeren.
-- **Kies gerichte focus-calls in plaats van `focus=all`.** `new_ads` (11
-  credits) + `scaling` (22) leveren dezelfde bruikbare secties als
-  `focus=all` (83) — ~55% goedkoper, structureel herhaalbaar.
+  7/8/2026). Gebruik het alleen om te zien *welke merken bewegen*. **Let
+  op:** gerichte `get_brandtracker_scaling_ads`-calls zijn géén
+  betrouwbaar alternatief — op 8/8 bleken die even bevroren. Er is geen
+  gegarandeerd verse reachbron.
+- **Stuur op wat robuust telbaar is:** looptijd (`daysRunning`, mits de
+  freshness-check klopt), aantal actieve varianten, aantal duplicates, en
+  copy-/hookstructuur. Die feiten overleven de datakwaliteitsproblemen.
+- **Controleer of een brandtracker vervuild is** vóór je volumecijfers
+  rapporteert. De Cloud Nine-tracker aggregeert vier FB-pagina's waarvan er
+  drie niets met het merk te maken hebben (Channel 4, Creative HEAD
+  Magazine, Professional Hairdresser Magazine) — alle eerder gerapporteerde
+  Cloud Nine-volumes waren daardoor deels van Channel 4.
+- **Kies gerichte focus-calls in plaats van `focus=all`.** `new_ads` +
+  `scaling` samen ≈ **50 credits** tegen ~125 voor `focus=all` — nog altijd
+  ruim goedkoper. Reken met **`costUnits`, niet `actualUnits`**: de
+  werkelijke afschrijving ligt ~1,5× hoger dan het cijfer dat de tool
+  toont. Een gerichte `get_brandtracker_scaling_ads` met limit 10 kost
+  **15**, niet 10.
+- **Reachdata komt uit Meta's EU/UK-transparantierapportage.** US-only ads
+  rapporteren daar per definitie niets — "0 impressies" bij een
+  US-getargete ad is dus correct gedrag, geen dataleemte.
 - **Weeg looptijd en aantal varianten zwaarder dan een enkele rankpiek.**
   Een sterke rankdelta op een ad die pas dagen draait is een zwak signaal;
   twee kansen die op zo'n piek werden geprioriteerd (Cloud Nine Airshot

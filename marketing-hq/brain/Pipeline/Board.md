@@ -21,26 +21,33 @@
 - 🔥 **BALZY-bundel → SkinSafe Body Shaver** · static/bundle · Nova
   *Prioritaire kans (2/8, zie
   [[../Pipeline/Items/2026-08-02-balzy-bundel-skinsafe|volledige notitie]]):
-  **7/8: dossier fors versterkt.** De echte motor bleek buiten beeld te
-  vallen door gecachete radar-data — een ad met **58 dagen looptijd**,
-  reach **371.631** en **+198.808 in één dag** (8 duplicates). Vier
-  signalen mét looptijd en varianten eronder. De best-onderbouwde kans op
-  het board*
+  **8/8: reach-onderbouwing ingetrokken** (Trendtrack-data bevroren sinds
+  4/8, deltavelden kapot — de "+198.808" was een artefact). **Het dossier
+  blijft niettemin het sterkste op het board**, want het rust nu volledig
+  op telbare feiten: 5 actieve ads met **58/58/58/92/103 dagen** looptijd,
+  duplicates tot 8, en twee herkenbare copy-clusters. Een advertentie die
+  een concurrent 103 dagen in acht duplicaten laat draaien is op zichzelf
+  al bewijs*
 - 🔥 **manscaped multi-markt sale-uitrol** · campagne/static · Nova
   *Prioritaire kans (7/8, zie
   [[../Pipeline/Items/2026-08-07-manscaped-multimarkt-sale|volledige notitie]]):
-  gecoördineerde uitrol over 8+ markten, **18/18 ads identieke copy**,
-  zescijferige 7d-reachdelta's, eigen LP per regio. Geen rankpiek maar
-  distributiekracht. **Convergentiesignaal:** manscaped's
-  "beard-and-balls-bundle" is vrijwel hetzelfde concept als BALZY's
-  topperformer — twee concurrenten op dezelfde bundelpropositie*
-- **Cloud Nine Summer Sale-bundel → Wellshine** · static/campagne · Nova
-  *↘ **Gedegradeerd 7/8 van prioritair naar testwaardig.** De prioritering
-  van 6/8 berustte op "394 nieuwe ads in 24u"; dat waren er een dag later
-  **67** (−83%) — een eenmalige bulk-registratie, geen opschaling. Er is
-  wél reële tractie (62 schalende varianten, verse reachdelta's tot
-  155.104), maar GB-only, tijdgebonden en hairstyling i.p.v. scheren.
-  Blijft interessant voor het Wellshine-segment, niet urgent*
+  gecoördineerde uitrol over 8+ markten (landensets tot **30**), **18/18
+  ads identieke copy**, eigen LP per regio. Geen rankpiek maar
+  distributiekracht. **8/8: het reach-signaal is ingetrokken** (bevroren
+  data), de twee structurele signalen blijven staan en zijn direct telbaar.
+  **Convergentiesignaal:** hun "beard-and-balls-bundle" is vrijwel hetzelfde
+  concept als BALZY's topperformer*
+
+## Observatie
+- **Cloud Nine Summer Sale** · Nova
+  *↘↘ Twee keer gedegradeerd: 6/8 geprioriteerd → 7/8 testwaardig → **8/8
+  observatie**. De volumeclaim (394 nieuwe ads) bleek besmet: de Cloud
+  Nine-tracker aggregeert drie niet-gerelateerde FB-pagina's, waaronder
+  **Channel 4** — een Britse omroep. Alle eerder gerapporteerde Cloud
+  Nine-volumes waren daardoor deels van iemand anders. De 62 schalende
+  matches zijn bovendien identiek aan gisteren (bevroren data), GB-only en
+  hairstyling i.p.v. scheren. Niet verder oppakken tot de tracker is
+  opgeschoond — zie approval #9*
 - **Dedicated hoofd-scheerapparaat landingspagina** · landing_page · Nova
   *Gepromoot 27/7: Brothers in Style bewijst het patroon overtuigend —
   hun hoofd-scheerapparaat-LP staat op **2,5M all-time impressies** over
