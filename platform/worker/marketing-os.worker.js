@@ -47,9 +47,9 @@
    Ophogen bij elke deploy die gedrag verandert. VERSIE_DATUM is de datum van de
    wijziging, niet van de deploy -- staat die ver in het verleden terwijl er net
    iets is aangepast, dan draait er oude code. */
-const VERSIE = 12;
-const VERSIE_DATUM = '2026-08-07';
-const VERSIE_WAT = 'paginatie in metaInsights, venster tot 400 dagen, naamkoppeling naar de Creative Strategy Map';
+const VERSIE = 13;
+const VERSIE_DATUM = '2026-08-11';
+const VERSIE_WAT = 'grote vensters in stukken van 30 dagen, zodat de inhaalslag over 400 dagen niet meer door Meta wordt geweigerd';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -899,6 +899,42 @@ function metaVenster(days) {
   return JSON.stringify({ since: dag(start), until: dag(eind) });
 }
 
+/* Meta weigert een verzoek dat te veel data omvat, en dat is geen randgeval:
+   400 dagen × per dag × advertentieniveau leverde letterlijk "Please reduce
+   the amount of data you're asking for". Niet paginatie -- daar komt hij niet
+   eens aan toe, hij weigert het verzoek zelf.
+
+   Paginatie lost het halen van véél rijen op; dit lost het vrágen om een groot
+   venster op. Twee verschillende grenzen, allebei nodig voor de inhaalslag.
+
+   Alleen knippen als het nodig is: bij per-dag-uitsplitsing over meer dan 45
+   dagen. De dagelijkse run van zeven dagen houdt dus exact één verzoek, precies
+   zoals hij had -- een reparatie die het normale geval verandert, repareert
+   niet maar verplaatst. */
+function vensterStukken(days, perDag) {
+  var n = Math.max(1, Math.min(Number(days) || 7, 400));
+  if (!perDag || n <= 45) return [metaVenster(n)];
+
+  var dag = function (d) { return d.toISOString().slice(0, 10); };
+  var eind = new Date();
+  var start = new Date(eind.getTime() - (n - 1) * 86400000);
+  var stukken = [];
+  var cursor = new Date(start.getTime());
+  /* De grens van 30 stukken is een noodrem, geen verwachting: 400 dagen in
+     stukken van 30 zijn er veertien. Hij staat er omdat een lus die zichzelf
+     niet opschuift in een Worker niet crasht maar hángt, en een hangende cron
+     om 07:00 is stiller dan een fout. Dit is nagemeten: één teken weg uit de
+     regel hieronder (de + 86400000) liet de testlus oneindig doorlopen in
+     plaats van falen -- en dat is precies het gedrag dat je in productie niet
+     wilt ontdekken. */
+  while (cursor <= eind && stukken.length < 30) {
+    var tot = new Date(Math.min(cursor.getTime() + 29 * 86400000, eind.getTime()));
+    stukken.push(JSON.stringify({ since: dag(cursor), until: dag(tot) }));
+    cursor = new Date(tot.getTime() + 86400000);
+  }
+  return stukken;
+}
+
 async function metaInsights(env, level, days, perDag, accountId, ctx) {
   const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
@@ -918,12 +954,12 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
     'video_play_actions', 'video_thruplay_watched_actions'];
   if (level !== 'account') velden.push(level + '_id', level + '_name');
 
-  const bouw = (lijst) => {
+  const bouw = (lijst, venster) => {
     const p = new URLSearchParams({
       access_token: env.META_ACCESS_TOKEN,
       level: level,
       fields: lijst.join(','),
-      time_range: metaVenster(days),
+      time_range: venster,
       limit: '500'
     });
     if (perDag) p.set('time_increment', '1');
@@ -948,9 +984,14 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
      een uitgeklede lijst geen meting meer maar een gok. */
   let lijst = velden.slice();
   const gesneuveld = [];
+  const rijen = [];
+  const stukken = vensterStukken(days, perDag);
+  const mislukt = [];
+
+  for (const venster of stukken) {
   let data = null;
   for (let poging = 0; poging <= 5; poging++) {
-    const r = await fetch(`${META_API}/act_${account}/insights?${bouw(lijst)}`);
+    const r = await fetch(`${META_API}/act_${account}/insights?${bouw(lijst, venster)}`);
     data = await r.json();
     if (!data.error) break;
 
@@ -963,21 +1004,25 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
     const m = /\(#100\)\s+([a-z0-9_]+)\s+is not valid for fields param/i.exec(bericht)
            || /nonexisting field \(([a-z0-9_]+)\)/i.exec(bericht);
     const weg = m && lijst.indexOf(m[1]) > -1 ? m[1] : null;
-    if (!weg) throw new Error('Meta: ' + bericht);
+    /* Eén stuk dat weigert mag de andere dertien niet meenemen. Bij één stuk
+       is dit precies het oude gedrag: de fout gaat naar boven. */
+    if (!weg) {
+      if (stukken.length === 1) throw new Error('Meta: ' + bericht);
+      mislukt.push({ venster: venster, reden: bericht.slice(0, 160) });
+      data = null;
+      break;
+    }
 
     lijst = lijst.filter(v => v !== weg);
     gesneuveld.push(weg);
     data = null;
   }
   if (!data || data.error) {
-    throw new Error('Meta: te veel onbruikbare velden (' + gesneuveld.join(', ')
-      + ') — controleer de API-versie ' + META_API.split('/').pop() + ' en het token');
-  }
-  if (gesneuveld.length) {
-    /* Geen throw: er zijn wél cijfers, ze zijn alleen smaller. Wel luid, want
-       dit is de enige plek waar zichtbaar wordt dat Meta iets heeft geschrapt. */
-    await logEvent(env, ctx || {}, 'warn', 'Meta kent deze velden niet meer; zonder verder gemeten',
-      { velden: gesneuveld, api: META_API.split('/').pop(), account: account });
+    if (stukken.length === 1) {
+      throw new Error('Meta: te veel onbruikbare velden (' + gesneuveld.join(', ')
+        + ') — controleer de API-versie ' + META_API.split('/').pop() + ' en het token');
+    }
+    continue;
   }
 
   /* Meta geeft één pagina en een verwijzing naar de volgende. Die verwijzing
@@ -990,7 +1035,7 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
      De grens van veertig pagina's is een noodrem, geen verwachting: bij 500
      per pagina zijn dat 20.000 rijen. Wordt hij geraakt, dan is dat te zien in
      plaats van te raden. */
-  const rijen = (data.data || []).slice();
+  rijen.push(...(data.data || []));
   let volgende = data.paging && data.paging.next;
   let paginas = 1;
   let gebroken = false;
@@ -1015,6 +1060,26 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
     await logEvent(env, ctx || {}, 'warn',
       `Meta had na 40 pagina's nog meer voor ${account} op ${level}-niveau; de rest is niet opgehaald`,
       { paginas: paginas, rijen: rijen.length, level: level, account: account });
+  }
+  } /* volgend stuk */
+
+  if (gesneuveld.length) {
+    /* Geen throw: er zijn wél cijfers, ze zijn alleen smaller. Wel luid, want
+       dit is de enige plek waar zichtbaar wordt dat Meta iets heeft geschrapt. */
+    await logEvent(env, ctx || {}, 'warn', 'Meta kent deze velden niet meer; zonder verder gemeten',
+      { velden: gesneuveld, api: META_API.split('/').pop(), account: account });
+  }
+  /* Een gat in een inhaalslag is erger dan een mislukte inhaalslag: bij het
+     eerste ziet de map er compleet uit terwijl er maanden ontbreken. Daarom
+     luid, met de vensters erbij zodat je weet wélke maanden. */
+  if (mislukt.length) {
+    if (mislukt.length === stukken.length) {
+      throw new Error('Meta: geen enkel venster gelukt (' + stukken.length + ' geprobeerd) — '
+        + mislukt[0].reden);
+    }
+    await logEvent(env, ctx || {}, 'warn',
+      `Meta gaf ${mislukt.length} van de ${stukken.length} vensters niet voor ${account}; die periodes ontbreken`,
+      { mislukt: mislukt, level: level, account: account });
   }
 
   return rijen.map(row => {

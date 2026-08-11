@@ -37,6 +37,10 @@ let knaptOpPagina = 0;
 let gevraagd = { level: 'ad', days: 7 };
 /* Welk venster de worker werkelijk aan Meta vroeg. */
 let gevraagdVenster = null;
+/* Alle vensters die de worker deze ronde vroeg, op volgorde. */
+let gevraagdeVensters = [];
+/* Vensters die de nagemaakte Meta weigert, zoals de echte doet bij te veel data. */
+let weigertVensterMetDagen = 0;
 
 let volgendeId = 1;
 const db = {
@@ -125,7 +129,18 @@ globalThis.fetch = async (url, opts = {}) => {
        tellen. */
     const u = new URL(url);
     const pagina = Number(u.searchParams.get('__pagina') || '1');
-    if (u.searchParams.get('time_range')) gevraagdVenster = JSON.parse(u.searchParams.get('time_range'));
+    if (u.searchParams.get('time_range')) {
+      gevraagdVenster = JSON.parse(u.searchParams.get('time_range'));
+      if (pagina === 1) gevraagdeVensters.push(gevraagdVenster);
+      /* De echte Meta weigert een te groot verzoek met deze tekst -- niet met
+         een leeg antwoord. Dat onderscheid is de hele reden dat de inhaalslag
+         van 400 dagen stukliep terwijl de dagelijkse run gewoon werkte. */
+      const dagen = Math.round(
+        (new Date(gevraagdVenster.until) - new Date(gevraagdVenster.since)) / 86400000) + 1;
+      if (weigertVensterMetDagen && dagen >= weigertVensterMetDagen) {
+        return ok({ error: { message: "Please reduce the amount of data you're asking for, then retry your request", code: 1 } });
+      }
+    }
 
     if (knaptOpPagina && pagina === knaptOpPagina) {
       return ok({ error: { message: 'Please reduce the amount of data you are asking for, then retry your request', code: 1 } });
@@ -154,7 +169,7 @@ const env = {
 const auth = { headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' } };
 
 const haal = async (input) => {
-  gevraagd = input; gevraagdVenster = null;
+  gevraagd = input; gevraagdVenster = null; gevraagdeVensters = [];
   db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
   await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
     body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
@@ -207,6 +222,56 @@ const dagenTerug = Math.round(
 check('het gevraagde venster is echt 400 dagen', dagenTerug, 399);
 check('en reikt dus tot voor 4 augustus 2025',
   gevraagdVenster.since < '2025-08-04', true);
+
+console.log('\n  een groot venster wordt in stukken geknipt');
+paginas = 1; knaptOpPagina = 0; weigertVensterMetDagen = 0;
+r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
+/* Meta weigerde 400 dagen per dag op advertentieniveau letterlijk met "Please
+   reduce the amount of data you're asking for". Niet paginatie: hij komt daar
+   niet eens aan toe, hij wijst het verzoek zelf af. */
+check('400 dagen wordt opgeknipt', gevraagdeVensters.length > 1, true);
+check('geen enkel stuk is groter dan 30 dagen',
+  gevraagdeVensters.every(v =>
+    Math.round((new Date(v.until) - new Date(v.since)) / 86400000) + 1 <= 30), true);
+/* De stukken moeten samen het hele venster dekken en elkaar niet overlappen:
+   een gat is een maand die stil ontbreekt, een overlap telt een maand dubbel. */
+const opVolgorde = gevraagdeVensters.slice().sort((a, b) => a.since < b.since ? -1 : 1);
+check('de stukken sluiten op elkaar aan, zonder gat of overlap',
+  opVolgorde.every((v, i) => i === 0 ||
+    Math.round((new Date(v.since) - new Date(opVolgorde[i - 1].until)) / 86400000) === 1), true);
+check('en samen reiken ze tot voor 4 augustus 2025',
+  opVolgorde[0].since < '2025-08-04', true);
+check('elk stuk levert zijn rijen', r.rijen.length, gevraagdeVensters.length * 2);
+
+console.log('\n  de dagelijkse run blijft precies één verzoek');
+weigertVensterMetDagen = 0;
+r = await haal({ level: 'ad', days: 7, breakdown_by_day: true });
+/* Een reparatie die het normale geval verandert, repareert niet maar
+   verplaatst. Zeven dagen hoort exact te blijven zoals het was. */
+check('zeven dagen blijft één venster', gevraagdeVensters.length, 1);
+r = await haal({ level: 'ad', days: 400 });
+check('zonder per-dag ook één venster', gevraagdeVensters.length, 1);
+
+console.log('\n  weigert Meta één periode, dan is dat te zien');
+weigertVensterMetDagen = 0;
+/* Eén specifiek venster laten mislukken: de nagemaakte Meta weigert alles wat
+   30 dagen of langer is, en het laatste stuk is korter. */
+weigertVensterMetDagen = 30;
+r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
+check('de rest komt gewoon binnen', r.rijen.length > 0, true);
+check('en er staat een waarschuwing bij',
+  r.waarschuwingen.some(w => /vensters niet/.test(w.message)), true);
+check('die zegt hoeveel periodes ontbreken',
+  r.waarschuwingen.some(w => /van de \d+ vensters/.test(w.message)), true);
+
+console.log('\n  weigert Meta alles, dan is het geen halve meting');
+weigertVensterMetDagen = 1;
+r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
+/* Nul rijen mag nooit doorgaan voor een geslaagde inhaalslag: dan ziet de map
+   er compleet uit terwijl er een jaar ontbreekt. */
+check('er komt niets binnen', r.rijen.length, 0);
+check('en het account wordt als mislukt gemeld',
+  r.waarschuwingen.some(w => /Meta gaf geen cijfers/.test(w.message)), true);
 
 console.log('');
 if (fouten) { console.log(`${fouten} controle(s) mislukt`); process.exit(1); }

@@ -928,5 +928,70 @@ check "hq_map_dekking ook"                                "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_map_dekking limit 1;" | grep -o 'ok' | head -1)"
 
 echo
+echo "  0045: voorvoegsels zijn eigen reeksen"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0045_reeksen.sql" >/dev/null 2>&1
+check "0045 draait zonder fout" "0" "$?"
+
+# Alle namen hieronder staan letterlijk in het Wellshave- of Wellshine-account.
+# Verzonnen voorbeelden bewijzen hier niets: het gaat er juist om dat vier
+# voorvoegsels op vier verschillende plekken in de naam allemaal herkend worden.
+check "WSLP wordt een LP-reeks"        "LP:180:1"   "$(sleutel 'WSLP - 180 - 1')"
+check "WSDG wordt een DG-reeks"        "DG:179:2"   "$(sleutel 'WSDG - 179 - 2')"
+check "een landcode achter het nummer" "IT:169:2"   "$(sleutel 'WS169IT - 2')"
+check "Wellshine's WLS"                "WLS:8:1"    "$(sleutel 'WLS - 008 - 1')"
+check "en zijn tweede spelling WSL"    "WSL:1:1"    "$(sleutel 'WSL - 001 - 1')"
+
+# De kern van de keuze: een voorvoegsel mag de gewone map-rij nooit raken.
+check "LP raakt de gewone reeks niet"  "f" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WSLP - 180 - 1')
+             = marketing_hq.meta_naam_sleutel('180-1')")"
+check "IT raakt de gewone reeks niet"  "f" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WS169IT - 2')
+             = marketing_hq.meta_naam_sleutel('169-2')")"
+# En twee spellingen van Wellshine blijven uit elkaar: als er twee in omloop
+# zijn hoort dat zichtbaar te blijven.
+check "WLS en WSL blijven gescheiden"  "f" \
+  "$(q "select marketing_hq.meta_naam_sleutel('WLS - 008 - 1')
+             = marketing_hq.meta_naam_sleutel('WSL - 008 - 1')")"
+
+# Alles wat in 0042 t/m 0044 al werkte moet blijven werken -- dit is een
+# ingewikkelder regex geworden en dat is precies waar iets stil omvalt.
+check "de gewone reeks blijft 61:3"    "61:3"       "$(sleutel 'WS-061 - 3 - ASC+')"
+check "de map-kant blijft 61:3"        "61:3"       "$(sleutel '061-3')"
+check "005 - 3 blijft 5:3"             "5:3"        "$(sleutel '005 - 3')"
+check "@WS038 -1 blijft 38:1"          "38:1"       "$(sleutel '@WS038 -1')"
+check "BFCM blijft BFCM"               "BFCM:2:2"   "$(sleutel 'WS - BFCM - 002 - 2')"
+check "de C-reeks met nummer blijft"   "C:36:1"     "$(sleutel 'WS - C - 036 - 1')"
+check "variant 10 blijft 165:10"       "165:10"     "$(sleutel '165-10')"
+check "Copy 2 blijft 103:2"            "103:2"      "$(sleutel 'WS - 103 - 2 - Copy 2')"
+
+# C1 heeft geen nummer en hoort dus geen sleutel te krijgen. Er valt niets aan
+# te koppelen omdat die rij niet in de map bestaat; een sleutel verzinnen zou
+# dat verbergen.
+check "C1 krijgt geen sleutel"                 "—" "$(sleutel 'C1 - 4 Reasons Why')"
+check "C2 ook niet"                            "—" "$(sleutel 'C2 - Before/After')"
+check "en Catalog Ads nog steeds niet"         "—" "$(sleutel 'Catalog Ads -> 2')"
+check "een FLEX-bundel nog steeds niet"        "—" "$(sleutel '@WS052 -> FLEX (4 Videos) Herfst - Copy 2')"
+check "en een naam zonder nummer al helemaal"  "—" "$(sleutel 'French Video')"
+
+# En de koppeling in de praktijk: een LP-advertentie hangt aan niets, ook niet
+# aan de rij met hetzelfde nummer.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values
+  (current_date - 2, '242238038391551', 'ad', 'p1', 'WSLP - 180 - 1', 113.04, 9000, true),
+  (current_date - 2, '242238038391551', 'ad', 'p2', 'WS - 180 - 1',    50.00, 5000, true);
+SQL
+check "de LP-advertentie koppelt aan niets" "geen creative met deze sleutel" \
+  "$(q "select toestand from marketing_hq.creative_meta_koppeling where meta_naam = 'WSLP - 180 - 1'")"
+check "en de gewone wel aan 180-1"          "180-1" \
+  "$(q "select ad_name from marketing_hq.creative_meta_koppeling where meta_naam = 'WS - 180 - 1'")"
+check "180-1 telt alleen de gewone mee"     "50.00" \
+  "$(q "select coalesce(sum(t.spend),0)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = '180-1'")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
