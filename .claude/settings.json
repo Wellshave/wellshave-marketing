@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Meta-Ads__ads_get_ad_entities",
+      "mcp__Meta-Ads__ads_get_ad_accounts",
+      "mcp__Meta-Ads__ads_get_field_context",
+      "mcp__Meta-Ads__ads_entity_get_report",
+      "mcp__Meta-Ads__ads_insights_performance_trend",
+      "mcp__Meta-Ads__ads_get_ad_preview",
+      "mcp__Klaviyo__get_campaigns",
+      "mcp__Klaviyo__get_campaign",
+      "mcp__Klaviyo__get_campaign_report",
+      "mcp__Klaviyo__get_list",
+      "mcp__Klaviyo__get_lists",
+      "mcp__Klaviyo__get_flows",
+      "mcp__Klaviyo__get_flow_report",
+      "mcp__Klaviyo__get_metrics",
+      "mcp__Trendtrack__check_credits",
+      "mcp__Trendtrack__usage_get",
+      "mcp__Trendtrack__daily_radar",
+      "mcp__Trendtrack__list_tracked_brands",
+      "mcp__Trendtrack__get_brandtracker_scaling_ads",
+      "mcp__Trendtrack__analyze_tracked_brand",
+      "mcp__Trendtrack__scan_ad",
+      "mcp__github__list_pull_requests",
+      "mcp__github__pull_request_read"
+    ]
+  }
+}
