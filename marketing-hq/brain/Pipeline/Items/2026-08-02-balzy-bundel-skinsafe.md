@@ -82,6 +82,35 @@ dezelfde advertentie 58 tot 103 dagen laat draaien in acht duplicaten is
 op zichzelf al een sterk commercieel signaal — daar is geen reachcijfer
 voor nodig.
 
+**Update 11/8 — eerste verse data sinds 4 augustus, en het beeld is
+anders én sterker.** Nu de Trendtrack-freeze voorbij is:
+
+**BALZY heeft opgeruimd, niet opgeschaald.** Het aantal varianten op deze
+LP is gedaald van **54 (6/8) naar 31**. Wij rapporteerden die 54 destijds
+als groeisignaal ("43 → 54, schaalt door") — dat was gebaseerd op bevroren
+data en was onjuist. In werkelijkheid is bijna de helft van de varianten
+uitgezet.
+
+**Dat is een sterker signaal dan spreiding, geen zwakker.** Wat overbleef
+draait stevig door:
+
+| Ad | Looptijd | Duplicates | Reach | Spend |
+|---|---|---|---|---|
+| `facebook_1741104713982266` | 17 dagen | 3 | 99.509 | €896 |
+| `facebook_1013691997957028` | 24 dagen | 6 | 29.133 | €262 |
+| `facebook_1400829118602456` | 21 dagen | 4 | 17.349 (rankDelta +223) | €156 |
+
+Een merk dat terugsnoeit en de overgebleven ads 17–24 dagen laat
+doorlopen met stijgende rank, heeft zijn winnaars gevonden. De hoeken die
+het overleefden zijn consistent: **partner-perspectief social proof**
+("Mijn vriend ligt deze zomer voor het eerst écht zelfverzekerd op het
+strand"), de **bundelpropositie** (twee trimmers, elk voor zijn eigen
+taak), en **risico-omkering** (30 dagen geld terug, Klarna).
+
+Voor onze eigen test betekent dit: kopieer niet de breedte, maar de
+combinatie die overbleef — één sterke sociale-bewijshoek plus de
+bundel-propositie plus expliciete risico-omkering.
+
 ## 4. Waarom relevant voor Wellshave/Wellshine
 BALZY's lichaamshaarverwijdering-voor-mannen concurreert rechtstreeks met
 Wellshave's SkinSafe Body Shaver. Het is de sterkste, best-onderbouwde

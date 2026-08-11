@@ -1,15 +1,23 @@
 # Nova — Creative Director & Strategie
 
-**Status:** 🟡 wacht op akkoord (**7 openstaande approvals**, waarvan 2 met
+**Status:** 🟡 wacht op akkoord (**8 openstaande approvals**, waarvan 2 met
 actie vereist: #5 en #9)
-**Laatste run:** 2026-08-08 · ochtendcyclus
-**Huidige taak:** twee nieuwe voorstellen (#8 meetvenster, #9
-Trendtrack-datakwaliteit); beide prioritaire kansen herbouwd op
-reach-onafhankelijke onderbouwing
+**Laatste run:** 2026-08-11 · ochtendcyclus
+**Huidige taak:** voorstel #10 (funnelrol 001) ingediend; #1 en #3 herzien
+op basis van het 7-daagse venster
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-11** · **Het 7-daagse venster verandert drie openstaande
+  voorstellen tegelijk.** Nieuw **#10**: 001 krijgt 58% van het budget voor
+  ROAS 0,90 — maar eerst moet de funnelrol worden vastgesteld, want een
+  prospecting-campagne hóórt lager te scoren. **#3** gaat daarin op.
+  **#1** (Advertorial-budget) is juist sterker geworden: 1,98 over de week,
+  beste van het account, kleinste budget. **#2** herkaderd — het
+  e-mailkanaal stopte abrupt na een wekelijkse cadans, dus de vraag is
+  waaróm. BALZY-item gecorrigeerd: het merk ruimde op (54 → 31 varianten)
+  in plaats van op te schalen, wat een sterker signaal is.
 - **2026-08-08** · Twee nieuwe voorstellen ingediend die beide over onze
   **eigen meetbetrouwbaarheid** gaan: **#8** (dagelijkse campagne-ROAS is
   bij 3–5 aankopen/dag geen signaal — overstappen op een 7-daags venster)

@@ -1,14 +1,22 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-08 · ochtendcyclus
-**Huidige taak:** klaar; voorstel #8 (7-daags venster) wacht op besluit;
-Wellshine (13 nuldagen Airstyler Nova, 6 dagen nul op accountniveau)
-blijft het scherpste openstaande punt
+**Laatste run:** 2026-08-11 · ochtendcyclus (inhaalronde 7–10/8)
+**Huidige taak:** **Wellshine-cijfers 7–10/8 morgen alsnog ophalen**
+(connector viel weg); voorstel #10 (funnelrol 001) wacht op besluit
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-11** · [[../Reports/Daily/2026-08-11|Dagrapport]]: **eerste
+  toepassing van het 7-daagse venster (#8), en het levert direct op.** Over
+  4–10/8 krijgt `001 – CBO – GroomGuard` 58% van het budget (€688,86) voor
+  ROAS **0,90** — de enige campagne onder break-even; Advertorial Pages
+  1,98 en TOFU 1,60 doen het met minder geld beter. Voorstel #10
+  ingediend (eerst funnelrol vaststellen). Advertorial deed 7,82 op 10/8.
+  E-mailkanaal bleek **abrupt** gestopt na een wekelijkse cadans tot 12
+  juni — dag 60, lijst +109 naar 4.367. ⚠️ Wellshine niet opgehaald:
+  Meta-connector viel halverwege weg.
 - **2026-08-08** · [[../Reports/Daily/2026-08-08|Dagrapport]]:
   **methodologische bevinding** — het account doet 3–5 aankopen per dag,
   waardoor dagelijkse campagne-ROAS grotendeels ruis is en "de beste

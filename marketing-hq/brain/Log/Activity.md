@@ -4,6 +4,36 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-11** · Systeem · **Permissieprobleem opgelost.** De routine
+  vroeg bij elke Meta Ads-, Klaviyo- en Trendtrack-aanroep om handmatige
+  toestemming, waardoor onbeheerd draaien in de praktijk onmogelijk was.
+  Alle **lees**-tools staan nu in `.claude/settings.json` (in de repo, niet
+  lokaal, want de container wordt per sessie opnieuw opgezet).
+  Schrijf-acties — budgetten, campagnes, e-mails — blijven expliciet
+  goedkeuring vragen, conform `agents/GUARDRAILS.md`.
+- **2026-08-11** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar; alleen het brein bijgewerkt. Meta-connector viel halverwege
+  deze ronde weg → **Wellshine-cijfers 7–10/8 ontbreken**.
+- **2026-08-11** · Nova · Voorstel **#10** ingediend (funnelrol van 001
+  vaststellen: 58% van het budget draait op ROAS 0,90 over 7 dagen); #3
+  gaat daarin op; **#1 juist versterkt** (Advertorial 1,98 over de week,
+  beste van het account); #2 herkaderd (e-mailkanaal stopte abrupt na een
+  wekelijkse cadans — waaróm?). BALZY-item gecorrigeerd.
+- **2026-08-11** · Radar · Minimale scan (9 credits): ✅ **de zesdaagse
+  Trendtrack-freeze is voorbij**, freshness-check groen. `reachDelta` maar
+  half gerepareerd (4 van 6); BALZY's totale reach daalde van 33,3M naar
+  30,5M — onmogelijk bij een cumulatief getal. **BALZY bleek op te ruimen,
+  niet op te schalen**: 54 → 31 varianten, overblijvers 17–24 dagen actief.
+- **2026-08-11** · Atlas · Ochtendcyclus (inhaalronde 7–10/8, na 2 gemiste
+  cycli): **eerste toepassing van het 7-daagse venster** — 001 krijgt 58%
+  van het budget voor ROAS 0,90, terwijl Advertorial (1,98) en TOFU (1,60)
+  het met minder geld beter doen. Advertorial deed 7,82 op 10/8.
+  E-mailkanaal dag 60, lijst +109 naar 4.367. 7/8 en 8/8 definitief.
+- **2026-08-09/10** · Systeem · **Geen ochtendcyclus uitgevoerd** — de
+  achtergrondprocessen van beide runs zijn verloren gegaan, hetzelfde
+  patroon als op 4 en 5 augustus. Vier cycli op deze manier gemist; sinds
+  11/8 worden de datapulls daarom direct uitgevoerd in plaats van
+  gedelegeerd.
 - **2026-08-08** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar deze sessie (geen connector gekoppeld) — ook deze ronde
   alleen het brein (`brain/`) bijgewerkt.

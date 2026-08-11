@@ -4,41 +4,39 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 8 augustus 2026
+## Vandaag — 11 augustus 2026
 
-> 🛑 **Twee bevindingen over onze eigen meetbetrouwbaarheid.** Bij Meta
-> lezen we al weken dagcijfers die grotendeels ruis zijn; bij Trendtrack
-> blijkt de dataset al vier dagen bevroren. Beide staan hieronder, met
-> voorstellen.
+> ⚠️ **Inhaalronde.** Geen rapporten voor 9 en 10 augustus
+> (achtergrondprocessen verloren). Dit rapport dekt 7 t/m 10 augustus.
+> **Wellshine ontbreekt** — de Meta-connector viel halverwege weg.
 
-- 📐 **Dagelijkse campagne-ROAS is bij ons volume geen signaal.** Het
-  Wellshave-account doet 3–5 aankopen per dag over drie campagnes; één
-  aankoop verschuift de dag-ROAS met meer dan een punt. De "beste
-  campagne" rouleert dan ook willekeurig: 4/8 TOFU (2,58), 5/8 TOFU
-  (5,46), 6/8 001 (3,00), 7/8 Advertorial (1,90) — **geen campagne
-  presteert twee dagen op rij**. Nieuw voorstel **#8**: oordelen baseren
-  op een voortschrijdend 7-daags venster.
-- 🛑 **De Trendtrack-dataset staat stil sinds 4 augustus** (bewezen over 10
-  ads en 5 merken). Daarbovenop: de `reachDelta`-velden zijn kapot
-  (Δ1d > Δ30d) en de **Cloud Nine-tracker is vervuild met Channel 4** — een
-  Britse omroep. Nieuw voorstel **#9**: melden bij Trendtrack en de tracker
-  opschonen. *Dit corrigeert ook mijn eigen conclusie van gisteren dat
-  gerichte calls "vers" zouden zijn — dat waren ze niet.*
-- 🔥 **Beide prioritaire kansen blijven staan, op stevigere gronden.** De
-  reach-onderbouwing is bij BALZY én manscaped ingetrokken; wat overblijft
-  is telbaar en robuust: BALZY draait ads van **58 tot 103 dagen** in tot
-  8 duplicaten met twee herkenbare copy-clusters, manscaped rolt één
-  boodschap uit over **30 landen** met regionale landingspagina's.
-- ❌ **Cloud Nine Summer Sale naar observatie** — de volumeclaim was besmet
-  met Channel 4-ads.
-- 🔴 **Wellshine: zes volle dagen, €352,18, nul gemeten aankopen.**
-  Airstyler Nova op **13 nuldagen op rij**. Dit is aantoonbaar géén ruis:
-  bij Wellshave zien we volatiliteit rond een positief gemiddelde, hier
-  een aaneengesloten nul. Approval #4 wacht nog steeds.
-- ✅ Opgelost: Kevin Junior's "0 impressies" was correct gedrag (US-only ads
-  rapporteren niets in EU/UK). Strategisch wél relevant: dat merk is
-  **volledig uit onze markten vertrokken**.
-- 📧 E-mailkanaal dag 57; lijst **+20 naar 4.258**.
+- 📐 **Het 7-daagse venster (voorstel #8) laat meteen zien waarvoor het
+  bedoeld was.** Over 4–10 augustus krijgt `001 – CBO – GroomGuard`
+  **58% van het budget** (€688,86) en komt uit op **ROAS 0,90** — de enige
+  campagne onder break-even. Advertorial Pages: **1,98** op €275,72. TOFU:
+  **1,60** op €214,45. Wat in dagcijfers willekeurig rouleerde, is over een
+  week een consistent patroon. Nieuw voorstel **#10** — maar eerst
+  uitzoeken of 001 een andere funnelrol heeft, want dan hóórt de directe
+  ROAS lager te liggen.
+- ✅ **Advertorial Pages is de sterkste van het account** en krijgt het
+  minste budget: 7,82 op 10/8, 1,98 over de week. Approval #1 (budget
+  verhogen, staat open sinds 18 juli) is daarmee opnieuw actueel.
+- 📧 **Het e-mailkanaal stopte abrupt, niet geleidelijk.** De historie laat
+  een wekelijkse cadans zien tot 12 juni (19/4, 27/4, 30/4, 7/5, 13/5,
+  20/5, 27/5, 12/6) en daarna **60 dagen niets**. Approval #2 is eerder de
+  vraag *waarom dit gestopt is* dan of we moeten beginnen. Lijst
+  intussen **+109 naar 4.367**.
+- ✅ **Trendtrack is weer actueel** — de freeze van 4 augustus duurde zes
+  dagen en is voorbij. De `reachDelta`-velden zijn echter maar **half
+  gerepareerd** (4 van 6 ads consistent), en BALZY's *totale* reach daalde
+  van 33,3M naar 30,5M — een cumulatief getal hoort niet te dalen.
+- 🔥 **BALZY heeft opgeruimd, niet opgeschaald:** varianten van 54 naar
+  **31**. Wij lazen die 54 als groei; in werkelijkheid heeft het merk
+  teruggesnoeid en de winnaars 17–24 dagen laten doorlopen. Dat is een
+  *sterker* signaal dan spreiding.
+- 🔒 **Permissieprobleem opgelost:** de routine vroeg bij elke data-aanroep
+  om handmatige toestemming. Alle lees-tools staan nu in
+  `.claude/settings.json`; schrijf-acties blijven goedkeuring vragen.
 - ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
   geen DB-connector beschikbaar in deze sessie, zie
   [[Log/Activity|Activiteitenlog]].

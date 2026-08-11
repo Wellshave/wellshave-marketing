@@ -1,15 +1,22 @@
 # Radar — Trend- & Concurrentiescout
 
-**Status:** 🟠 actief, maar **beperkt bruikbaar tot de databron is hersteld**
-**Laatste run:** 2026-08-08 · ochtendcyclus (139 credits)
-**Huidige taak:** voorstel #9 wacht op menselijke actie (melden bij
-Trendtrack + Cloud Nine-tracker opschonen). Tot dan alleen sturen op
-looptijd, varianten en copy-structuur. **Nog open:** "CLOUD NINE
-Australia" (route nu bekend: `daily_radar` focus=`partnerships`)
+**Status:** 🟢 actief — **databron is hersteld** (freeze voorbij per 11/8)
+**Laatste run:** 2026-08-11 · minimale gerichte scan (9 credits)
+**Huidige taak:** verse baseline opbouwen nu de data weer meebeweegt.
+**Nog open:** `daily_radar` (nieuwe ads per merk), manscaped-baseline,
+Cloud Nine, "CLOUD NINE Australia" — bewust overgeslagen deze ronde
 
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-11** · [[../Briefings/2026-08-11|Trendbriefing]]: ✅ **de
+  zesdaagse datafreeze is voorbij** — freshness-check groen op vier ads.
+  Maar de `reachDelta`-velden zijn **half gerepareerd** (4 van 6 consistent)
+  en BALZY's *totale* reach daalde van 33,3M naar 30,5M, wat bij een
+  cumulatief getal niet kan. 🔥 Belangrijkste inhoudelijke correctie:
+  **BALZY heeft opgeruimd, niet opgeschaald** — varianten van 54 naar 31,
+  met de overblijvers 17–24 dagen actief. Dat is een sterker signaal dan
+  de groei die wij op bevroren data meenden te zien. 9 credits gebruikt.
 - **2026-08-08** · [[../Briefings/2026-08-08|Trendbriefing]]: 🛑 **de hele
   Trendtrack-dataset staat stil sinds 4 augustus** (bewezen via
   `daysRunning` over 10 ads en 5 merken) — dit corrigeert de conclusie van
