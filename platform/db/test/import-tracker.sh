@@ -993,5 +993,64 @@ check "180-1 telt alleen de gewone mee"     "50.00" \
          join public.creatives c on c.id = t.creative_id where c.ad_name = '180-1'")"
 
 echo
+echo "  0046: koppelen op naam, en de C-reeks in de map"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0046_ckoppeling.sql" >/dev/null 2>&1
+check "0046 draait zonder fout" "0" "$?"
+
+# Een naam zonder nummer krijgt nu een sleutel uit de naam zelf.
+check "C1 krijgt een naamsleutel"        "naam:c1"                  "$(q "select marketing_hq.koppelsleutel('C1')")"
+check "hoofdletters doen er niet toe"    "t" \
+  "$(q "select marketing_hq.koppelsleutel('C1 - 4 Reasons Why')
+             = marketing_hq.koppelsleutel('c1 -  4 REASONS why')")"
+# Maar het nummerpatroon gaat voor: anders zou 061-3 ineens op zijn naam koppelen
+# en niet meer op zijn nummer, en dan valt WS-061 - 3 - ASC+ erbuiten.
+check "een nummer wint van de naam"      "61:3"                     "$(q "select marketing_hq.koppelsleutel('WS-061 - 3 - ASC+')")"
+check "en de map-kant ook"               "61:3"                     "$(q "select marketing_hq.koppelsleutel('061-3')")"
+check "een lege naam geeft niets"        "LEEG"                     "$(q "select coalesce(marketing_hq.koppelsleutel('   '), 'LEEG')")"
+
+# De zes rijen staan er, met alleen wat na te meten is.
+check "de zes C-rijen staan in de map"   "6" \
+  "$(q "select count(*) from public.creatives where brand='wellshave' and ad_name ~ '^C[0-9]'")"
+check "met de angle uit de naam"         "Social Proof / Reviews" \
+  "$(q "select angle_type from public.creatives where ad_name = 'C3 - Social Proof'")"
+# Zonder achtervoegsel staat er geen angle in de naam, dus hoort er ook geen in
+# de map te staan. Een verzonnen angle is erger dan een lege.
+check "en zonder angle waar die ontbreekt" "LEEG" \
+  "$(q "select coalesce(angle_type,'LEEG') from public.creatives where ad_name = 'C3'")"
+check "persona blijft leeg, dat is een oordeel" "LEEG" \
+  "$(q "select coalesce(persona,'LEEG') from public.creatives where ad_name = 'C1 - 4 Reasons Why'")"
+check "bewustzijnsniveau ook"            "LEEG" \
+  "$(q "select coalesce(awareness_level,'LEEG') from public.creatives where ad_name = 'C1 - 4 Reasons Why'")"
+
+# En nu het punt van de hele migratie: koppelen ze ook echt.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+delete from marketing_hq.meta_publications;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, purchases, purchase_value, is_final)
+values
+  (current_date - 6, '242238038391551', 'ad', 'c1a', 'C1 - 4 Reasons Why', 1000.00, 100000, 20, 1200.00, true),
+  (current_date - 5, '242238038391551', 'ad', 'c1b', 'C1 - 4 Reasons Why',  414.76,  45033,  5,  304.88, true),
+  (current_date - 4, '242238038391551', 'ad', 'c1c', 'C1',                  107.74,  10956,  0,    0.00, true),
+  (current_date - 3, '242238038391551', 'ad', 'x1',  'Catalog Ads -> 2',    192.96,  20851,  4,  600.00, true);
+SQL
+check "C1 - 4 Reasons Why telt beide advertenties" "1414.76" \
+  "$(q "select sum(t.spend)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = 'C1 - 4 Reasons Why'")"
+# C1 en 'C1 - 4 Reasons Why' zijn twee rijen en horen niet op te tellen: ze zijn
+# waarschijnlijk hetzelfde concept, en waarschijnlijk is geen grond om te sommeren.
+check "C1 blijft daar los van"                     "107.74" \
+  "$(q "select sum(t.spend)::numeric(10,2) from marketing_hq.ad_totals t
+         join public.creatives c on c.id = t.creative_id where c.ad_name = 'C1'")"
+check "en de koppeling zegt dat het op naam ging"  "gekoppeld op naam" \
+  "$(q "select distinct toestand from marketing_hq.creative_meta_koppeling where meta_naam = 'C1 - 4 Reasons Why'")"
+# Catalog Ads krijgt nu wel een sleutel, maar er is geen creative die zo heet --
+# dus hij hoort nog steeds buiten de map te vallen.
+check "Catalog Ads valt nog steeds buiten"         "geen creative met deze naam of dit nummer" \
+  "$(q "select toestand from marketing_hq.creative_meta_koppeling where meta_naam = 'Catalog Ads -> 2'")"
+check "en telt niet mee in de dekking"             "192.96" \
+  "$(q "select spend_buiten_de_map from marketing_hq.map_dekking where brand='wellshave'")"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
