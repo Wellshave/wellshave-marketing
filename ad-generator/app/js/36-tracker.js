@@ -65,10 +65,12 @@ function renderTracker() {
   Promise.all([
     sb.from('hq_creative_kaart').select('*').limit(3000),
     sb.from('hq_tracker_breakdown').select('*'),
-    sb.from('hq_meta_sync_status').select('*')
+    sb.from('hq_meta_sync_status').select('*'),
+    sb.from('hq_map_gaten').select('creative_id,ontbreekt,moet_ingevuld,spend').limit(3000),
+    sb.from('hq_map_gaten_totaal').select('*')
   ]).then(function (r) {
     _trk.laden = false; _trk.geladen = true;
-    var a = r[0], b = r[1], c = r[2];
+    var a = r[0], b = r[1], c = r[2], d = r[3], e = r[4];
     if (a && a.error) { _trk.fout = a.error.message; }
     else if (b && b.error) { _trk.fout = b.error.message; }
     else {
@@ -78,6 +80,13 @@ function renderTracker() {
          nieuwste view en een console die vooruitloopt op de migratie hoort
          gewoon de tracker te tonen. */
       _trk.sync = (c && c.data && c.data[0]) || null;
+      /* Idem voor de gaten. Een tracker die weigert te tonen omdat de nieuwste
+         view nog niet bestaat, is erger dan een tracker zonder markering. */
+      _trk.gaten = {};
+      ((d && d.data) || []).forEach(function (g) {
+        if (g.moet_ingevuld) _trk.gaten[g.creative_id] = g;
+      });
+      _trk.gatenTotaal = (e && e.data) || [];
     }
     trkTeken();
   }).catch(function (e) {
@@ -86,8 +95,47 @@ function renderTracker() {
   });
 }
 function trkVernieuw() {
-  _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.sync = null; _trk.fout = null;
+  _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.sync = null;
+  _trk.gaten = null; _trk.gatenTotaal = null; _trk.fout = null;
   renderTracker();
+}
+
+/* ── de gaten ────────────────────────────────────────────────────────────── */
+/* Een creative die geld heeft uitgegeven en waarvan een beslisveld leeg is,
+   valt uit elke kruistabel die dit scherm moet gaan beantwoorden -- niet een
+   beetje maar helemaal. Dat hoort op de rij zelf te staan en niet alleen in een
+   telling bovenaan, want de telling leest als een schoonmaakklusje en de rij
+   als een besluit. */
+function trkGat(rij) {
+  return (_trk.gaten && rij && _trk.gaten[rij.id]) || null;
+}
+function trkGatMerk(rij) {
+  var g = trkGat(rij);
+  if (!g || !g.ontbreekt || !g.ontbreekt.length) return '';
+  return '<span class="trk-gat" title="Zonder ' + trkEsc(g.ontbreekt.join(', '))
+       + ' valt deze creative buiten elke analyse">moet ingevuld: '
+       + trkEsc(g.ontbreekt.join(', ')) + '</span>';
+}
+/* Eén regel bovenaan met het bedrag erbij. Zonder bedrag zakt dit naar onderen
+   op ieders lijst; met bedrag is het een keuze. */
+function trkGatenMelding() {
+  if (!_trk.gatenTotaal || !_trk.gatenTotaal.length) return '';
+  var per = _trk.gatenTotaal.slice().sort(function (a, b) {
+    return Number(b.spend_zonder_dit_veld) - Number(a.spend_zonder_dit_veld);
+  });
+  var zwaarste = per[0];
+  var hoeveel = Object.keys(_trk.gaten || {}).length;
+  if (!hoeveel) return '';
+  return '<div class="trk-melding trk-melding--let-op">'
+    + '<strong>' + hoeveel + ' creative' + (hoeveel === 1 ? '' : 's')
+    + ' die gedraaid ' + (hoeveel === 1 ? 'heeft' : 'hebben') + ', kan het brein niets mee.</strong> '
+    + 'Er ontbreekt een beslisveld, en dan valt zo\'n creative uit élke kruistabel — '
+    + 'niet een beetje, maar helemaal.'
+    + '<br>Het zwaarst weegt <strong>' + trkEsc(zwaarste.veld) + '</strong>: '
+    + trkEuro(zwaarste.spend_zonder_dit_veld) + ' aan uitgaven over '
+    + zwaarste.creatives + ' creative' + (Number(zwaarste.creatives) === 1 ? '' : 's')
+    + ' waar niets van te leren valt.'
+    + '</div>';
 }
 
 /* ── filteren en sorteren ────────────────────────────────────────────────── */
@@ -278,6 +326,10 @@ function trkKaarten(alle) {
       +  ' advertenties heeft een Meta-meting; de rest is met de hand ingevuld'
       +  (vast ? ', waarvan ' + vast + ' bewust vastgezet' : '') + '.</p>';
   }
+  /* Onder de meetstatus en niet erboven: eerst of de cijfers kloppen, dan pas
+     of we er iets mee kunnen. Andersom lees je een verwijt voordat je weet
+     waar het over gaat. */
+  h += trkGatenMelding();
   return h;
 }
 
@@ -286,7 +338,8 @@ function trkKaarten(alle) {
 /* Drie blokken, in de volgorde van het werk. `kop` is de tekst boven de kolom,
    `blok` bepaalt de groepskop erboven. */
 var TRK_KOLOMMEN = [
-  { id: 'ad_name',         kop: 'Ad name',   blok: 'plan',  cel: function (r) { return '<strong>' + trkEsc(r.ad_name) + '</strong>'; } },
+  { id: 'ad_name',         kop: 'Ad name',   blok: 'plan',  cel: function (r) {
+      return '<strong>' + trkEsc(r.ad_name) + '</strong>' + trkGatMerk(r); } },
   { id: 'product',         kop: 'Product',   blok: 'plan', kort: true },
   { id: 'awareness_level', kop: 'Awareness', blok: 'plan', kort: true },
   { id: 'angle_type',      kop: 'Angle',     blok: 'plan', kort: true },

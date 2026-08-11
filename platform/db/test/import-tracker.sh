@@ -1052,5 +1052,65 @@ check "en telt niet mee in de dekking"             "192.96" \
   "$(q "select spend_buiten_de_map from marketing_hq.map_dekking where brand='wellshave'")"
 
 echo
+echo "  0047: wat er ontbreekt, en wat dat kost"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0047_gaten.sql" >/dev/null 2>&1
+check "0047 draait zonder fout" "0" "$?"
+
+# De zes C-rijen uit 0046 draaien en missen persona en bewustzijnsniveau.
+check "C1 - 4 Reasons Why moet ingevuld worden" "t" \
+  "$(q "select moet_ingevuld from marketing_hq.map_gaten where ad_name = 'C1 - 4 Reasons Why'")"
+check "en er staat bij welke velden"            "{persona,bewustzijnsniveau,desire}" \
+  "$(q "select ontbreekt::text from marketing_hq.map_gaten where ad_name = 'C1 - 4 Reasons Why'")"
+# Bij C3 ontbreekt de angle ook, want die stond niet in de naam.
+check "bij C3 ontbreekt de angle er ook"        "t" \
+  "$(q "select 'angle' = any(ontbreekt) from marketing_hq.map_gaten where ad_name = 'C3'")"
+
+# Een rij die compleet is, hoeft niets.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+update public.creatives
+   set persona = 'De Gevoelige Scheerder', awareness_level = '2. Problem Aware',
+       angle_type = 'Problem-Solution', product = 'Groom Guard', desires = 'Geen irritatie'
+ where ad_name = 'C2 - Before/After';
+SQL
+check "een complete rij hoeft niets"            "f" \
+  "$(q "select moet_ingevuld from marketing_hq.map_gaten where ad_name = 'C2 - Before/After'")"
+check "en heeft geen ontbrekende velden"        "{}" \
+  "$(q "select ontbreekt::text from marketing_hq.map_gaten where ad_name = 'C2 - Before/After'")"
+
+# Een concept dat nog niet gedraaid heeft mag leeg zijn -- anders staat het
+# scherm binnen een week vol waarschuwingen en leest niemand ze meer.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into public.creatives (brand, ad_name, status, bron_bestand)
+values ('wellshave', 'Nog niet gedraaid', 'Concept', 'test');
+SQL
+check "een concept in de maak is geen gat"      "f" \
+  "$(q "select moet_ingevuld from marketing_hq.map_gaten where ad_name = 'Nog niet gedraaid'")"
+check "ook al staat alles leeg"                 "5" \
+  "$(q "select cardinality(ontbreekt) from marketing_hq.map_gaten where ad_name = 'Nog niet gedraaid'")"
+
+# Het bedrag erbij: zonder bedrag zakt een gat naar onderen op ieders lijst.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values (current_date - 3, '242238038391551', 'ad', 'g1', 'C1 - 4 Reasons Why', 1414.76, 145033, true);
+SQL
+# Per creative is het bedrag eenduidig; het totaal telt terecht ook de andere
+# onvolledige rijen mee, dus daar is geen los getal op te toetsen.
+check "het gemeten bedrag hangt aan de creative" "1414.76" \
+  "$(q "select spend::numeric(10,2) from marketing_hq.map_gaten where ad_name = 'C1 - 4 Reasons Why'")"
+# En het totaal moet minstens dat bedrag zijn -- anders telt de meting niet mee.
+check "en telt mee in het totaal voor persona"   "t" \
+  "$(q "select spend_zonder_dit_veld >= 1414.76 from marketing_hq.map_gaten_totaal
+         where brand='wellshave' and veld='persona'")"
+check "persona is een eigen regel in het totaal" "t" \
+  "$(q "select count(*) > 0 from marketing_hq.map_gaten_totaal where veld = 'persona'")"
+
+check "hq_map_gaten is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_gaten limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_gaten_totaal ook"                   "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_gaten_totaal limit 1;" | grep -o 'ok' | head -1)"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))

@@ -136,14 +136,17 @@ const check = (naam, echt, verwacht) => {
   await page.goto(`http://127.0.0.1:${poort}/`, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
 
-  const nep = async (rijen, vlakken, { ingelogd = true, fout = null, sync = null } = {}) =>
-    await page.evaluate(async ({ rijen, vlakken, ingelogd, fout, sync }) => {
+  const nep = async (rijen, vlakken, { ingelogd = true, fout = null, sync = null,
+                                       gaten = [], gatenTotaal = [] } = {}) =>
+    await page.evaluate(async ({ rijen, vlakken, ingelogd, fout, sync, gaten, gatenTotaal }) => {
       window._sb = ingelogd ? { from: function (tabel) {
         const q = {};
         ['select', 'eq', 'ilike', 'or', 'in', 'order', 'range', 'limit'].forEach(m => { q[m] = () => q; });
         const antwoord = fout ? { error: { message: fout } }
           : { data: tabel === 'hq_tracker_breakdown' ? vlakken
                   : tabel === 'hq_meta_sync_status' ? (sync ? [sync] : [])
+                  : tabel === 'hq_map_gaten' ? gaten
+                  : tabel === 'hq_map_gaten_totaal' ? gatenTotaal
                   : rijen };
         q.then = (res, rej) => Promise.resolve(antwoord).then(res, rej);
         return q;
@@ -152,13 +155,14 @@ const check = (naam, echt, verwacht) => {
       window._userRole = 'admin';
       localStorage.setItem('str_weergave_v1', 'tracker');
       _trk.geladen = false; _trk.rijen = null; _trk.vlakken = null; _trk.sync = null; _trk.fout = null;
+      _trk.gaten = null; _trk.gatenTotaal = null;
       _trk.zoek = ''; _trk.filters = {}; _trk.toon = 100;
       _trk.dimensie = 'awareness_level'; _trk.sorteer = 'ad_name'; _trk.omgekeerd = false;
       switchMainTab('creatives');
       strWisselTeken();
       await new Promise(r => setTimeout(r, 400));
       return null;
-    }, { rijen, vlakken, ingelogd, fout, sync });
+    }, { rijen, vlakken, ingelogd, fout, sync, gaten, gatenTotaal });
 
   const lees = async () => await page.evaluate(() => {
     const m = document.getElementById('trk-mount');
@@ -172,6 +176,8 @@ const check = (naam, echt, verwacht) => {
         l: e.querySelector('.trk-kaart-l').textContent
       })),
       melding: (m.querySelector('.trk-melding') || {}).textContent,
+      meldingen: [...m.querySelectorAll('.trk-melding')].map(e => e.textContent),
+      gaten: [...m.querySelectorAll('.trk-gat')].map(e => e.textContent),
       rijen: [...m.querySelectorAll('.trk-rij')].map(r => ({
         naam: r.querySelector('td').textContent.trim(),
         bron: cel(r, '.trk-bron'),
@@ -388,6 +394,56 @@ const check = (naam, echt, verwacht) => {
   await nep(RIJEN, VLAKKEN, { ingelogd: false });
   const uitgelogd = await lees();
   check('uitgelogd vraagt om inloggen', /Log in om de tracker te zien/.test(uitgelogd.alles), true);
+
+  console.log('\n  wat het brein niet kan lezen, staat er als zodanig bij');
+  /* De C-reeks uit 0046: draait, geeft geld uit, en mist persona en
+     bewustzijnsniveau. Zonder markering ziet zo'n rij er precies zo uit als een
+     complete rij en verdwijnt hij stil uit elke kruistabel. */
+  const GAT_RIJEN = RIJEN.slice(0, 2);
+  /* De tweede rij staat er bewust in mét lege velden maar zonder moet_ingevuld:
+     zo'n rij heeft nog niet gedraaid en mag leeg zijn. Zonder deze rij bewijst
+     de test niet dat er op moet_ingevuld gefilterd wordt. */
+  const GATEN = [
+    { creative_id: GAT_RIJEN[0].id, ontbreekt: ['persona', 'bewustzijnsniveau'],
+      moet_ingevuld: true,  spend: 1414.76 },
+    { creative_id: GAT_RIJEN[1].id, ontbreekt: ['persona', 'desire'],
+      moet_ingevuld: false, spend: null }
+  ];
+  /* Het zwaarste veld staat hier expres níét bovenaan. Anders klopt de melding
+     ook als er helemaal niet op bedrag gesorteerd wordt. */
+  const GATEN_TOTAAL = [
+    { brand: 'wellshave', veld: 'angle',             creatives: 3, spend_zonder_dit_veld: 349.03 },
+    { brand: 'wellshave', veld: 'bewustzijnsniveau', creatives: 6, spend_zonder_dit_veld: 1900.00 },
+    { brand: 'wellshave', veld: 'persona',           creatives: 6, spend_zonder_dit_veld: 2472.31 }
+  ];
+  await nep(GAT_RIJEN, VLAKKEN, { gaten: GATEN, gatenTotaal: GATEN_TOTAAL });
+  const g = await lees();
+  check('de rij draagt zijn ontbrekende velden', g.gaten.length, 1);
+  check('en noemt ze bij naam', /persona/.test(g.gaten[0]) && /bewustzijnsniveau/.test(g.gaten[0]), true);
+  check('alleen de rij die het betreft', g.gaten.length < GAT_RIJEN.length, true);
+  /* De tweede rij heeft ook lege velden, maar heeft niet gedraaid. Die hoort
+     geen markering te krijgen: een scherm dat alles markeert, markeert niets. */
+  check('een rij die nog niet draaide krijgt niets', /desire/.test(g.gaten.join(' ')), false);
+  /* Zonder bedrag zakt dit naar onderen op ieders lijst; met bedrag is het een
+     besluit. Het zwaarste veld hoort bovenaan te staan, niet het eerste. */
+  const gatMelding = g.meldingen.filter(t => /kan het brein niets mee/.test(t))[0] || '';
+  check('bovenaan staat hoeveel creatives het zijn', /1 creative die gedraaid heeft/.test(gatMelding), true);
+  check('met het zwaarste veld erbij', /persona/.test(gatMelding), true);
+  check('en niet het eerste het beste veld', /angle/.test(gatMelding), false);
+  check('en het bedrag dat het kost', /2\.472,31/.test(gatMelding), true);
+
+  /* Staat alles ingevuld, dan hoort er geen melding te zijn. Een scherm dat
+     altijd waarschuwt, waarschuwt nergens meer voor. */
+  await nep(GAT_RIJEN, VLAKKEN, { gaten: [], gatenTotaal: [] });
+  const heel = await lees();
+  check('zonder gaten geen markering', heel.gaten.length, 0);
+  check('en geen melding erover', heel.meldingen.filter(t => /kan het brein niets mee/.test(t)).length, 0);
+
+  /* De view mag ontbreken zonder het scherm te breken: een console die
+     vooruitloopt op de migratie hoort gewoon de tracker te tonen. */
+  await nep(GAT_RIJEN, VLAKKEN, { gaten: null, gatenTotaal: null });
+  const oud = await lees();
+  check('een console zonder 0047 toont de tracker gewoon', oud.rijen.length > 0, true);
 
   await browser.close();
   srv.close();
