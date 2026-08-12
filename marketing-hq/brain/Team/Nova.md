@@ -2,13 +2,20 @@
 
 **Status:** 🟡 wacht op akkoord (**8 openstaande approvals**, waarvan 2 met
 actie vereist: #5 en #9)
-**Laatste run:** 2026-08-11 · ochtendcyclus
+**Laatste run:** 2026-08-12 · ochtendcyclus
 **Huidige taak:** voorstel #10 (funnelrol 001) ingediend; #1 en #3 herzien
 op basis van het 7-daagse venster
 
 > Identiteit, skills en guardrails: [`agents/nova.md`](../../agents/nova.md).
 
 ## Laatste activiteit
+- **2026-08-12** · **Approval #4 ingrijpend herzien — advies ingetrokken.**
+  Wellshine bleek niet dood: de nulstreak brak op 8/8. Vervangen door twee
+  gerichte vragen (Briza's spend-val op 11/8; Airstyler Nova apart bekijken).
+  **#1 fors versterkt**: Advertorial 4 dagen op rij, 7-daags 2,32 — het
+  "te grillig"-argument vervalt. **#10** blijft staan maar zwakker: 001 klom
+  naar 1,01. Radar-conclusie over BALZY's "opruiming" ingetrokken wegens
+  onbetrouwbare tellingen.
 - **2026-08-11** · **Het 7-daagse venster verandert drie openstaande
   voorstellen tegelijk.** Nieuw **#10**: 001 krijgt 58% van het budget voor
   ROAS 0,90 — maar eerst moet de funnelrol worden vastgesteld, want een

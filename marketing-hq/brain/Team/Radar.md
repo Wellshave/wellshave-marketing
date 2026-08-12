@@ -1,7 +1,7 @@
 # Radar — Trend- & Concurrentiescout
 
 **Status:** 🟢 actief — **databron is hersteld** (freeze voorbij per 11/8)
-**Laatste run:** 2026-08-11 · minimale gerichte scan (9 credits)
+**Laatste run:** 2026-08-12 · gerichte scan (9 credits)
 **Huidige taak:** verse baseline opbouwen nu de data weer meebeweegt.
 **Nog open:** `daily_radar` (nieuwe ads per merk), manscaped-baseline,
 Cloud Nine, "CLOUD NINE Australia" — bewust overgeslagen deze ronde
@@ -9,6 +9,13 @@ Cloud Nine, "CLOUD NINE Australia" — bewust overgeslagen deze ronde
 > Identiteit, skills en guardrails: [`agents/radar.md`](../../agents/radar.md).
 
 ## Laatste activiteit
+- **2026-08-12** · [[../Briefings/2026-08-12|Trendbriefing]]: freshness-check
+  tweede dag groen — de freeze blijft weg. `reachDelta` faalt opnieuw op
+  **exact dezelfde twee ads**, dus reproduceerbaar (nuttig voor #9). 🔥 BALZY:
+  dezelfde hook draagt nu zowel de rank-1-ad als de reach-leider (28.366 en
+  105.123 reach, 23 en 19 dagen). ⚠️ **Eigen conclusie van gisteren
+  ingetrokken:** "BALZY heeft opgeruimd" hield geen stand — de variantreeks
+  54/31/42 is een telfout, geen strategie.
 - **2026-08-11** · [[../Briefings/2026-08-11|Trendbriefing]]: ✅ **de
   zesdaagse datafreeze is voorbij** — freshness-check groen op vier ads.
   Maar de `reachDelta`-velden zijn **half gerepareerd** (4 van 6 consistent)

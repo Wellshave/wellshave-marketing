@@ -4,42 +4,41 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
-## Vandaag — 11 augustus 2026
+## Vandaag — 12 augustus 2026
 
-> ⚠️ **Inhaalronde.** Geen rapporten voor 9 en 10 augustus
-> (achtergrondprocessen verloren). Dit rapport dekt 7 t/m 10 augustus.
-> **Wellshine ontbreekt** — de Meta-connector viel halverwege weg.
+> 🛑 **Ik moet een eigen advies terugnemen.** Approval #4 stond op
+> "Wellshine pauzeren", onderbouwd met zes nuldagen. De ontbrekende cijfers
+> zijn nu binnen: **de streak brak op 8 augustus, precies de dag ná mijn
+> laatste meetpunt.** Was het advies uitgevoerd, dan waren vier aankopen
+> niet doorgegaan.
 
-- 📐 **Het 7-daagse venster (voorstel #8) laat meteen zien waarvoor het
-  bedoeld was.** Over 4–10 augustus krijgt `001 – CBO – GroomGuard`
-  **58% van het budget** (€688,86) en komt uit op **ROAS 0,90** — de enige
-  campagne onder break-even. Advertorial Pages: **1,98** op €275,72. TOFU:
-  **1,60** op €214,45. Wat in dagcijfers willekeurig rouleerde, is over een
-  week een consistent patroon. Nieuw voorstel **#10** — maar eerst
-  uitzoeken of 001 een andere funnelrol heeft, want dan hóórt de directe
-  ROAS lager te liggen.
-- ✅ **Advertorial Pages is de sterkste van het account** en krijgt het
-  minste budget: 7,82 op 10/8, 1,98 over de week. Approval #1 (budget
-  verhogen, staat open sinds 18 juli) is daarmee opnieuw actueel.
-- 📧 **Het e-mailkanaal stopte abrupt, niet geleidelijk.** De historie laat
-  een wekelijkse cadans zien tot 12 juni (19/4, 27/4, 30/4, 7/5, 13/5,
-  20/5, 27/5, 12/6) en daarna **60 dagen niets**. Approval #2 is eerder de
-  vraag *waarom dit gestopt is* dan of we moeten beginnen. Lijst
-  intussen **+109 naar 4.367**.
-- ✅ **Trendtrack is weer actueel** — de freeze van 4 augustus duurde zes
-  dagen en is voorbij. De `reachDelta`-velden zijn echter maar **half
-  gerepareerd** (4 van 6 ads consistent), en BALZY's *totale* reach daalde
-  van 33,3M naar 30,5M — een cumulatief getal hoort niet te dalen.
-- 🔥 **BALZY heeft opgeruimd, niet opgeschaald:** varianten van 54 naar
-  **31**. Wij lazen die 54 als groei; in werkelijkheid heeft het merk
-  teruggesnoeid en de winnaars 17–24 dagen laten doorlopen. Dat is een
-  *sterker* signaal dan spreiding.
-- 🔒 **Permissieprobleem opgelost:** de routine vroeg bij elke data-aanroep
-  om handmatige toestemming. Alle lees-tools staan nu in
-  `.claude/settings.json`; schrijf-acties blijven goedkeuring vragen.
-- ⚠️ Supabase (`marketing_hq`) kon ook deze ronde niet worden bijgewerkt —
-  geen DB-connector beschikbaar in deze sessie, zie
-  [[Log/Activity|Activiteitenlog]].
+- 🔄 **Wellshine leeft: 4 aankopen over 7–11/8, €293,81 omzet.** Airstyler
+  Nova deed 3,68 op 8/8; Hairdryer Briza 3,46 op 9/8 en **4,52** op 11/8.
+  7-daagse ROAS **0,69** — zwak, maar niet dood. Het verschil zit tússen de
+  campagnes: Briza **1,21**, Airstyler Nova 0,75. Advies #4 ingetrokken en
+  vervangen door twee gerichte vragen.
+- ✅ **Advertorial Pages presteert vier dagen op rij** (0,67 → 2,75 → 7,79
+  → **3,08**), 7-daags **2,32** met 9 aankopen op 24% van het budget. Het
+  "te grillig"-argument waarmee approval #1 sinds 18 juli werd aangehouden,
+  **vervalt daarmee**.
+- 📐 **Het 7-daagse venster:** 001 klom van 0,90 naar **1,01** — niet langer
+  verlieslatend, maar krijgt nog steeds **58% van het budget** voor de
+  laagste opbrengst. Voorstel #10 blijft staan; de funnelvraag is nog
+  altijd niet beantwoord.
+- ✅ **Trendtrack is tweede dag op rij actueel.** De `reachDelta`-velden
+  falen echter opnieuw op **exact dezelfde twee ads** — reproduceerbaar,
+  dus bruikbaar voor de melding onder #9.
+- 🔥 **BALZY: één hook draagt nu zowel de rank-1- als de reach-leidende ad**
+  — dezelfde tekst ("Mijn vriend ligt deze zomer voor het eerst écht
+  zelfverzekerd op het strand"), twee creatives, 19 en 23 dagen actief.
+  Dat is precies genoeg precisie om een test op te bouwen.
+- ⚠️ **Correctie op mijzelf:** ik noemde gisteren dat BALZY had "opgeruimd"
+  (54 → 31 varianten). Vandaag staat de teller op 42. Die reeks is geen
+  strategie maar een onbetrouwbare telling — ingetrokken als conclusie.
+- 📧 E-mailkanaal dag 61; lijst **+11 naar 4.378**.
+- ⚠️ Supabase (`marketing_hq`) nog altijd niet bijgewerkt — geen
+  DB-connector, zie [[Log/Activity|Activiteitenlog]].
+
 
 ## Het team
 | Agent | Rol | Status |

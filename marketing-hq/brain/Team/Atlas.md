@@ -1,13 +1,20 @@
 # Atlas — Data-analyst
 
 **Status:** 🟢 actief (fase 1)
-**Laatste run:** 2026-08-11 · ochtendcyclus (inhaalronde 7–10/8)
+**Laatste run:** 2026-08-12 · ochtendcyclus
 **Huidige taak:** **Wellshine-cijfers 7–10/8 morgen alsnog ophalen**
 (connector viel weg); voorstel #10 (funnelrol 001) wacht op besluit
 
 > Identiteit, skills en guardrails: [`agents/atlas.md`](../../agents/atlas.md).
 
 ## Laatste activiteit
+- **2026-08-12** · [[../Reports/Daily/2026-08-12|Dagrapport]]: 🛑 **eigen
+  advies teruggenomen** — de Wellshine-nulstreak brak op 8/8, precies de dag
+  ná het laatste meetpunt waarop approval #4 ("pauzeren") was gebaseerd. Over
+  7–11/8: 4 aankopen, €293,81; 7-daagse ROAS 0,69. Hairdryer Briza 1,21,
+  Airstyler Nova 0,75. Advertorial Pages presteert 4 dagen op rij (7-daags
+  2,32). 001 klom naar 1,01 maar houdt 58% van het budget. 8/8 en 9/8
+  definitief. Klaviyo dag 61, lijst +11 naar 4.378.
 - **2026-08-11** · [[../Reports/Daily/2026-08-11|Dagrapport]]: **eerste
   toepassing van het 7-daagse venster (#8), en het levert direct op.** Over
   4–10/8 krijgt `001 – CBO – GroomGuard` 58% van het budget (€688,86) voor

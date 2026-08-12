@@ -4,6 +4,22 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-12** · Systeem · Supabase-schrijftoegang nog steeds niet
+  beschikbaar; alleen het brein bijgewerkt. Datapulls opnieuw direct
+  uitgevoerd (geen subagents) — dat werkt betrouwbaar.
+- **2026-08-12** · Nova · **Approval #4 ingetrokken en herzien.** Het advies
+  "Wellshine pauzeren" berustte op zes nuldagen; de streak brak op 8/8, de dag
+  ná het laatste meetpunt. Vervangen door twee gerichte vragen. #1 fors
+  versterkt (Advertorial 4 dagen op rij, 7-daags 2,32); #10 blijft staan maar
+  zwakker (001 naar 1,01).
+- **2026-08-12** · Radar · Gerichte scan (9 credits): freshness tweede dag
+  groen; `reachDelta` faalt reproduceerbaar op dezelfde twee ads. BALZY's
+  winnende hook draagt nu rank-1 én de reach-leider. Eigen conclusie van 11/8
+  over "opruimen" ingetrokken — de variantreeks 54/31/42 is een telfout.
+- **2026-08-12** · Atlas · Ochtendcyclus: Wellshine-cijfers alsnog opgehaald —
+  **de nulstreak brak op 8/8**, 4 aankopen over 7–11/8. Wellshave 11/8 op 1,92;
+  7-daags 1,36. Advertorial 4 dagen op rij. 8/8 en 9/8 definitief. Klaviyo dag
+  61, lijst +11 naar 4.378.
 - **2026-08-11** · Systeem · **Permissieprobleem opgelost.** De routine
   vroeg bij elke Meta Ads-, Klaviyo- en Trendtrack-aanroep om handmatige
   toestemming, waardoor onbeheerd draaien in de praktijk onmogelijk was.
