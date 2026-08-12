@@ -1394,6 +1394,159 @@ check "hq_map_drempels ook"                         "ok" \
 check "en de kruistabel mag hij ook aanroepen"      "ok" \
   "$(alsTeamlid "select 'ok' from marketing_hq.map_kruistabel('wellshave','Groom Guard') limit 1;" | grep -o 'ok' | head -1)"
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 0049 — een dag die je niet kunt narekenen, is een dag die je niet hebt
+#
+# De echte fout die dit vangt: 177 van de 366 dagen waren nooit opgehaald, in
+# blokken van 120 en 49 dagen, en de database zag er precies zo uit als een
+# database die klopt. Plus één dag (12 juli 2026) die een periodetotaal droeg:
+# € 2.180,10 over 96 advertenties, elf keer een normale dag.
+#
+# De fixture hieronder bouwt allebei die situaties na, klein genoeg om met de
+# hand na te rekenen: vier dagen met accountcijfer, waarvan één met een gat
+# ernaast en één met een periodetotaal erin.
+# ═══════════════════════════════════════════════════════════════════════════
+echo
+echo "  0049: sluit deze dag"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0049_meetdagen.sql" >/dev/null 2>&1
+check "0049 draait zonder fout" "0" "$?"
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+
+-- Vier meetdagen, ruim buiten het voorlopige venster van 72 uur.
+-- dag -20  sluit: account 100, twee advertenties van 50
+-- dag -19  ONTBREEKT op advertentieniveau (account zegt wel 100)
+-- dag -18  wijkt af: account 100, advertenties samen 400 -- een periodetotaal
+-- dag -17  sluit binnen de marge: account 100, advertenties 100,50
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values
+  (current_date - 20, '242238038391551', 'account', 'act', null, 100.00, 0, true),
+  (current_date - 19, '242238038391551', 'account', 'act', null, 100.00, 0, true),
+  (current_date - 18, '242238038391551', 'account', 'act', null, 100.00, 0, true),
+  (current_date - 17, '242238038391551', 'account', 'act', null, 100.00, 0, true),
+
+  (current_date - 20, '242238038391551', 'ad', 'a1', 'WS - 900 - 1', 50.00, 5000, true),
+  (current_date - 20, '242238038391551', 'ad', 'a2', 'WS - 900 - 2', 50.00, 5000, true),
+  (current_date - 18, '242238038391551', 'ad', 'a1', 'WS - 900 - 1', 200.00, 5000, true),
+  (current_date - 18, '242238038391551', 'ad', 'a2', 'WS - 900 - 2', 200.00, 5000, true),
+  (current_date - 17, '242238038391551', 'ad', 'a1', 'WS - 900 - 1', 100.50, 5000, true);
+SQL
+
+md="from marketing_hq.meta_meetdag where account_id='242238038391551'"
+check "een dag die sluit heet ook zo"          "sluit" \
+  "$(q "select toestand $md and insight_date = current_date - 20")"
+check "en heeft geen toelichting nodig"        "" \
+  "$(q "select coalesce(toelichting,'') $md and insight_date = current_date - 20")"
+# Dit is het gat van 120 dagen, in het klein: het account gaf geld uit en er
+# staat geen enkele advertentie bij. Mutatietest: maak van de full outer join
+# een gewone join en deze rij verdwijnt -- precies zoals de 177 dagen deden.
+check "een dag zonder advertenties valt op"    "geen advertentiecijfers" \
+  "$(q "select toestand $md and insight_date = current_date - 19")"
+check "en de rij bestaat überhaupt"            "1" \
+  "$(q "select count(*) $md and insight_date = current_date - 19")"
+# Dit is 12 juli 2026, in het klein.
+check "een periodetotaal wijkt af"             "wijkt af" \
+  "$(q "select toestand $md and insight_date = current_date - 18")"
+check "met beide bedragen in de toelichting"   "t" \
+  "$(q "select toelichting like '%400.00%' and toelichting like '%100.00%'
+         $md and insight_date = current_date - 18")"
+check "het verschil staat er als getal bij"    "300.00" \
+  "$(q "select verschil $md and insight_date = current_date - 18")"
+# Een halve euro op honderd is afrondingsruis en geen storing; zou de marge
+# nul zijn, dan staat er elke dag een waarschuwing die niets betekent.
+check "een halve euro verschil is geen storing" "sluit" \
+  "$(q "select toestand $md and insight_date = current_date - 17")"
+# Meta corrigeert tot ~72 uur terug. Een verse dag krijgt daarom geen oordeel.
+check "een verse dag krijgt geen oordeel"      "nog voorlopig" \
+  "$(q "insert into marketing_hq.meta_insights_daily
+          (insight_date, account_id, level, entity_id, spend, impressions, is_final)
+        values (current_date, '242238038391551', 'account', 'act', 100, 0, false),
+               (current_date, '242238038391551', 'ad', 'a1', 999, 10, false);
+        select toestand $md and insight_date = current_date")"
+
+echo
+echo "  0049: waar de gaten liggen"
+# Losse dagen zijn onleesbaar; een blok is de vorm waarin je opnieuw ophaalt.
+check "het gat is één blok van één dag"        "1" \
+  "$(q "select dagen from marketing_hq.meta_meetgaten
+         where account_id='242238038391551' and van = current_date - 19")"
+# Twee blokken: het gaatje op -19 en de staart van -16 tot gisteren. Dat de
+# staart erbij staat is geen bijvangst -- dat is precies hoe een sync die
+# stilviel eruitziet.
+check "en de staart naar vandaag staat er ook" "2" \
+  "$(q "select count(*) from marketing_hq.meta_meetgaten where account_id='242238038391551'")"
+check "de staart loopt door tot gisteren"      "t" \
+  "$(q "select bool_or(tot = current_date - 1) from marketing_hq.meta_meetgaten
+         where account_id='242238038391551'")"
+# Aaneengesloten dagen horen één regel te zijn en geen drie: -19 was al leeg,
+# -18 erbij maakt er één blok van twee.
+check "twee dagen op rij worden één blok"      "2" \
+  "$(q "delete from marketing_hq.meta_insights_daily
+         where level='ad' and insight_date = current_date - 18;
+        select dagen from marketing_hq.meta_meetgaten
+         where account_id='242238038391551' and van = current_date - 19")"
+check "en dat blok loopt van -19 tot -18"      "t" \
+  "$(q "select tot = current_date - 18 from marketing_hq.meta_meetgaten
+         where account_id='242238038391551' and van = current_date - 19")"
+
+echo
+echo "  0049: hoe compleet is de meting"
+# Niet voortbouwen op wat de vorige controles hebben achtergelaten: een
+# fixture die van drie eerdere stappen afhangt, faalt straks om de verkeerde
+# reden. Hier staat exact wat erin zit -- drie gemeten dagen in een venster
+# van twintig.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily where level = 'ad';
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name, spend, impressions, is_final)
+values
+  (current_date - 20, '242238038391551', 'ad', 'a1', 'WS - 900 - 1',  50.00, 5000, true),
+  (current_date - 18, '242238038391551', 'ad', 'a1', 'WS - 900 - 1', 200.00, 5000, true),
+  (current_date - 17, '242238038391551', 'ad', 'a1', 'WS - 900 - 1', 100.50, 5000, true);
+SQL
+mdek="from marketing_hq.meta_meetdekking where brand='wellshave'"
+# Venster loopt van de eerste gemeten dag (-20) tot gisteren: 20 dagen.
+check "het venster loopt tot gisteren"         "20"  "$(q "select dagen_in_venster $mdek")"
+check "drie dagen zijn gemeten"                "3"   "$(q "select dagen_gemeten $mdek")"
+check "zeventien ontbreken er"                 "17"  "$(q "select dagen_ontbreken $mdek")"
+check "en de toestand zegt het in woorden"     "t" \
+  "$(q "select toestand like '17 van de 20 dagen ontbreken%' $mdek")"
+check "met het grootste gat erbij"             "t" \
+  "$(q "select toestand like '%grootste gat%' $mdek")"
+# Zonder metingen hoort een merk dat te zeggen in plaats van te ontbreken --
+# zelfde regel als in 0041, 0044 en 0048.
+check "een merk zonder metingen zegt dat"      "nog nooit iets gemeten" \
+  "$(q "select toestand from marketing_hq.meta_meetdekking where brand='wellshine'")"
+
+echo
+echo "  0049: map_dekking zegt waar hij op rust"
+# Dit is de kern van de hele migratie: 86% dekking van een derde van het geld
+# leest precies zoals 86% van alles. Mutatietest: haal de kolom weg en het
+# percentage staat er weer alleen.
+check "map_dekking noemt de ontbrekende dagen" "17" \
+  "$(q "select dagen_ontbreken from marketing_hq.map_dekking where brand='wellshave'")"
+check "met een waarschuwing in woorden"        "t" \
+  "$(q "select volledigheid like 'let op:%nooit opgehaald%'
+         from marketing_hq.map_dekking where brand='wellshave'")"
+check "de oude kolommen staan er nog"          "t" \
+  "$(q "select dekking_procent is not null and spend_in_de_map is not null
+         from marketing_hq.map_dekking where brand='wellshave'")"
+# De console leest uit public, niet uit marketing_hq. Zonder het opnieuw
+# aanmaken van hq_map_dekking staat de waarschuwing op de plek waar niemand kijkt.
+check "en de console ziet de nieuwe kolom ook" "17" \
+  "$(q "select dagen_ontbreken from public.hq_map_dekking where brand='wellshave'")"
+
+echo
+echo "  0049: kan het team het lezen"
+check "hq_meta_meetdag is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_meta_meetdag limit 1;" | grep -o 'ok' | head -1)"
+check "hq_meta_meetgaten ook"                        "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_meta_meetgaten limit 1;" | grep -o 'ok' | head -1)"
+check "hq_meta_meetdekking ook"                      "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_meta_meetdekking limit 1;" | grep -o 'ok' | head -1)"
+
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))

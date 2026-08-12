@@ -47,9 +47,9 @@
    Ophogen bij elke deploy die gedrag verandert. VERSIE_DATUM is de datum van de
    wijziging, niet van de deploy -- staat die ver in het verleden terwijl er net
    iets is aangepast, dan draait er oude code. */
-const VERSIE = 13;
-const VERSIE_DATUM = '2026-08-11';
-const VERSIE_WAT = 'grote vensters in stukken van 30 dagen, zodat de inhaalslag over 400 dagen niet meer door Meta wordt geweigerd';
+const VERSIE = 14;
+const VERSIE_DATUM = '2026-08-12';
+const VERSIE_WAT = 'een periodetotaal komt niet meer in de dagtabel terecht: per dag is voortaan de standaard, en zonder uitsplitsing wordt er niets weggeschreven';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -409,7 +409,7 @@ const TOOLS = {
         properties: {
           level: { type: 'string', enum: ['account', 'campaign', 'adset', 'ad'], description: 'Detailniveau' },
           days: { type: 'integer', description: 'Aantal dagen terug, 1-400. Default 7. Meer dan 30 is voor het inhalen van historie, niet voor de dagelijkse run.' },
-          breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen in plaats van één totaal over de periode' },
+          breakdown_by_day: { type: 'boolean', description: 'Per dag uitsplitsen. Staat standaard aan en dat hoor je zo te laten. Zet je hem uit, dan krijg je één totaal over de hele periode teruggelezen en wordt er NIETS weggeschreven — een periodetotaal is geen dag en hoort niet in meta_insights_daily.' },
           account: { type: 'string', description: 'Eén specifiek advertentieaccount. Laat leeg om alle draaiende accounts op te halen — dat is bijna altijd wat je wilt.' }
         },
         required: ['level']
@@ -420,6 +420,27 @@ const TOOLS = {
         return { error: 'Meta is niet gekoppeld op deze worker (META_ACCESS_TOKEN ontbreekt). Werk verder met wat er in meta_insights_daily staat.' };
       }
       const days = Math.min(Math.max(Number(input.days) || 7, 1), 400);
+
+      /* Standaard per dag, en uitzetten moet je expliciet doen.
+
+         Dit was `!!input.breakdown_by_day` — dus uit, tenzij een agent eraan
+         dacht. Zonder time_increment geeft Meta één rij per entiteit voor de
+         hele periode, met date_start op de eerste dag van het venster. Die rij
+         ging vervolgens gewoon de dagtabel in, en dan staat er een maand aan
+         uitgaven op één datum.
+
+         Zo is het ook gebeurd. Op 12 juli 2026 stond € 2.180,10 over 96
+         advertenties: elf keer een normale dag, opgehaald in een run van
+         10 augustus terwijl alle omliggende dagen van 11 augustus kwamen. Eén
+         creative (C1 - 4 Reasons Why) telde daardoor € 2.251 waar het account
+         € 1.172 zegt.
+
+         Twee dingen maakten het onzichtbaar. De naam van de tabel belooft
+         dagen maar niets dwong dat af, en de standaard stond op de gevaarlijke
+         kant: wie niets invulde kreeg de variant die de data bederft. Een
+         standaard hoort de veilige kant op te staan. */
+      const perDag = input.breakdown_by_day !== false;
+
       const lijst = await actieveAccounts(env, input.account);
       if (!lijst.length) return { error: 'er staat geen enkel draaiend account in ad_accounts' };
 
@@ -431,7 +452,7 @@ const TOOLS = {
       for (const acc of lijst) {
         let rows;
         try {
-          rows = await metaInsights(env, input.level, days, !!input.breakdown_by_day, acc.account_id, ctx);
+          rows = await metaInsights(env, input.level, days, perDag, acc.account_id, ctx);
         } catch (e) {
           const reden = String(e && e.message || e);
           gaten.push({ account_id: acc.account_id, naam: acc.naam, reden: reden });
@@ -443,7 +464,11 @@ const TOOLS = {
             `Meta gaf geen cijfers voor ${acc.naam}: ${reden.slice(0, 160)}`, { fout: reden });
           continue;
         }
-        if (rows.length) {
+        /* Alleen dagen mogen de dagtabel in. Een periodetotaal wordt wél
+           teruggegeven aan de agent — hij mag ernaar kijken — maar niet
+           bewaard, want opgeteld bij echte dagrijen is het niet te
+           onderscheiden van een dag waarop heel veel is uitgegeven. */
+        if (rows.length && perDag) {
           try {
             await sbInsert(env, 'meta_insights_daily', rows, { onConflict: 'insight_date,account_id,level,entity_id' });
           } catch (e) {
@@ -455,7 +480,16 @@ const TOOLS = {
                            aantal: rows.length, rijen: rows.slice(0, 40) });
       }
       const uit = { periode_dagen: days, niveau: input.level, accounts: per_account.length,
-                    aantal: totaal, per_account: per_account };
+                    aantal: totaal, per_dag: perDag, weggeschreven: perDag,
+                    per_account: per_account };
+      /* Zeggen dát er niets bewaard is. Een agent die denkt dat hij de historie
+         heeft aangevuld terwijl er niets is weggeschreven, meldt "gemeten" in
+         zijn rapport en dan gaat iedereen ervan uit dat het er staat. */
+      if (!perDag) {
+        uit.let_op = 'Dit is één totaal over ' + days + ' dagen en niet per dag, '
+          + 'dus er is niets weggeschreven naar meta_insights_daily. Wil je de historie '
+          + 'aanvullen, vraag dan opnieuw zonder breakdown_by_day op false te zetten.';
+      }
       if (gaten.length) uit.gaten = gaten;
       if (lijst.some(a => a.noodrem)) {
         uit.waarschuwing = 'ad_accounts was niet leesbaar; teruggevallen op META_AD_ACCOUNT_ID. Dit is één account, mogelijk niet alle.';

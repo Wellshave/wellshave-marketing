@@ -216,12 +216,19 @@ r = await haal({ level: 'ad', days: 400 });
 /* Niet het aantal rijen tellen -- dat zegt niets over het venster. Het gaat
    erom welke `since` er werkelijk naar Meta ging. Op de oude grens van 30
    dagen kwam die op ergens in juli 2026 uit en bleef augustus 2025 buiten
-   bereik. */
+   bereik.
+
+   Sinds versie 14 is per dag de standaard, dus dit verzoek wordt geknipt en is
+   er niet één venster maar veertien. De vraag blijft dezelfde -- reikt het
+   geheel 400 dagen terug -- alleen meet je hem nu over de rand van álle
+   stukken samen. Naar het laatste stuk kijken zou hier 9 dagen opleveren en
+   groen zijn om de verkeerde reden. */
+const alles = gevraagdeVensters.slice().sort((a, b) => a.since < b.since ? -1 : 1);
 const dagenTerug = Math.round(
-  (new Date(gevraagdVenster.until) - new Date(gevraagdVenster.since)) / 86400000);
+  (new Date(alles[alles.length - 1].until) - new Date(alles[0].since)) / 86400000);
 check('het gevraagde venster is echt 400 dagen', dagenTerug, 399);
 check('en reikt dus tot voor 4 augustus 2025',
-  gevraagdVenster.since < '2025-08-04', true);
+  alles[0].since < '2025-08-04', true);
 
 console.log('\n  een groot venster wordt in stukken geknipt');
 paginas = 1; knaptOpPagina = 0; weigertVensterMetDagen = 0;
@@ -249,7 +256,14 @@ r = await haal({ level: 'ad', days: 7, breakdown_by_day: true });
 /* Een reparatie die het normale geval verandert, repareert niet maar
    verplaatst. Zeven dagen hoort exact te blijven zoals het was. */
 check('zeven dagen blijft één venster', gevraagdeVensters.length, 1);
-r = await haal({ level: 'ad', days: 400 });
+/* Knippen hoort alleen bij een uitsplitsing per dag: zonder time_increment
+   past een heel jaar in één antwoord en is knippen zinloos werk.
+
+   Dat moet sinds versie 14 expliciet gevraagd worden. Stond hier eerst geen
+   breakdown_by_day, en dát was precies de fout: wie niets invulde kreeg een
+   periodetotaal dat vervolgens als dagrij werd bewaard. Wat er nu bewaard
+   wordt bewaakt dagrijen.mjs; hier gaat het alleen om het aantal vensters. */
+r = await haal({ level: 'ad', days: 400, breakdown_by_day: false });
 check('zonder per-dag ook één venster', gevraagdeVensters.length, 1);
 
 console.log('\n  weigert Meta één periode, dan is dat te zien');
