@@ -1111,6 +1111,289 @@ check "hq_map_gaten is leesbaar voor een teamlid" "ok" \
 check "hq_map_gaten_totaal ook"                   "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_map_gaten_totaal limit 1;" | grep -o 'ok' | head -1)"
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 0048 — de analysekaart
+#
+# Deze reeks draait op een eigen, gecontroleerde set rijen (bron_bestand
+# 'kaarttest'). De geïmporteerde sheetrijen staan er nog, maar elke controle
+# hieronder wijst een vak aan bij naam, dus ze kunnen elkaar niet raken.
+#
+# Vak A is met opzet zo gebouwd dat het ongewogen gemiddelde de rangorde
+# omdraait: één rij met € 10 en ROAS 10, twee rijen met € 70 en ROAS 0,5.
+# Gemiddeld 3,67, gewogen 1,13. Dat is dezelfde vorm als FOMO / Scarcity op
+# productie, alleen klein genoeg om met de hand na te rekenen.
+# ═══════════════════════════════════════════════════════════════════════════
+echo
+echo "  0048: de analysekaart"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0048_kruistabel.sql" >/dev/null 2>&1
+check "0048 draait zonder fout" "0" "$?"
+
+# De testrijen zijn de hele reeks hieronder. Landen ze niet, dan staat elke
+# controle daarna op een leeg vak en dat leest als "de view geeft niets" in
+# plaats van "de fixture is stuk".
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+delete from marketing_hq.meta_insights_daily;
+
+insert into public.creatives
+  (brand, ad_name, product, persona, awareness_level, angle_type,
+   status, date_live, budget, roas, conversions, bron_bestand)
+values
+  -- Vak A: gemeten, en het gemiddelde liegt
+  ('wellshave','KT-A1','Groom Guard','Alex','2. Problem Aware','Benefits-Driven',
+   'Live', date '2026-07-01',  10, 10.00, null, 'kaarttest'),
+  ('wellshave','KT-A2','Groom Guard','Alex','2. Problem Aware','Benefits-Driven',
+   'Live', date '2026-07-01',  70,  0.50, null, 'kaarttest'),
+  ('wellshave','KT-A3','Groom Guard','Alex','2. Problem Aware','Benefits-Driven',
+   'Live', date '2026-07-01',  70,  0.50, null, 'kaarttest'),
+  -- Vak A, vierde rij: andere schrijfwijze van hetzelfde bewustzijnsniveau, en
+  -- nooit gemeten. Hoort in hetzelfde vak te vallen en niet mee te tellen.
+  ('wellshave','KT-D1','Groom Guard','Alex','problem','Benefits-Driven',
+   'Live', date '2026-07-01', null, null, null, 'kaarttest'),
+  -- Vak B: gemeten, maar onder alle drie de drempels tegelijk
+  ('wellshave','KT-B1','Groom Guard','Alex','2. Problem Aware','Curiosity / Intrigue',
+   'Live', date '2026-07-01',  20,  3.00, null, 'kaarttest'),
+  -- Vak C: nooit gemeten, wel een ingetypte ROAS van 9 -- de valkuil in het klein
+  ('wellshave','KT-C1','Groom Guard','Alex','2. Problem Aware','FOMO / Scarcity',
+   'Concept', null, null, 9.00, null, 'kaarttest'),
+  ('wellshave','KT-C2','Groom Guard','Alex','2. Problem Aware','FOMO / Scarcity',
+   'Concept', null, null, 9.00, null, 'kaarttest'),
+  -- Vak E: een aswaarde die niet gevouwen wordt, en een persona die er geen is
+  ('wellshave','KT-E1','Groom Guard','Geen specifieke customer Persona','2. Problem Aware','safety',
+   'Live', date '2026-07-01', null, null, null, 'kaarttest'),
+  -- Vak F: nooit gemeten, straks handmatig vastgezet
+  ('wellshave','KT-F1','Flex Guard','Luca','3. Solution Aware','Bundle Offer',
+   'Live', date '2026-07-01', 200,  2.00,    5, 'kaarttest');
+
+insert into marketing_hq.meta_insights_daily
+  (insight_date, account_id, level, entity_id, entity_name,
+   spend, impressions, clicks, purchases, purchase_value, is_final)
+values
+  (current_date - 5, '242238038391551', 'ad', 'kt-a1', 'KT-A1', 10, 1000, 20, 1, 100, true),
+  (current_date - 5, '242238038391551', 'ad', 'kt-a2', 'KT-A2', 70, 7000, 70, 1,  35, true),
+  (current_date - 5, '242238038391551', 'ad', 'kt-a3', 'KT-A3', 70, 7000, 70, 1,  35, true),
+  (current_date - 5, '242238038391551', 'ad', 'kt-b1', 'KT-B1', 20, 2000, 10, 1,  60, true);
+SQL
+
+check "de negen testrijen staan er" "9" \
+  "$(q "select count(*) from public.creatives where bron_bestand='kaarttest'")"
+
+vakA="from marketing_hq.map_analyse where product='Groom Guard' and persona='Alex'
+      and bewustzijnsniveau='2. Problem Aware' and angle='Benefits-Driven'"
+vakB="from marketing_hq.map_analyse where product='Groom Guard' and persona='Alex'
+      and bewustzijnsniveau='2. Problem Aware' and angle='Curiosity / Intrigue'"
+vakC="from marketing_hq.map_analyse where product='Groom Guard' and persona='Alex'
+      and bewustzijnsniveau='2. Problem Aware' and angle='FOMO / Scarcity'"
+
+echo
+echo "  0048: sophistication komt over het werkstuk"
+# 0030 zette deze as al neer, op het werkstuk en niet op de creative. Er een
+# tweede kolom naast leggen zou de tweede waarheid maken die dit systeem overal
+# vermijdt -- dus deze controle bewaakt dat hij er níét komt.
+check "er is geen tweede kolom op creatives"     "0" \
+  "$(q "select count(*) from information_schema.columns
+         where table_schema='public' and table_name='creatives' and column_name='sophistication_level'")"
+check "de vijf niveaus van 0030 staan er nog"    "5" \
+  "$(q "select count(*) from marketing_hq.sophistication_niveaus")"
+# Een voorstel van een agent is geen vaststelling. Mutatietest: haal de
+# bevestigd_op-voorwaarde uit map_creative_as en de eerste van deze twee wordt
+# '3. mechanisme' -- dan groepeert de kaart op iets wat niemand getekend heeft.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.werkstukken (titel, sophistication, sophistication_reden,
+                                      sophistication_door_agent)
+values ('Kaarttest werkstuk', 3, 'de markt gelooft de claims niet meer', 'nova');
+update public.creatives
+   set werkstuk_id = (select id from marketing_hq.werkstukken where titel = 'Kaarttest werkstuk')
+ where ad_name = 'KT-A1';
+SQL
+check "een onbevestigd voorstel telt niet als as" "" \
+  "$(q "select coalesce(sophistication,'') from marketing_hq.map_creative_as where ad_name='KT-A1'")"
+check "maar het voorstel blijft wel zichtbaar"    "3. mechanisme" \
+  "$(q "select sophistication_voorstel from marketing_hq.map_creative_as where ad_name='KT-A1'")"
+check "na een handtekening telt hij wel mee"      "3. mechanisme" \
+  "$(q "update marketing_hq.werkstukken
+           set sophistication_bevestigd_door='11111111-1111-1111-1111-111111111111',
+               sophistication_bevestigd_op=now()
+         where titel='Kaarttest werkstuk';
+        select coalesce(sophistication,'') from marketing_hq.map_creative_as where ad_name='KT-A1'")"
+# En dan splitst het vak vanzelf: KT-A1 zit nu op een ander niveau dan A2/A3.
+check "en dan splitst het vak op die as"          "2" \
+  "$(q "select count(*) from marketing_hq.map_analyse
+         where product='Groom Guard' and persona='Alex'
+           and bewustzijnsniveau='2. Problem Aware' and angle='Benefits-Driven'")"
+check "terugdraaien geeft één vak terug"          "1" \
+  "$(q "update public.creatives set werkstuk_id=null where ad_name='KT-A1';
+        select count(*) from marketing_hq.map_analyse
+         where product='Groom Guard' and persona='Alex'
+           and bewustzijnsniveau='2. Problem Aware' and angle='Benefits-Driven'")"
+# Zou sophistication wél als beslisveld meetellen in 0047, dan staat er morgen
+# bij alle 637 rijen een gat en leest niemand er nog één. Mutatietest: zet
+# 'sophistication' in de array van 0047 en deze twee vallen om.
+check "sophistication telt niet mee als gat"     "{persona,bewustzijnsniveau,desire}" \
+  "$(q "select ontbreekt::text from marketing_hq.map_gaten where ad_name='C1 - 4 Reasons Why'")"
+check "en verandert het aantal gaten niet"       "5" \
+  "$(q "select cardinality(ontbreekt) from marketing_hq.map_gaten where ad_name='Nog niet gedraaid'")"
+
+echo
+echo "  0048: het gewogen cijfer tegen het gemiddelde"
+check "vak A is beoordeelbaar"                   "beoordeelbaar" "$(q "select toestand $vakA")"
+# 170 / 150. Mutatietest: vervang de deling door avg(roas) en dit wordt 3.67.
+check "de gewogen ROAS is 1,13"                  "1.13"          "$(q "select roas $vakA")"
+check "het ongewogen gemiddelde is 3,67"         "3.67"          "$(q "select roas_ongewogen_ingetypt $vakA")"
+check "en die twee zijn niet hetzelfde getal"    "t"             "$(q "select roas <> roas_ongewogen_ingetypt $vakA")"
+check "de spend is 150 en niet meer"             "150.00"        "$(q "select spend $vakA")"
+check "vier creatives in het vak"                "4"             "$(q "select creatives $vakA")"
+# De ongemeten rij staat er wel bij maar telt niet mee -- dat is de hele regel.
+check "waarvan drie gemeten"                     "3"             "$(q "select gemeten_creatives $vakA")"
+check "de aankopen tellen op tot drie"           "3"             "$(q "select aankopen $vakA")"
+
+echo
+echo "  0048: te weinig data zegt hoeveel te weinig"
+check "vak B is te dun"                          "te weinig data" "$(q "select toestand $vakB")"
+# Mutatietest: laat de view het getal ook onder de drempel afdrukken en dit
+# wordt 3.00 -- precies het getal waar iemand een besluit op zou nemen.
+check "en geeft dus geen ROAS af"                ""               "$(q "select coalesce(roas::text,'') $vakB")"
+check "het oordeel noemt het bedrag"             "t"  "$(q "select oordeel like '%€ 20 van € 100%' $vakB")"
+check "het oordeel noemt de creatives"           "t"  "$(q "select oordeel like '%1 van 3 gemeten creatives%' $vakB")"
+check "het oordeel noemt de aankopen"            "t"  "$(q "select oordeel like '%1 van 3 aankopen%' $vakB")"
+
+echo
+echo "  0048: niet gemeten is iets anders dan nul"
+check "vak C is niet gemeten"                    "niet gemeten"   "$(q "select toestand $vakC")"
+check "en geeft geen ROAS af"                    ""               "$(q "select coalesce(roas::text,'') $vakC")"
+# Het ingetypte gemiddelde blijft zichtbaar, anders is niet meer na te gaan
+# waar een eerdere conclusie vandaan kwam.
+check "het ingetypte gemiddelde staat er wel"    "9.00"           "$(q "select roas_ongewogen_ingetypt $vakC")"
+check "het oordeel noemt het aantal creatives"   "t"  "$(q "select oordeel like '%geen van de 2 creative(s)%' $vakC")"
+
+echo
+echo "  0048: twee schrijfwijzen, één as"
+# Zonder de vouwing wordt 'problem' een eigen kolom met één rij, naast een
+# kolom met drie. Mutatietest: haal de regel uit map_as_synoniemen en
+# 'vier creatives in het vak' hierboven wordt 3.
+check "'problem' valt op 2. Problem Aware"       "2. Problem Aware" \
+  "$(q "select marketing_hq.map_as('bewustzijnsniveau','problem')")"
+check "en de vouwing is zichtbaar"               "t" \
+  "$(q "select gevouwen from marketing_hq.map_as_schrijfwijzen
+         where as_naam='bewustzijnsniveau' and ruwe_waarde='problem' and brand='wellshave'")"
+# 'safety' hoort bij geen enkele angle uit de lijst. Raden zou een vak vullen
+# met iets wat niemand heeft opgeschreven.
+check "'safety' wordt niet gevouwen"             "f" \
+  "$(q "select gevouwen from marketing_hq.map_as_schrijfwijzen
+         where as_naam='angle' and ruwe_waarde='safety' and brand='wellshave'")"
+check "en blijft een eigen waarde op de as"      "1" \
+  "$(q "select count(*) from marketing_hq.map_analyse where angle='safety'")"
+
+echo
+echo "  0048: een niet-keuze is geen persona"
+check "de twee schrijfwijzen worden er één"      "Geen specifieke persona" \
+  "$(q "select marketing_hq.map_as('persona','Geen specifieke customer Persona (omdat deze nog niet ready zijn)')")"
+# Mutatietest: laat persona_gekozen altijd true zijn en de niet-keuze komt
+# bovenaan elke ranglijst te staan -- hij heeft 109 rijen op productie.
+check "en tellen niet als gekozen persona"       "f" \
+  "$(q "select bool_or(persona_gekozen) from marketing_hq.map_analyse
+         where persona='Geen specifieke persona'")"
+check "Alex is wél een gekozen persona"          "t" \
+  "$(q "select bool_and(persona_gekozen) from marketing_hq.map_analyse where persona='Alex'")"
+
+echo
+echo "  0048: de drempels zitten in een tabel en niet in de view"
+check "min_spend op 1000 maakt vak A te dun"     "te weinig data" \
+  "$(q "update marketing_hq.map_drempels set waarde=1000 where naam='min_spend';
+        select toestand $vakA")"
+check "en de ROAS verdwijnt mee"                 "" \
+  "$(q "select coalesce(roas::text,'') $vakA")"
+check "de kruistabel volgt dezelfde grens"       "te weinig data" \
+  "$(q "select toestand from marketing_hq.map_kruistabel('wellshave','Groom Guard')
+         where persona='Alex' and angle='Benefits-Driven'")"
+check "terugzetten geeft het oordeel terug"      "beoordeelbaar" \
+  "$(q "update marketing_hq.map_drempels set waarde=100 where naam='min_spend';
+        select toestand $vakA")"
+
+echo
+echo "  0048: per aswaarde over alle vakken heen"
+asFOMO="from marketing_hq.map_as_totaal where brand='wellshave' and as_naam='angle' and waarde='FOMO / Scarcity'"
+check "FOMO heeft geen enkele gemeten creative"  "0"    "$(q "select gemeten_creatives $asFOMO")"
+check "en dus geen ROAS"                         ""     "$(q "select coalesce(roas::text,'') $asFOMO")"
+check "maar wel een ingetypt gemiddelde"         "t"    "$(q "select roas_ongewogen_ingetypt > 0 $asFOMO")"
+check "Benefits-Driven heeft er wel een"         "1.13" \
+  "$(q "select roas from marketing_hq.map_as_totaal
+         where brand='wellshave' and as_naam='angle' and waarde='Benefits-Driven'")"
+# Dit ís de valkuil, in één regel: het gemiddelde zet FOMO boven Benefits-Driven
+# terwijl er geen euro achter FOMO zit en alleen Benefits-Driven een oordeel
+# aankan. Mutatietest: laat roas het gewogen getal ook onder de drempel afgeven,
+# of laat hem terugvallen op het ongewogen gemiddelde, en deze valt om.
+check "het gemiddelde keert de rangorde om"      "t" \
+  "$(q "select f.roas_ongewogen_ingetypt > b.roas_ongewogen_ingetypt
+           and f.roas is null and b.roas is not null
+         from marketing_hq.map_as_totaal f, marketing_hq.map_as_totaal b
+        where f.brand='wellshave' and f.as_naam='angle' and f.waarde='FOMO / Scarcity'
+          and b.brand='wellshave' and b.as_naam='angle' and b.waarde='Benefits-Driven'")"
+
+echo
+echo "  0048: vastgezet wint van gemeten en van ingetypt"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+update public.creatives
+   set cijfers_vastgezet = true,
+       cijfers_vastgezet_door = '11111111-1111-1111-1111-111111111111',
+       cijfers_vastgezet_op = now()
+ where ad_name = 'KT-F1';
+SQL
+vakF="from marketing_hq.map_analyse where product='Flex Guard' and persona='Luca' and angle='Bundle Offer'"
+# Er is geen gemeten omzet, dus die wordt teruggerekend uit roas × budget.
+# Mutatietest: laat telt_mee bij een vastgezette rij op false staan en de
+# spend hieronder wordt 0,00.
+check "een vastgezette rij telt mee"             "1"      "$(q "select gemeten_creatives $vakF")"
+check "met het ingetypte budget als spend"       "200.00" "$(q "select spend $vakF")"
+check "en de omzet teruggerekend uit de ROAS"    "400.00" "$(q "select omzet $vakF")"
+# Zonder deze kolom is niet te zien dat het vak op een reconstructie rust.
+check "het vak zegt dat het vastgezet is"        "1"      "$(q "select vastgezette_creatives $vakF")"
+
+echo
+echo "  0048: de kruistabel met de lege vakken erin"
+check "een nooit geprobeerde combinatie staat erin" "nooit geprobeerd" \
+  "$(q "select toestand from marketing_hq.map_kruistabel('wellshave','Groom Guard')
+         where persona='Luca' and angle='Bundle Offer'")"
+check "met nul creatives"                           "0" \
+  "$(q "select creatives from marketing_hq.map_kruistabel('wellshave','Groom Guard')
+         where persona='Luca' and angle='Bundle Offer'")"
+check "en 'nooit geprobeerd' is niet 'niet gemeten'" "t" \
+  "$(q "select oordeel like 'nooit geprobeerd%' from marketing_hq.map_kruistabel('wellshave','Groom Guard')
+         where persona='Luca' and angle='Bundle Offer'")"
+check "een gevulde combinatie staat er ook"          "beoordeelbaar" \
+  "$(q "select toestand from marketing_hq.map_kruistabel('wellshave','Groom Guard')
+         where persona='Alex' and angle='Benefits-Driven'")"
+
+echo
+echo "  0048: wat de kaart in het geheel waard is"
+# Zelfde regel als in 0041 en 0044: een merk zonder rijen zegt dat met zoveel
+# woorden. Mutatietest: maak er een gewone group by van en wellshine verdwijnt.
+check "wellshine staat er, en zegt dat het leeg is" "geen creatives in de map voor dit merk" \
+  "$(q "select toestand from marketing_hq.map_analyse_samenvatting where brand='wellshine'")"
+check "wellshave heeft beoordeelbare vakken"        "t" \
+  "$(q "select vakken_beoordeelbaar > 0 from marketing_hq.map_analyse_samenvatting where brand='wellshave'")"
+check "en die dekken een deel van de spend"         "t" \
+  "$(q "select aandeel_spend_beoordeelbaar between 0 and 100
+         from marketing_hq.map_analyse_samenvatting where brand='wellshave'")"
+check "de vakken tellen op tot het totaal"          "t" \
+  "$(q "select vakken = vakken_beoordeelbaar + vakken_te_dun + vakken_ongemeten
+         from marketing_hq.map_analyse_samenvatting where brand='wellshave'")"
+
+echo
+echo "  0048: kan het team de kaart ook echt lezen"
+check "hq_map_analyse is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_analyse limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_as_totaal ook"                        "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_as_totaal limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_analyse_samenvatting ook"             "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_analyse_samenvatting limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_as_schrijfwijzen ook"                 "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_as_schrijfwijzen limit 1;" | grep -o 'ok' | head -1)"
+check "hq_map_drempels ook"                         "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_map_drempels limit 1;" | grep -o 'ok' | head -1)"
+check "en de kruistabel mag hij ook aanroepen"      "ok" \
+  "$(alsTeamlid "select 'ok' from marketing_hq.map_kruistabel('wellshave','Groom Guard') limit 1;" | grep -o 'ok' | head -1)"
+
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
