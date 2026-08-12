@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+
+      "mcp__Supabase__list_tables",
+      "mcp__Supabase__list_migrations",
+      "mcp__Supabase__list_extensions",
+      "mcp__Supabase__get_advisors",
+      "mcp__Supabase__get_logs",
+      "mcp__Supabase__get_project",
+      "mcp__Supabase__get_project_url",
+
+      "mcp__Meta_Ads__ads_get_ad_accounts",
+      "mcp__Meta_Ads__ads_get_ad_entities",
+      "mcp__Meta_Ads__ads_get_creatives",
+      "mcp__Meta_Ads__ads_get_creative_ads",
+      "mcp__Meta_Ads__ads_get_ad_preview",
+      "mcp__Meta_Ads__ads_get_ad_images",
+      "mcp__Meta_Ads__ads_get_ad_videos",
+      "mcp__Meta_Ads__ads_get_field_context",
+      "mcp__Meta_Ads__ads_get_errors",
+      "mcp__Meta_Ads__ads_account_get_activity_logs",
+
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+
+      "Bash(bash platform/db/test/*)",
+      "Bash(node platform/worker/test/*)",
+      "Bash(node ad-generator/test/*)",
+      "Bash(curl -s https://marketing-ads.dustin-9ff.workers.dev/health*)"
+    ],
+
+    "deny": [
+      "mcp__Meta_Ads__ads_create_campaign",
+      "mcp__Meta_Ads__ads_create_ad",
+      "mcp__Meta_Ads__ads_create_ad_set",
+      "mcp__Meta_Ads__ads_create_creative",
+      "mcp__Meta_Ads__ads_update_entity",
+      "mcp__Meta_Ads__ads_activate_entity",
+      "mcp__Meta_Ads__ads_boost_ig_post",
+      "mcp__Meta_Ads__ads_creative_update",
+      "mcp__Meta_Ads__ads_creative_delete",
+
+      "mcp__Klaviyo__send_campaign",
+      "mcp__Klaviyo__create_campaign",
+      "mcp__Klaviyo__update_campaign",
+      "mcp__Klaviyo__delete_campaign",
+      "mcp__Klaviyo__bulk_import_profiles",
+      "mcp__Klaviyo__subscribe_profile_to_marketing",
+      "mcp__Klaviyo__unsubscribe_profile_from_marketing",
+
+      "mcp__Supabase__delete_branch",
+      "mcp__Supabase__merge_branch",
+      "mcp__Supabase__reset_branch",
+      "mcp__Supabase__pause_project",
+      "mcp__Supabase__restore_project",
+
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(rm -rf *)"
+    ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__Supabase__execute_sql",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/alleen-lezen-sql.sh\"",
+            "timeout": 10,
+            "statusMessage": "SQL nakijken op schrijfacties"
+          }
+        ]
+      }
+    ]
+  }
+}
