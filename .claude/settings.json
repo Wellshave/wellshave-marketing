@@ -4,33 +4,61 @@
   "permissions": {
     "allow": [
       "mcp__Meta-Ads__ads_get_ad_accounts",
+      "mcp__Meta_Ads__ads_get_ad_accounts",
       "mcp__Meta-Ads__ads_get_ad_entities",
+      "mcp__Meta_Ads__ads_get_ad_entities",
       "mcp__Meta-Ads__ads_entity_get_report",
+      "mcp__Meta_Ads__ads_entity_get_report",
       "mcp__Meta-Ads__ads_get_creatives",
+      "mcp__Meta_Ads__ads_get_creatives",
       "mcp__Meta-Ads__ads_get_creative_ads",
+      "mcp__Meta_Ads__ads_get_creative_ads",
       "mcp__Meta-Ads__ads_get_ad_preview",
+      "mcp__Meta_Ads__ads_get_ad_preview",
       "mcp__Meta-Ads__ads_get_ad_images",
+      "mcp__Meta_Ads__ads_get_ad_images",
       "mcp__Meta-Ads__ads_get_ad_videos",
+      "mcp__Meta_Ads__ads_get_ad_videos",
       "mcp__Meta-Ads__ads_get_customconversions",
+      "mcp__Meta_Ads__ads_get_customconversions",
       "mcp__Meta-Ads__ads_get_errors",
+      "mcp__Meta_Ads__ads_get_errors",
       "mcp__Meta-Ads__ads_get_field_context",
+      "mcp__Meta_Ads__ads_get_field_context",
       "mcp__Meta-Ads__ads_get_opportunity_score",
+      "mcp__Meta_Ads__ads_get_opportunity_score",
       "mcp__Meta-Ads__ads_account_get_activity_logs",
+      "mcp__Meta_Ads__ads_account_get_activity_logs",
       "mcp__Meta-Ads__ads_get_dataset_details",
+      "mcp__Meta_Ads__ads_get_dataset_details",
       "mcp__Meta-Ads__ads_get_dataset_quality",
+      "mcp__Meta_Ads__ads_get_dataset_quality",
       "mcp__Meta-Ads__ads_get_dataset_stats",
+      "mcp__Meta_Ads__ads_get_dataset_stats",
       "mcp__Meta-Ads__ads_get_datasets",
+      "mcp__Meta_Ads__ads_get_datasets",
       "mcp__Meta-Ads__ads_get_custom_audience",
+      "mcp__Meta_Ads__ads_get_custom_audience",
       "mcp__Meta-Ads__ads_get_ad_account_custom_audiences",
+      "mcp__Meta_Ads__ads_get_ad_account_custom_audiences",
       "mcp__Meta-Ads__ads_get_ad_account_pages",
+      "mcp__Meta_Ads__ads_get_ad_account_pages",
       "mcp__Meta-Ads__ads_get_ig_accounts",
+      "mcp__Meta_Ads__ads_get_ig_accounts",
       "mcp__Meta-Ads__ads_get_ig_media",
+      "mcp__Meta_Ads__ads_get_ig_media",
       "mcp__Meta-Ads__ads_insights_advertiser_context",
+      "mcp__Meta_Ads__ads_insights_advertiser_context",
       "mcp__Meta-Ads__ads_insights_anomaly_signal",
+      "mcp__Meta_Ads__ads_insights_anomaly_signal",
       "mcp__Meta-Ads__ads_insights_auction_ranking_benchmarks",
+      "mcp__Meta_Ads__ads_insights_auction_ranking_benchmarks",
       "mcp__Meta-Ads__ads_insights_industry_benchmark",
+      "mcp__Meta_Ads__ads_insights_industry_benchmark",
       "mcp__Meta-Ads__ads_insights_performance_trend",
+      "mcp__Meta_Ads__ads_insights_performance_trend",
       "mcp__Meta-Ads__ads_library_search",
+      "mcp__Meta_Ads__ads_library_search",
 
       "mcp__Klaviyo__get_account_details",
       "mcp__Klaviyo__get_campaign",
@@ -143,7 +171,9 @@
       "mcp__Meta-Ads__ads_creative_update",
       "mcp__Meta-Ads__ads_creative_delete",
       "mcp__Meta-Ads__ads_creative_upload_image",
+      "mcp__Meta_Ads__ads_creative_upload_image",
       "mcp__Meta-Ads__ads_creative_upload_video",
+      "mcp__Meta_Ads__ads_creative_upload_video",
       "mcp__Meta-Ads__ads_create_custom_audience",
       "mcp__Meta-Ads__ads_update_custom_audience",
       "mcp__Meta-Ads__ads_update_custom_audience_users",
@@ -204,6 +234,22 @@
       "Bash(git push --force *)",
       "Bash(git push -f *)",
       "Bash(rm -rf *)"
+    ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__Supabase__execute_sql",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/alleen-lezen-sql.sh\"",
+            "timeout": 10,
+            "statusMessage": "SQL nakijken op schrijfacties"
+          }
+        ]
+      }
     ]
   }
 }
