@@ -20,7 +20,20 @@
   **de nulstreak brak op 8/8**, 4 aankopen over 7–11/8. Wellshave 11/8 op 1,92;
   7-daags 1,36. Advertorial 4 dagen op rij. 8/8 en 9/8 definitief. Klaviyo dag
   61, lijst +11 naar 4.378.
-- **2026-08-11** · Systeem · **Permissieprobleem opgelost.** De routine
+- **2026-08-12** · Systeem · ⚠️ **Correctie op de logregel van 11/8: het
+  permissieprobleem is NIET opgelost.** De routine blijkt de
+  `.claude/settings.json` uit de repo helemaal niet te lezen. Bewijs:
+  `mcp__Klaviyo__get_list` en `mcp__Trendtrack__get_brandtracker_scaling_ads`
+  staan correct gespeld in de allowlist en vragen op 12/8 nog steeds om
+  toestemming. De permissies worden bepaald door
+  `~/.claude/launcher-settings.json` van de cloudomgeving, die alleen
+  `Skill` toestaat. **De oplossing ligt dus buiten deze repo**, in de
+  Routine-configuratie op claude.ai. De prefixfout (`Meta_Ads` →
+  `Meta-Ads`, PR #10) was een echt probleem — met name omdat de
+  deny-blokkade daardoor niet werkte — maar was niet de oorzaak van de
+  prompts.
+- **2026-08-11** · Systeem · ~~**Permissieprobleem opgelost.**~~ *(zie de
+  correctie hierboven van 12/8 — deze conclusie was onjuist)* De routine
   vroeg bij elke Meta Ads-, Klaviyo- en Trendtrack-aanroep om handmatige
   toestemming, waardoor onbeheerd draaien in de praktijk onmogelijk was.
   Alle **lees**-tools staan nu in `.claude/settings.json` (in de repo, niet
