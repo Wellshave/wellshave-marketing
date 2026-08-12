@@ -41,6 +41,10 @@ let gevraagd = { level: 'ad', days: 7 };
 /* Wat de worker werkelijk aan Meta vroeg. */
 let vroegPerDag = null;
 let vroegVenster = null;
+/* Alle vensters op volgorde, en op welk niveau. Bij de inhaalslag is het
+   laatste venster maar een stukje van het geheel -- daar moet je naar de rand
+   van alles samen kijken. */
+let vensters = [];
 /* Wat de agent uiteindelijk terugkreeg van het gereedschap. */
 let toolUitkomst = null;
 
@@ -145,6 +149,7 @@ globalThis.fetch = async (url, opts = {}) => {
     const perDag = u.searchParams.get('time_increment') === '1';
     vroegPerDag = perDag;
     vroegVenster = venster;
+    vensters.push({ ...venster, level: u.searchParams.get('level') });
 
     const since = new Date(venster.since + 'T00:00:00Z');
     const until = new Date(venster.until + 'T00:00:00Z');
@@ -179,7 +184,7 @@ const auth = { headers: { Authorization: 'Bearer token', 'Content-Type': 'applic
 
 const haal = async (input) => {
   gevraagd = input;
-  vroegPerDag = null; vroegVenster = null; toolUitkomst = null;
+  vroegPerDag = null; vroegVenster = null; toolUitkomst = null; vensters = [];
   db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
   await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
     body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
@@ -246,6 +251,87 @@ r = await haal({ level: 'campaign', days: 30, breakdown_by_day: false });
 check('campagneniveau schrijft ook niets weg', r.rijen.length, 0);
 r = await haal({ level: 'account', days: 30, breakdown_by_day: false });
 check('accountniveau ook niet', r.rijen.length, 0);
+
+/* ── 6. De inhaalslag ──────────────────────────────────────────────────────
+   Een systeemtaak, geen opdracht aan een agent: welke dagen ontbreken staat in
+   meta_meetgaten en daar valt niets aan te oordelen. Hij doet één gat per run
+   en zet zichzelf terug in de rij zolang er meer zijn -- 177 dagen passen niet
+   in één Worker-run. */
+const inhaal = async (payload, gaten, dekking) => {
+  vensters = []; toolUitkomst = null;
+  db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
+  db.meta_meetgaten = gaten;
+  db.meta_meetdekking = dekking;
+  await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
+    body: JSON.stringify({ agent_id: 'atlas', kind: 'meta_inhaalslag', payload: payload || {} }) }), env);
+  await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+  await new Promise(r => setTimeout(r, 120));
+  return {
+    rijen: db.meta_insights_daily,
+    vervolg: db.agent_jobs.filter(j => j.kind === 'meta_inhaalslag' && j.status === 'queued'),
+    run: db.agent_runs[db.agent_runs.length - 1]
+  };
+};
+
+/* Het echte gat: 6 oktober tot 2 februari, 120 dagen, met Black Friday erin. */
+const HET_GAT = [{ account_id: '242238038391551', brand: 'wellshave',
+                   van: '2025-10-06', tot: '2026-02-02', dagen: 120 }];
+
+console.log('\n  de inhaalslag haalt precies het gat op');
+let g = await inhaal({}, HET_GAT, [{ brand: 'wellshave', dagen_ontbreken: 57, grootste_gat_dagen: 49 }]);
+const advertentievensters = vensters.filter(v => v.level === 'ad')
+  .sort((a, b) => a.since < b.since ? -1 : 1);
+check('hij begint op de eerste dag van het gat',
+  advertentievensters[0].since, '2025-10-06');
+check('en eindigt op de laatste',
+  advertentievensters[advertentievensters.length - 1].until, '2026-02-02');
+/* Zonder deze controle zou hij ook "de laatste 300 dagen" kunnen ophalen en
+   toevallig groen zijn -- terwijl hij dan tien keer zoveel werk doet en niet
+   na te rekenen is welk stuk aan de beurt was. */
+check('en niets buiten het gat',
+  advertentievensters.every(v => v.since >= '2025-10-06' && v.until <= '2026-02-02'), true);
+check('in stukken van hooguit 30 dagen',
+  advertentievensters.every(v =>
+    Math.round((new Date(v.until) - new Date(v.since)) / DAG) + 1 <= 30), true);
+check('de stukken sluiten op elkaar aan',
+  advertentievensters.every((v, i) => i === 0 ||
+    Math.round((new Date(v.since) - new Date(advertentievensters[i - 1].until)) / DAG) === 1), true);
+check('alles per dag uitgesplitst', vroegPerDag, true);
+
+console.log('\n  en haalt ook accountniveau op');
+/* Zonder accountcijfer per dag kan meta_meetdag (0049) niet narekenen of een
+   dag compleet is. Mutatietest: haal 'account' uit de lus en deze valt om. */
+check('er zijn ook accountvensters gevraagd',
+  vensters.some(v => v.level === 'account'), true);
+check('over hetzelfde gat',
+  vensters.filter(v => v.level === 'account')
+    .every(v => v.since >= '2025-10-06' && v.until <= '2026-02-02'), true);
+check('en beide niveaus staan in de dagtabel',
+  new Set(g.rijen.map(r => r.level)).size, 2);
+
+console.log('\n  hij zet zichzelf terug in de rij zolang er gaten zijn');
+check('er staat een vervolgopdracht klaar', g.vervolg.length, 1);
+check('van dezelfde soort', g.vervolg[0] && g.vervolg[0].kind, 'meta_inhaalslag');
+check('en de samenvatting noemt wat er nog te gaan is',
+  /Nog 57 dag\(en\) ontbreken/.test(g.run && g.run.summary || ''), true);
+
+console.log('\n  en stopt zodra er niets meer ontbreekt');
+g = await inhaal({}, HET_GAT, [{ brand: 'wellshave', dagen_ontbreken: 0, grootste_gat_dagen: 0 }]);
+check('geen vervolgopdracht meer', g.vervolg.length, 0);
+check('en hij zegt dat het klaar is',
+  /Geen ontbrekende dagen meer/.test(g.run && g.run.summary || ''), true);
+
+console.log('\n  zonder gaten doet hij niets');
+g = await inhaal({}, [], [{ brand: 'wellshave', dagen_ontbreken: 0 }]);
+check('er wordt niets opgehaald', vensters.length, 0);
+check('en niets weggeschreven', g.rijen.length, 0);
+
+console.log('\n  een handmatig venster mag, maar dan expliciet');
+g = await inhaal({ van: '2025-11-24', tot: '2025-12-01' }, HET_GAT,
+                 [{ brand: 'wellshave', dagen_ontbreken: 0 }]);
+const handmatig = vensters.filter(v => v.level === 'ad');
+check('hij volgt het opgegeven venster', handmatig[0].since, '2025-11-24');
+check('en niet het gat uit de database', handmatig[0].since !== '2025-10-06', true);
 
 console.log('');
 console.log(fouten === 0 ? 'Alles klopt' : `${fouten} controle(s) mislukt`);

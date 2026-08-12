@@ -69,7 +69,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
 | `worker/test/paginatie.mjs` | Testlus voor het ophalen bij Meta — 22 controles; de nagemaakte Meta geeft hier wél een `paging.next` én weigert een te groot venster zoals de echte, want zonder allebei bewees geen enkele test dat een inhaalslag over 400 dagen compleet binnenkomt |
 | `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
-| `worker/test/dagrijen.mjs` | Alleen dagen mogen in de dagtabel — 19 controles; de nagemaakte Meta geeft hier één rij per dag mét `time_increment` en één rij voor het hele venster zonder, want een stub die dat verschil niet maakt kan de fout van 12 juli per definitie niet vangen |
+| `worker/test/dagrijen.mjs` | Alleen dagen mogen in de dagtabel, plus de inhaalslag — 37 controles; de nagemaakte Meta geeft hier één rij per dag mét `time_increment` en één rij voor het hele venster zonder, want een stub die dat verschil niet maakt kan de fout van 12 juli per definitie niet vangen. De kern van het tweede deel is dat de inhaalslag precies het gat uit `meta_meetgaten` ophaalt en niets daarbuiten, ook accountniveau meeneemt zodat 0049 kan narekenen, en zichzelf terugzet in de rij zolang er dagen ontbreken |
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
 | `worker/test/bolt.mjs` | Testlus voor Bolt in de runtime — 31 controles; de kern is dat er geen weg naar buiten is |
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |

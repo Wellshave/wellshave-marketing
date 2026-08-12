@@ -49,7 +49,7 @@
    iets is aangepast, dan draait er oude code. */
 const VERSIE = 14;
 const VERSIE_DATUM = '2026-08-12';
-const VERSIE_WAT = 'een periodetotaal komt niet meer in de dagtabel terecht: per dag is voortaan de standaard, en zonder uitsplitsing wordt er niets weggeschreven';
+const VERSIE_WAT = 'een periodetotaal komt niet meer in de dagtabel terecht (per dag is voortaan de standaard), plus meta_inhaalslag: een systeemtaak die ontbrekende dagen ophaalt uit de gaten die 0049 aanwijst';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -945,11 +945,32 @@ function metaVenster(days) {
    dagen. De dagelijkse run van zeven dagen houdt dus exact één verzoek, precies
    zoals hij had -- een reparatie die het normale geval verandert, repareert
    niet maar verplaatst. */
-function vensterStukken(days, perDag) {
+function vensterStukken(days, perDag, expliciet) {
+  var dag = function (d) { return d.toISOString().slice(0, 10); };
+
+  /* Een expliciet venster is voor de inhaalslag: die haalt precies één gat op
+     dat ergens in het verleden ligt, en niet "de laatste N dagen tot vandaag".
+     Zonder dit zou een gat van 120 dagen in oktober alleen te vullen zijn door
+     alles sinds oktober opnieuw op te halen -- dat werkt (de upsert is
+     idempotent) maar het duurt tien keer zo lang en het is niet na te rekenen
+     welk stuk nu eigenlijk aan de beurt was. */
+  if (expliciet && expliciet.since && expliciet.until) {
+    var s = new Date(expliciet.since + 'T00:00:00Z');
+    var e = new Date(expliciet.until + 'T00:00:00Z');
+    if (!perDag) return [JSON.stringify({ since: dag(s), until: dag(e) })];
+    var uit = [];
+    var c = new Date(s.getTime());
+    while (c <= e && uit.length < 30) {
+      var t = new Date(Math.min(c.getTime() + 29 * 86400000, e.getTime()));
+      uit.push(JSON.stringify({ since: dag(c), until: dag(t) }));
+      c = new Date(t.getTime() + 86400000);
+    }
+    return uit;
+  }
+
   var n = Math.max(1, Math.min(Number(days) || 7, 400));
   if (!perDag || n <= 45) return [metaVenster(n)];
 
-  var dag = function (d) { return d.toISOString().slice(0, 10); };
   var eind = new Date();
   var start = new Date(eind.getTime() - (n - 1) * 86400000);
   var stukken = [];
@@ -969,7 +990,7 @@ function vensterStukken(days, perDag) {
   return stukken;
 }
 
-async function metaInsights(env, level, days, perDag, accountId, ctx) {
+async function metaInsights(env, level, days, perDag, accountId, ctx, venster) {
   const account = kaalAccount(accountId || env.META_AD_ACCOUNT_ID);
   const velden = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks',
     'ctr', 'cpc', 'cpm', 'actions', 'action_values', 'purchase_roas',
@@ -1019,7 +1040,7 @@ async function metaInsights(env, level, days, perDag, accountId, ctx) {
   let lijst = velden.slice();
   const gesneuveld = [];
   const rijen = [];
-  const stukken = vensterStukken(days, perDag);
+  const stukken = vensterStukken(days, perDag, venster);
   const mislukt = [];
 
   for (const venster of stukken) {
@@ -1566,6 +1587,107 @@ const SYSTEEMTAKEN = {
         + `${uit.status_bijgewerkt} van status veranderd`
         + (patronen.length ? `. Sterkste hoek: ${patronen[0].angle_type}.` : '.'),
       ...uit
+    };
+  },
+
+  /* De inhaalslag: ontbrekende dagen alsnog ophalen.
+   *
+   * Waarom dit een systeemtaak is en geen opdracht aan Atlas
+   *
+   *   Atlas' instructie zegt "gisteren én de drie dagen daarvoor". Wie 177
+   *   dagen wil inhalen moet dus hopen dat het model de payload zwaarder weegt
+   *   dan zijn eigen instructie. Dat is geen manier om een gat van vier
+   *   maanden te vullen -- en als het misgaat, gaat het stil mis.
+   *
+   *   Er valt hier ook niets te oordelen. Welke dagen ontbreken staat in
+   *   meta_meetgaten; wat er opgehaald moet worden volgt daaruit. Mechaniek
+   *   hoort in code, niet in een prompt.
+   *
+   * Waarom één blok per run
+   *
+   *   Een Worker-run heeft beperkte tijd, en 177 dagen × twee niveaus ×
+   *   honderden advertenties past daar niet in. De wachtrij is precies
+   *   daarvoor gemaakt: deze taak doet één aaneengesloten gat en zet zichzelf
+   *   terug in de rij als er meer zijn. Valt hij halverwege om, dan is wat
+   *   binnen is binnen en pakt de volgende tick de rest.
+   *
+   * Waarom ook accountniveau
+   *
+   *   Zonder accountcijfer per dag kan meta_meetdag (0049) niet narekenen of
+   *   een dag compleet is -- dan is er weer geen noemer die niet van onszelf
+   *   komt. Het is één rij per dag; dat kost bijna niets en het is het enige
+   *   wat achteraf bewijst dat de inhaalslag klopt.
+   */
+  async meta_inhaalslag(env, ctx, payload) {
+    if (!env.META_ACCESS_TOKEN) {
+      return { summary: 'Meta is niet gekoppeld op deze worker; er is niets opgehaald.' };
+    }
+
+    /* Het gat komt uit de database en niet uit de payload. Een handmatig
+       venster mag, maar dan expliciet -- anders haalt iemand ooit "de laatste
+       30 dagen" op en denkt dat de historie klaar is. */
+    let blok = null;
+    if (payload.van && payload.tot) {
+      blok = { account_id: payload.account || null, van: payload.van, tot: payload.tot };
+    } else {
+      const gaten = await sbSelect(env, 'meta_meetgaten',
+        'select=account_id,brand,van,tot,dagen&order=dagen.desc,van.asc&limit=1');
+      if (!gaten.length) {
+        return { summary: 'Geen ontbrekende dagen meer; de inhaalslag is klaar.', klaar: true };
+      }
+      blok = gaten[0];
+    }
+
+    const lijst = await actieveAccounts(env, blok.account_id || payload.account);
+    const venster = { since: blok.van, until: blok.tot };
+    const per_account = [];
+    let totaal = 0;
+
+    for (const acc of lijst) {
+      for (const niveau of ['ad', 'account']) {
+        let rows;
+        try {
+          rows = await metaInsights(env, niveau, 0, true, acc.account_id, ctx, venster);
+        } catch (e) {
+          await logEvent(env, ctx, 'warn',
+            `Inhaalslag ${niveau} mislukt voor ${acc.naam} (${blok.van} t/m ${blok.tot})`,
+            { fout: String(e && e.message || e) });
+          continue;
+        }
+        if (rows.length) {
+          await sbInsert(env, 'meta_insights_daily', rows,
+            { onConflict: 'insight_date,account_id,level,entity_id' });
+        }
+        totaal += rows.length;
+        per_account.push({ account: acc.naam, niveau: niveau, rijen: rows.length });
+      }
+    }
+
+    /* Meteen nakijken. Een inhaalslag die zegt "klaar" terwijl de helft
+       ontbreekt is precies de storing die dit hele bestand moest wegnemen. */
+    const na = await sbSelect(env, 'meta_meetdekking',
+      'select=brand,dagen_ontbreken,grootste_gat_dagen,toestand');
+    const restant = na.reduce((n, r) => n + (Number(r.dagen_ontbreken) || 0), 0);
+
+    if (restant > 0) {
+      await sbInsert(env, 'agent_jobs', {
+        agent_id: ctx.agentId, kind: 'meta_inhaalslag', payload: {},
+        source: 'systeem', priority: 7,
+        scheduled_for: new Date(Date.now() + 60000).toISOString()
+      });
+    }
+
+    await logEvent(env, ctx, restant > 0 ? 'info' : 'info',
+      `Inhaalslag ${blok.van} t/m ${blok.tot}: ${totaal} rijen; nog ${restant} dagen te gaan`,
+      { blok: blok, per_account: per_account, restant: restant });
+
+    return {
+      summary: `${blok.van} t/m ${blok.tot} opgehaald (${totaal} rijen). `
+        + (restant > 0
+            ? `Nog ${restant} dag(en) ontbreken; volgende blok staat in de rij.`
+            : 'Geen ontbrekende dagen meer.'),
+      blok: blok, rijen: totaal, per_account: per_account,
+      dagen_nog_ontbrekend: restant, klaar: restant === 0
     };
   }
 };
