@@ -36,6 +36,10 @@
   (54 → 31 varianten). Vandaag staat de teller op 42. Die reeks is geen
   strategie maar een onbetrouwbare telling — ingetrokken als conclusie.
 - 📧 E-mailkanaal dag 61; lijst **+11 naar 4.378**.
+- 🔐 **Morgen op te leveren:** inventaris van elke tool die de cyclus
+  aanroept, zodat de Routine-instellingen op claude.ai ingevuld kunnen
+  worden — zie [[Inbox/Permissie-inventarisatie]]. De repo-allowlist blijkt
+  niet gelezen te worden; de knop zit buiten git.
 - ⚠️ Supabase (`marketing_hq`) nog altijd niet bijgewerkt — geen
   DB-connector, zie [[Log/Activity|Activiteitenlog]].
 

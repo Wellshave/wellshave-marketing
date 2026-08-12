@@ -4,6 +4,12 @@
 > een regel (nieuwste bovenaan). De volledige historie staat in Supabase
 > (`marketing_hq.agent_runs` en `agent_messages`).
 
+- **2026-08-12** · Systeem · Opdracht vastgelegd voor de run van 13/8:
+  inventariseer elke aangeroepen tool-identifier, zodat die lijst tegen de
+  Routine-instellingen op claude.ai gelegd kan worden. Zie
+  `brain/Inbox/Permissie-inventarisatie.md`. Kanttekening daarin: van
+  binnenuit is niet waar te nemen óf een prompt verscheen — wel exact wélke
+  tools worden aangeroepen.
 - **2026-08-12** · Systeem · Supabase-schrijftoegang nog steeds niet
   beschikbaar; alleen het brein bijgewerkt. Datapulls opnieuw direct
   uitgevoerd (geen subagents) — dat werkt betrouwbaar.
