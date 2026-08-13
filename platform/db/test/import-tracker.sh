@@ -1112,5 +1112,99 @@ check "hq_map_gaten_totaal ook"                   "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_map_gaten_totaal limit 1;" | grep -o 'ok' | head -1)"
 
 echo
+echo "  0048: wat maakt deze advertentie tot wat hij is"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0048_deconstructie.sql" >/dev/null 2>&1
+check "0048 draait zonder fout" "0" "$?"
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, primary_character, source, confidence,
+   invariants, flexible)
+select id, 'Founder Story',
+  'The founder explains why he created Wellshave after being dissatisfied with existing grooming products.',
+  'Dustin Gibson (founder)', 'copy+image', 'high',
+  '[{"element":"Founder","why":"de geloofwaardigheid hangt aan een echt persoon"},
+    {"element":"First person narrative","why":"derde persoon maakt er een testimonial van"},
+    {"element":"Founder imagery","why":"een model breekt de belofte van echtheid"}]'::jsonb,
+  '[{"element":"Headline","why":"vrij"},{"element":"CTA","why":"vrij"},{"element":"Layout","why":"vrij"}]'::jsonb
+from public.creatives where ad_name = '061-3';
+SQL
+
+check "de lezing staat er"                    "Founder Story" \
+  "$(q "select creative_type from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+# Het scherm krijgt platte namen; de reden blijft in de backend beschikbaar.
+check "Keep is een lijst met namen"           "{Founder,\"First person narrative\",\"Founder imagery\"}" \
+  "$(q "select keep::text from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "Flexible ook"                          "{Headline,CTA,Layout}" \
+  "$(q "select flexible::text from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en de reden blijft beschikbaar"        "t" \
+  "$(q "select keep_detail::text like '%echt persoon%' from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "er is iets beschermd"                  "f" \
+  "$(q "select nothing_protected from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+# Waar de lezing op rust hoort zichtbaar te zijn: zonder beeld is een Founder
+# Story maar half gelezen.
+check "de bron staat erbij"                   "copy+image" \
+  "$(q "select source from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+
+# Een lezing zonder invariants laat een iteratie alles veranderen. Dat mag niet
+# stil blijven -- dan verdwijnt precies de bescherming waarvoor deze laag bestaat.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, invariants)
+select id, 'Product Demo', 'Laat het product zien', '[]'::jsonb
+from public.creatives where ad_name = '058-3';
+SQL
+check "niets beschermd valt op"               "t" \
+  "$(q "select nothing_protected from marketing_hq.iteration_understanding where ad_name = '058-3'")"
+
+# Een nieuwe lezing vervangt de oude in beeld, maar de oude blijft bestaan --
+# anders is niet te zien dat het oordeel veranderd is.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, source, analysed_at, invariants)
+select id, 'Founder Story', 'Herzien met het beeld erbij', 'copy+image', now() + interval '1 hour',
+  '[{"element":"Founder","why":"bevestigd op het beeld"}]'::jsonb
+from public.creatives where ad_name = '061-3';
+SQL
+check "de nieuwste lezing telt"               "Herzien met het beeld erbij" \
+  "$(q "select core_concept from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en de oude blijft bewaard"             "2" \
+  "$(q "select count(*) from marketing_hq.creative_deconstructions d
+         join public.creatives c on c.id = d.creative_id where c.ad_name = '061-3'")"
+check "één rij per creative in het scherm"    "1" \
+  "$(q "select count(*) from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+
+# Afkeuren haalt een lezing uit beeld zonder hem te wissen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+update marketing_hq.creative_deconstructions
+   set rejected_at = now(), rejected_reason = 'de AI zag een founder waar een model staat'
+ where core_concept = 'Herzien met het beeld erbij';
+SQL
+check "een afgekeurde lezing telt niet meer"  "Founder Story" \
+  "$(q "select creative_type from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "maar valt terug op de vorige"          "t" \
+  "$(q "select core_concept like 'The founder explains%' from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en blijft in de tabel staan"           "2" \
+  "$(q "select count(*) from marketing_hq.creative_deconstructions d
+         join public.creatives c on c.id = d.creative_id where c.ad_name = '061-3'")"
+
+# Vorm afdwingen op de database: een model dat een string teruggeeft in plaats
+# van een lijst hoort te stuiten, niet stil een leeg scherm op te leveren.
+check "invariants moet een lijst zijn" "ja" \
+  "$(weigert "insert into marketing_hq.creative_deconstructions (creative_id, creative_type, core_concept, invariants)
+              select id, 'X', 'Y', '\"Founder\"'::jsonb from public.creatives where ad_name='058-3'" \
+             "deconstructie_invariants_is_lijst")"
+check "afkeuren zonder reden mag niet" "ja" \
+  "$(weigert "update marketing_hq.creative_deconstructions set rejected_at = now() where core_concept = 'Laat het product zien'" \
+             "deconstructie_afkeuring_heeft_reden")"
+# De deconstructie is de lezing van de AI, niet die van het team. Hij mag
+# public.creatives dus niet aanraken.
+check "creatives.persona blijft ongemoeid" "LEEG" \
+  "$(q "select coalesce(persona,'LEEG') from public.creatives where ad_name = 'C1 - 4 Reasons Why'")"
+
+check "hq_iteration_understanding is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_iteration_understanding limit 1;" | grep -o 'ok' | head -1)"
+
+echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"
 exit $((fout > 0))
