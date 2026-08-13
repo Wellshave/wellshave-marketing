@@ -398,6 +398,63 @@ status.
 **Regel 6b.6** De donkere zijbalk tegen het lichte canvas blijft. Dat is de
 opbouw die de console al heeft, en die twee van de vier referenties bevestigen.
 
+## 6c. Groepering — wat hoort bij wat
+
+Regel 6.1 zegt hoevéél ruimte er is. Die schaal stond er al, en toch las het
+scherm als één lange lap. Dat komt doordat de schaal niets zegt over waar de
+ruimte hoort te vallen: als elke afstand 12px is, vertelt geen enkele afstand
+je iets. Ruimte is geen decoratie maar de goedkoopste vorm van uitleg, en dit
+hoofdstuk legt vast dat ze die uitleg ook moet geven.
+
+De aanleiding is gemeten, niet aangevoeld. Op het Statics-scherm gold:
+
+| grens | binnen een groep | tussen groepen |
+|---|---|---|
+| navigatie in de zijbalk | 2px | 2px |
+| de drie kolommen van het werkscherm | 12px | 14px |
+| `Stap 2`-label en de kaart die het benoemt | 12px eronder | 16px erboven |
+
+**Regel 6c.1** De ruimte tússen twee groepen is minstens het dubbele van de
+ruimte bínnen een groep. Uit dezelfde schaal als 6.1: 12px binnen, 24px of 32px
+ertussen. Gelijke afstanden zijn geen neutrale keuze — ze beweren actief dat
+alles even veel met elkaar te maken heeft.
+
+**Regel 6c.2** Elke groepsgrens heeft één zichtbare naad, en precies één: een
+haarlijn van 1px, óf een ander vlak, óf een rand om een kaart. Twee naden op
+dezelfde grens (een lijn ín een omkaderd vlak) verdubbelen het signaal zonder
+de informatie te verdubbelen; nul naden laat de lezer raden.
+
+**Regel 6c.3** Een kop hoort bij wat eronder staat en bewijst dat met ruimte:
+de afstand van kop naar het benoemde is hoogstens de helft van de afstand van
+de kop naar wat erboven staat. Een kop die even ver van beide staat, is
+zwevend — hij lijkt bij het vorige blok te horen en benoemt het volgende.
+
+**Regel 6c.4** Nesten gaat twee niveaus diep, niet meer, en het binnenste
+niveau herhaalt de behandeling van het buitenste niet. Buiten: `--surface` met
+rand en zachte schaduw. Binnen: `--surface-2` met rand, zonder schaduw. Een
+kaart in een kaart met hetzelfde vlak, dezelfde radius en dezelfde schaduw
+leest als een buurman, niet als inhoud.
+
+**Regel 6c.5** Eén labelstijl per niveau. De kleine, vervaagde kapitalen zijn
+voorbehouden aan het hoogste niveau — groepen in de zijbalk en de kop van een
+kolom. Wordt diezelfde stijl ook binnen een paneel gebruikt, dan is er geen
+verschil meer tussen "dit is een zone" en "dit is een veldje in een zone".
+
+**Regel 6c.6** Een kolom van een werkscherm draagt bovenaan zijn eigen naam met
+een lijn eronder. De lijn is de belofte: alles hieronder in deze kolom is
+hetzelfde soort werk. Drie naamloze kolommen naast elkaar zijn drie
+verzamelingen kaarten.
+
+### Wat hier nog niet klopt
+
+Regel 6b.1 schrijft radius 8 / 12 / 18 / 999 voor. De lagen doen het anders:
+`08-atelier-v6-daylight.css` zet `--radius: 14px` en `--radius-lg: 22px`,
+`11-atelier-v8-studio.css` gebruikt 16px voor kaarten. Dat is een echte
+afwijking en geen vergissing in dit hoofdstuk. Ze rechttrekken raakt twintig
+gestapelde css-lagen tegelijk en hoort een eigen wijziging te zijn, met eigen
+bewijs dat er niets omvalt. Tot dan staat het hier, zichtbaar, in plaats van
+dat het contract doet alsof het al klopt.
+
 ## 7. Beweging
 
 **Regel 7.1** 150–300ms. Boven 500ms is het in de weg.

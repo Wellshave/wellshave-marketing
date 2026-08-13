@@ -47,9 +47,14 @@
    Ophogen bij elke deploy die gedrag verandert. VERSIE_DATUM is de datum van de
    wijziging, niet van de deploy -- staat die ver in het verleden terwijl er net
    iets is aangepast, dan draait er oude code. */
-const VERSIE = 14;
-const VERSIE_DATUM = '2026-08-12';
-const VERSIE_WAT = 'een periodetotaal komt niet meer in de dagtabel terecht (per dag is voortaan de standaard), plus meta_inhaalslag: een systeemtaak die ontbrekende dagen ophaalt uit de gaten die 0049 aanwijst';
+/* Twee takken kwamen allebei op 14 uit en dat is precies wat dit nummer moet
+   voorkomen: vanmiddag stond er twee keer achter elkaar "versie 14" op /health
+   terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
+   er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
+   nummer. */
+const VERSIE = 15;
+const VERSIE_DATUM = '2026-08-13';
+const VERSIE_WAT = 'Creative Deconstruction (eerst lezen wat een advertentie is, dan pas genereren), plus: een periodetotaal komt niet meer in de dagtabel terecht en meta_inhaalslag haalt ontbrekende dagen op uit de gaten die 0049 aanwijst';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1507,6 +1512,196 @@ async function claude(env, body) {
   return data;
 }
 
+/* ── Creative Deconstruction ────────────────────────────────────────────────
+   Wat maakt deze advertentie tot wat hij is, en wat mag een iteratie niet
+   aanraken.
+
+   De opdracht aan het model is bewust smal: alleen lezen, niet oordelen. Geen
+   "dit zou beter kunnen", geen aanbeveling, geen cijfers. Zodra een lezing ook
+   een mening bevat, gaat de volgende stap op die mening bouwen in plaats van
+   op wat er staat.
+
+   De invariants zijn het punt van deze hele laag. Een Founder Story die tijdens
+   een iteratie een willekeurig model krijgt, is geen iteratie meer -- het is een
+   andere advertentie met dezelfde naam, en de cijfers die eruit komen gaan over
+   iets anders dan wat er getest werd. */
+const DECONSTRUCT_SCHEMA = {
+  name: 'creative_deconstruction',
+  description: 'Vastleggen wat er in een bestaande advertentie zit. Alleen beschrijven wat er is; niet beoordelen, niet verbeteren.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      creative_type: { type: 'string', description: 'Het soort advertentie in twee of drie woorden, bijvoorbeeld "Founder Story", "Product Demo", "Customer Testimonial".' },
+      core_concept: { type: 'string', description: 'Het idee in één zin, zoals je het aan een collega zou uitleggen. Geen marketingtaal.' },
+      target_persona: { type: 'string' },
+      awareness_level: { type: 'string' },
+      marketing_angle: { type: 'string' },
+      core_messaging: { type: 'string' },
+      hook: { type: 'string' },
+      narrative_perspective: { type: 'string', description: 'Bijvoorbeeld first person, third person, direct address.' },
+      primary_character: { type: 'string', description: 'Wie er aan het woord is of te zien is. "Niemand" als er geen persoon in zit.' },
+      visual_role: { type: 'string', description: 'Wat het beeld doet: bewijzen, tonen, sfeer zetten.' },
+      proof_mechanism: { type: 'string' },
+      offer: { type: 'string' },
+      cta: { type: 'string' },
+      emotional_driver: { type: 'string' },
+      invariants: {
+        type: 'array',
+        description: 'De elementen die het concept dragen. Verander je er één, dan is het een ander concept. Wees streng: hoe langer deze lijst, hoe minder ruimte een iteratie heeft.',
+        items: {
+          type: 'object',
+          properties: {
+            element: { type: 'string', description: 'Kort, twee of drie woorden.' },
+            why: { type: 'string', description: 'Waarom het concept hierop staat of valt. Eén zin.' }
+          },
+          required: ['element', 'why']
+        }
+      },
+      flexible: {
+        type: 'array',
+        description: 'De elementen die vrij zijn om te variëren zonder het concept te raken.',
+        items: {
+          type: 'object',
+          properties: {
+            element: { type: 'string' },
+            why: { type: 'string' }
+          },
+          required: ['element', 'why']
+        }
+      },
+      confidence: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Hoe zeker deze lezing is gegeven wat je te zien kreeg.' }
+    },
+    required: ['creative_type', 'core_concept', 'invariants', 'flexible', 'confidence']
+  }
+};
+
+async function deconstrueer(env, c, gebruiker) {
+  /* Wat er te lezen valt. Een lezing op alleen tekst is smaller dan een met
+     beeld, en bij een Founder Story zit de helft van het bewijs in het gezicht.
+     Dat verschil wordt vastgelegd zodat een halve lezing niet net zo stellig
+     oogt als een hele. */
+  const heeftBeeld = !!(c.image_b64 || c.has_image);
+  const bron = heeftBeeld ? 'copy+image' : 'copy';
+
+  /* De naam en het product zijn context, geen inhoud. Een creative die alleen
+     "WS - 200 - 2" heet valt niets aan af te lezen, en een model dat er tóch
+     een concept bij verzint is erger dan een weigering: het levert een lezing
+     op die eruitziet als een lezing. Daarom tellen ze wel mee in de prompt,
+     maar niet als bewijs dat er iets te lezen valt. */
+  const inhoudsvelden = [c.hook_short, c.primary_text, c.headline, c.description, c.notes, c.marketing_angle]
+    .filter(v => typeof v === 'string' && v.trim());
+
+  const tekst = [
+    c.ad_name        ? `Ad name: ${c.ad_name}` : '',
+    c.product        ? `Product: ${c.product}` : '',
+    c.hook_short     ? `Hook: ${c.hook_short}` : '',
+    c.marketing_angle? `Angle: ${c.marketing_angle}` : '',
+    c.primary_text   ? `Primary text: ${c.primary_text}` : '',
+    c.headline       ? `Headline: ${c.headline}` : '',
+    c.description    ? `Description: ${c.description}` : '',
+    c.notes          ? `Notes: ${c.notes}` : ''
+  ].filter(Boolean).join('\n');
+
+  if (!inhoudsvelden.length && !heeftBeeld) {
+    return { error: 'deze creative heeft geen tekst en geen beeld om te lezen' };
+  }
+
+  const inhoud = [{ type: 'text', text: tekst || '(geen tekst beschikbaar)' }];
+  if (c.image_b64) {
+    inhoud.unshift({
+      type: 'image',
+      source: { type: 'base64', media_type: c.image_mime || 'image/png', data: c.image_b64 }
+    });
+  }
+
+  const systeem = `Je leest bestaande advertenties en legt vast wat erin zit.
+
+Je beschrijft, je beoordeelt niet. Geen "dit zou sterker kunnen", geen advies,
+geen cijfers. Alleen: wat is dit voor advertentie, en waar staat of valt het
+idee mee.
+
+Over invariants: dat zijn de elementen die het concept dragen. Bij een Founder
+Story zijn dat bijvoorbeeld de founder zelf, zijn beeld, en het eerste-persoons
+perspectief -- vervang de founder door een model en het is geen founder story
+meer. Wees streng en kort: hoe langer die lijst, hoe minder ruimte er overblijft
+om te itereren. Noem alleen wat werkelijk breekt als je het weghaalt.
+
+Kun je iets niet vaststellen, laat het veld dan leeg in plaats van te gokken.
+Zet je zekerheid op 'low' als je alleen tekst kreeg en het concept om beeld
+draait.`;
+
+  let antwoord;
+  try {
+    antwoord = await claude(env, {
+      max_tokens: 2000,
+      system: systeem,
+      tools: [DECONSTRUCT_SCHEMA],
+      tool_choice: { type: 'tool', name: 'creative_deconstruction' },
+      messages: [{ role: 'user', content: inhoud }]
+    });
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+
+  const blok = (antwoord.content || []).find(b => b.type === 'tool_use');
+  if (!blok || !blok.input) return { error: 'het model gaf geen bruikbare lezing terug' };
+  const d = blok.input;
+
+  /* Vorm nakijken vóór opslaan. Het schema vraagt om lijsten, maar een model
+     dat er een string van maakt hoort hier te stuiten en niet pas op de
+     database-constraint -- daar is de melding onleesbaar. */
+  if (!Array.isArray(d.invariants) || !Array.isArray(d.flexible)) {
+    return { error: 'het model gaf invariants of flexible niet als lijst terug' };
+  }
+  const schoon = (lijst) => lijst
+    .filter(e => e && typeof e.element === 'string' && e.element.trim())
+    .map(e => ({ element: String(e.element).trim(), why: String(e.why || '').trim() }));
+
+  const rij = {
+    creative_id: c.id,
+    creative_type: d.creative_type,
+    core_concept: d.core_concept,
+    target_persona: d.target_persona || null,
+    awareness_level: d.awareness_level || null,
+    marketing_angle: d.marketing_angle || null,
+    core_messaging: d.core_messaging || null,
+    hook: d.hook || null,
+    narrative_perspective: d.narrative_perspective || null,
+    primary_character: d.primary_character || null,
+    visual_role: d.visual_role || null,
+    proof_mechanism: d.proof_mechanism || null,
+    offer: d.offer || null,
+    cta: d.cta || null,
+    emotional_driver: d.emotional_driver || null,
+    invariants: schoon(d.invariants),
+    flexible: schoon(d.flexible),
+    source: bron,
+    confidence: ['low', 'medium', 'high'].includes(d.confidence) ? d.confidence : null,
+    model: (antwoord.model || MODEL),
+    analysed_by: (gebruiker && gebruiker.id) || null
+  };
+
+  const bewaard = await sbInsert(env, 'creative_deconstructions', [rij]);
+  const opgeslagen = (bewaard && bewaard[0]) || rij;
+
+  return {
+    ok: true,
+    deconstruction_id: opgeslagen.id || null,
+    creative_id: c.id,
+    creative_type: rij.creative_type,
+    core_concept: rij.core_concept,
+    source: rij.source,
+    confidence: rij.confidence,
+    keep: rij.invariants.map(e => e.element),
+    flexible: rij.flexible.map(e => e.element),
+    keep_detail: rij.invariants,
+    flexible_detail: rij.flexible,
+    /* Geen invariants betekent dat een iteratie alles mag veranderen. Dat is
+       zelden waar en nooit iets om stil te laten. */
+    nothing_protected: rij.invariants.length === 0
+  };
+}
+
 async function logEvent(env, ctx, level, message, data) {
   try {
     await sbInsert(env, 'agent_events', {
@@ -1976,7 +2171,10 @@ async function lid(request) {
         if (r2.ok) {
           const rows = await r2.json();
           if (rows && rows[0] && rows[0].status === 'approved') {
-            uit = { exp: now + 60000, ok: true, email: u.email || null, role: rows[0].role || 'member' };
+            /* id erbij: wie een lezing opvraagt hoort vastgelegd te worden.
+               Alleen toegevoegd, nooit verwijderd -- elke bestaande lezer van
+               dit object blijft werken. */
+            uit = { exp: now + 60000, ok: true, id: u.id, email: u.email || null, role: rows[0].role || 'member' };
           }
         }
       }
@@ -2037,6 +2235,45 @@ export default {
 
     const gebruiker = await lid(request);
     if (!gebruiker) return json({ ok: false, error: 'unauthorized', hint: 'Log in in de Atelier Console met een goedgekeurd teamaccount.' }, 401);
+
+    /* ---- Creative Deconstruction ----
+       Lezen wat een bestaande advertentie ís, vóór er iets gegenereerd wordt.
+
+       Waarom dit in de worker zit en niet in de console: de sleutel blijft hier.
+       De console vraagt het aan met zijn login, de worker praat met Claude.
+
+       Waarom een eigen route en geen agent-job: dit is een synchrone vraag van
+       een mens die op een scherm wacht, geen geplande taak. Een job in de
+       wachtrij zou tot vijf minuten duren en dan is het scherm allang gesloten.
+
+       Deze route schrijft alleen in creative_deconstructions. Hij raakt
+       public.creatives niet aan -- dat is wat het team noteerde, dit is wat de
+       AI leest, en die twee horen naast elkaar te staan. */
+    if (path === '/creative/deconstruct' && request.method === 'POST') {
+      if (!env.SUPABASE_SERVICE_KEY) return json({ error: 'SUPABASE_SERVICE_KEY ontbreekt op deze worker' }, 500);
+      if (!env.ANTHROPIC_KEY)        return json({ error: 'ANTHROPIC_KEY ontbreekt op deze worker' }, 500);
+
+      const body = await request.json().catch(() => ({}));
+      const creativeId = Number(body.creative_id);
+      if (!creativeId) return json({ error: 'creative_id ontbreekt' }, 400);
+
+      const rijen = await sbSelect(env, 'creatives', `id=eq.${creativeId}&select=*`);
+      const c = rijen && rijen[0];
+      if (!c) return json({ error: `creative ${creativeId} bestaat niet` }, 404);
+
+      /* Een model kan elke vorm teruggeven. De vangnetten in deconstrueer()
+         dekken de vormen die we kennen; deze vangt de rest. Zonder dit valt de
+         route om op een onverwachte structuur en krijgt het scherm een kale 500
+         zonder uitleg -- en dan lijkt het alsof de worker stuk is in plaats van
+         dat het model iets raars zei. */
+      let uit;
+      try {
+        uit = await deconstrueer(env, c, gebruiker);
+      } catch (e) {
+        uit = { error: 'de lezing liep vast: ' + String((e && e.message) || e).slice(0, 200) };
+      }
+      return json(uit, uit.error ? 502 : 200);
+    }
 
     /* ---- Agent-API ---- */
     if (path.startsWith('/agents')) {

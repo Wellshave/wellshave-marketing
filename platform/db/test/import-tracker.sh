@@ -1112,7 +1112,7 @@ check "hq_map_gaten_totaal ook"                   "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_map_gaten_totaal limit 1;" | grep -o 'ok' | head -1)"
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 0048 — de analysekaart
+# 0050 — de analysekaart
 #
 # Deze reeks draait op een eigen, gecontroleerde set rijen (bron_bestand
 # 'kaarttest'). De geïmporteerde sheetrijen staan er nog, maar elke controle
@@ -1124,9 +1124,9 @@ check "hq_map_gaten_totaal ook"                   "ok" \
 # productie, alleen klein genoeg om met de hand na te rekenen.
 # ═══════════════════════════════════════════════════════════════════════════
 echo
-echo "  0048: de analysekaart"
-psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0048_kruistabel.sql" >/dev/null 2>&1
-check "0048 draait zonder fout" "0" "$?"
+echo "  0050: de analysekaart"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0050_kruistabel.sql" >/dev/null 2>&1
+check "0050 draait zonder fout" "0" "$?"
 
 # De testrijen zijn de hele reeks hieronder. Landen ze niet, dan staat elke
 # controle daarna op een leeg vak en dat leest als "de view geeft niets" in
@@ -1186,7 +1186,7 @@ vakC="from marketing_hq.map_analyse where product='Groom Guard' and persona='Ale
       and bewustzijnsniveau='2. Problem Aware' and angle='FOMO / Scarcity'"
 
 echo
-echo "  0048: sophistication komt over het werkstuk"
+echo "  0050: sophistication komt over het werkstuk"
 # 0030 zette deze as al neer, op het werkstuk en niet op de creative. Er een
 # tweede kolom naast leggen zou de tweede waarheid maken die dit systeem overal
 # vermijdt -- dus deze controle bewaakt dat hij er níét komt.
@@ -1235,7 +1235,7 @@ check "en verandert het aantal gaten niet"       "5" \
   "$(q "select cardinality(ontbreekt) from marketing_hq.map_gaten where ad_name='Nog niet gedraaid'")"
 
 echo
-echo "  0048: het gewogen cijfer tegen het gemiddelde"
+echo "  0050: het gewogen cijfer tegen het gemiddelde"
 check "vak A is beoordeelbaar"                   "beoordeelbaar" "$(q "select toestand $vakA")"
 # 170 / 150. Mutatietest: vervang de deling door avg(roas) en dit wordt 3.67.
 check "de gewogen ROAS is 1,13"                  "1.13"          "$(q "select roas $vakA")"
@@ -1248,7 +1248,7 @@ check "waarvan drie gemeten"                     "3"             "$(q "select ge
 check "de aankopen tellen op tot drie"           "3"             "$(q "select aankopen $vakA")"
 
 echo
-echo "  0048: te weinig data zegt hoeveel te weinig"
+echo "  0050: te weinig data zegt hoeveel te weinig"
 check "vak B is te dun"                          "te weinig data" "$(q "select toestand $vakB")"
 # Mutatietest: laat de view het getal ook onder de drempel afdrukken en dit
 # wordt 3.00 -- precies het getal waar iemand een besluit op zou nemen.
@@ -1258,7 +1258,7 @@ check "het oordeel noemt de creatives"           "t"  "$(q "select oordeel like 
 check "het oordeel noemt de aankopen"            "t"  "$(q "select oordeel like '%1 van 3 aankopen%' $vakB")"
 
 echo
-echo "  0048: niet gemeten is iets anders dan nul"
+echo "  0050: niet gemeten is iets anders dan nul"
 check "vak C is niet gemeten"                    "niet gemeten"   "$(q "select toestand $vakC")"
 check "en geeft geen ROAS af"                    ""               "$(q "select coalesce(roas::text,'') $vakC")"
 # Het ingetypte gemiddelde blijft zichtbaar, anders is niet meer na te gaan
@@ -1267,7 +1267,7 @@ check "het ingetypte gemiddelde staat er wel"    "9.00"           "$(q "select r
 check "het oordeel noemt het aantal creatives"   "t"  "$(q "select oordeel like '%geen van de 2 creative(s)%' $vakC")"
 
 echo
-echo "  0048: twee schrijfwijzen, één as"
+echo "  0050: twee schrijfwijzen, één as"
 # Zonder de vouwing wordt 'problem' een eigen kolom met één rij, naast een
 # kolom met drie. Mutatietest: haal de regel uit map_as_synoniemen en
 # 'vier creatives in het vak' hierboven wordt 3.
@@ -1285,7 +1285,7 @@ check "en blijft een eigen waarde op de as"      "1" \
   "$(q "select count(*) from marketing_hq.map_analyse where angle='safety'")"
 
 echo
-echo "  0048: een niet-keuze is geen persona"
+echo "  0050: een niet-keuze is geen persona"
 check "de twee schrijfwijzen worden er één"      "Geen specifieke persona" \
   "$(q "select marketing_hq.map_as('persona','Geen specifieke customer Persona (omdat deze nog niet ready zijn)')")"
 # Mutatietest: laat persona_gekozen altijd true zijn en de niet-keuze komt
@@ -1297,7 +1297,7 @@ check "Alex is wél een gekozen persona"          "t" \
   "$(q "select bool_and(persona_gekozen) from marketing_hq.map_analyse where persona='Alex'")"
 
 echo
-echo "  0048: de drempels zitten in een tabel en niet in de view"
+echo "  0050: de drempels zitten in een tabel en niet in de view"
 check "min_spend op 1000 maakt vak A te dun"     "te weinig data" \
   "$(q "update marketing_hq.map_drempels set waarde=1000 where naam='min_spend';
         select toestand $vakA")"
@@ -1311,7 +1311,7 @@ check "terugzetten geeft het oordeel terug"      "beoordeelbaar" \
         select toestand $vakA")"
 
 echo
-echo "  0048: per aswaarde over alle vakken heen"
+echo "  0050: per aswaarde over alle vakken heen"
 asFOMO="from marketing_hq.map_as_totaal where brand='wellshave' and as_naam='angle' and waarde='FOMO / Scarcity'"
 check "FOMO heeft geen enkele gemeten creative"  "0"    "$(q "select gemeten_creatives $asFOMO")"
 check "en dus geen ROAS"                         ""     "$(q "select coalesce(roas::text,'') $asFOMO")"
@@ -1331,7 +1331,7 @@ check "het gemiddelde keert de rangorde om"      "t" \
           and b.brand='wellshave' and b.as_naam='angle' and b.waarde='Benefits-Driven'")"
 
 echo
-echo "  0048: vastgezet wint van gemeten en van ingetypt"
+echo "  0050: vastgezet wint van gemeten en van ingetypt"
 psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
 update public.creatives
    set cijfers_vastgezet = true,
@@ -1350,7 +1350,7 @@ check "en de omzet teruggerekend uit de ROAS"    "400.00" "$(q "select omzet $va
 check "het vak zegt dat het vastgezet is"        "1"      "$(q "select vastgezette_creatives $vakF")"
 
 echo
-echo "  0048: de kruistabel met de lege vakken erin"
+echo "  0050: de kruistabel met de lege vakken erin"
 check "een nooit geprobeerde combinatie staat erin" "nooit geprobeerd" \
   "$(q "select toestand from marketing_hq.map_kruistabel('wellshave','Groom Guard')
          where persona='Luca' and angle='Bundle Offer'")"
@@ -1365,7 +1365,7 @@ check "een gevulde combinatie staat er ook"          "beoordeelbaar" \
          where persona='Alex' and angle='Benefits-Driven'")"
 
 echo
-echo "  0048: wat de kaart in het geheel waard is"
+echo "  0050: wat de kaart in het geheel waard is"
 # Zelfde regel als in 0041 en 0044: een merk zonder rijen zegt dat met zoveel
 # woorden. Mutatietest: maak er een gewone group by van en wellshine verdwijnt.
 check "wellshine staat er, en zegt dat het leeg is" "geen creatives in de map voor dit merk" \
@@ -1380,7 +1380,7 @@ check "de vakken tellen op tot het totaal"          "t" \
          from marketing_hq.map_analyse_samenvatting where brand='wellshave'")"
 
 echo
-echo "  0048: kan het team de kaart ook echt lezen"
+echo "  0050: kan het team de kaart ook echt lezen"
 check "hq_map_analyse is leesbaar voor een teamlid" "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_map_analyse limit 1;" | grep -o 'ok' | head -1)"
 check "hq_map_as_totaal ook"                        "ok" \
@@ -1546,6 +1546,100 @@ check "hq_meta_meetgaten ook"                        "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_meta_meetgaten limit 1;" | grep -o 'ok' | head -1)"
 check "hq_meta_meetdekking ook"                      "ok" \
   "$(alsTeamlid "select 'ok' from public.hq_meta_meetdekking limit 1;" | grep -o 'ok' | head -1)"
+
+echo
+echo "  0048: wat maakt deze advertentie tot wat hij is"
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q -v ON_ERROR_STOP=1 -f "$MIGDIR/0048_deconstructie.sql" >/dev/null 2>&1
+check "0048 draait zonder fout" "0" "$?"
+
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, primary_character, source, confidence,
+   invariants, flexible)
+select id, 'Founder Story',
+  'The founder explains why he created Wellshave after being dissatisfied with existing grooming products.',
+  'Dustin Gibson (founder)', 'copy+image', 'high',
+  '[{"element":"Founder","why":"de geloofwaardigheid hangt aan een echt persoon"},
+    {"element":"First person narrative","why":"derde persoon maakt er een testimonial van"},
+    {"element":"Founder imagery","why":"een model breekt de belofte van echtheid"}]'::jsonb,
+  '[{"element":"Headline","why":"vrij"},{"element":"CTA","why":"vrij"},{"element":"Layout","why":"vrij"}]'::jsonb
+from public.creatives where ad_name = '061-3';
+SQL
+
+check "de lezing staat er"                    "Founder Story" \
+  "$(q "select creative_type from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+# Het scherm krijgt platte namen; de reden blijft in de backend beschikbaar.
+check "Keep is een lijst met namen"           "{Founder,\"First person narrative\",\"Founder imagery\"}" \
+  "$(q "select keep::text from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "Flexible ook"                          "{Headline,CTA,Layout}" \
+  "$(q "select flexible::text from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en de reden blijft beschikbaar"        "t" \
+  "$(q "select keep_detail::text like '%echt persoon%' from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "er is iets beschermd"                  "f" \
+  "$(q "select nothing_protected from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+# Waar de lezing op rust hoort zichtbaar te zijn: zonder beeld is een Founder
+# Story maar half gelezen.
+check "de bron staat erbij"                   "copy+image" \
+  "$(q "select source from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+
+# Een lezing zonder invariants laat een iteratie alles veranderen. Dat mag niet
+# stil blijven -- dan verdwijnt precies de bescherming waarvoor deze laag bestaat.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, invariants)
+select id, 'Product Demo', 'Laat het product zien', '[]'::jsonb
+from public.creatives where ad_name = '058-3';
+SQL
+check "niets beschermd valt op"               "t" \
+  "$(q "select nothing_protected from marketing_hq.iteration_understanding where ad_name = '058-3'")"
+
+# Een nieuwe lezing vervangt de oude in beeld, maar de oude blijft bestaan --
+# anders is niet te zien dat het oordeel veranderd is.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+insert into marketing_hq.creative_deconstructions
+  (creative_id, creative_type, core_concept, source, analysed_at, invariants)
+select id, 'Founder Story', 'Herzien met het beeld erbij', 'copy+image', now() + interval '1 hour',
+  '[{"element":"Founder","why":"bevestigd op het beeld"}]'::jsonb
+from public.creatives where ad_name = '061-3';
+SQL
+check "de nieuwste lezing telt"               "Herzien met het beeld erbij" \
+  "$(q "select core_concept from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en de oude blijft bewaard"             "2" \
+  "$(q "select count(*) from marketing_hq.creative_deconstructions d
+         join public.creatives c on c.id = d.creative_id where c.ad_name = '061-3'")"
+check "één rij per creative in het scherm"    "1" \
+  "$(q "select count(*) from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+
+# Afkeuren haalt een lezing uit beeld zonder hem te wissen.
+psql -h "${TMPDIR:-/tmp}" -p "$PORT" -U postgres -q >/dev/null 2>&1 <<'SQL'
+update marketing_hq.creative_deconstructions
+   set rejected_at = now(), rejected_reason = 'de AI zag een founder waar een model staat'
+ where core_concept = 'Herzien met het beeld erbij';
+SQL
+check "een afgekeurde lezing telt niet meer"  "Founder Story" \
+  "$(q "select creative_type from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "maar valt terug op de vorige"          "t" \
+  "$(q "select core_concept like 'The founder explains%' from marketing_hq.iteration_understanding where ad_name = '061-3'")"
+check "en blijft in de tabel staan"           "2" \
+  "$(q "select count(*) from marketing_hq.creative_deconstructions d
+         join public.creatives c on c.id = d.creative_id where c.ad_name = '061-3'")"
+
+# Vorm afdwingen op de database: een model dat een string teruggeeft in plaats
+# van een lijst hoort te stuiten, niet stil een leeg scherm op te leveren.
+check "invariants moet een lijst zijn" "ja" \
+  "$(weigert "insert into marketing_hq.creative_deconstructions (creative_id, creative_type, core_concept, invariants)
+              select id, 'X', 'Y', '\"Founder\"'::jsonb from public.creatives where ad_name='058-3'" \
+             "deconstructie_invariants_is_lijst")"
+check "afkeuren zonder reden mag niet" "ja" \
+  "$(weigert "update marketing_hq.creative_deconstructions set rejected_at = now() where core_concept = 'Laat het product zien'" \
+             "deconstructie_afkeuring_heeft_reden")"
+# De deconstructie is de lezing van de AI, niet die van het team. Hij mag
+# public.creatives dus niet aanraken.
+check "creatives.persona blijft ongemoeid" "LEEG" \
+  "$(q "select coalesce(persona,'LEEG') from public.creatives where ad_name = 'C1 - 4 Reasons Why'")"
+
+check "hq_iteration_understanding is leesbaar voor een teamlid" "ok" \
+  "$(alsTeamlid "select 'ok' from public.hq_iteration_understanding limit 1;" | grep -o 'ok' | head -1)"
 
 echo
 [ $fout -eq 0 ] && echo "Alles klopt" || echo "$fout controle(s) mislukt"

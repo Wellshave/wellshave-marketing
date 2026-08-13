@@ -12,6 +12,14 @@
   var left = el('div', 'ws8-left'), center = el('div', 'ws8-center'), right = el('div', 'ws8-right');
   grid.appendChild(left); grid.appendChild(center); grid.appendChild(right);
 
+  /* Elke kolom draagt zijn eigen naam met een lijn eronder (ontwerpcontract
+     6c.6). Alleen links had er een; midden en rechts waren naamloze stapels
+     kaarten naast elkaar, en dan moet je uit de inhoud afleiden waar je bent.
+     De koppen komen hier, vóór het herverdelen, zodat ze bovenaan staan
+     zonder dat de volgorde van de rest verschuift. */
+  center.appendChild(el('div', 'ws8-zone-lbl', 'Werkblad'));
+  right.appendChild(el('div', 'ws8-zone-lbl', 'Resultaat'));
+
   /* ---------- accordion-hulpjes ---------- */
   function makeAcc(title, open) {
     var acc = el('div', 'ws8-acc' + (open ? ' open' : ''));

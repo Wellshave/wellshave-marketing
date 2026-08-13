@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0048 — De analysekaart: persona × angle × bewustzijnsniveau × product
+-- 0050 — De analysekaart: persona × angle × bewustzijnsniveau × product
 --
 -- Beslisvraag:
 --
