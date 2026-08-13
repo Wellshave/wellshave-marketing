@@ -1,0 +1,143 @@
+/* ============================================================
+   GROEPERING — wat hoort bij wat
+   Ontwerpcontract 6c. Deze laag verandert geen kleur, geen
+   lettertype en geen component; hij verplaatst alleen ruimte en
+   zet naden op de plekken waar een grens zit.
+
+   Waarom een eigen laag en niet een correctie in 08 en 11:
+
+     De console is twintig css-bestanden die over elkaar heen
+     liggen, elk met eigen !important. Een afstand aanpassen in
+     laag 8 betekent nakijken wat laag 9 tot en met 21 er nog mee
+     doen. Een laag die als laatste binnenkomt en alleen over
+     afstanden en randen gaat, is na te lezen als één regelset en
+     in zijn geheel weer weg te halen.
+
+   Waarom !important hier wél mag:
+
+     08 zet de padding van .ws-nav-section met !important. Zonder
+     dezelfde vlag wint de oudere laag en gebeurt er niets. Dat is
+     geen voorkeur maar de enige manier om de bestaande stapel te
+     corrigeren zonder hem te herschrijven.
+   ============================================================ */
+
+/* ---------- zijbalk: de groepen waren onzichtbaar ----------
+   Gemeten stond er 2px tussen twee knoppen binnen een groep en
+   2px tussen de laatste knop van een groep en de kop van de
+   volgende. De kop had wel eigen padding, maar geen lijn en geen
+   extra ruimte, dus las de zijbalk als één lijst van zeventien
+   knoppen met vijf onopvallende tussenkopjes.
+
+   Nu: 24px plus een haarlijn boven de kop (de naad van 6c.2),
+   12px tussen de lijn en het woord, 8px tussen het woord en de
+   eerste knop van zijn groep. De kop staat daarmee drie keer
+   dichter bij zijn eigen groep dan bij de vorige (6c.3). */
+.ws-nav-section {
+  margin-top: 24px !important;
+  padding: 12px 12px 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+  /* 34% wit op 9px was niet te lezen; de kop moet de groep kunnen
+     dragen, anders doet de lijn het werk alleen. */
+  color: rgba(255, 255, 255, 0.46) !important;
+}
+/* De eerste groep grenst aan het logo, niet aan een vorige groep. Een lijn
+   daar zou een grens tekenen die er niet is.
+   Niet :first-of-type — dat selecteert op tagnaam, en het eerste <div> in de
+   zijbalk is het logo. De kop was daarmee nooit "eerste van zijn soort" en
+   hield zijn lijn. De opvolger-selector zegt wat er bedoeld wordt: de kop die
+   direct op het logo volgt. */
+.ws-sidebar .ws-logo + .ws-nav-section {
+  margin-top: 0 !important;
+  border-top: none !important;
+  padding-top: 0 !important;
+}
+/* Binnen een groep iets meer lucht, zodat 24px ertussen leest als
+   een sprong en niet als "net iets meer". */
+.ws-sidebar .ws-nav-item { margin-bottom: 4px !important; }
+
+/* ---------- werkscherm: drie zones die als drie zones lezen ----------
+   De kolomtussenruimte was 14px terwijl kaarten bínnen een kolom
+   12px uit elkaar stonden. Twee pixels verschil is geen grens.
+   32px is de bovenste trede van de schaal uit 6.1 en houdt de
+   verhouding op bijna 3:1. */
+.ws8-grid {
+  gap: 32px !important;
+  /* De bredere goten kosten het middenblok 36px, en dat is precies de kolom
+     waar gewerkt wordt. Die 36px komen volledig uit de rechterkolom: die draagt
+     een preview die meeschaalt. De linkerkolom blijft op zijn maat, want de
+     keuzevelden daarin zijn op 296px gebouwd en lopen bij minder over de rand
+     van hun kaart heen. Kolombreedtes vallen buiten de schaal van 6.1 — die
+     gaat over tussenruimte, niet over hoe breed een kolom is. */
+  grid-template-columns: 296px minmax(0, 1fr) 336px !important;
+}
+@media (max-width: 1420px) { .ws8-grid { grid-template-columns: 272px minmax(0, 1fr) 294px !important; } }
+@media (max-width: 1180px) { .ws8-grid { grid-template-columns: 1fr !important; } }
+
+/* Onder 1180px valt de grid terug op één kolom. Dan staan de zones
+   ónder elkaar en is 32px horizontaal niet meer de grens maar
+   verticaal — daar moet hij juist groter, want er is geen
+   naast-elkaar meer dat de scheiding draagt. */
+@media (max-width: 1180px) { .ws8-grid { gap: 32px !important; row-gap: 32px !important; } }
+
+/* ---------- de kop van een kolom (6c.6) ----------
+   'Configuratie' stond als los regeltje boven de linkerkolom, met
+   dezelfde 12px eronder als tussen twee willekeurige kaarten. Nu
+   draagt hij een lijn: alles onder deze lijn, in deze kolom, is
+   hetzelfde soort werk. */
+.ws8-zone-lbl {
+  padding: 0 2px 8px !important;
+  border-bottom: 1px solid var(--line, rgba(22, 21, 15, 0.09));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+/* De rechterkolom scrollt in zichzelf en had daarvoor een radius van 16px.
+   Die knipte de eerste letter van zijn eigen kop af. De kaarten binnenin
+   dragen hun eigen radius; de kolom eromheen hoeft er geen. */
+.ws8-right { border-radius: 0 !important; }
+
+/* ---------- drie niveaus in een kolom, elk het dubbele van het vorige ----------
+   Een kolom bevat kaarten, en een stapkop groepeert een paar kaarten tot één
+   stap. Dat zijn drie niveaus, en 6c.1 geldt per niveau:
+
+       kaart naar kaart          8px
+       stap naar stap           16px
+       kolom naar kolom         32px
+
+   Zonder deze trap botsen twee regels tegen elkaar. Met een kolomruimte van
+   12px en een stapkop op 24px erboven wordt de sprong naar een nieuwe stap
+   (24) bijna even groot als de sprong naar een andere kolom (32), en dan zegt
+   de goot niets meer. Alle drie de waarden staan op de schaal van 6.1. */
+.ws8-left, .ws8-center, .ws8-right { gap: 8px !important; }
+
+/* ---------- zwevende stap-koppen (6c.3) ----------
+   'Stap 2 — Kies het format' stond 16px onder de vorige kaart en 12px boven de
+   kaart die hij benoemt. Dat is bijna evenveel, en de kleine helling stond de
+   verkeerde kant op. Deze marge telt op bij de kolomruimte van 8px: 8+8=16
+   erboven, 8+0=8 eronder. */
+.ws8-step { margin: 8px 2px 0 !important; flex-wrap: wrap; }
+/* 'Stap 2' en 'Kies het format' zijn elk één ding en breken niet middenin;
+   de toelichting erachter mag wél naar de volgende regel. */
+.ws8-step b, .ws8-step span { white-space: nowrap; }
+
+/* ---------- nesten blijft twee niveaus (6c.4) ----------
+   Een kaart binnen een kaart kreeg hetzelfde vlak, dezelfde radius
+   en dezelfde schaduw als zijn ouder en las daardoor als buurman.
+   Het binnenste niveau zakt naar het tweede vlak en verliest zijn
+   schaduw; de rand blijft, want die is hier de enige naad. */
+.ws8-card .ws8-card,
+.ws8-center .form-section .ws8-card,
+.ws8-insp-card .ws8-insp-card {
+  background: var(--surface-2, #faf7f0) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--line, rgba(22, 21, 15, 0.09)) !important;
+}
+
+/* ---------- de werkbalk hoort niet aan het scherm vast ----------
+   .ws8-header plakt bovenaan met 14px eronder — dezelfde afstand
+   als tussen twee kaarten. Hij overkoepelt alle drie de kolommen
+   en hoort dus op de groepsafstand te staan, niet op de
+   kaartafstand. */
+.ws8-header { margin-bottom: 24px !important; }
