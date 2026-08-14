@@ -28,7 +28,6 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/test/ruggengraat.sh` | Testlus voor 0009 + 0010 — 34 controles |
 | `db/test/tracker.sh` | Testlus voor 0011 — 19 controles op een gecontroleerde reeks |
 | `db/migrations/0013_audit.sql` | Trechter, publiek per segment, scorekaart op twee signalen |
-| `db/test/atlas.sh` | Testlus voor 0012 — 32 controles, elk begint met iets wat niet mag |
 | `db/migrations/0014_accounts.sql` | Vijf advertentieaccounts in plaats van één secret |
 | `db/migrations/0015_auditplanning.sql` | De audit in `schedules`, zodat de afspraak ook draait |
 | `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
@@ -44,17 +43,12 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
 | `db/migrations/0023_denkstuk.sql` | Het denkstuk: zeven vragen met een zekerheid, een mens die tekent, en "niet doen" als uitgang |
 | `db/migrations/0024_terugsturen.sql` | Terugsturen: de keten gaat weer open, de grens van twee, en het bevroren denkstuk erbij |
-| `db/test/audit.sh` | Testlus voor 0013 — 37 controles tegen de echte cijfers van Wellshave® |
 | `db/test/accounts.sh` | Testlus voor 0014 — 32 controles, waaronder de mediaan per account |
 | `db/test/views.sh` | Testlus voor 0017 — 16 controles; de kern is dat een ingelogde niet-teamlid niets ziet |
 | `db/test/dagbesluit.sh` | Testlus voor 0018 — 33 controles; alle vijf de oordelen, de volgorde en de dubbele publicatie |
-| `db/test/brein.sh` | Testlus voor 0019 — 35 controles; de kern is dat stilte per soort overdracht iets anders betekent |
-| `db/test/bolt.sh` | Testlus voor 0020 — 37 controles, elk begint met iets wat niet mag |
-| `db/test/deelnemers.sh` | Testlus voor 0021 — 29 controles; de kern is dat er niet gegokt wordt wie iets deed |
 | `db/test/overdracht.sh` | Testlus voor 0022 — 39 controles; de kern is dat een stap niet af kan zonder overdracht |
 | `db/test/denkstuk.sh` | Testlus voor 0023 — 52 controles; de kern is dat geen agent het denkstuk kan aftekenen |
 | `db/test/terugsturen.sh` | Testlus voor 0024 — 44 controles; de kern is dat twee agents elkaar niet eindeloos heen en weer sturen |
-| `db/test/agentzicht.sh` | Testlus voor 0034 — 13 controles; de kern is dat de acht oude kolommen van hq_reports niet verschuiven |
 | `db/migrations/0049_meetdagen.sql` | De controle die het gat van 120 dagen had moeten zien: accountniveau tegen de som van de advertenties, per dag |
 | `db/migrations/0050_kruistabel.sql` | De analysekaart: persona × angle × bewustzijnsniveau × product, gewogen naar spend, met eerlijke lege vakken |
 | `db/test/import-tracker.sh` | Testlus voor 0035 t/m 0050 — 296 controles; de kern is dat een breakdown optelt tot het aantal rijen, dat een nieuwe creative niet langs de eis uit 0030 glipt, dat een vastgezet cijfer wint van de meting, dat een werkende koppeling zonder ad-metingen ook als zodanig geteld wordt, dat vier schrijfwijzen van dezelfde advertentie op één sleutel uitkomen terwijl BFCM een eigen reeks houdt, dat een merk zonder metingen dat met zoveel woorden zegt in plaats van nul rijen te geven, dat een voorvoegsel als WSLP of een landcode een eigen reeks wordt in plaats van op te tellen bij de gewone map-rij, dat een creative zonder nummer op zijn naam koppelt terwijl een nummer altijd voorgaat, dat een gedraaide creative met een leeg beslisveld als gat telt en een concept in de maak niet, dat een afgekeurde lezing van een creative terugvalt op de vorige in plaats van te verdwijnen, dat een dag waarvan het accountcijfer en de som van de advertenties niet sluiten als zodanig gemeld wordt, en dat elke hq_*-view écht leesbaar is als `authenticated` en niet alleen volgens `has_table_privilege` |
@@ -62,17 +56,14 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `../ad-generator/test/team.cjs` | Testlus voor de teampagina — 26 controles; de kern is dat de feiten naast een agent uit de database komen en niet uit zijn eigen tekst, en dat een leeg profiel een gat blijft |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
-| `worker/test/smoke.mjs` | Testlus voor de agent-runtime |
+| `worker/test/smoke.mjs` | Testlus voor de runtime zonder agents — 19 controles; de harde is dat een hele cyclus nul keer een taalmodel aanroept |
 | `worker/test/publiceren.mjs` | Testlus voor de publiceerflow en de guardrail eromheen |
 | `worker/test/terugkoppeling.mjs` | Testlus voor de systeemtaak: geen model, geen kosten |
-| `worker/test/atlas.mjs` | Testlus voor Atlas' kant in de runtime — 19 controles |
-| `worker/test/audit.mjs` | Testlus voor de auditopdracht — 21 controles |
 | `worker/test/paginatie.mjs` | Testlus voor het ophalen bij Meta — 22 controles; de nagemaakte Meta geeft hier wél een `paging.next` én weigert een te groot venster zoals de echte, want zonder allebei bewees geen enkele test dat een inhaalslag over 400 dagen compleet binnenkomt |
 | `worker/test/deconstructie.mjs` | Testlus voor Creative Deconstruction — 34 controles; de nagemaakte Claude geeft hier ook fout terug (een string waar een lijst hoort, een antwoord zonder lezing, lege elementen), want een stub die alleen het goede geval nadoet bewijst niets over de vangnetten |
-| `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 21 controles |
-| `worker/test/dagrijen.mjs` | Alleen dagen mogen in de dagtabel, plus de inhaalslag — 37 controles; de nagemaakte Meta geeft hier één rij per dag mét `time_increment` en één rij voor het hele venster zonder, want een stub die dat verschil niet maakt kan de fout van 12 juli per definitie niet vangen. De kern van het tweede deel is dat de inhaalslag precies het gat uit `meta_meetgaten` ophaalt en niets daarbuiten, ook accountniveau meeneemt zodat 0049 kan narekenen, en zichzelf terugzet in de rij zolang er dagen ontbreken |
+| `worker/test/accounts.mjs` | Testlus voor meerdere accounts — 19 controles |
+| `worker/test/dagrijen.mjs` | Alleen dagen mogen in de dagtabel, plus de inhaalslag — 25 controles; de nagemaakte Meta geeft hier één rij per dag mét `time_increment` en één rij voor het hele venster zonder, want een stub die dat verschil niet maakt kan de fout van 12 juli per definitie niet vangen. De kern van het tweede deel is dat de inhaalslag precies het gat uit `meta_meetgaten` ophaalt en niets daarbuiten, ook accountniveau meeneemt zodat 0049 kan narekenen, en zichzelf terugzet in de rij zolang er dagen ontbreken |
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
-| `worker/test/bolt.mjs` | Testlus voor Bolt in de runtime — 31 controles; de kern is dat er geen weg naar buiten is |
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
 | `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
 | `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
@@ -90,7 +81,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Stap | Status |
 |---|---|
 | Blauwdruk, schema, runtime in de repo | ✅ |
-| Testlus groen (25 controles) | ✅ `node platform/worker/test/smoke.mjs` |
+| Testlus groen (19 controles) | ✅ `node platform/worker/test/smoke.mjs` |
 | Migraties 0004 + 0005 toegepast | ✅ 29 juli |
 | Databases samengevoegd | ✅ 29 juli — inhoud geverifieerd via md5 |
 | Publiceerflow gebouwd (0007 + runtime) | ✅ 29 juli — 30 controles groen |
@@ -172,7 +163,7 @@ npx wrangler deploy --config platform/worker/wrangler.toml
 
 Dit vervangt de code van de bestaande worker `marketing-ads`. De endpoints
 `/anthropic` en `/openai/*` zijn ongewijzigd overgenomen, dus de live console
-blijft werken. Wat erbij komt is `/agents/*` en de cron.
+blijft werken. Wat erbij komt is `/systeem/*` en de cron.
 
 Dat "blijft werken" is niet op goed vertrouwen: `worker/test/console.mjs`
 vergelijkt het gedrag van beide endpoints, de CORS-origins, de header-doorgifte
@@ -197,27 +188,24 @@ Secrets die er nog niet staan:
 
 `ANTHROPIC_KEY` en `OPENAI_KEY` staan er al.
 
-### Een agent op hold zetten
+### Een taak uitzetten
 
-`marketing_hq.agents.operationeel` is de schakelaar, en sinds 7 augustus zit
-hij ergens aan vast: de runtime weigert een taak voor een agent die op false
-staat, zowel bij `/agents/run` (meteen, met een leesbare melding) als bij het
-uitvoeren van een taak die al in de rij stond. Daarvóór was het alleen een
-label in de console.
+Er is geen schakelaar per agent meer, want er zijn geen agents. Wat er wél is:
+de planning. Een taak die niet meer vanzelf moet lopen, gaat uit in
+`marketing_hq.schedules`.
 
 ```sql
-update marketing_hq.agents set operationeel = false where id = 'echo';   -- op hold
-update marketing_hq.agents set operationeel = true  where id = 'echo';   -- weer aan
+update marketing_hq.schedules set enabled = false where kind = 'feedback_sync';
+update marketing_hq.schedules set enabled = true  where kind = 'feedback_sync';
 ```
 
-Echo staat sinds 7 augustus op hold, samen met de Klaviyo-koppeling: het werk
-gaat eerst over de marketingsite. `KLAVIYO_API_KEY` staat bewust niet op de
-worker, dus de klaviyo-tools geven een nette melding in plaats van te draaien.
-Beide zijn met één regel terug te draaien; er is niets weggegooid.
+Handmatig in de rij zetten kan altijd nog via `POST /systeem/taken`, ook als de
+planning uit staat — dat is met opzet: uitzetten gaat over "niet vanzelf", niet
+over "nooit meer".
 
 `META_AD_ACCOUNT_ID` hoeft niet meer. Sinds 0014 staan de accounts in
 `marketing_hq.ad_accounts`; het secret werkt nog als noodrem wanneer die tabel
-onleesbaar is, en `/agents/status` meldt het als hij daarop terugvalt.
+onleesbaar is, en `/systeem/status` meldt het als hij daarop terugvalt.
 
 De service key en het Meta-token zijn de eerste eigen sleutels van dit systeem
 (tot nu toe liep alles via claude.ai-connectors). Ze staan uitsluitend als
@@ -231,23 +219,23 @@ curl https://marketing-ads.dustin-9ff.workers.dev/health
 
 Verwacht `"runtime": "actief"` en per koppeling `true`. Staat er `uit`, dan
 ontbreekt `SUPABASE_SERVICE_KEY`. `/health` is open en zegt daarom niets over
-de accounts — die staan in `/agents/status`, achter de login.
+de accounts — die staan in `/systeem/status`, achter de login.
 
 Daarna, ingelogd als admin:
 
 ```
-GET  /agents/status
+GET  /systeem/status
 ```
 
 Verwacht twee accounts (Wellshave® en Wellshine B.V.) en `noodrem: false`. Staat
 er één account met `noodrem: true`, dan is `ad_accounts` niet leesbaar en meet
 de runtime maar de helft — dan is stap 2 niet gelukt.
 
-Dan één agent handmatig laten draaien:
+Dan één taak handmatig laten draaien:
 
 ```
-POST /agents/run   {"agent_id":"atlas","kind":"daily_report","payload":{"lookback_days":4}}
-POST /agents/tick
+POST /systeem/taken   {"kind":"meta_inhaalslag"}
+POST /systeem/tick
 ```
 
 De eerste echte run is het moment waarop blijkt of Meta de velden teruggeeft
@@ -273,38 +261,40 @@ De planner kijkt of het geplande moment in het afgelopen kwartier lag, dus een
 deploy zet niet meteen alles tegelijk in de rij. De eerste run is de eerstvolgende
 keer dat de klok langs een van deze tijden komt.
 
-## De agents
+## De taken
 
-Vijf van de negen hebben een runtime-instructie. De rest volgt zodra hun
-module er is.
+Hier stonden negen agents. Sinds versie 16 zijn ze weg — niet uitgezet maar
+verwijderd, met hun prompts, hun tools en de tool-lus. Wat overbleef is een
+takenwachtrij waarin elke taak in code staat.
 
-| Agent | Draait | Opdrachten (`kind`) |
-|---|---|---|
-| Atlas | ✅ uitgewerkt | `daily_report`, `feedback_sync` (systeemtaak, geen model), `account_audit` |
-| Bolt | ✅ | `creative_scorecard`, `publish_queue` |
-| Echo | ✅ | `flow_audit`, `campaign_plan` |
-| Radar | ✅ | `trend_scan` — beperkt, Trendtrack is nog niet server-side gekoppeld |
-| Nova | ✅ | `pipeline_sync` |
-| Quill, Pixel, Sage, Vector | ⬜ | fase 2/3 |
+| Taak (`kind`) | Wat hij doet |
+|---|---|
+| `feedback_sync` | de gemeten cijfers terug naar de creative waar hij uit voortkwam |
+| `meta_inhaalslag` | de dagen ophalen die `meta_meetgaten` (0049) aanwijst, één blok per run |
 
-Identiteit en guardrails blijven in
-[`../marketing-hq/agents/`](../marketing-hq/agents/) staan; de runtime-prompt in
-de worker is de werkinstructie, geen vervanging.
+Twee, waar er negen waren. Dat is geen verschraling maar een correctie: dit is
+wat het systeem daadwerkelijk deterministisch deed. De rest was een model dat
+per run opnieuw besloot wat het ervan vond.
+
+Een `kind` dat hier niet staat wordt geweigerd bij het in de rij zetten, met de
+lijst erbij die wél bestaat. Vroeger viel zo'n opdracht terug op het model.
 
 ## Guardrails
 
-Er bestaat geen tool die geld uitgeeft, een campagne start of een e-mail
-verstuurt. Alles wat naar buiten werkt gaat via `request_approval` en wordt een
-rij in `approvals` die op een mens wacht. Dat zit in de code, niet in de prompt:
-een agent kan er niet omheen praten.
+Er bestaat geen pad waarlangs dit systeem uit zichzelf geld uitgeeft of iets
+verstuurt. Dat was al zo en het is nu makkelijker vol te houden: er is geen
+model meer dat een opdracht anders kan uitleggen dan hij bedoeld was.
 
-Publiceren naar Meta volgt dezelfde regel, maar preciezer: een agent mag het
-beeld uploaden en de ad-creative aanmaken (kost niets, wordt nooit vertoond), en
-alléén een mens kan er via `POST /agents/publications/<id>/publish` een
-draaiende advertentie van maken. Zie [`docs/PUBLICEREN.md`](docs/PUBLICEREN.md).
+Publiceren naar Meta gaat in twee stappen. Klaarzetten (`POST
+/systeem/publicaties/klaarzetten`) uploadt het beeld en maakt de ad-creative —
+dat kost niets en wordt nooit vertoond. Er ontstaat meteen een rij in
+`approvals` die op een mens wacht. Alléén een admin kan er via `POST
+/systeem/publicaties/<id>/publish` een draaiende advertentie van maken. Zie
+[`docs/PUBLICEREN.md`](docs/PUBLICEREN.md).
 
-Wat een agent kan lezen staat op een whitelist. Vraagt hij een tabel die er niet
-op staat, dan krijgt hij een nette weigering terug met de lijst die wél mag.
+De goedkeuring wordt aangemaakt bij het klaarzetten en niet bij het publiceren.
+Daardoor kan er geen publicatie bestaan zonder dat er iets voor een mens
+klaarligt om over te beslissen.
 
 ## Testen
 

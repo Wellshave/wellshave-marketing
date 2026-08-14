@@ -51,7 +51,7 @@ let toolUitkomst = null;
 let volgendeId = 1;
 const db = {
   agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }],
-  schedules: [], agent_jobs: [], agent_runs: [], agent_events: [], reports: [],
+  schedules: [], taken: [], taak_runs: [], systeem_events: [], reports: [],
   meta_publications: [], approvals: [], meta_insights_daily: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }],
   ad_accounts: [
@@ -62,9 +62,9 @@ const db = {
 
 function tabelUit(url) { const m = url.match(/\/rest\/v1\/([a-z_]+)/); return m ? m[1] : null; }
 function defaults(t) {
-  if (t === 'agent_jobs') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
-  if (t === 'agent_runs') return { status: 'running' };
-  if (t === 'agent_events') return { level: 'info' };
+  if (t === 'taken') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
+  if (t === 'taak_runs') return { status: 'running' };
+  if (t === 'systeem_events') return { level: 'info' };
   return {};
 }
 
@@ -93,13 +93,13 @@ globalThis.fetch = async (url, opts = {}) => {
   const ok = (d) => new Response(JSON.stringify(d), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   if (url.includes('/auth/v1/user')) return ok({ id: 'u1', email: 'dustin@wellshave.com' });
-  if (url.includes('/rest/v1/rpc/claim_job')) {
-    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
+  if (url.includes('/rest/v1/rpc/claim_taak')) {
+    const j = db.taken.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return ok(null);
     j.status = 'running'; j.attempts++; j.locked_at = new Date().toISOString();
     return ok(j);
   }
-  if (url.includes('/rest/v1/rpc/reap_stuck_jobs')) return ok(0);
+  if (url.includes('/rest/v1/rpc/maak_vastgelopen_taken_vrij')) return ok(0);
 
   if (url.includes('/rest/v1/')) {
     const tabel = tabelUit(url);
@@ -125,23 +125,9 @@ globalThis.fetch = async (url, opts = {}) => {
     return ok(rijen);
   }
 
-  if (url.includes('api.anthropic.com')) {
-    const body = JSON.parse(opts.body);
-    const beurt = Math.floor(body.messages.length / 2) + 1;
-    const usage = { input_tokens: 1000, output_tokens: 200 };
-    if (beurt === 1) {
-      return ok({ stop_reason: 'tool_use', usage,
-        content: [{ type: 'tool_use', id: 't1', name: 'meta_insights', input: gevraagd }] });
-    }
-    /* De uitkomst van het gereedschap komt terug als tool_result in de tweede
-       beurt. Daar leest deze test wat de agent te horen kreeg. */
-    const laatste = body.messages[body.messages.length - 1];
-    if (Array.isArray(laatste.content)) {
-      const res = laatste.content.find(c => c.type === 'tool_result');
-      if (res) { try { toolUitkomst = JSON.parse(res.content); } catch { /* geen json */ } }
-    }
-    return ok({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Gemeten.' }] });
-  }
+  /* Geen Anthropic-tak meer. Die stond hier omdat de agent zijn gereedschap via
+     het model aanriep; de inhaalslag is een systeemtaak en praat rechtstreeks
+     met Meta. Komt er toch een aanroep, dan hoort deze test te klappen. */
 
   if (url.includes('graph.facebook.com')) {
     const u = new URL(url);
@@ -149,7 +135,7 @@ globalThis.fetch = async (url, opts = {}) => {
     const perDag = u.searchParams.get('time_increment') === '1';
     vroegPerDag = perDag;
     vroegVenster = venster;
-    vensters.push({ ...venster, level: u.searchParams.get('level') });
+    vensters.push({ ...venster, level: u.searchParams.get('level'), perDag: perDag });
 
     const since = new Date(venster.since + 'T00:00:00Z');
     const until = new Date(venster.until + 'T00:00:00Z');
@@ -182,94 +168,28 @@ const env = {
 };
 const auth = { headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' } };
 
-const haal = async (input) => {
-  gevraagd = input;
-  vroegPerDag = null; vroegVenster = null; toolUitkomst = null; vensters = [];
-  db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
-  await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
-    body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
-  await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
-  await new Promise(r => setTimeout(r, 80));
-  return { rijen: db.meta_insights_daily, uitkomst: toolUitkomst };
-};
+/* ── 1. Er is geen manier meer om een periodetotaal op te vragen ────────────
+   Vóór versie 16 was `breakdown_by_day` een schakelaar die standaard uit stond,
+   en dat was de hele fout van 0049: zonder time_increment geeft Meta één rij
+   voor de hele periode, met date_start op de eerste dag van het venster, en die
+   rij ging gewoon de dagtabel in.
 
-/* ── 1. De standaard staat op de veilige kant ───────────────────────────────
-   Dit is de kern. Vóór deze reparatie leverde precies deze aanroep -- level en
-   days, zonder breakdown_by_day, wat een agent vanzelf doet -- twee rijen van
-   € 70 op één datum op. */
-console.log('\n  zonder breakdown_by_day is per dag de standaard');
-let r = await haal({ level: 'ad', days: 7 });
-check('de worker vraagt Meta om een uitsplitsing per dag', vroegPerDag, true);
-check('zeven dagen x twee advertenties is veertien rijen', r.rijen.length, 14);
-check('en elke rij staat op een eigen datum',
-  new Set(r.rijen.map(x => x.insight_date)).size, 7);
-check('geen enkele rij draagt het periodetotaal',
-  r.rijen.every(x => Number(x.spend) === PER_DAG), true);
-check('het gereedschap meldt dat het per dag ging', r.uitkomst && r.uitkomst.per_dag, true);
-check('en dat er is weggeschreven', r.uitkomst && r.uitkomst.weggeschreven, true);
-
-/* ── 2. Expliciet uitzetten mag, maar dan wordt er niets bewaard ────────────
-   De agent mag een periodetotaal opvragen -- dat is een legitieme vraag. Wat
-   niet mag is dat zo'n totaal in de dagtabel belandt. */
-console.log('\n  een periodetotaal komt de dagtabel niet in');
-r = await haal({ level: 'ad', days: 30, breakdown_by_day: false });
-check('de worker vraagt Meta nu zonder uitsplitsing', vroegPerDag, false);
-check('en schrijft niets weg', r.rijen.length, 0);
-check('de agent krijgt de cijfers wel te zien', r.uitkomst && r.uitkomst.aantal, 2);
-check('het gereedschap zegt dat er niets bewaard is', r.uitkomst && r.uitkomst.weggeschreven, false);
-check('met een zin die vertelt hoe het wel moet',
-  !!(r.uitkomst && r.uitkomst.let_op && r.uitkomst.let_op.includes('breakdown_by_day')), true);
-
-/* ── 3. De inhaalslag over een lang venster blijft per dag ──────────────────
-   Boven de 45 dagen knipt de worker het venster in stukken van 30. Die stukken
-   moeten elk per dag uitgesplitst blijven, anders levert een inhaalslag over
-   400 dagen veertien lompe rijen op in plaats van 400 dagen. */
-console.log('\n  ook een lange inhaalslag levert dagen');
-r = await haal({ level: 'ad', days: 120 });
-check('nog steeds per dag', vroegPerDag, true);
-check('120 dagen x twee advertenties', r.rijen.length, 240);
-check('en 120 verschillende datums',
-  new Set(r.rijen.map(x => x.insight_date)).size, 120);
-/* Zonder deze controle zou een gat in de reeks niet opvallen: 240 rijen kan
-   ook 120 dagen met een dubbele zijn. */
-check('elke datum draagt precies twee rijen',
-  [...new Set(r.rijen.map(x => x.insight_date))].every(
-    d => r.rijen.filter(x => x.insight_date === d).length === 2), true);
-
-/* ── 4. Explicit true blijft gewoon werken ─────────────────────────────────*/
-console.log('\n  expliciet aanzetten verandert niets');
-r = await haal({ level: 'ad', days: 7, breakdown_by_day: true });
-check('per dag', vroegPerDag, true);
-check('veertien rijen', r.rijen.length, 14);
-
-/* ── 5. Het niveau doet er niet toe ────────────────────────────────────────
-   Campagne- en accountniveau schrijven naar dezelfde tabel en hadden dus
-   dezelfde fout. In de database staan 23 campagnerijen over 7 "dagen" en 12
-   accountrijen -- ook die kwamen hiervandaan. */
-console.log('\n  hetzelfde geldt voor campagne- en accountniveau');
-r = await haal({ level: 'campaign', days: 30, breakdown_by_day: false });
-check('campagneniveau schrijft ook niets weg', r.rijen.length, 0);
-r = await haal({ level: 'account', days: 30, breakdown_by_day: false });
-check('accountniveau ook niet', r.rijen.length, 0);
-
-/* ── 6. De inhaalslag ──────────────────────────────────────────────────────
-   Een systeemtaak, geen opdracht aan een agent: welke dagen ontbreken staat in
-   meta_meetgaten en daar valt niets aan te oordelen. Hij doet één gat per run
-   en zet zichzelf terug in de rij zolang er meer zijn -- 177 dagen passen niet
-   in één Worker-run. */
+   De reparatie van augustus zette de standaard om. Deze versie gaat verder: de
+   schakelaar bestaat niet meer. Dat is te controleren zonder de code te lezen —
+   elk verzoek aan Meta draagt time_increment=1, ongeacht wat je vraagt. */
 const inhaal = async (payload, gaten, dekking) => {
-  vensters = []; toolUitkomst = null;
-  db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
+  vensters = []; vroegPerDag = null;
+  db.meta_insights_daily = []; db.systeem_events = []; db.taken = []; db.taak_runs = [];
   db.meta_meetgaten = gaten;
   db.meta_meetdekking = dekking;
-  await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
-    body: JSON.stringify({ agent_id: 'atlas', kind: 'meta_inhaalslag', payload: payload || {} }) }), env);
-  await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+  await worker.fetch(new Request('https://w/systeem/taken', { method: 'POST', ...auth,
+    body: JSON.stringify({ kind: 'meta_inhaalslag', payload: payload || {} }) }), env);
+  await worker.fetch(new Request('https://w/systeem/tick', { method: 'POST', ...auth }), env);
   await new Promise(r => setTimeout(r, 120));
   return {
     rijen: db.meta_insights_daily,
-    vervolg: db.agent_jobs.filter(j => j.kind === 'meta_inhaalslag' && j.status === 'queued'),
-    run: db.agent_runs[db.agent_runs.length - 1]
+    vervolg: db.taken.filter(j => j.kind === 'meta_inhaalslag' && j.status === 'queued'),
+    run: db.taak_runs[db.taak_runs.length - 1]
   };
 };
 
@@ -277,8 +197,28 @@ const inhaal = async (payload, gaten, dekking) => {
 const HET_GAT = [{ account_id: '242238038391551', brand: 'wellshave',
                    van: '2025-10-06', tot: '2026-02-02', dagen: 120 }];
 
-console.log('\n  de inhaalslag haalt precies het gat op');
+console.log('\n  elk verzoek vraagt om een uitsplitsing per dag');
 let g = await inhaal({}, HET_GAT, [{ brand: 'wellshave', dagen_ontbreken: 57, grootste_gat_dagen: 49 }]);
+check('de worker vraagt Meta om dagen', vroegPerDag, true);
+/* Mutatietest: haal time_increment uit bouw() en deze twee vallen om, de rest
+   van het bestand niet -- daarom staan ze er allebei. */
+check('en dat geldt voor élk verzoek, ook de latere stukken',
+  vensters.length > 1 && vensters.every(v => v.perDag), true);
+
+console.log('\n  en levert dagen op, geen periodetotalen');
+check('120 dagen x twee advertenties op advertentieniveau',
+  g.rijen.filter(r => r.level === 'ad').length, 240);
+check('en 120 verschillende datums',
+  new Set(g.rijen.filter(r => r.level === 'ad').map(x => x.insight_date)).size, 120);
+/* Zonder deze controle zou een gat in de reeks niet opvallen: 240 rijen kan
+   ook 120 dagen met een dubbele zijn. */
+check('elke datum draagt precies twee advertentierijen',
+  [...new Set(g.rijen.filter(r => r.level === 'ad').map(x => x.insight_date))].every(
+    d => g.rijen.filter(x => x.level === 'ad' && x.insight_date === d).length === 2), true);
+check('geen enkele rij draagt het periodetotaal',
+  g.rijen.every(x => Number(x.spend) === PER_DAG), true);
+
+console.log('\n  de inhaalslag haalt precies het gat op');
 const advertentievensters = vensters.filter(v => v.level === 'ad')
   .sort((a, b) => a.since < b.since ? -1 : 1);
 check('hij begint op de eerste dag van het gat',
@@ -296,7 +236,6 @@ check('in stukken van hooguit 30 dagen',
 check('de stukken sluiten op elkaar aan',
   advertentievensters.every((v, i) => i === 0 ||
     Math.round((new Date(v.since) - new Date(advertentievensters[i - 1].until)) / DAG) === 1), true);
-check('alles per dag uitgesplitst', vroegPerDag, true);
 
 console.log('\n  en haalt ook accountniveau op');
 /* Zonder accountcijfer per dag kan meta_meetdag (0049) niet narekenen of een
@@ -332,6 +271,15 @@ g = await inhaal({ van: '2025-11-24', tot: '2025-12-01' }, HET_GAT,
 const handmatig = vensters.filter(v => v.level === 'ad');
 check('hij volgt het opgegeven venster', handmatig[0].since, '2025-11-24');
 check('en niet het gat uit de database', handmatig[0].since !== '2025-10-06', true);
+
+console.log('\n  een onbekende taak wordt geweigerd, niet geïnterpreteerd');
+/* Toen de agents er nog waren viel een onbekende opdracht terug op het model.
+   Dat is precies wat er niet meer moet kunnen. */
+const onzin = await worker.fetch(new Request('https://w/systeem/taken', { method: 'POST', ...auth,
+  body: JSON.stringify({ kind: 'verzin_een_rapport' }) }), env);
+check('het verzoek wordt afgewezen', onzin.status, 400);
+check('en er staat niets in de rij',
+  db.taken.filter(t => t.kind === 'verzin_een_rapport').length, 0);
 
 console.log('');
 console.log(fouten === 0 ? 'Alles klopt' : `${fouten} controle(s) mislukt`);

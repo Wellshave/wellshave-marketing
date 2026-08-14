@@ -33,8 +33,8 @@ const db = {
   }],
   meta_publications: [],
   approvals: [],
-  agent_events: [],
-  agent_runs: [],
+  systeem_events: [],
+  taak_runs: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }]
 };
 let volgendeId = 1;
@@ -43,7 +43,7 @@ const metaAanroepen = [];
 function defaults(tabel) {
   if (tabel === 'meta_publications') return { status: 'concept', attempts: 0, asset_kind: 'image', cta_type: 'SHOP_NOW' };
   if (tabel === 'approvals') return { status: 'pending' };
-  if (tabel === 'agent_events') return { level: 'info' };
+  if (tabel === 'systeem_events') return { level: 'info' };
   return {};
 }
 
@@ -117,62 +117,17 @@ const check = (label, echt, verwacht) => {
   console.log(`${goed ? 'ok  ' : 'FOUT'} ${label}${goed ? '' : `\n       verwacht ${JSON.stringify(verwacht)}, kreeg ${JSON.stringify(echt)}`}`);
 };
 
-/* De tools zitten niet in de export, dus we lopen via een echte agent-run: een
-   nep-Claude die precies één keer meta_prepare_ad aanroept en dan afrondt. De
-   toolset die Bolt meekrijgt vangen we onderweg af, zodat de guardrail-controle
-   verderop tegen de werkelijkheid test en niet tegen een lijstje in deze file. */
-let boltToolset = null;
-const echteFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts = {}) => {
-  if (String(url).includes('api.anthropic.com')) {
-    const body = JSON.parse(opts.body);
-    if (!boltToolset) boltToolset = body.tools.map(t => t.name).sort();
-    const ronde = Math.floor(body.messages.length / 2) + 1;
-    const usage = { input_tokens: 100, output_tokens: 50 };
-    if (ronde === 1) {
-      return new Response(JSON.stringify({
-        stop_reason: 'tool_use', usage,
-        content: [{
-          type: 'tool_use', id: 't1', name: 'meta_prepare_ad',
-          input: {
-            creative_id: 3, adset_id: '120252206157150577', ad_name: 'WS test — sneetjes',
-            headline: 'Nooit meer sneetjes', primary_text: 'Scheren zonder irritatie.',
-            cta_type: 'ORDER_NOW', daily_budget: 25,
-            hypothesis: 'Als we de angst voor sneetjes benoemen, dan stijgt de CTR, omdat dat de echte drempel is.'
-          }
-        }]
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({
-      stop_reason: 'end_turn', usage,
-      content: [{ type: 'text', text: 'Eén advertentie klaargezet, wacht op akkoord.' }]
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }
-  return echteFetch(url, opts);
-};
+/* Klaarzetten was een tool van Bolt en loopt sinds versie 16 via een endpoint.
+   Dat is geen cosmetische verhuizing: er zit geen model meer tussen dat de
+   invoer kon herformuleren. Wat hier de deur in gaat, gaat er zo naar Meta. */
+const klaarzetten = await (await post('/systeem/publicaties/klaarzetten', {
+  creative_id: 3, adset_id: '120252206157150577', ad_name: 'WS test — sneetjes',
+  headline: 'Nooit meer sneetjes', primary_text: 'Scheren zonder irritatie.',
+  cta_type: 'ORDER_NOW', daily_budget: 25,
+  hypothesis: 'Als we de angst voor sneetjes benoemen, dan stijgt de CTR, omdat dat de echte drempel is.'
+})).json();
+check('het klaarzetten slaagt', !klaarzetten.error, true);
 
-db.agent_jobs = [{
-  id: 90, agent_id: 'bolt', kind: 'publish_queue', payload: {}, status: 'queued',
-  attempts: 0, max_attempts: 3, priority: 1, scheduled_for: new Date().toISOString()
-}];
-globalThis.__claim = true;
-const echteFetch2 = globalThis.fetch;
-globalThis.fetch = async (url, opts = {}) => {
-  if (String(url).includes('rpc/claim_job')) {
-    /* Spiegelt claim_job uit 0004, inclusief scheduled_for. */
-    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
-    if (!j) return new Response('null', { status: 200, headers: { 'Content-Type': 'application/json' } });
-    j.status = 'running'; j.attempts++;
-    return new Response(JSON.stringify(j), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }
-  if (String(url).includes('rpc/reap_stuck_jobs')) {
-    return new Response('0', { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }
-  return echteFetch2(url, opts);
-};
-
-await worker.scheduled({ scheduledTime: Date.now() }, env, { waitUntil: p => p });
-await new Promise(r => setTimeout(r, 60));
 
 /* ---- Klaarzetten ---- */
 const pub = db.meta_publications[0];
@@ -196,25 +151,27 @@ check('gekoppeld aan de publicatie', app.payload.publication_id, pub.id);
 check('de publicatie kent de goedkeuring', pub.approval_id, app.id);
 
 /* ---- De grens: publiceren zonder akkoord ---- */
-const teVroeg = await post(`/agents/publications/${pub.id}/publish`, {});
+const teVroeg = await post(`/systeem/publicaties/${pub.id}/publish`, {});
 check('publiceren zonder akkoord wordt geweigerd', teVroeg.status, 403);
 check('en er is nog steeds geen advertentie', metaAanroepen.some(a => a.pad.endsWith('/ads')), false);
 
-/* ---- Guardrail: geen agent-tool kan dit ---- */
-check('Bolt krijgt meta_prepare_ad', boltToolset.includes('meta_prepare_ad'), true);
-check('en géén tool die iets live zet of budget wijzigt',
-  boltToolset.filter(n => /publish|activate|launch|budget|spend/.test(n)), []);
+/* ---- Guardrail ----
+   Vroeger stond hier dat Bolt wél meta_prepare_ad kreeg en géén tool die iets
+   live zette. Die scheiding zat in een toolset; nu zit hij in de route zelf,
+   en dat is sterker: klaarzetten vraagt een login, live zetten een admin. */
+check('klaarzetten kan zonder admin', klaarzetten.publication ? true : !klaarzetten.error, true);
+check('live zetten niet', teVroeg.status, 403);
 
 /* ---- Beslissen ---- */
-const besluit = await (await post(`/agents/approvals/${app.id}/decide`, { decision: 'approved' })).json();
+const besluit = await (await post(`/systeem/approvals/${app.id}/decide`, { decision: 'approved' })).json();
 check('de goedkeuring is verleend', besluit.approval.status, 'approved');
 check('met de naam van wie besliste', besluit.approval.decided_by, 'dustin@wellshave.com');
 
-const nogmaals = await post(`/agents/approvals/${app.id}/decide`, { decision: 'rejected' });
+const nogmaals = await post(`/systeem/approvals/${app.id}/decide`, { decision: 'rejected' });
 check('twee keer beslissen kan niet', nogmaals.status, 409);
 
 /* ---- Publiceren ---- */
-const live = await (await post(`/agents/publications/${pub.id}/publish`, { activate: true })).json();
+const live = await (await post(`/systeem/publicaties/${pub.id}/publish`, { activate: true })).json();
 check('de advertentie is aangemaakt', live.meta_ad_id, 'ad_555');
 check('de publicatie staat live', db.meta_publications[0].status, 'live');
 check('met wie hem live zette', db.meta_publications[0].published_by, 'dustin@wellshave.com');
@@ -229,7 +186,7 @@ check('de koppeling advertentie → creative ligt vast', db.meta_publications[0]
 
 /* ---- Herhaling ---- */
 const aantalAdsVoor = metaAanroepen.filter(a => a.pad.endsWith('/ads')).length;
-const opnieuw = await (await post(`/agents/publications/${pub.id}/publish`, { activate: true })).json();
+const opnieuw = await (await post(`/systeem/publicaties/${pub.id}/publish`, { activate: true })).json();
 check('nogmaals publiceren maakt niets nieuws aan', opnieuw.al_live, true);
 check('en raakt Meta niet opnieuw aan', metaAanroepen.filter(a => a.pad.endsWith('/ads')).length, aantalAdsVoor);
 

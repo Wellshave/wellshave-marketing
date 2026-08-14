@@ -45,7 +45,7 @@ let weigertVensterMetDagen = 0;
 let volgendeId = 1;
 const db = {
   agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }],
-  schedules: [], agent_jobs: [], agent_runs: [], agent_events: [], reports: [],
+  schedules: [], taken: [], taak_runs: [], systeem_events: [], reports: [],
   meta_publications: [], approvals: [], meta_insights_daily: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }],
   ad_accounts: [
@@ -56,9 +56,9 @@ const db = {
 
 function tabelUit(url) { const m = url.match(/\/rest\/v1\/([a-z_]+)/); return m ? m[1] : null; }
 function defaults(t) {
-  if (t === 'agent_jobs') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
-  if (t === 'agent_runs') return { status: 'running' };
-  if (t === 'agent_events') return { level: 'info' };
+  if (t === 'taken') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
+  if (t === 'taak_runs') return { status: 'running' };
+  if (t === 'systeem_events') return { level: 'info' };
   return {};
 }
 
@@ -80,13 +80,13 @@ globalThis.fetch = async (url, opts = {}) => {
   const ok = (d) => new Response(JSON.stringify(d), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   if (url.includes('/auth/v1/user')) return ok({ id: 'u1', email: 'dustin@wellshave.com' });
-  if (url.includes('/rest/v1/rpc/claim_job')) {
-    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
+  if (url.includes('/rest/v1/rpc/claim_taak')) {
+    const j = db.taken.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return ok(null);
     j.status = 'running'; j.attempts++; j.locked_at = new Date().toISOString();
     return ok(j);
   }
-  if (url.includes('/rest/v1/rpc/reap_stuck_jobs')) return ok(0);
+  if (url.includes('/rest/v1/rpc/maak_vastgelopen_taken_vrij')) return ok(0);
 
   if (url.includes('/rest/v1/')) {
     const tabel = tabelUit(url);
@@ -131,6 +131,7 @@ globalThis.fetch = async (url, opts = {}) => {
     const pagina = Number(u.searchParams.get('__pagina') || '1');
     if (u.searchParams.get('time_range')) {
       gevraagdVenster = JSON.parse(u.searchParams.get('time_range'));
+      gevraagdVenster.level = u.searchParams.get('level');
       if (pagina === 1) gevraagdeVensters.push(gevraagdVenster);
       /* De echte Meta weigert een te groot verzoek met deze tekst -- niet met
          een leeg antwoord. Dat onderscheid is de hele reden dat de inhaalslag
@@ -168,16 +169,28 @@ const env = {
 };
 const auth = { headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' } };
 
+/* Sinds versie 16 is meta_inhaalslag de enige weg naar metaInsights. Het
+   venster komt dus uit een gat in plaats van uit een `days`-parameter; de
+   paginering die hier getest wordt zit erachter en verandert daar niet van. */
 const haal = async (input) => {
   gevraagd = input; gevraagdVenster = null; gevraagdeVensters = [];
-  db.meta_insights_daily = []; db.agent_events = []; db.agent_jobs = []; db.agent_runs = [];
-  await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth,
-    body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
-  await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
+  db.meta_insights_daily = []; db.systeem_events = []; db.taken = []; db.taak_runs = [];
+  const eind = new Date();
+  const start = new Date(eind.getTime() - ((input.days || 7) - 1) * 86400000);
+  const dag = (d) => d.toISOString().slice(0, 10);
+  db.meta_meetgaten = [{ account_id: '242238038391551', brand: 'wellshave',
+                         van: dag(start), tot: dag(eind), dagen: input.days || 7 }];
+  db.meta_meetdekking = [{ brand: 'wellshave', dagen_ontbreken: 0 }];
+  await worker.fetch(new Request('https://w/systeem/taken', { method: 'POST', ...auth,
+    body: JSON.stringify({ kind: 'meta_inhaalslag' }) }), env);
+  await worker.fetch(new Request('https://w/systeem/tick', { method: 'POST', ...auth }), env);
   await new Promise(r => setTimeout(r, 80));
   return {
-    rijen: db.meta_insights_daily,
-    waarschuwingen: db.agent_events.filter(e => e.level === 'warn')
+    /* Alleen advertentieniveau: de inhaalslag haalt ook accountcijfers op, en
+       die verdubbelen elke telling hieronder zonder iets over paginering te
+       zeggen. */
+    rijen: db.meta_insights_daily.filter(r => r.level === 'ad'),
+    waarschuwingen: db.systeem_events.filter(e => e.level === 'warn')
   };
 };
 
@@ -204,7 +217,10 @@ r = await haal({ level: 'ad', days: 7 });
 /* Wat binnen is blijft binnen -- twee pagina's zijn beter dan niets. Maar het
    mag niet doorgaan voor een volledige meting. */
 check('de rijen tot de breuk blijven behouden', r.rijen.length, 4);
-check('en er staat een waarschuwing bij', r.waarschuwingen.length, 1);
+/* Twee, niet één: de inhaalslag haalt advertentie- én accountniveau op en
+   beide lopen op dezelfde breuk stuk. Eén zou betekenen dat een van de twee
+   niveaus stil overgeslagen werd. */
+check('en er staat per niveau een waarschuwing bij', r.waarschuwingen.length, 2);
 check('die zegt na hoeveel paginas het misging',
   /brak af na 2 pagina/.test(r.waarschuwingen[0] ? r.waarschuwingen[0].message : ''), true);
 
@@ -223,7 +239,7 @@ r = await haal({ level: 'ad', days: 400 });
    geheel 400 dagen terug -- alleen meet je hem nu over de rand van álle
    stukken samen. Naar het laatste stuk kijken zou hier 9 dagen opleveren en
    groen zijn om de verkeerde reden. */
-const alles = gevraagdeVensters.slice().sort((a, b) => a.since < b.since ? -1 : 1);
+const alles = gevraagdeVensters.filter(v => v.level !== 'account').slice().sort((a, b) => a.since < b.since ? -1 : 1);
 const dagenTerug = Math.round(
   (new Date(alles[alles.length - 1].until) - new Date(alles[0].since)) / 86400000);
 check('het gevraagde venster is echt 400 dagen', dagenTerug, 399);
@@ -236,35 +252,35 @@ r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
 /* Meta weigerde 400 dagen per dag op advertentieniveau letterlijk met "Please
    reduce the amount of data you're asking for". Niet paginatie: hij komt daar
    niet eens aan toe, hij wijst het verzoek zelf af. */
-check('400 dagen wordt opgeknipt', gevraagdeVensters.length > 1, true);
+check('400 dagen wordt opgeknipt', gevraagdeVensters.filter(v => v.level !== 'account').length > 1, true);
 check('geen enkel stuk is groter dan 30 dagen',
   gevraagdeVensters.every(v =>
     Math.round((new Date(v.until) - new Date(v.since)) / 86400000) + 1 <= 30), true);
 /* De stukken moeten samen het hele venster dekken en elkaar niet overlappen:
    een gat is een maand die stil ontbreekt, een overlap telt een maand dubbel. */
-const opVolgorde = gevraagdeVensters.slice().sort((a, b) => a.since < b.since ? -1 : 1);
+const opVolgorde = gevraagdeVensters.filter(v => v.level !== 'account')
+  .slice().sort((a, b) => a.since < b.since ? -1 : 1);
 check('de stukken sluiten op elkaar aan, zonder gat of overlap',
   opVolgorde.every((v, i) => i === 0 ||
     Math.round((new Date(v.since) - new Date(opVolgorde[i - 1].until)) / 86400000) === 1), true);
 check('en samen reiken ze tot voor 4 augustus 2025',
   opVolgorde[0].since < '2025-08-04', true);
-check('elk stuk levert zijn rijen', r.rijen.length, gevraagdeVensters.length * 2);
+check('elk stuk levert zijn rijen', r.rijen.length, opVolgorde.length * 2);
 
 console.log('\n  de dagelijkse run blijft precies één verzoek');
 weigertVensterMetDagen = 0;
-r = await haal({ level: 'ad', days: 7, breakdown_by_day: true });
+r = await haal({ level: 'ad', days: 7 });
 /* Een reparatie die het normale geval verandert, repareert niet maar
-   verplaatst. Zeven dagen hoort exact te blijven zoals het was. */
-check('zeven dagen blijft één venster', gevraagdeVensters.length, 1);
-/* Knippen hoort alleen bij een uitsplitsing per dag: zonder time_increment
-   past een heel jaar in één antwoord en is knippen zinloos werk.
+   verplaatst. Zeven dagen hoort exact te blijven zoals het was: één verzoek
+   per niveau, niet geknipt. */
+check('zeven dagen blijft één venster per niveau',
+  gevraagdeVensters.filter(v => v.level !== 'account').length, 1);
 
-   Dat moet sinds versie 14 expliciet gevraagd worden. Stond hier eerst geen
-   breakdown_by_day, en dát was precies de fout: wie niets invulde kreeg een
-   periodetotaal dat vervolgens als dagrij werd bewaard. Wat er nu bewaard
-   wordt bewaakt dagrijen.mjs; hier gaat het alleen om het aantal vensters. */
-r = await haal({ level: 'ad', days: 400, breakdown_by_day: false });
-check('zonder per-dag ook één venster', gevraagdeVensters.length, 1);
+/* Hier stond een controle op `breakdown_by_day: false` -- of een verzoek
+   zonder uitsplitsing één ongeknipt venster opleverde. Die schakelaar bestaat
+   sinds versie 16 niet meer: er is geen aanroeper die hem kon zetten, dus is
+   de tak weggehaald in plaats van bewaakt. Wat er nog van overblijft is dat
+   élk verzoek per dag gaat, en dat bewaakt dagrijen.mjs. */
 
 console.log('\n  weigert Meta één periode, dan is dat te zien');
 weigertVensterMetDagen = 0;
@@ -284,8 +300,14 @@ r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
 /* Nul rijen mag nooit doorgaan voor een geslaagde inhaalslag: dan ziet de map
    er compleet uit terwijl er een jaar ontbreekt. */
 check('er komt niets binnen', r.rijen.length, 0);
+/* Vroeger meldde de tool-wrapper dit met "Meta gaf geen cijfers". Die wrapper
+   is weg; nu gooit metaInsights zelf zodra géén enkel venster lukt, en vangt
+   de inhaalslag dat per niveau op. De eis is dezelfde gebleven: nul rijen mag
+   nooit stil doorgaan voor een geslaagde meting. */
 check('en het account wordt als mislukt gemeld',
-  r.waarschuwingen.some(w => /Meta gaf geen cijfers/.test(w.message)), true);
+  r.waarschuwingen.some(w => /Inhaalslag ad mislukt/.test(w.message)), true);
+check('met de reden erbij, niet alleen dat het misging',
+  r.waarschuwingen.some(w => /geen enkel venster gelukt/.test(JSON.stringify(w.data || {}))), true);
 
 console.log('');
 if (fouten) { console.log(`${fouten} controle(s) mislukt`); process.exit(1); }

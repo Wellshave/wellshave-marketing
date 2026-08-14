@@ -19,8 +19,8 @@ import worker from '../marketing-os.worker.js';
 let wellshineWeigert = false;
 
 const db = {
-  agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }, { id: 'bolt', name: 'Bolt', status: 'idle' }],
-  schedules: [], agent_jobs: [], agent_runs: [], agent_events: [], reports: [],
+  schedules: [], taken: [], taak_runs: [], systeem_events: [],
+  meta_insights_daily: [], meta_meetgaten: [], meta_meetdekking: [],
   meta_publications: [], approvals: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }],
   ad_accounts: [
@@ -41,9 +41,9 @@ const claudeAanroepen = [], metaPaden = [];
 
 function tabelUit(url) { const m = url.match(/\/rest\/v1\/([a-z_]+)/); return m ? m[1] : null; }
 function defaults(t) {
-  if (t === 'agent_jobs') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
-  if (t === 'agent_runs') return { status: 'running' };
-  if (t === 'agent_events') return { level: 'info' };
+  if (t === 'taken') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
+  if (t === 'taak_runs') return { status: 'running' };
+  if (t === 'systeem_events') return { level: 'info' };
   return {};
 }
 
@@ -53,13 +53,13 @@ globalThis.fetch = async (url, opts = {}) => {
   const ok = (d) => new Response(JSON.stringify(d), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   if (url.includes('/auth/v1/user')) return ok({ id: 'u1', email: 'dustin@wellshave.com' });
-  if (url.includes('/rest/v1/rpc/claim_job')) {
-    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
+  if (url.includes('/rest/v1/rpc/claim_taak')) {
+    const j = db.taken.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return ok(null);
     j.status = 'running'; j.attempts++; j.locked_at = new Date().toISOString();
     return ok(j);
   }
-  if (url.includes('/rest/v1/rpc/reap_stuck_jobs')) return ok(0);
+  if (url.includes('/rest/v1/rpc/maak_vastgelopen_taken_vrij')) return ok(0);
 
   if (url.includes('/rest/v1/')) {
     const tabel = tabelUit(url);
@@ -90,37 +90,9 @@ globalThis.fetch = async (url, opts = {}) => {
     return ok(rijen);
   }
 
-  if (url.includes('api.anthropic.com')) {
-    const body = JSON.parse(opts.body);
-    claudeAanroepen.push(body);
-    const beurt = Math.floor(body.messages.length / 2) + 1;
-    const usage = { input_tokens: 1000, output_tokens: 200 };
-
-    /* Bolt zet klaar, Atlas meet. Welke van de twee aan het woord is, staat in
-       de systeeminstructie. */
-    if (body.system && body.system.includes('Je bent Bolt')) {
-      if (beurt === 1) {
-        return ok({ stop_reason: 'tool_use', usage, content: [{
-          type: 'tool_use', id: 'p1', name: 'meta_prepare_ad',
-          input: { creative_id: teKlaarzetten, hypothese: 'als we X, dan Y, omdat Z' }
-        }] });
-      }
-      return ok({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Klaargezet.' }] });
-    }
-
-    if (beurt === 1) {
-      return ok({ stop_reason: 'tool_use', usage,
-        content: [{ type: 'tool_use', id: 't1', name: 'meta_insights', input: { level: 'account', days: 30 } }] });
-    }
-    if (beurt === 2) {
-      return ok({ stop_reason: 'tool_use', usage,
-        content: [{ type: 'tool_use', id: 't2', name: 'write_report', input: {
-          kind: 'audit', title: 'Audit', body_md: '# Audit',
-          periode_start: '2026-06-30', periode_eind: '2026-07-29',
-          cijfers: { accounts: 2 } } }] });
-    }
-    return ok({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Twee accounts gemeten.' }] });
-  }
+  /* Geen Anthropic-tak meer. De accounts worden nu doorlopen door
+     meta_inhaalslag en door het klaarzet-endpoint, allebei zonder model.
+     Komt hier toch een aanroep, dan hoort deze test te klappen. */
 
   if (url.includes('graph.facebook.com')) {
     const pad = url.split('graph.facebook.com/')[1].split('?')[0];
@@ -172,56 +144,69 @@ check('maar lekt geen accountgegevens', gezond.accounts, undefined);
 check('en noemt geen enkel accountnummer',
   JSON.stringify(gezond).includes('2776743939329385'), false);
 
-const zonderLogin = await worker.fetch(new Request('https://w/agents/status'), env);
+const zonderLogin = await worker.fetch(new Request('https://w/systeem/status'), env);
 check('de accountlijst vraagt een login', zonderLogin.status, 401);
 
-const statusIn = await (await worker.fetch(new Request('https://w/agents/status', auth), env)).json();
+const statusIn = await (await worker.fetch(new Request('https://w/systeem/status', auth), env)).json();
 check('ingelogd staan er twee draaiende accounts', statusIn.accounts.length, 2);
 check('met hun merk erbij', statusIn.accounts.map(a => a.merk).sort(), ['wellshave', 'wellshine']);
 check('en geen noodrem', statusIn.accounts.every(a => !a.noodrem), true);
 
 /* ── Meten over alle accounts ────────────────────────────────────────────── */
 console.log('\n  meten gaat over alle draaiende accounts');
-await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
-await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
-await new Promise(r => setTimeout(r, 50));
 
-const gemeten = uitkomstVan(claudeAanroepen[1], 't1');
-check('beide accounts opgehaald', gemeten.accounts, 2);
+const HET_GAT = [{ account_id: null, brand: 'wellshave',
+                   van: '2026-06-30', tot: '2026-07-01', dagen: 2 }];
+
+const meet = async () => {
+  db.taken.length = 0; db.taak_runs.length = 0;
+  db.meta_insights_daily.length = 0; db.systeem_events.length = 0;
+  db.meta_meetgaten = HET_GAT;
+  db.meta_meetdekking = [{ brand: 'wellshave', dagen_ontbreken: 0 }];
+  await worker.fetch(new Request('https://w/systeem/taken', { method: 'POST', ...auth,
+    body: JSON.stringify({ kind: 'meta_inhaalslag' }) }), env);
+  await worker.fetch(new Request('https://w/systeem/tick', { method: 'POST', ...auth }), env);
+  await new Promise(r => setTimeout(r, 60));
+  return db.taak_runs[db.taak_runs.length - 1];
+};
+
+let run = await meet();
 check('het stille account is overgeslagen',
-  gemeten.per_account.some(a => a.account_id === '1301619051500441'), false);
+  db.meta_insights_daily.some(r => r.account_id === '1301619051500441'), false);
 check('en de cijfers staan per account apart',
-  db.meta_insights_daily.map(r => r.account_id).sort(),
+  [...new Set(db.meta_insights_daily.map(r => r.account_id))].sort(),
   ['242238038391551', '2776743939329385']);
 check('met verschillende bedragen, dus niet twee keer hetzelfde account',
-  db.meta_insights_daily.map(r => r.spend).sort(), [1207.74, 3425.92]);
+  [...new Set(db.meta_insights_daily.map(r => r.spend))].sort((x, y) => x - y), [1207.74, 3425.92]);
 
 /* ── Eén account dat weigert ─────────────────────────────────────────────── */
 console.log('\n  één account dat weigert neemt de rest niet mee');
 wellshineWeigert = true;
-db.agent_jobs.length = 0; db.agent_runs.length = 0; claudeAanroepen.length = 0;
-db.meta_insights_daily.length = 0; db.reports.length = 0;
-await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'atlas', kind: 'account_audit' }) }), env);
-await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
-await new Promise(r => setTimeout(r, 50));
-
-const half = uitkomstVan(claudeAanroepen[1], 't1');
-check('Wellshave is gewoon gemeten', half.accounts, 1);
-check('Wellshine staat als gat', half.gaten.length, 1);
-check('met de naam erbij, niet alleen een id', half.gaten[0].naam, 'Wellshine B.V.');
-check('de run loopt door', db.agent_jobs[0].status, 'done');
-check('en er is een rapport', db.reports.length, 1);
+run = await meet();
+check('Wellshave is gewoon gemeten',
+  db.meta_insights_daily.some(r => r.account_id === '242238038391551'), true);
+check('Wellshine leverde niets',
+  db.meta_insights_daily.some(r => r.account_id === '2776743939329385'), false);
+/* Het gat moet luid zijn. Stil doorgaan is precies de storing waar 0049 over
+   ging: dan ziet de meting er compleet uit terwijl er een account ontbreekt. */
+check('en dat staat als waarschuwing in het logboek',
+  db.systeem_events.some(e => e.level === 'warn' && /Wellshine/.test(e.message)), true);
+check('de run loopt door', db.taken[0].status, 'done');
 wellshineWeigert = false;
 
 /* ── Publiceren volgt het merk ───────────────────────────────────────────── */
 console.log('\n  publiceren volgt het merk van de creative');
-metaPaden.length = 0; claudeAanroepen.length = 0;
-db.agent_jobs.length = 0; db.agent_runs.length = 0;
-teKlaarzetten = 7;
-await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'bolt', kind: 'publish_queue' }) }), env);
-await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
-await new Promise(r => setTimeout(r, 60));
+const klaarzetten = async (creativeId) => {
+  metaPaden.length = 0;
+  db.meta_publications.length = 0;
+  return (await worker.fetch(new Request('https://w/systeem/publicaties/klaarzetten', {
+    method: 'POST', ...auth,
+    body: JSON.stringify({ creative_id: creativeId, adset_id: '120252206157150577',
+                           hypothesis: 'als we X, dan Y, omdat Z' })
+  }), env)).json();
+};
 
+await klaarzetten(7);
 const upload = metaPaden.find(p => p.endsWith('/adimages'));
 check('een wellshine-creative gaat naar het Wellshine-account',
   (upload.match(/act_(\d+)/) || [])[1], '2776743939329385');
@@ -232,16 +217,9 @@ check('en niet naar het account uit het secret',
    makkelijkst zijn en het duurst: een advertentie in het verkeerde account is
    niet terug te draaien. */
 console.log('\n  een merk zonder account wordt geweigerd');
-metaPaden.length = 0; claudeAanroepen.length = 0;
-db.agent_jobs.length = 0; db.agent_runs.length = 0; db.meta_publications.length = 0;
-teKlaarzetten = 8;
-await worker.fetch(new Request('https://w/agents/run', { method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'bolt', kind: 'publish_queue' }) }), env);
-await worker.fetch(new Request('https://w/agents/tick', { method: 'POST', ...auth }), env);
-await new Promise(r => setTimeout(r, 60));
-
+const mis = await klaarzetten(8);
 check('er is niets naar Meta gegaan', metaPaden.length, 0);
 check('er is geen publicatie aangemaakt', db.meta_publications.length, 0);
-const mis = uitkomstVan(claudeAanroepen[1], 'p1');
 check('en de fout noemt het merk', String(mis.error).includes('peppermint'), true);
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : '\nAlle controles geslaagd');

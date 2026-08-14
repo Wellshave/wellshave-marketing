@@ -15,9 +15,9 @@ import worker from '../marketing-os.worker.js';
 
 const db = {
   agents: [{ id: 'atlas', name: 'Atlas', status: 'idle' }],
-  agent_jobs: [],
-  agent_runs: [],
-  agent_events: [],
+  taken: [],
+  taak_runs: [],
+  systeem_events: [],
   team_members: [{ id: 'u1', status: 'approved', role: 'admin' }]
 };
 let volgendeId = 1;
@@ -26,9 +26,9 @@ let rpcAanroepen = [];
 let rpcFaalt = false;
 
 function defaults(tabel) {
-  if (tabel === 'agent_jobs') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
-  if (tabel === 'agent_runs') return { status: 'running' };
-  if (tabel === 'agent_events') return { level: 'info' };
+  if (tabel === 'taken') return { status: 'queued', priority: 5, attempts: 0, max_attempts: 3, source: 'cron', scheduled_for: new Date().toISOString() };
+  if (tabel === 'taak_runs') return { status: 'running' };
+  if (tabel === 'systeem_events') return { level: 'info' };
   return {};
 }
 
@@ -53,16 +53,16 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.includes('/auth/v1/user')) return ok({ id: 'u1', email: 'dustin@wellshave.com' });
 
-  if (url.includes('/rest/v1/rpc/claim_job')) {
+  if (url.includes('/rest/v1/rpc/claim_taak')) {
     /* Spiegelt claim_job uit 0004: alleen wat nu aan de beurt is. Zonder die
        voorwaarde pakt één tick dezelfde mislukte job meteen opnieuw op en
        verbrandt hij al zijn pogingen in een paar milliseconden. */
-    const j = db.agent_jobs.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
+    const j = db.taken.find(x => x.status === 'queued' && new Date(x.scheduled_for) <= new Date());
     if (!j) return ok(null);
     j.status = 'running'; j.attempts++;
     return ok(j);
   }
-  if (url.includes('/rest/v1/rpc/reap_stuck_jobs')) return ok(0);
+  if (url.includes('/rest/v1/rpc/maak_vastgelopen_taken_vrij')) return ok(0);
 
   if (url.includes('/rest/v1/rpc/sync_creative_results')) {
     rpcAanroepen.push('sync_creative_results');
@@ -107,19 +107,19 @@ const check = (label, echt, verwacht) => {
 };
 
 /* ---- De gelukkige route ---- */
-const gevraagd = await (await worker.fetch(new Request('https://w/agents/run', {
-  method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'atlas', kind: 'feedback_sync' })
+const gevraagd = await (await worker.fetch(new Request('https://w/systeem/taken', {
+  method: 'POST', ...auth, body: JSON.stringify({ kind: 'feedback_sync' })
 }), env)).json();
-check('de terugkoppeling kan als opdracht in de rij', gevraagd.job.kind, 'feedback_sync');
+check('de terugkoppeling kan als opdracht in de rij', gevraagd.taak.kind, 'feedback_sync');
 
 await worker.scheduled({ scheduledTime: Date.now() }, env, { waitUntil: p => p });
 await new Promise(r => setTimeout(r, 50));
 
-check('de job is afgerond', db.agent_jobs[0].status, 'done');
+check('de job is afgerond', db.taken[0].status, 'done');
 check('de terugschrijving is aangeroepen', rpcAanroepen, ['sync_creative_results']);
 check('er is GEEN taalmodel gebruikt', anthropicAanroepen, 0);
 
-const run = db.agent_runs[0];
+const run = db.taak_runs[0];
 check('de run is vastgelegd', run.status, 'done');
 check('als systeemtaak, niet als model', run.model, 'systeem');
 check('en kost niets', run.cost_usd, 0);
@@ -128,29 +128,29 @@ check('met een leesbare samenvatting',
   run.summary, '7 creatives bijgewerkt met cijfers, 2 van status veranderd. Sterkste hoek: Problem-Solution.');
 
 check('de uitkomst staat in de live-feed',
-  db.agent_events.some(e => e.message === 'Cijfers teruggeschreven naar de creatives'), true);
+  db.systeem_events.some(e => e.message === 'Cijfers teruggeschreven naar de creatives'), true);
 check('het patroon is benoemd',
-  db.agent_events.some(e => (e.message || '').startsWith('Beste hoek nu: Problem-Solution')), true);
+  db.systeem_events.some(e => (e.message || '').startsWith('Beste hoek nu: Problem-Solution')), true);
 check('de agent staat weer op idle', db.agents[0].status, 'idle');
 
 /* ---- Als het misgaat ---- */
 rpcFaalt = true;
 rpcAanroepen = [];
-db.agent_jobs.length = 0;
-db.agent_runs.length = 0;
+db.taken.length = 0;
+db.taak_runs.length = 0;
 
-await worker.fetch(new Request('https://w/agents/run', {
-  method: 'POST', ...auth, body: JSON.stringify({ agent_id: 'atlas', kind: 'feedback_sync' })
+await worker.fetch(new Request('https://w/systeem/taken', {
+  method: 'POST', ...auth, body: JSON.stringify({ kind: 'feedback_sync' })
 }), env);
 await worker.scheduled({ scheduledTime: Date.now() }, env, { waitUntil: p => p });
 await new Promise(r => setTimeout(r, 50));
 
-check('een mislukking komt terug in de rij', db.agent_jobs[0].status, 'queued');
-check('de fout is bewaard', /sync_creative_results/.test(db.agent_jobs[0].error || ''), true);
-check('de run staat op mislukt', db.agent_runs[0].status, 'failed');
+check('een mislukking komt terug in de rij', db.taken[0].status, 'queued');
+check('de fout is bewaard', /sync_creative_results/.test(db.taken[0].error || ''), true);
+check('de run staat op mislukt', db.taak_runs[0].status, 'failed');
 check('en de agent hangt niet op working', db.agents[0].status, 'idle');
 check('er staat een foutmelding in de feed',
-  db.agent_events.some(e => e.level === 'error'), true);
+  db.systeem_events.some(e => e.level === 'error'), true);
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : '\nAlle controles geslaagd');
 process.exit(fouten ? 1 : 0);
