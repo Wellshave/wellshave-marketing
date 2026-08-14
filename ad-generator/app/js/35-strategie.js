@@ -209,8 +209,9 @@ function strZichtbaar() {
 /* Zes groepen die je verschillend behandelt. De fase komt uit de database, de
    vertaling naar "wacht op jou" gebeurt hier omdat het over jou gaat en niet
    over de rij. */
-/* De verdicts van de agents in gewone taal. Het Engelse woord uit
-   meta_recommendations zegt niets tegen wie de tabel leest. */
+/* De verdicts in gewone taal. Het Engelse woord uit meta_recommendations zegt
+   niets tegen wie de tabel leest. Die tabel blijft staan met wat er al in zat;
+   er komt alleen niets meer bij nu er geen agent meer oordeelt. */
 var STR_VERDICT = { winner: 'winnaar', loser: 'verliezer', test: 'blijf testen',
                     onvoldoende_data: 'te weinig data' };
 
@@ -377,7 +378,7 @@ function strTeken() {
   if (wachtend) {
     h += '<div class="str-wacht' + (_str.alleenWacht ? ' str-wacht--aan' : '') + '">'
       +  '<strong>' + wachtend + (wachtend === 1 ? ' test wacht' : ' tests wachten') + ' op jou.</strong> '
-      +  'Bij de rest is een agent of de meting aan zet. '
+      +  'Bij de rest is de meting aan zet. '
       +  '<button class="str-knop" onclick="strAlleenWacht()">'
       +  (_str.alleenWacht ? 'toon alles' : 'toon alleen deze') + '</button></div>';
   }
@@ -586,18 +587,20 @@ function strOordeel(d) {
       waarom: 'Hij is ingediend en er ligt nog geen oordeel. De Criticus kijkt of de '
         + 'test toetsbaar is voordat er geld aan wordt uitgegeven.',
       actie: 'Naar De Criticus sturen',
-      hoe: 'De Criticus draait nog niet als agent; tot die tijd is dit een mens die '
-         + 'het denkstuk naloopt.' };
+      hoe: 'De Criticus is een mens die het denkstuk naloopt. Er is nooit een agent '
+         + 'geweest die dit deed, en er komt er ook geen.' };
   }
 
   /* 3. Doorgelaten, maar nog niet klaargezet bij Meta. */
   if (d.status === 'Goedgekeurd voor test') {
-    return { id: 'wacht-bolt', ernst: 'wacht',
+    return { id: 'wacht-klaarzetten', ernst: 'wacht',
       oordeel: 'Deze creative is goedgekeurd en wacht op klaarzetten bij Meta',
       waarom: 'Het beeld moet geüpload worden en de ad-creative aangemaakt. Dat kost '
         + 'nog niets: er wordt pas geld uitgegeven als hij live gaat.',
-      actie: 'Wachten op Bolt',
-      hoe: 'Bolt pakt dit op in de publicatiewachtrij.' };
+      actie: 'Klaarzetten bij Meta',
+      hoe: 'Dit deed Bolt automatisch. Sinds de agents eruit zijn is het een handeling '
+         + 'van een mens: klaarzetten maakt de creative aan en zet meteen een '
+         + 'goedkeuring klaar, live zetten vraagt daarna een admin.' };
   }
 
   /* 4. De poort waar geld begint te lopen. Het enige moment waarop een mens
@@ -619,15 +622,15 @@ function strOordeel(d) {
         waarom: strMeetzin(m) + ' Daarmee is de drempel gehaald en mag er iets over '
           + 'gezegd worden.',
         actie: 'Verdict beoordelen',
-        hoe: d.verdict ? ('De agents stellen voor: ' + (STR_VERDICT[d.verdict] || d.verdict) + '.')
-                       : 'Er ligt nog geen voorstel van de agents.' };
+        hoe: d.verdict ? ('Er ligt nog een oud voorstel: ' + (STR_VERDICT[d.verdict] || d.verdict) + '.')
+                       : 'Er ligt geen voorstel. Het oordeel is aan jou.' };
     }
     return { id: 'wacht-data', ernst: 'geduld',
       oordeel: 'Deze test is live maar nog niet beoordeelbaar',
       waarom: strMeetzin(m) + ' De drempel ligt op vier dagen, vijftig euro en duizend '
         + 'vertoningen — daaronder is elk oordeel toeval.',
       actie: null,
-      hoe: 'Geen actie nodig — Atlas wacht tot de meetdrempel is bereikt.' };
+      hoe: 'Geen actie nodig — de meting loopt door tot de drempel gehaald is.' };
   }
 
   /* 6. Er ligt een verdict. Dan gaat het nog om de learning. */
@@ -653,11 +656,10 @@ function strOordeel(d) {
     if (!d.learning_bevestigd) {
       return { id: 'learning-voorstel', ernst: 'jij',
         oordeel: uitgesproken[d.status] + ' — de learning wacht op jouw bevestiging',
-        waarom: strTekst(d.learning_kern) + ' Dat is nu een voorstel'
-          + (d.learning_door_agent ? ' van ' + strEsc(d.learning_door_agent) : '')
-          + ', geen vastgesteld feit.',
+        waarom: strTekst(d.learning_kern) + ' Dat is nu een voorstel, geen vastgesteld feit.',
         actie: 'Learning bevestigen',
-        hoe: 'Een agent mag voorstellen; vastgesteld is het pas als een mens tekent.' };
+        hoe: 'Een learning is pas vastgesteld als een mens tekent. Dat gold al toen een '
+           + 'agent het voorstel schreef, en het geldt nog steeds.' };
     }
     return { id: 'afgerond', ernst: 'rustig',
       oordeel: uitgesproken[d.status] + ' en de learning is vastgelegd',
@@ -983,7 +985,7 @@ function strDosStrategie(d, legacy) {
 
 function strDosSamen(d) {
   var tl = d.tijdlijn || [], overdrachten = d.overdrachten || [],
-      oordelen = d.oordelen || [], discussies = d.discussies || [];
+      oordelen = d.oordelen || [];
   var body = '';
 
   if (tl.length) {
@@ -1012,20 +1014,12 @@ function strDosSamen(d) {
     }).join('');
   }
 
-  if (discussies.length) {
-    body += '<div class="str-sub">Discussies</div>' + discussies.map(function (b) {
-      return '<div class="str-bericht"><strong>' + strEsc(strTekst(b.van) || '?') + ' → '
-        + strEsc(strTekst(b.aan) || '?') + '</strong> ' + strEsc(strTekst(b.onderwerp) || '')
-        + (b.gelezen ? '' : ' <em class="str-let-op">nooit opgehaald</em>')
-        + strOnderbouwing(strTekst(b.body)) + '</div>';
-    }).join('');
-  }
+  /* Hier stond "Discussies": de berichten die agents elkaar stuurden, uit
+     agent_messages. Die tabel is weg met de agents. Het blok is niet verborgen
+     maar verwijderd -- een kop die altijd leeg blijft leest als een storing. */
 
-  var mensen = tl.filter(function (t) { return t.door === 'mens'; }).length;
-  var agents = tl.filter(function (t) { return t.door === 'agent'; }).length;
   var kop = tl.length
-    ? (tl.length + (tl.length === 1 ? ' gebeurtenis' : ' gebeurtenissen')
-       + (mensen || agents ? ' · ' + mensen + ' door een mens, ' + agents + ' door een agent' : ''))
+    ? tl.length + (tl.length === 1 ? ' gebeurtenis' : ' gebeurtenissen')
     : 'nog niets vastgelegd';
 
   return {
@@ -1040,6 +1034,8 @@ function strDosSamen(d) {
    De volledige tekst zit achter "Bekijk onderbouwing" — samenvatten mag nooit
    betekenen dat de brontekst weg is. */
 function strTijdlijnregel(t) {
+  /* 'agent' kan hier nog uit oude rijen komen: de historie blijft staan, alleen
+     komt er niets meer bij. Daarom blijft de derde tak bestaan. */
   var door = t.door === 'mens' ? 'mens' : t.door === 'agent' ? 'agent' : 'onbekend';
   var wie = strTekst(t.wie);
   if (!wie || wie === 'naamloos') wie = 'Historische uitvoerder niet vastgelegd';

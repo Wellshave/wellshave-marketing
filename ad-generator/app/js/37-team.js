@@ -1,25 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Het team — mensen en agents naast elkaar
+   Het team — de mensen
 
    Beslisvraag (opgeschreven vóór deze regel code):
 
-       "Wie is dit, wat doet die voor mij, en kan ik erop rekenen?"
+       "Wie is dit, en wat doet die voor mij?"
 
-   Drie dingen bepalen de vorm.
+   Hier stonden mensen en agents naast elkaar, met de redenering dat Atlas voor
+   wie het systeem gebruikt net zo goed een collega was als Willem. Sinds de
+   agents eruit zijn klopt die pagina niet meer, en het is geen kwestie van een
+   lege sectie verbergen: de hele tweedeling was de vorm. Wat overblijft is een
+   teampagina, en dat is precies wat het is.
 
-   1. Mensen en agents op één pagina, niet in twee lijsten die je moet
-      vergelijken. Voor wie het systeem gebruikt is Atlas net zo goed een
-      collega als Willem: je geeft hem werk, hij levert iets terug, en je moet
-      weten waar hij goed in is. De agents staan wel apart gegroepeerd, want
-      wat je van ze mag verwachten verschilt.
+   Twee dingen bepalen wat er nu staat.
 
-   2. De introductie is de stem, de rest is meting. Wat een agent zegt komt uit
-      `voorstellen`; of hij aanstaat, hoe vaak hij gedraaid heeft en wanneer
-      voor het laatst komt uit de database. Zou de tekst zelf zeggen "ik draai
-      elke ochtend", dan blijft dat staan als iemand het schema verzet. Nu
-      staat naast elke agent wat er werkelijk gebeurd is.
+   1. Wie hier staat, staat er omdat een beheerder het account heeft
+      goedgekeurd. Er is geen tweede soort deelnemer meer.
 
-   3. Wie zichzelf nog niet heeft voorgesteld, laat een gat zien. Geen
+   2. Wie zichzelf nog niet heeft voorgesteld, laat een gat zien. Geen
       opgevulde placeholder, geen "geen omschrijving beschikbaar" — een
       uitnodiging, met een knop. Een lege plek die eruitziet als een lege plek
       wordt ingevuld; een nette standaardzin blijft twee jaar staan.
@@ -94,51 +91,11 @@ function teamBewaar() {
 
 /* ── opmaak ──────────────────────────────────────────────────────────────── */
 
-function teamDatum(w) {
-  if (!w) return null;
-  var d = new Date(w);
-  if (isNaN(d)) return null;
-  var dagen = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (dagen === 0) return 'vandaag';
-  if (dagen === 1) return 'gisteren';
-  if (dagen < 14) return dagen + ' dagen geleden';
-  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-/* Wat er over een agent te zeggen valt zonder de tekst te geloven. Elk van
-   deze regels komt uit een tabel; verandert de werkelijkheid, dan verandert
-   deze regel mee. */
-function teamFeiten(r) {
-  var f = [];
-  if (r.soort === 'agent') {
-    f.push({
-      label: r.staat_aan ? 'Staat aan' : 'Staat uit',
-      klasse: r.staat_aan ? 'aan' : 'uit',
-      uitleg: r.staat_aan
-        ? 'Neemt werk aan en draait mee in de cyclus.'
-        : 'Neemt geen werk aan. Een taak voor deze agent wordt geweigerd.'
-    });
-    if (r.vaste_momenten > 0) {
-      f.push({ label: r.vaste_momenten === 1 ? 'Vast moment' : r.vaste_momenten + ' vaste momenten',
-               uitleg: 'Draait vanzelf op de tijden in het rooster.' });
-    }
-    var n = Number(r.keer_gedraaid) || 0;
-    f.push({
-      label: n === 0 ? 'Nog niet gedraaid' : (n === 1 ? '1 keer gedraaid' : n + ' keer gedraaid'),
-      klasse: n === 0 ? 'stil' : ''
-    });
-    var laatst = teamDatum(r.laatst_actief);
-    if (laatst) f.push({ label: 'Laatst actief ' + laatst });
-  }
-  return f;
-}
-
 function teamKaart(r, isIk) {
-  var h = '<article class="team-kaart' + (isIk ? ' team-kaart--ik' : '')
-    + (r.soort === 'agent' && !r.staat_aan ? ' team-kaart--uit' : '') + '">';
+  var h = '<article class="team-kaart' + (isIk ? ' team-kaart--ik' : '') + '">';
 
   h += '<header class="team-kop">'
-    + '<div class="team-avatar team-avatar--' + teamEsc(r.soort) + '">'
+    + '<div class="team-avatar team-avatar--mens">'
     +   teamEsc((r.naam || '?').trim().charAt(0).toUpperCase()) + '</div>'
     + '<div><h3 class="team-naam">' + teamEsc(r.naam)
     +   (isIk ? ' <span class="team-jij">jij</span>' : '') + '</h3>'
@@ -154,20 +111,6 @@ function teamKaart(r, isIk) {
   } else {
     h += '<p class="team-leeg">Heeft zichzelf nog niet voorgesteld.</p>';
   }
-
-  var feiten = teamFeiten(r);
-  if (feiten.length) {
-    h += '<ul class="team-feiten">';
-    feiten.forEach(function (f) {
-      h += '<li class="team-feit' + (f.klasse ? ' team-feit--' + f.klasse : '') + '"'
-        + (f.uitleg ? ' title="' + teamEsc(f.uitleg) + '"' : '') + '>' + teamEsc(f.label) + '</li>';
-    });
-    h += '</ul>';
-  }
-
-  if (r.levert)     h += '<p class="team-regel"><span>Levert</span> ' + teamEsc(r.levert) + '</p>';
-  if (r.schrijft_in) h += '<p class="team-regel"><span>Schrijft in</span> <code>'
-    + teamEsc(r.schrijft_in) + '</code></p>';
 
   /* Alleen als er al iets staat. Is de kaart nog leeg, dan zit de uitnodiging
      al in het lege blok hierboven en zouden er twee knoppen staan die hetzelfde
@@ -219,35 +162,19 @@ function teamTeken() {
   }
 
   var ikId = teamIk();
-  var mensen = alle.filter(function (r) { return r.soort === 'mens'; })
+  var mensen = alle.slice()
     .sort(function (a, b) { return String(a.naam).localeCompare(String(b.naam)); });
-  /* Agents die aanstaan eerst: dat is de volgorde waarin je ze tegenkomt. */
-  var agents = alle.filter(function (r) { return r.soort === 'agent'; })
-    .sort(function (a, b) {
-      if (a.staat_aan !== b.staat_aan) return a.staat_aan ? -1 : 1;
-      return (Number(b.keer_gedraaid) || 0) - (Number(a.keer_gedraaid) || 0);
-    });
   var ik = mensen.filter(function (r) { return r.id === ikId; })[0];
 
   var h = kop;
 
   if (_team.bewerken) h += teamFormulier(ik);
 
-  h += '<section class="team-sectie"><h2 class="team-h2">Mensen</h2>'
+  h += '<section class="team-sectie">'
     + '<p class="team-sectie-uitleg">Wie hier staat, staat er omdat een beheerder '
     + 'het account heeft goedgekeurd. Iedereen schrijft zijn eigen introductie.</p>'
     + '<div class="team-raster">'
     + mensen.map(function (r) { return teamKaart(r, r.id === ikId); }).join('')
-    + '</div></section>';
-
-  var uit = agents.filter(function (r) { return !r.staat_aan; }).length;
-  h += '<section class="team-sectie"><h2 class="team-h2">Agents</h2>'
-    + '<p class="team-sectie-uitleg">Ze werken zelfstandig, maar niets gaat naar buiten '
-    + 'zonder dat een mens tekent: er bestaat geen tool die geld uitgeeft, een campagne '
-    + 'start of een e-mail verstuurt. '
-    + (uit ? '<strong>' + uit + ' van de ' + agents.length + ' staan uit</strong> — die nemen geen werk aan.' : '')
-    + '</p><div class="team-raster">'
-    + agents.map(function (r) { return teamKaart(r, false); }).join('')
     + '</div></section>';
 
   h += '<p class="trk-telling"><a href="javascript:void(0)" onclick="teamVernieuw()">vernieuwen</a></p>';

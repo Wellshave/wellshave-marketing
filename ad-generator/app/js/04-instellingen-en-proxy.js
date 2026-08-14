@@ -141,7 +141,7 @@ function updateApiStatus() {
  * teamtoken meesturen, en dat is een sleutel die je niet uitdeelt aan een
  * plaatje.
  */
-var _WORKER_PADEN = /^\/(anthropic|v1\/|openai\/|agents\/|health)/;
+var _WORKER_PADEN = /^\/(anthropic|v1\/|openai\/|systeem\/|health)/;
 
 function _naarDeWorker(url) {
   var u = String(url || '');

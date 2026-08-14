@@ -10,7 +10,13 @@
    oordeel, de handeling, de volgorde, de reden — staat al in
    `public.hq_dagbesluit`. Dat is met opzet: een berekening die ook in de
    browser gebeurt, is een tweede plek waar het antwoord kan afwijken van wat
-   Atlas in zijn rapport zet.
+   de database zegt.
+
+   Dit scherm is de reden dat "de agents eruit" geen verlies aan oordeel is. Wat
+   hier staat — welke advertentie je vandaag zou uitzetten en welke meer budget
+   verdient — komt uit een view over de gemeten cijfers. Daar kwam nooit een
+   model aan te pas, en het is precies het soort besluit dat overblijft als je
+   het systeem intern slimmer maakt in plaats van er een agent op te zetten.
 
    De tabel eronder blijft precies zoals hij was.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -158,8 +164,8 @@ function dbsLeeg(kop, alineas) {
 
 function dbsGeenCijfers() {
   return dbsLeeg('Er is nog niets gemeten in dit account.', [
-    'Atlas haalt elke ochtend de cijfers bij Meta op. Zodra zijn eerste run '
-    + 'binnen is, staat hier welke advertenties je vandaag zou uitzetten en '
+    'De cijfers komen binnen via de meting bij Meta. Zodra de eerste dagen '
+    + 'binnen zijn, staat hier welke advertenties je vandaag zou uitzetten en '
     + 'welke meer budget verdienen.',
     'Tot die tijd is de tabel hieronder wat je hebt: het plan en wat er met de '
     + 'hand is ingevuld.'
