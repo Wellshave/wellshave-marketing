@@ -33,11 +33,11 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0016_rechten.sql` | De runtime toegang geven tot zijn eigen schema |
 | `db/migrations/0017_views.sql` | De views laten filteren op wie kijkt in plaats van op wie ze bezit |
 | `db/migrations/0018_dagbesluit.sql` | Het oordeel uit 0013 met naam, handeling en volgorde erbij |
-| `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank |
+| `db/migrations/0019_brein.sql` | Het brein: één stroom uit vijf tabellen, plus de werkbank — vervalt met 0051 |
 | `db/migrations/0020_bolt.sql` | Bolt: zijn twee afspraken, zijn guardrails als constraints, en nakoming die ook voor hem werkt |
 | `db/migrations/0021_deelnemers.sql` | Deelnemers bij naam — stap 1 van het Werkbank-raamwerk |
 | `db/migrations/0025_dossier.sql` | Het dossier per station — stap 5 van het Werkbank-raamwerk |
-| `db/migrations/0029_blokkade.sql` | Wat een werkstuk tegenhoudt, zichtbaar in de werkbank |
+| `db/migrations/0029_blokkade.sql` | Wat een werkstuk tegenhoudt — het werkbankscherm is weg, de blokkade zelf blijft leesbaar |
 | `db/migrations/0030_testklaar.sql` | Een variant testklaar maken: statussen, naamconventie, testkaart |
 | `db/migrations/0026_criticus.sql` | De Criticus — stap 6, de grendel tussen creatie en lancering |
 | `db/migrations/0022_overdracht.sql` | De overdracht: vijf velden, een poort die dichtgaat bij een blokkade, en een stap die niet af kan zonder |
@@ -52,7 +52,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `db/migrations/0049_meetdagen.sql` | De controle die het gat van 120 dagen had moeten zien: accountniveau tegen de som van de advertenties, per dag |
 | `db/migrations/0050_kruistabel.sql` | De analysekaart: persona × angle × bewustzijnsniveau × product, gewogen naar spend, met eerlijke lege vakken |
 | `db/test/import-tracker.sh` | Testlus voor 0035 t/m 0050 — 296 controles; de kern is dat een breakdown optelt tot het aantal rijen, dat een nieuwe creative niet langs de eis uit 0030 glipt, dat een vastgezet cijfer wint van de meting, dat een werkende koppeling zonder ad-metingen ook als zodanig geteld wordt, dat vier schrijfwijzen van dezelfde advertentie op één sleutel uitkomen terwijl BFCM een eigen reeks houdt, dat een merk zonder metingen dat met zoveel woorden zegt in plaats van nul rijen te geven, dat een voorvoegsel als WSLP of een landcode een eigen reeks wordt in plaats van op te tellen bij de gewone map-rij, dat een creative zonder nummer op zijn naam koppelt terwijl een nummer altijd voorgaat, dat een gedraaide creative met een leeg beslisveld als gat telt en een concept in de maak niet, dat een afgekeurde lezing van een creative terugvalt op de vorige in plaats van te verdwijnen, dat een dag waarvan het accountcijfer en de som van de advertenties niet sluiten als zodanig gemeld wordt, en dat elke hq_*-view écht leesbaar is als `authenticated` en niet alleen volgens `has_table_privilege` |
-| `../ad-generator/test/tracker.cjs` | Testlus voor het trackerscherm — 60 controles; de kern is dat een cijfer zegt waar het vandaan komt, dat een onmogelijke waarde geen groen krijgt, dat een kapotte sync anders leest dan een lege, en dat een creative waar het brein niets mee kan dat op de rij zelf zegt met het bedrag erbij |
+| `../ad-generator/test/tracker.cjs` | Testlus voor het trackerscherm — 60 controles; de kern is dat een cijfer zegt waar het vandaan komt, dat een onmogelijke waarde geen groen krijgt, dat een kapotte sync anders leest dan een lege, en dat een creative waar de koppeling niets mee kan dat op de rij zelf zegt met het bedrag erbij |
 | `../ad-generator/test/team.cjs` | Testlus voor de teampagina — 26 controles; de kern is dat de feiten naast een agent uit de database komen en niet uit zijn eigen tekst, en dat een leeg profiel een gat blijft |
 | `worker/marketing-os.worker.js` | De runtime — superset van `atelier-proxy` |
 | `worker/wrangler.toml` | Deploy + cron |
@@ -66,14 +66,9 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | `worker/test/console.mjs` | Deploy-veiligheid: breekt de nieuwe worker de live console — 26 controles |
 | `../ad-generator/app/js/29-dagbesluit.js` | Het dagbesluit bovenaan de Creative Strategy-tab |
 | `../ad-generator/test/dagbesluit.cjs` | Testlus voor dat scherm — 30 controles, incl. contrast en de vier lege toestanden |
-| `../ad-generator/app/js/30-werkbank.js` | De werkbank: de estafette per werkstuk, als tabblad in de console |
-| `../ad-generator/app/js/33-logboek.js` | Het logboek: wat het team deed per dag, uit vijf bronnen |
-| `../ad-generator/test/logboek.cjs` | Testlus voor dat scherm — 38 controles, incl. contrast en de vier lege toestanden |
 | `../ad-generator/test/teamserver.cjs` | Krijgt de juiste call de team-login mee, en de verkeerde niet — 24 controles |
 | `../ad-generator/app/js/34-testklaar.js` | Klaarzetten voor test: de controlekaart tussen generator en Creative Strategy |
 | `../ad-generator/test/testklaar.cjs` | Testlus voor die kaart — 38 controles, incl. contrast en 'geen dubbele invoer' |
-| `../ad-generator/test/werkbank.cjs` | Testlus voor de werkbank — 42 controles, incl. contrast en de vier lege toestanden |
-| `../marketing-hq/brain/genereer.mjs` | Het brein afdrukken als Obsidian-vault onder `brain/Live/` |
 | `../marketing-hq/brain/test/genereer.mjs` | Testlus voor die afdruk — 47 controles, waarvan 11 over de schrijfgrens |
 
 ## Status
@@ -98,7 +93,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Views filteren op wie kijkt (0017) | ✅ 31 juli — 16 controles, mutatietest vangt de makkelijke foute oplossing |
 | Dagbesluit (0018) | ✅ 31 juli — 33 controles, vijf mutaties gevangen, toegepast op productie |
 | Trackerscherm — het dagbesluit | ✅ 31 juli — 30 controles in de echte console |
-| Brein + werkbank (0019) | ✅ 1 augustus — 35 controles, vier mutaties gevangen, toegepast op productie |
+| Brein + werkbank (0019) | ⬜ vervalt — beide schermen zijn verwijderd met de agents |
 | Brein als Obsidian-vault | ✅ 1 augustus — 47 controles, gedraaid op de echte 80 gebeurtenissen |
 | Werkruimte in de console | ✅ 1 augustus — 42 controles; de estafette per werkstuk, niet negen agentkaarten |
 | Bolt uitgewerkt (0020 + runtime) | ✅ 1 augustus — 68 controles, zes mutaties gevangen, toegepast op productie |
@@ -115,7 +110,7 @@ eerst — hieronder staat alleen hoe je het aanzet.
 | Fase 1: proefrit werkstuk 11 | ✅ 3 augustus — denkstuk 1 afgetekend, 2 overdrachten, derde creative; vier bevindingen in `docs/BATCHES.md` §6 |
 | Tweede omgeving live | ✅ 3 augustus — `wellshave-werkbank.netlify.app`, calls via `_redirects` naar de worker |
 | De blokkade zichtbaar (0029) | ✅ 4 augustus — 32 + 4 controles, vier mutaties gevangen, toegepast op productie; de Criticus staat nu op de kaart |
-| Logboek in de console | ✅ 4 augustus — 38 controles, twee mutaties gevangen; het brein is nu een scherm en niet alleen een view |
+| Logboek in de console | ⬜ vervalt — het scherm is verwijderd met de agents |
 | Login op de tweede omgeving hersteld | ✅ 4 augustus — 15 controles; de teamserver werd aan zijn hostnaam herkend en dat hield op bij omgeving twee |
 | Post bezorgen bij de agents | ⬜ `send_message` belooft dat de ontvanger leest; de runtime maakt dat niet waar |
 | Fase 2: batch 1 live | ⬜ wacht op beeld voor creative 11, een oordeel van de Criticus, en de Meta-secrets |
@@ -299,44 +294,43 @@ klaarligt om over te beslissen.
 ## Testen
 
 ```
-node platform/worker/test/smoke.mjs           # agent-runtime — 25 controles
-node platform/worker/test/publiceren.mjs      # publiceerflow — 30 controles
+node platform/worker/test/smoke.mjs           # de runtime zonder agents — 19 controles
+node platform/worker/test/dagrijen.mjs        # alleen dagen in de dagtabel — 25 controles
+node platform/worker/test/paginatie.mjs       # ophalen bij Meta — 22 controles
+node platform/worker/test/publiceren.mjs      # publiceerflow — 32 controles
 node platform/worker/test/terugkoppeling.mjs  # systeemtaak — 17 controles
-node platform/worker/test/atlas.mjs           # Atlas in de runtime — 19 controles
-bash platform/db/test/atlas.sh                # Atlas tegen echte Postgres — 32 controles
-node platform/worker/test/audit.mjs           # de auditopdracht — 20 controles
-bash platform/db/test/audit.sh                # de auditberekening — 37 controles
-node platform/worker/test/console.mjs         # de live console-endpoints — 26 controles
-node platform/worker/test/accounts.mjs        # meerdere accounts — 21 controles
-bash platform/db/test/accounts.sh             # accounts en merkscheiding — 32 controles
-bash platform/db/test/views.sh                # wie kijkt, ziet wat — 16 controles
-bash platform/db/test/dagbesluit.sh           # uitzetten of opschalen — 33 controles
-bash platform/db/test/brein.sh                # het brein en de werkbank — 35 controles
-bash platform/db/test/bolt.sh                 # Bolts guardrails — 37 controles
-bash platform/db/test/deelnemers.sh           # wie deed wat — 29 controles
-bash platform/db/test/overdracht.sh           # wat de een aan de ander doorgeeft — 39 controles
+node platform/worker/test/deconstructie.mjs   # Creative Deconstruction — 34 controles
+node platform/worker/test/accounts.mjs        # meerdere accounts — 19 controles
+node platform/worker/test/console.mjs         # de live console-endpoints — 25 controles
+
+bash platform/db/test/import-tracker.sh        # 0035 t/m 0050 — 296 controles
+bash platform/db/test/accounts.sh              # accounts en merkscheiding — 32 controles
+bash platform/db/test/views.sh                 # wie kijkt, ziet wat — 16 controles
+bash platform/db/test/dagbesluit.sh            # uitzetten of opschalen — 33 controles
+bash platform/db/test/overdracht.sh            # wat de een aan de ander doorgeeft — 39 controles
 bash platform/db/test/denkstuk.sh              # de zeven vragen en de poort erachter — 52 controles
 bash platform/db/test/terugsturen.sh           # een stap terug, en de grens van twee — 44 controles
-bash platform/db/test/dossier.sh               # wat een agent bij een stap meekrijgt — 35 controles
+bash platform/db/test/dossier.sh               # wat er bij een stap meekomt — 35 controles
 bash platform/db/test/criticus.sh              # de grendel tussen creatie en lancering — 32 controles
 bash platform/db/test/opruimen.sh              # fase 0: wat weg mag en vooral wat niet — 29 controles
 bash platform/db/test/herschikt.sh             # van kop naar vraag — 28 controles
 bash platform/db/test/blokkade.sh              # wat een werkstuk tegenhoudt — 32 controles
 bash platform/db/test/testklaar.sh             # een variant testklaar maken — 57 controles
 node ad-generator/test/testklaar.cjs           # de controlekaart — 38 controles
-node platform/worker/test/bolt.mjs            # Bolt in de runtime — 31 controles
 ```
 
-Beide draaien de echte runtime tegen een nep-Supabase, nep-Claude en nep-Meta.
-Geen deploy, geen kosten, geen database.
+De workerlus draait de echte runtime tegen een nep-Supabase en nep-Meta. Geen
+deploy, geen kosten, geen database.
 
-De eerste dekt de lus: planning → job → tool-rondes → rapport → afronding,
-inclusief de Fable 5-valkuil waarbij een thinking-blok vooraan staat.
+`smoke.mjs` dekt de lus: planning → taak → systeemtaak → afronding. De harde
+controle daarin is dat een volledige cyclus **nul keer** een taalmodel
+aanroept — dat is wat "zonder agents" feitelijk betekent.
 
-De tweede dekt de grens rond geld: dat klaarzetten wél een creative en géén
-advertentie maakt, dat publiceren zonder akkoord wordt geweigerd, dat een
-tweede poging niets dubbels oplevert, en dat de toolset van Bolt geen enkele
-naam bevat die met publiceren of budget te maken heeft.
+`publiceren.mjs` dekt de grens rond geld: dat klaarzetten wél een creative en
+géén advertentie maakt, dat publiceren zonder akkoord wordt geweigerd, en dat
+een tweede poging niets dubbels oplevert. Waar dat vroeger op de toolset van
+Bolt rustte, rust het nu op de route zelf — klaarzetten vraagt een login, live
+zetten een admin.
 
 Wat de tests níet dekken: of PostgREST `marketing_hq` echt serveert, en of Meta
 en Klaviyo zich gedragen zoals verwacht. De vorm van de Meta-aanroepen is wel

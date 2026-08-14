@@ -205,10 +205,6 @@ function switchMainTab(tab) {
   const scriptsBtn = document.getElementById('main-tab-btn-scripts');
   const creativesView = document.getElementById('main-tab-creatives');
   const creativesBtn = document.getElementById('main-tab-btn-creatives');
-  const werkbankView = document.getElementById('main-tab-werkbank');
-  const werkbankBtn = document.getElementById('main-tab-btn-werkbank');
-  const logboekView = document.getElementById('main-tab-logboek');
-  const logboekBtn = document.getElementById('main-tab-btn-logboek');
   const transformerView = document.getElementById('main-tab-transformer');
   const transformerBtn = document.getElementById('main-tab-btn-transformer');
   const copywriterView = document.getElementById('main-tab-copywriter');
@@ -217,7 +213,7 @@ function switchMainTab(tab) {
   const scriptwriterBtn = document.getElementById('main-tab-btn-scriptwriter');
   const teamView = document.getElementById('main-tab-team');
   const teamBtn = document.getElementById('main-tab-btn-team');
-  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, werkbankBtn, logboekBtn, teamBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, teamBtn].forEach(b => { if (b) b.classList.remove('active'); });
   if (genView) genView.style.display = 'none';
   if (proxyView) proxyView.style.display = 'none';
   if (libView) libView.style.display = 'none';
@@ -231,8 +227,6 @@ function switchMainTab(tab) {
   if (brandView) brandView.style.display = 'none';
   if (scriptsView) scriptsView.style.display = 'none';
   if (creativesView) creativesView.style.display = 'none';
-  if (werkbankView) werkbankView.style.display = 'none';
-  if (logboekView) logboekView.style.display = 'none';
   if (teamView) teamView.style.display = 'none';
   if (tab === 'library') {
     if (libView) libView.style.display = 'block';
@@ -297,20 +291,12 @@ function switchMainTab(tab) {
     if (creativesBtn) creativesBtn.classList.add('active');
     if (typeof renderCreatives === 'function') renderCreatives();
     if (typeof strWisselTeken === 'function') strWisselTeken();
-  } else if (tab === 'werkbank') {
-    if (werkbankView) werkbankView.style.display = 'block';
-    if (werkbankBtn) werkbankBtn.classList.add('active');
-    if (typeof renderWerkbank === 'function') renderWerkbank();
-  } else if (tab === 'logboek') {
-    if (logboekView) logboekView.style.display = 'block';
-    if (logboekBtn) logboekBtn.classList.add('active');
-    if (typeof renderLogboek === 'function') renderLogboek();
   } else {
     if (genView) genView.style.display = 'block';
     if (genBtn) genBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('scratch');
   }
-  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', werkbank: 'Werkbank', logboek: 'Logboek', team: 'Team' };
+  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', team: 'Team' };
   const tEl = document.getElementById('ws-page-title');
   if (tEl) tEl.textContent = titleMap[tab] || 'Generator';
   window.scrollTo({ top: 0, behavior: 'smooth' });
