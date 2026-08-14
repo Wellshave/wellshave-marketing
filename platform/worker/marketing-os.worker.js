@@ -496,7 +496,7 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
  *   klaarzetten  — een agent mag dit. Beeld uploaden en een adcreative
  *                  aanmaken kost niets en levert niets af: een creative die
  *                  aan geen enkele advertentie hangt, wordt nooit vertoond.
- *   publiceren   — alleen een mens, via POST /agents/publications/<id>/publish,
+ *   publiceren   — alleen een admin, via POST /systeem/publicaties/<id>/publish,
  *                  en alleen als de bijbehorende approval op 'approved' staat.
  *                  Er bestaat geen agent-tool die deze stap kan zetten.
  *

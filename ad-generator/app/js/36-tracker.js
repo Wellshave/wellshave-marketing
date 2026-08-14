@@ -282,7 +282,7 @@ function trkKaarten(alle) {
      Dat klopte, en het was het verkeerde bericht: het las als "de koppeling
      staat nog niet aan" terwijl de worker draaide, het token werkte en Meta
      elke ochtend opnieuw weigerde om één veld dat niet meer bestaat. Die
-     storing liep twee dagen door omdat hij alleen in agent_events stond.
+     storing liep twee dagen door omdat hij alleen in het systeemlogboek stond.
 
      Wachten en ingrijpen zijn verschillende dingen, en dit is de plek waar
      dat verschil zichtbaar hoort te zijn. Vandaar de toestand uit

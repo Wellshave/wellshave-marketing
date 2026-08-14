@@ -1,17 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   De werkbank — de werkruimte om het agentteam te managen
+   De werkbank — waar elk idee ligt, en waarop het wacht
 
    Beslisvraag (regel 0.1, opgeschreven vóór deze regel code en vóór migratie
    0019):
 
        "Welk werk ligt stil, en op wie wacht het?"
 
-   De eenheid op dit scherm is het WERKSTUK en niet de agent. Dat is hoofdstuk
-   3 van het ontwerpcontract, en het is de enige regel die je hier echt kunt
-   overtreden: het templateantwoord voor een agentsysteem is een raster van
-   negen kaartjes met statusbolletjes. Dat toont negen wezens die iets doen,
-   maar nooit dat ze sámen ergens uitkomen — en dat laatste is precies wat dit
-   systeem moet laten zien.
+   De eenheid op dit scherm is het WERKSTUK. Dat was hoofdstuk 3 van het
+   ontwerpcontract toen er nog negen agents waren: het templateantwoord zou een
+   raster van negen kaartjes met statusbolletjes zijn geweest, en dat toont
+   negen wezens die iets doen maar nooit dat ze sámen ergens uitkomen.
+
+   Die keuze blijkt nu de juiste te zijn geweest om een tweede reden: de agents
+   zijn weg en dit scherm staat er nog. Was het een agentraster geweest, dan
+   was er niets van over.
 
    Dus staat er per idee de hele keten, inclusief de stations die nog niet
    gebeurd zijn. Die lege stations zijn de informatie: daar ligt het stil.
@@ -70,14 +72,19 @@ function wbkVernieuw() { _wbk.geladen = false; _wbk.fout = null; _wbk.rijen = nu
 
 /* De zes stations liggen vast in de database (0009). Ze staan hier ook, zodat
    een werkstuk zonder vastgelegde stappen tóch zijn volledige keten toont —
-   een keten met gaten is informatie, een keten die half wegvalt is een bug. */
+   een keten met gaten is informatie, een keten die half wegvalt is een bug.
+
+   Achter elk station stond de agent die het hoorde te doen. Die staan er niet
+   meer, en er is met opzet geen naam voor in de plaats gekomen: bij station 5
+   invullen dat "het systeem" meet, zou suggereren dat het vanzelf gaat. Een
+   station zonder stap wacht op iemand, en dat is nu altijd een mens. */
 var WBK_STATIONS = [
-  { nr: 1, naam: 'signaal',  agent: 'Radar' },
-  { nr: 2, naam: 'briefing', agent: 'Nova' },
-  { nr: 3, naam: 'creatie',  agent: 'jij' },
-  { nr: 4, naam: 'live',     agent: 'Bolt' },
-  { nr: 5, naam: 'meting',   agent: 'Atlas' },
-  { nr: 6, naam: 'oogst',    agent: 'Echo' }
+  { nr: 1, naam: 'signaal' },
+  { nr: 2, naam: 'briefing' },
+  { nr: 3, naam: 'creatie' },
+  { nr: 4, naam: 'live' },
+  { nr: 5, naam: 'meting' },
+  { nr: 6, naam: 'oogst' }
 ];
 
 function wbkStap(station, stap, stationNu) {
@@ -91,27 +98,25 @@ function wbkStap(station, stap, stationNu) {
   var teken = klaar ? '✓' : fout ? '!' : nu ? '●' : station.nr;
   var soort = klaar ? 'klaar' : fout ? 'fout' : nu ? 'nu' : 'open';
 
-  // Wie het deed, bij naam — mens of agent. De view levert die naam aan
-  // (0021); het scherm leidt niets meer af uit "agent_id is leeg".
+  // Wie het deed, bij naam. De view levert die naam aan (0021).
   //
   // Drie gevallen, en het middelste is het belangrijkste: een stap waaraan
-  // gewerkt is maar waarvan niemand weet wie, zegt dat. Er de naam van het
-  // station bij zetten zou suggereren dat die agent het deed.
+  // gewerkt is maar waarvan niemand weet wie, zegt dat. Een naam gokken is
+  // hier erger dan hem openlaten.
   var wie;
   if (stap && stap.door) {
     wie = stap.door;
   } else if (stap && ['klaar', 'bezig', 'mislukt'].indexOf(stap.status) > -1) {
     wie = 'naamloos';
   } else {
-    wie = station.agent;   // nog te doen: wie het hóórt te doen
+    wie = '—';   // nog niemand aan begonnen
   }
 
   return '<div class="wbk-stap' + (toekomst ? ' wbk-stap--toekomst' : '') + '"'
     + ' title="' + wbkEsc(stap && stap.waarom ? stap.waarom : station.naam) + '">'
     + '<div class="wbk-bol wbk-bol--' + soort + '">' + teken + '</div>'
     + '<div class="wbk-stap-naam">' + wbkEsc(station.naam) + '</div>'
-    + '<div class="wbk-stap-agent' + (stap && stap.door_soort === 'mens' ? ' wbk-stap-agent--mens' : '')
-    +   '">' + wbkEsc(wie) + '</div>'
+    + '<div class="wbk-stap-agent wbk-stap-agent--mens">' + wbkEsc(wie) + '</div>'
     + '</div>';
 }
 
@@ -248,8 +253,8 @@ function wbkRender() {
   if (!rijen.length) {
     mount.innerHTML = wbkKop() + wbkLeeg('Er is nog geen werkstuk.', [
       'Een werkstuk is één idee dat langs zes stations reist: van het signaal uit de '
-      + 'markt tot de landingspagina. Zodra Radar of Nova er een start — of jij er zelf '
-      + 'een aanmaakt — staat hier waar het ligt en op wie het wacht.'
+      + 'markt tot de landingspagina. Zodra jij er een aanmaakt, staat hier waar het '
+      + 'ligt en op wie het wacht.'
     ]) + '</div>';
     return;
   }
@@ -278,7 +283,7 @@ function wbkRender() {
   h += wbkGroep('Loopt', loopt, null,
     { kop: 'Er loopt op dit moment niets.',
       tekst: ['Alles staat óf te lang stil óf is afgerond. Als de bovenste lijst ook leeg is, '
-            + 'wacht het systeem op een nieuw signaal van Radar of een nieuw idee van jou.'] });
+            + 'wacht de werkbank op een nieuw idee van jou.'] });
 
   h += wbkGroep('Af of gestopt', af, null,
     { kop: 'Nog niets afgerond of gestopt.',
