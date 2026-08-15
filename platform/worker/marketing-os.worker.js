@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 16;
-const VERSIE_DATUM = '2026-08-14';
-const VERSIE_WAT = 'zonder agents: geen model besluit hier nog iets. De negen agents, hun tools en de tool-lus zijn eruit; wat blijft is een takenwachtrij met systeemtaken (/systeem/*), de publicatieketen met een mens als aanvrager, en Creative Deconstruction als losse vraag';
+const VERSIE = 17;
+const VERSIE_DATUM = '2026-08-15';
+const VERSIE_WAT = 'de inhaalslag knipt een venster dat Meta weigert in tweeen en probeert het opnieuw, zodat advertentieniveau ook over lange periodes binnenkomt; en hij zet zichzelf alleen terug in de rij als er iets is opgeschoten -- zonder die voorwaarde bleef hij een blok herhalen dat nooit lukte';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -343,7 +343,52 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
   const stukken = vensterStukken(days, venster);
   const mislukt = [];
 
-  for (const venster of stukken) {
+  /* Een geweigerd venster wordt gehalveerd en opnieuw geprobeerd.
+   *
+   * Meta keurt een verzoek niet alleen af op inhoud maar ook op omvang. Op
+   * accountniveau is een venster van dertig dagen dertig rijen; op
+   * advertentieniveau met time_increment=1 zijn het er duizenden, en dan komt
+   * er "An unknown error occurred" terug -- een generieke fout die niets zegt
+   * over wat er mis is. Dat is precies wat er gebeurde: accountniveau vulde
+   * netjes door terwijl advertentieniveau maandenlang niets opleverde, en de
+   * dekking zag er daardoor half uit zonder dat iets "kapot" was.
+   *
+   * Een vast kleiner venster was de andere optie. Dat lost het vandaag op en
+   * breekt weer zodra het aantal advertenties groeit. Halveren past zich aan:
+   * een blok dat te zwaar is valt uiteen tot het licht genoeg is, en een blok
+   * dat in één keer kan blijft één verzoek.
+   *
+   * De bodem ligt op één dag. Weigert Meta een enkele dag, dan is het niet de
+   * omvang en heeft verder knippen geen zin. */
+  const werk = stukken.slice();
+  let gesplitst = 0;
+  /* Tellen hoeveel vensters écht iets opleverden. Vergelijken op aantallen
+     (mislukt tegenover stukken) kan niet meer zodra er gesplitst wordt: één
+     geweigerd venster van dertig dagen wordt dan vijf mislukkingen terwijl
+     `stukken` er nog steeds één telt. Die vergelijking gaf géén fout bij nul
+     rijen, en dat is precies de stille storing waar dit bestand tegen gebouwd
+     is. Dus turven we het enige wat telt: is er ooit iets binnengekomen. */
+  let gelukt = 0;
+  const GRENS_SPLITSEN = 200;
+
+  const halveer = (v) => {
+    let o;
+    try { o = JSON.parse(v); } catch (e) { return null; }
+    const van = new Date(o.since + 'T00:00:00Z');
+    const tot = new Date(o.until + 'T00:00:00Z');
+    const dagen = Math.round((tot - van) / 86400000) + 1;
+    if (dagen < 2) return null;
+    const helft = Math.floor(dagen / 2);
+    const midden = new Date(van.getTime() + (helft - 1) * 86400000);
+    const dag = (d) => d.toISOString().slice(0, 10);
+    return [
+      JSON.stringify({ since: dag(van), until: dag(midden) }),
+      JSON.stringify({ since: dag(new Date(midden.getTime() + 86400000)), until: dag(tot) })
+    ];
+  };
+
+  while (werk.length) {
+  const venster = werk.shift();
   let data = null;
   for (let poging = 0; poging <= 5; poging++) {
     const r = await fetch(`${META_API}/act_${account}/insights?${bouw(lijst, venster)}`);
@@ -359,10 +404,18 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
     const m = /\(#100\)\s+([a-z0-9_]+)\s+is not valid for fields param/i.exec(bericht)
            || /nonexisting field \(([a-z0-9_]+)\)/i.exec(bericht);
     const weg = m && lijst.indexOf(m[1]) > -1 ? m[1] : null;
-    /* Eén stuk dat weigert mag de andere dertien niet meenemen. Bij één stuk
-       is dit precies het oude gedrag: de fout gaat naar boven. */
+    /* Eén stuk dat weigert mag de andere dertien niet meenemen. */
     if (!weg) {
-      if (stukken.length === 1) throw new Error('Meta: ' + bericht);
+      /* Eerst kleiner proberen: dit is meestal geen inhoudelijke afkeuring
+         maar een venster dat te zwaar is. */
+      const helften = gesplitst < GRENS_SPLITSEN ? halveer(venster) : null;
+      if (helften) {
+        gesplitst++;
+        werk.unshift(helften[0], helften[1]);
+        data = null;
+        break;
+      }
+      if (stukken.length === 1 && !gesplitst) throw new Error('Meta: ' + bericht);
       mislukt.push({ venster: venster, reden: bericht.slice(0, 160) });
       data = null;
       break;
@@ -373,7 +426,7 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
     data = null;
   }
   if (!data || data.error) {
-    if (stukken.length === 1) {
+    if (stukken.length === 1 && !gesplitst) {
       throw new Error('Meta: te veel onbruikbare velden (' + gesneuveld.join(', ')
         + ') — controleer de API-versie ' + META_API.split('/').pop() + ' en het token');
     }
@@ -390,6 +443,7 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
      De grens van veertig pagina's is een noodrem, geen verwachting: bij 500
      per pagina zijn dat 20.000 rijen. Wordt hij geraakt, dan is dat te zien in
      plaats van te raden. */
+  gelukt++;
   rijen.push(...(data.data || []));
   let volgende = data.paging && data.paging.next;
   let paginas = 1;
@@ -418,6 +472,12 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
   }
   } /* volgend stuk */
 
+  if (gesplitst) {
+    await logEvent(env, ctx || {}, 'info',
+      `Meta weigerde ${gesplitst} venster(s) voor ${account} op ${level}-niveau; opgeknipt en alsnog opgehaald`,
+      { gesplitst: gesplitst, level: level, account: account, rijen: rijen.length });
+  }
+
   if (gesneuveld.length) {
     /* Geen throw: er zijn wél cijfers, ze zijn alleen smaller. Wel luid, want
        dit is de enige plek waar zichtbaar wordt dat Meta iets heeft geschrapt. */
@@ -428,13 +488,13 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
      eerste ziet de map er compleet uit terwijl er maanden ontbreken. Daarom
      luid, met de vensters erbij zodat je weet wélke maanden. */
   if (mislukt.length) {
-    if (mislukt.length === stukken.length) {
-      throw new Error('Meta: geen enkel venster gelukt (' + stukken.length + ' geprobeerd) — '
+    if (!gelukt) {
+      throw new Error('Meta: geen enkel venster gelukt (' + mislukt.length + ' geprobeerd) — '
         + mislukt[0].reden);
     }
     await logEvent(env, ctx || {}, 'warn',
-      `Meta gaf ${mislukt.length} van de ${stukken.length} vensters niet voor ${account}; die periodes ontbreken`,
-      { mislukt: mislukt, level: level, account: account });
+      `Meta gaf ${mislukt.length} venster(s) niet voor ${account} op ${level}-niveau; die periodes ontbreken`,
+      { mislukt: mislukt, level: level, account: account, gelukt: gelukt });
   }
 
   return rijen.map(row => {
@@ -1130,6 +1190,12 @@ const SYSTEEMTAKEN = {
       blok = gaten[0];
     }
 
+    /* De stand vóór deze ronde, zodat achteraf te zien is of er iets is
+       opgeschoten. Zonder dit ijkpunt kan de taak niet weten of hij zichzelf
+       nog een keer mag inschieten. */
+    const voorMeting = await sbSelect(env, 'meta_meetdekking', 'select=brand,dagen_ontbreken');
+    const voor = voorMeting.reduce((n, r) => n + (Number(r.dagen_ontbreken) || 0), 0);
+
     const lijst = await actieveAccounts(env, blok.account_id || payload.account);
     const venster = { since: blok.van, until: blok.tot };
     const per_account = [];
@@ -1160,8 +1226,23 @@ const SYSTEEMTAKEN = {
     const na = await sbSelect(env, 'meta_meetdekking',
       'select=brand,dagen_ontbreken,grootste_gat_dagen,toestand');
     const restant = na.reduce((n, r) => n + (Number(r.dagen_ontbreken) || 0), 0);
+    const opgeschoten = (voor - restant);
 
-    if (restant > 0) {
+    /* Zichzelf terugzetten mag alleen als er iets is opgeschoten.
+     *
+     * Dit ontbrak, en het is één nacht lang goed misgegaan. De taak keek
+     * alleen of er nog dagen ontbraken, niet of deze ronde er iets van had
+     * weggewerkt. Toen advertentieniveau op één blok bleef weigeren, haalde
+     * elke ronde hetzelfde blok op, faalde op hetzelfde punt, zag "nog 101
+     * dagen" en zette zichzelf opnieuw in de rij -- elke dertig seconden,
+     * tweehonderd keer, zonder ooit een rij op te leveren.
+     *
+     * Een taak die zichzelf voedt heeft een voorwaarde nodig die hij zelf niet
+     * kan waarmaken door te falen. Vooruitgang is die voorwaarde. Staat hij
+     * stil, dan stopt de keten hier en probeert de dagelijkse planning het
+     * morgen opnieuw -- dat is de goede frequentie voor iets wat aan de
+     * overkant vastzit, niet twee keer per minuut. */
+    if (restant > 0 && opgeschoten > 0) {
       await sbInsert(env, 'taken', {
         kind: 'meta_inhaalslag', payload: {},
         source: 'systeem', priority: 7,
@@ -1169,9 +1250,16 @@ const SYSTEEMTAKEN = {
       });
     }
 
-    await logEvent(env, ctx, restant > 0 ? 'info' : 'info',
+    if (restant > 0 && opgeschoten <= 0) {
+      await logEvent(env, ctx, 'warn',
+        `Inhaalslag kwam niet verder op ${blok.van} t/m ${blok.tot}; keten gestopt, `
+        + `de dagelijkse planning probeert het opnieuw`,
+        { blok: blok, restant: restant, per_account: per_account });
+    }
+
+    await logEvent(env, ctx, 'info',
       `Inhaalslag ${blok.van} t/m ${blok.tot}: ${totaal} rijen; nog ${restant} dagen te gaan`,
-      { blok: blok, per_account: per_account, restant: restant });
+      { blok: blok, per_account: per_account, restant: restant, opgeschoten: opgeschoten });
 
     return {
       summary: `${blok.van} t/m ${blok.tot} opgehaald (${totaal} rijen). `
