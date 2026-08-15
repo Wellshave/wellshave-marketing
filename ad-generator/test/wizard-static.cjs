@@ -276,6 +276,119 @@ const VULLEN = `
   check('inclusief wie welk veld zette', naHerlaad.bron, 'user');
   check('maar hij springt niet vanzelf open', naHerlaad.open, 'none');
 
+  /* ── Rory leidt ───────────────────────────────────────────────────────────
+   *
+   * De kern van de opdracht: Rory wacht niet tot de gebruiker alles handmatig
+   * invult. Bij binnenkomst op een stap kijkt hij uit zichzelf. Wat hij
+   * terugstuurt is hier niet te testen -- er gaat geen model aan te pas -- maar
+   * wanneer hij wél en niet mag beginnen wel, en dat is waar het misgaat. */
+  console.log('\n  Rory kijkt uit zichzelf');
+
+  const vanzelf = await page.evaluate(() => {
+    wizReset(true);
+    wizState.busy = false;
+    var gevraagd = [];
+    var echt = window.wizAdvise;
+    window.wizAdvise = function (k) { gevraagd.push(k); return Promise.resolve(null); };
+    /* Teamserver-modus levert de sleutel buiten het invoerveld om; die moet
+       hier uit, anders test dit blok niets. */
+    var team = window.__WG_TEAMSERVER;
+    window.__WG_TEAMSERVER = false;
+    document.getElementById('anthropic-key').value = '';
+    wizOpen();
+    var zonderSleutel = gevraagd.slice();
+
+    /* met sleutel wel, en meteen bij het openen van stap 1 */
+    document.getElementById('anthropic-key').value = 'sk-ant-test';
+    wizState.advised = {};
+    wizRender();
+    var metSleutel = gevraagd.slice();
+    window.__WG_TEAMSERVER = team;
+
+    /* een tweede hertekening mag hem niet opnieuw laten beginnen */
+    wizRender(); wizRender();
+    var naDrieRenders = gevraagd.length;
+
+    window.wizAdvise = echt;
+    return { zonderSleutel, metSleutel, naDrieRenders };
+  });
+  check('zonder API-sleutel vraagt hij niets', vanzelf.zonderSleutel, []);
+  check('met sleutel begint hij vanzelf aan stap 1', vanzelf.metSleutel, ['product']);
+  check('en hij begint niet bij elke hertekening opnieuw', vanzelf.naDrieRenders, 1);
+
+  const wachten = await page.evaluate(() => {
+    wizReset(true);
+    /* Een echte aanroep uit het vorige blok kan nog lopen; die zet busy en dan
+       adviseert hij hier niets, wat op een fout in de logica lijkt terwijl het
+       de test zelf is. */
+    wizState.busy = false;
+    var gevraagd = [];
+    var echt = window.wizAdvise;
+    window.wizAdvise = function (k) { gevraagd.push(k); return Promise.resolve(null); };
+    document.getElementById('anthropic-key').value = 'sk-ant-test';
+    wizOpen();
+    /* stap 3 leest van 1 en 2; met een lege stap 2 mag hij niet gaan gissen */
+    wizState.current = 'strategy';
+    wizState.advised = {};
+    wizRender();
+    var metLegeVoorganger = gevraagd.filter(k => k === 'strategy').length;
+
+    wizSet('product', 'productId', 'p1', 'user');
+    wizSet('product', 'funnel', 'tof', 'user');
+    wizSet('product', 'placement', 'feed11', 'user');
+    wizSet('audience', 'personaId', 'x1', 'user');
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizState.advised = {};
+    wizRender();
+    var metVolledigeVoorganger = gevraagd.filter(k => k === 'strategy').length;
+
+    window.wizAdvise = echt;
+    return { metLegeVoorganger, metVolledigeVoorganger };
+  });
+  check('met een lege voorganger gaat hij niet gissen', wachten.metLegeVoorganger, 0);
+  check('zodra de voorganger vol is begint hij wel', wachten.metVolledigeVoorganger, 1);
+
+  /* ── De stap is een zin, geen formulier ───────────────────────────────── */
+  console.log('\n  een stap is een zin, geen formulier');
+
+  const zin = await page.evaluate(vullen => {
+    wizReset(true);
+    eval(vullen);
+    var tel = function (html) {
+      var d = document.createElement('div'); d.innerHTML = html;
+      return { velden: d.querySelectorAll('input, textarea').length,
+               woorden: d.querySelectorAll('.wiz-woord').length,
+               zin: (d.querySelector('.wiz-zin') || {}).textContent || '' };
+    };
+    return {
+      product: tel(wizRender_product()),
+      visueel: tel(wizRender_visual()),
+      copy: tel(wizRender_copy()),
+      strategie: tel(wizRender_strategy())
+    };
+  }, VULLEN);
+  check('stap 1 opent zonder een enkel invoerveld', zin.product.velden, 0);
+  check('en zet de beslissingen als woorden in de zin', zin.product.woorden, 3);
+  check('stap 5 toont vijf hoofdkeuzes, niet tien blokken', zin.visueel.woorden, 5);
+  check('stap 5 opent ook zonder invoervelden', zin.visueel.velden, 0);
+  check('stap 6 toont de copy, geen invoervakken', zin.copy.velden, 0);
+  check('stap 3 toont de stelling, geen formulier', zin.strategie.velden, 0);
+
+  /* De uitklap is waar het formulier zit. Dicht is dicht. */
+  const uitklap = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    var telVelden = function (html) {
+      var d = document.createElement('div'); d.innerHTML = html;
+      return d.querySelectorAll('input, textarea').length;
+    };
+    var dicht = telVelden(wizRender_copy());
+    wizToggleUitklap('copy');
+    var open = telVelden(wizRender_copy());
+    return { dicht, open };
+  }, VULLEN);
+  check('dichtgeklapt staan er geen velden', uitklap.dicht, 0);
+  check('opengeklapt staat het volledige formulier er wel', uitklap.open > 3, true);
+
   /* ── De opdracht: Engels, en de rest ongemoeid ────────────────────────── */
   console.log('\n  de randvoorwaarden uit de opdracht');
 

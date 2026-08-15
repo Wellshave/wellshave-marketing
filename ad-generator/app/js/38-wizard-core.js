@@ -108,7 +108,13 @@ var wizState = {
   chat: [],
   busy: false,
   /* Vragen die Rory uit zichzelf gesteld heeft, per stap. */
-  asked: {}
+  asked: {},
+  /* Stappen waarop Rory al uit zichzelf gekeken heeft. Zonder dit blijft hij
+     opnieuw beginnen zodra een advies mislukt, want dan is `advice` leeg en
+     ziet de volgende hertekening dat als "nog niet gekeken". */
+  advised: {},
+  /* Stappen waar de gebruiker het formulier heeft opengeklapt. */
+  unfolded: {}
 };
 
 var WIZ_STORE_KEY = 'wizard_static_v1';
@@ -118,7 +124,8 @@ function wizSave() {
     localStorage.setItem(STORAGE_PREFIX + WIZ_STORE_KEY, JSON.stringify({
       current: wizState.current, data: wizState.data, source: wizState.source,
       done: wizState.done, stale: wizState.stale, advice: wizState.advice,
-      chat: wizState.chat.slice(-40), asked: wizState.asked
+      chat: wizState.chat.slice(-40), asked: wizState.asked,
+      advised: wizState.advised, unfolded: wizState.unfolded
     }));
   } catch (e) { /* localStorage vol of geblokkeerd: de wizard werkt door, alleen zonder geheugen */ }
 }
@@ -144,6 +151,8 @@ function wizLoad() {
     wizState.advice = saved.advice || {};
     wizState.chat = saved.chat || [];
     wizState.asked = saved.asked || {};
+    wizState.advised = saved.advised || {};
+    wizState.unfolded = saved.unfolded || {};
     return true;
   } catch (e) { return false; }
 }
@@ -292,6 +301,7 @@ function wizReset(stil) {
   wizState.data = wizBlankData();
   wizState.source = {}; wizState.done = {}; wizState.stale = {};
   wizState.advice = {}; wizState.chat = []; wizState.asked = {};
+  wizState.advised = {}; wizState.unfolded = {};
   wizState.current = 'product';
   wizSave();
   if (wizState.open) wizRender();
@@ -344,6 +354,61 @@ function wizRender() {
   }
   wizRenderFooter();
   if (typeof wizRenderRory === 'function') wizRenderRory();
+  wizMisschienAdviseren();
+}
+
+/* Rory kijkt uit zichzelf.
+ *
+ * Dit is het verschil tussen een wizard en een formulier met een hulpknop. De
+ * opdracht was expliciet: Rory wacht niet tot de gebruiker alles handmatig
+ * configureert. Dus zodra je een stap binnenkomt waar hij nog niet gekeken
+ * heeft, en er genoeg bovenliggende data ligt om iets zinnigs te zeggen, gaat
+ * hij aan het werk. De gebruiker ziet een voorstel, geen leeg veld.
+ *
+ * Twee remmen. `advised` zorgt dat een mislukt advies niet meteen opnieuw
+ * begint -- anders loopt een kapotte verbinding zichzelf in een kring. En een
+ * stap die de gebruiker al zelf heeft ingevuld laten we met rust: dan is er
+ * niets meer voor te stellen wat niet zijn eigen keuze overschrijft. */
+function wizMisschienAdviseren() {
+  var k = wizState.current;
+  if (wizState.busy) return;
+  if (wizState.advised[k]) return;
+  if (wizState.advice[k]) return;
+  if (typeof wizAdvise !== 'function') return;
+  if (typeof WIZ_ADVICE_SPEC === 'undefined' || !WIZ_ADVICE_SPEC[k]) return;
+  /* Zonder sleutel geen aanroep. Anders staat een gebruiker zonder koppeling
+     bij elke stap tegen een mislukking aan te kijken die niets met zijn keuze
+     te maken heeft, en gaat de proxy voor niets aan het werk. */
+  if (!wizSleutelAanwezig()) return;
+  /* Stappen zonder eigen invoer (review, concepten, genereren) adviseert hij
+     niet: daar is de beslissing al gevallen. */
+  if (!wizVoorwaardenGehaald(k)) return;
+  /* Niet "heeft deze stap al inhoud" maar "is deze stap al af". Dat verschil
+     is geen haarkloverij: stap 1 heeft vanaf het begin een standaardplaatsing
+     staan, dus op inhoud toetsen betekent dat Rory er nooit naar kijkt. Een
+     afgeronde stap laat hij wél met rust -- daar valt niets voor te stellen
+     wat niet iemands eigen keuze overschrijft. */
+  if (wizStepComplete(k) && !wizState.stale[k]) return;
+
+  wizState.advised[k] = true;
+  wizAdvise(k).then(function (adv) {
+    if (adv && !adv.error) wizApplyAdvice(k);
+    wizRender();
+  });
+}
+
+function wizSleutelAanwezig() {
+  if (window.__WG_TEAMSERVER) return true;
+  var el = document.getElementById('anthropic-key');
+  return !!(el && el.value && el.value.trim());
+}
+
+/* Heeft Rory genoeg om op te staan? Elke stap leest van zijn voorgangers; is
+   die nog leeg, dan zou hij gaan gissen en dat is precies wat een leeg veld
+   beter maakt dan een verzonnen veld. */
+function wizVoorwaardenGehaald(stepKey) {
+  var deps = WIZ_DEPENDS[stepKey] || [];
+  return deps.every(function (d) { return wizStepComplete(d); });
 }
 
 function wizRenderFooter() {
@@ -453,3 +518,6 @@ window.wizMissingMessage = wizMissingMessage; window.toggleClassicForm = toggleC
 window.wizSyncClassic = wizSyncClassic; window.wizRenderProgress = wizRenderProgress;
 window.wizRenderFooter = wizRenderFooter; window.wizInvalidate = wizInvalidate;
 window.wizStepIndex = wizStepIndex; window.wizBlankData = wizBlankData;
+window.wizMisschienAdviseren = wizMisschienAdviseren;
+window.wizVoorwaardenGehaald = wizVoorwaardenGehaald;
+window.wizSleutelAanwezig = wizSleutelAanwezig;
