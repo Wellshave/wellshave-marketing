@@ -399,6 +399,28 @@
       <div class="copy-nonneg"><strong>Wordt sowieso toegepast:</strong> het product komt exact uit de referentiefotos, taal is Nederlands, de huisstijl van het merk (mat zwart met goud) blijft, de Clarity Test geldt, en concurrent-merknamen, niet-kloppende claims en herkenbare gezichten uit de bron worden nooit overgenomen.</div>
     </div>
 
+    <!-- Static Ad Wizard: de weg voor een nieuwe static vanaf nul. Alleen
+         zichtbaar in scratch-modus; Kopieer ad en Itereren delen dit scherm en
+         hebben het klassieke formulier hieronder nodig. -->
+    <div class="wiz-launch scratch-only" id="wiz-launch" onclick="wizOpen()">
+      <div class="wiz-launch-icon">R</div>
+      <div>
+        <div class="wiz-launch-t">Build a static with Rory</div>
+        <div class="wiz-launch-s">Nine guided steps. Rory reads the product data, the customer research and what already ran, recommends a direction at every step and explains why. You stay in control of every choice.</div>
+      </div>
+      <div class="wiz-launch-cta" id="wiz-launch-cta">Start &rarr;</div>
+    </div>
+
+    <!-- Het klassieke formulier. In scratch-modus staat het ingeklapt onder de
+         wizard; in Kopieer ad en Itereren is het het hele scherm en staat het
+         altijd open. -->
+    <div class="classic-toggle scratch-only" id="classic-toggle" onclick="toggleClassicForm()">
+      <span id="classic-toggle-label">Use the classic form instead</span>
+      <span class="classic-toggle-chev">▾</span>
+    </div>
+
+    <div id="classic-form">
+
     <div class="iw-launch" onclick="iwOpen()">
       <div class="iw-launch-icon">◆</div>
       <div class="iw-launch-txt"><div class="iw-launch-t">Interview met Rory, ga de diepte in</div><div class="iw-launch-s">Rory vraagt stap voor stap door tot de hoek scherp is, Theriot scherpt het concept, en je genereert 3 statics op dezelfde boodschap.</div></div>
@@ -695,6 +717,8 @@
       Genereer variaties
     </button>
   </div>
+
+  </div><!-- einde classic-form -->
 
   <div id="results"></div>
 
@@ -1931,6 +1955,15 @@
 <script src="js/36-tracker.js"></script>
 <script src="js/37-team.js"></script>
 
+<!-- Static Ad Wizard: alleen voor het maken van een nieuwe static vanaf nul.
+     Kopieer ad, Itereren en de Ad Transformer draaien onveranderd door op het
+     formulier eronder. De volgorde telt: de romp definieert wizState, de rest
+     leunt erop. -->
+<script src="js/38-wizard-core.js"></script>
+<script src="js/39-wizard-rory.js"></script>
+<script src="js/40-wizard-steps.js"></script>
+<script src="js/41-wizard-output.js"></script>
+
 <link id="console-skin-2" rel="stylesheet" href="css/06-console-skin-2.css">
 
 <link id="console-skin-3" rel="stylesheet" href="css/07-console-skin-3.css">
@@ -2052,6 +2085,10 @@
 <!-- Groepering: ontwerpcontract 6c. Als laatste, want hij corrigeert de
      afstanden en naden van alle lagen erboven en niets anders. -->
 <link id="groepering-css" rel="stylesheet" href="css/22-groepering.css">
+
+<!-- Static Ad Wizard. Na de groepering, want de wizard staat in een eigen
+     overlay en mag niet door de afstandscorrecties eronder geraakt worden. -->
+<link id="wizard-css" rel="stylesheet" href="css/23-wizard.css">
 
 <script id="wg-v10-review" src="js/31-wg-v10-review.js"></script>
 
