@@ -391,51 +391,78 @@ body.wiz-open { overflow: hidden; }
   padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 14px;
 }
 
-/* ── Blueprint ──────────────────────────────────────────────────────────── */
+/* ── Blueprint ────────────────────────────────────────────────────────────
+ *
+ * Een briefing, geen controlelijst. De beschrijving van het beeld staat
+ * bovenaan en groot, want dat is het enige antwoord op "snap ik wat ik krijg
+ * voordat ik ervoor betaal". Daaronder vier groepen die je per stuk kunt
+ * bijstellen zonder de wizard opnieuw te doorlopen. */
 
-.wiz-bp { border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
-.wiz-bp-row {
-  display: grid; grid-template-columns: 170px 1fr auto; gap: 14px;
-  align-items: baseline; padding: 11px 16px;
-  border-bottom: 1px solid var(--hairline);
-}
-.wiz-bp-row:last-child { border-bottom: none; }
-.wiz-bp-k { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.wiz-bp-v { color: var(--text); font-size: 13.5px; line-height: 1.5; }
-.wiz-bp-empty { color: var(--red); font-style: normal; }
-.wiz-bp-edit {
-  background: none; border: none; color: var(--gold); cursor: pointer;
-  font-family: inherit; font-size: 12px; text-decoration: underline;
-}
 .wiz-vizdesc {
-  padding: 16px 18px; border-radius: 12px; line-height: 1.6;
-  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gold-line);
-  color: var(--text); font-size: 14px;
+  padding: 22px 24px; margin-bottom: 22px; border-radius: 14px;
+  border-left: 2px solid var(--gold);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text); font-size: 18px; line-height: 1.6; font-weight: 300;
+  max-width: 52ch;
 }
+.wiz-brief { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.wiz-brief-groep {
+  padding: 14px 16px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-brief-kop {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 9px;
+}
+.wiz-brief-kop span {
+  font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--gold);
+}
+.wiz-brief-lijst { margin: 0; padding-left: 15px; color: var(--text-soft); font-size: 13px; }
+.wiz-brief-lijst li { margin-bottom: 5px; line-height: 1.5; }
+.wiz-brief-leeg { color: var(--red); font-size: 13px; }
+.wiz-bp-edit {
+  background: none; border: none; color: var(--text-faint); cursor: pointer;
+  font-family: inherit; font-size: 12px; text-decoration: underline; padding: 0;
+}
+.wiz-bp-edit:hover { color: var(--gold); }
 
 /* ── Concepten en eindbeeld ─────────────────────────────────────────────── */
 
-.wiz-concepts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+/* De hele kaart is de knop: je kiest een concept, niet een knopje eronder. */
+.wiz-concepts { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
 .wiz-concept {
   display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
   background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+  padding: 0; text-align: left; cursor: pointer; font-family: inherit; color: var(--text);
+  transition: border-color .15s, transform .15s;
 }
-.wiz-concept.on { border-color: var(--gold); }
+.wiz-concept:hover { border-color: var(--hairline-strong); }
+.wiz-concept.on { border-color: var(--gold); background: var(--gold-haze); }
 .wiz-concept-preview {
   display: flex; align-items: center; justify-content: center;
-  min-height: 190px; background: rgba(0, 0, 0, 0.35); padding: 12px;
+  min-height: 180px; background: rgba(0, 0, 0, 0.35); padding: 10px;
 }
 .wiz-concept-preview img { max-width: 100%; border-radius: 8px; display: block; }
+.wiz-concept-geenbeeld { color: var(--text-faint); font-size: 12px; }
 .wiz-concept-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .wiz-concept-h { font-size: 15px; color: var(--text); line-height: 1.35; }
 .wiz-concept-hook {
   font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold);
 }
 .wiz-concept-vis, .wiz-concept-why { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
-.wiz-concept-vis span, .wiz-concept-why span {
-  display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-soft); margin-bottom: 2px;
+.wiz-concept-why em {
+  display: block; font-style: normal; font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-soft); margin-bottom: 2px;
 }
+
+/* Bewerkacties gegroepeerd naar wat ze raken. Negen chips op één rij is weer
+   een control panel; drie groepjes van drie leest als een keuze. */
+.wiz-tweakgroep { margin-bottom: 12px; }
+.wiz-tweakgroep-t {
+  display: block; font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.wiz-chip.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
 
 .wiz-final-head { margin-bottom: 14px; }
 .wiz-final-h { font-size: 20px; color: var(--text); }

@@ -4,20 +4,32 @@
  * één static. Bewust in die volgorde: de blueprint is de laatste plek waar
  * corrigeren gratis is, daarna kost elke stap een generatie.
  *
+ * Zelfde vormtaal als stap 1 tot en met 6: het voorstel staat er al, in gewone
+ * taal, en het formulier zit achter een uitklap. De eerste versie van stap 7
+ * was een tabel met dertien rijen -- dat is een controlelijst, geen briefing,
+ * en je leest er niet uit wat je gaat krijgen.
+ *
  * Belangrijk voor het begrijpen van dit bestand: de wizard bouwt GEEN eigen
  * beeldpijplijn. Hij zet de gestructureerde besluiten om in dezelfde
  * variations-vorm die het systeem al gebruikt en geeft die door aan
- * renderResults en generateImage. Alles wat daar al goed geregeld is —
- * safe zones, referentiefoto's, merk-anatomie, het bewerkpaneel — blijft
+ * renderResults en generateImage. Alles wat daar al goed geregeld is --
+ * safe zones, referentiefoto's, merk-anatomie, het bewerkpaneel -- blijft
  * daardoor werken zonder dat het hier herhaald wordt.
+ *
+ * Eén ding doet de wizard bewust NIET vanzelf: beeld genereren. Rory mag
+ * adviseren zonder te vragen, want dat kost een paar cent aan tekst. Een
+ * afbeelding kost echt geld, en in dit systeem is de menselijke goedkeuring de
+ * enige rem daarop. Dus blijft dat één bewuste klik, met erbij hoeveel beelden
+ * het zijn.
  */
 
-/* ── De blueprint als tekst ─────────────────────────────────────────────── */
+/* ── Leesbare namen ─────────────────────────────────────────────────────── */
 
 var WIZ_LABELS = {
-  funnel: { tof: 'Cold reach', mof: 'Consideration', bof: 'Conversion', retargeting: 'Retargeting' },
+  funnel: { tof: 'cold reach', mof: 'consideration', bof: 'conversion', retargeting: 'retargeting' },
   placement: { feed11: 'Feed 1:1', feed45: 'Feed 4:5', stories: 'Stories 9:16', reels: 'Reels 9:16' },
-  awareness: { unaware: 'Unaware', problem: 'Problem aware', solution: 'Solution aware', product: 'Product aware', most: 'Most aware' }
+  awareness: { unaware: 'unaware', problem: 'problem aware', solution: 'solution aware',
+               product: 'product aware', most: 'most aware' }
 };
 
 function wizLabel(soort, waarde) {
@@ -25,57 +37,63 @@ function wizLabel(soort, waarde) {
   return (m && m[waarde]) || waarde || '';
 }
 
-/* Leesbare naam van een visuele keuze, zodat de blueprint geen slugs toont. */
 function wizVisualLabel(field, value) {
-  var g = (typeof WIZ_VISUAL !== 'undefined') ? WIZ_VISUAL.find(function (x) { return x.field === field; }) : null;
+  var g = (typeof WIZ_VISUAL !== 'undefined')
+    ? WIZ_VISUAL.filter(function (x) { return x.field === field; })[0] : null;
   if (!g) return value || '';
-  var o = g.opts.find(function (x) { return x.value === value; });
+  var o = g.opts.filter(function (x) { return x.value === value; })[0];
   return o ? o.label : (value || '');
 }
 
-/* ── Stap 7: Creative blueprint ─────────────────────────────────────────── */
+/* ── Stap 7: Creative blueprint ───────────────────────────────────────────── */
 
+/* De blueprint leest als een briefing en niet als een tabel: eerst wat je gaat
+   zien, dan in drie groepen waar dat op rust. Elke groep heeft één ingang om
+   terug te springen, want de opdracht was dat je een onderdeel kunt bijstellen
+   zonder de wizard opnieuw te doorlopen. */
 function wizRender_review() {
   var d = wizState.data;
   var p = wizProduct(), pers = wizPersona(), f = wizFormat();
+  var h = '';
 
-  var rij = function (label, waarde, stap) {
-    return '<div class="wiz-bp-row">' +
-      '<div class="wiz-bp-k">' + wizEsc(label) + '</div>' +
-      '<div class="wiz-bp-v">' + (waarde ? wizEsc(waarde) : '<em class="wiz-bp-empty">not set</em>') + '</div>' +
-      '<button type="button" class="wiz-bp-edit" onclick="wizGo(\'' + stap + '\')">Edit</button>' +
-      '</div>';
-  };
+  /* Wat er gegenereerd wordt, in gewone taal. Dit is het enige antwoord op de
+     vraag "snap ik wat ik krijg voordat ik ervoor betaal". */
+  if (d.review.visualDescription) {
+    h += '<div class="wiz-vizdesc">' + wizEsc(d.review.visualDescription) + '</div>';
+  } else if (wizState.busy) {
+    h += wizDenkt('Rory is writing out what the ad will look like.');
+  } else {
+    h += '<div class="wiz-empty">Rory has not described the ad yet. ' +
+      '<button type="button" class="wiz-linkbtn" onclick="wizDescribeVisual()">Describe it</button></div>';
+  }
 
   var visueel = (typeof WIZ_VISUAL !== 'undefined' ? WIZ_VISUAL : [])
-    .map(function (g) { return d.visual[g.field] ? (g.title + ': ' + wizVisualLabel(g.field, d.visual[g.field])) : null; })
-    .filter(Boolean).join(' · ');
+    .filter(function (g) { return d.visual[g.field]; })
+    .map(function (g) { return wizVisualLabel(g.field, d.visual[g.field]).toLowerCase(); });
 
-  var h = '<div class="wiz-bp">';
-  h += rij('Product', p ? p.name : '', 'product');
-  h += rij('Placement', wizLabel('placement', d.product.placement), 'product');
-  h += rij('Campaign goal', wizLabel('funnel', d.product.funnel), 'product');
-  h += rij('Audience', pers ? pers.name : '', 'audience');
-  h += rij('Awareness', wizLabel('awareness', d.audience.awareness), 'audience');
-  h += rij('Marketing angle', d.strategy.marketingAngle, 'strategy');
-  h += rij('Core messaging', d.strategy.messaging, 'strategy');
-  h += rij('Proof mechanism', d.strategy.proof, 'strategy');
-  h += rij('Format', f ? f.name : d.format.formatId, 'format');
-  h += rij('Visual direction', visueel, 'visual');
-  h += rij('Headline', d.copy.headline, 'copy');
-  h += rij('Proof copy', d.copy.proof, 'copy');
-  h += rij('Call to action', d.copy.cta, 'copy');
-  h += '</div>';
-
-  h += '<div class="wiz-block"><div class="wiz-block-t">What will be generated</div>';
-  if (d.review.visualDescription) {
-    h += '<div class="wiz-vizdesc">' + wizEsc(d.review.visualDescription) + '</div>' +
-      '<div class="wiz-actions"><button type="button" class="wiz-btn ghost" onclick="wizDescribeVisual()">Describe again</button></div>';
-  } else {
-    h += '<div class="wiz-prompt-card"><p>Before you spend a generation, Rory writes out in plain language what the ad will look like.</p>' +
-      '<button type="button" class="wiz-btn advise" onclick="wizDescribeVisual()"' + (wizState.busy ? ' disabled' : '') + '>Describe the ad</button></div>';
-  }
-  h += '</div>';
+  h += '<div class="wiz-brief">' +
+    wizBriefGroep('Who it is for', 'audience', [
+      p ? p.name : '',
+      pers ? pers.name : '',
+      wizLabel('awareness', d.audience.awareness),
+      wizLabel('funnel', d.product.funnel)
+    ]) +
+    wizBriefGroep('What it argues', 'strategy', [
+      d.strategy.marketingAngle,
+      d.strategy.messaging,
+      d.strategy.proof ? ('proof: ' + d.strategy.proof) : ''
+    ]) +
+    wizBriefGroep('How it looks', 'visual', [
+      f ? f.name : d.format.formatId,
+      wizLabel('placement', d.product.placement)
+    ].concat(visueel)) +
+    wizBriefGroep('What it says', 'copy', [
+      d.copy.headline,
+      d.copy.supporting,
+      d.copy.proof,
+      d.copy.cta ? ('CTA: ' + d.copy.cta) : ''
+    ]) +
+    '</div>';
 
   var ontbreekt = wizBlueprintGaps();
   if (ontbreekt.length) {
@@ -84,13 +102,36 @@ function wizRender_review() {
   }
 
   h += '<div class="wiz-actions big">' +
-    '<button type="button" class="wiz-btn primary" onclick="wizApproveBlueprint()"' + (wizState.busy ? ' disabled' : '') + '>' +
-    'Approve and generate 3 concepts</button></div>';
+    '<button type="button" class="wiz-btn primary" onclick="wizApproveBlueprint()"' +
+      (wizState.busy ? ' disabled' : '') + '>Approve and work out ' + WIZ_CONCEPT_COUNT + ' concepts</button>' +
+    (d.review.visualDescription
+      ? '<button type="button" class="wiz-btn ghost small" onclick="wizDescribeVisual()">Describe it again</button>' : '') +
+    '</div>';
   return h;
 }
 
-/* Welke velden leeg zijn gebleven. Eerlijk benoemen is beter dan ze stilletjes
-   door het model laten invullen zonder dat iemand het weet. */
+function wizBriefGroep(titel, stap, regels) {
+  var gevuld = (regels || []).filter(function (r) { return r && String(r).trim(); });
+  return '<div class="wiz-brief-groep">' +
+    '<div class="wiz-brief-kop"><span>' + wizEsc(titel) + '</span>' +
+    '<button type="button" class="wiz-bp-edit" onclick="wizGo(\'' + stap + '\')">Edit</button></div>' +
+    (gevuld.length
+      ? '<ul class="wiz-brief-lijst">' + gevuld.map(function (r) { return '<li>' + wizEsc(r) + '</li>'; }).join('') + '</ul>'
+      : '<div class="wiz-brief-leeg">nothing set</div>') +
+    '</div>';
+}
+
+/* Rory beschrijft het beeld zodra je hier binnenkomt, net als hij op de andere
+   stappen uit zichzelf kijkt. Dat is tekst, geen beeld -- dus geen geld. */
+function wizAfter_review() {
+  if (wizState.data.review.visualDescription) return;
+  if (wizState.busy) return;
+  if (wizState.beschreven) return;
+  if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) return;
+  wizState.beschreven = true;
+  wizDescribeVisual();
+}
+
 function wizBlueprintGaps() {
   var d = wizState.data, gaten = [];
   if (!d.strategy.proof) gaten.push('proof mechanism');
@@ -130,10 +171,10 @@ function wizApproveBlueprint() {
 
 /* ── De prompt uit de besluiten ─────────────────────────────────────────── */
 
-/* Dit is het scharnierpunt van de hele wizard: gestructureerde besluiten in,
-   één prompt uit. Geen enkele stap schrijft rechtstreeks in een promptveld,
-   zodat dezelfde besluiten later ook naar performance-data of learnings
-   kunnen — dat bouwen we hier nog niet, maar de vorm staat het toe. */
+/* Het scharnierpunt van de hele wizard: gestructureerde besluiten in, één
+   prompt uit. Geen enkele stap schrijft rechtstreeks in een promptveld, zodat
+   dezelfde besluiten later ook naar performance-data of learnings kunnen --
+   dat bouwen we hier nog niet, maar de vorm staat het toe. */
 function wizBuildBrief(aantal) {
   var d = wizState.data, p = wizProduct(), pers = wizPersona(), f = wizFormat();
   var t = '';
@@ -208,7 +249,7 @@ function wizBuildBrief(aantal) {
 }
 
 /* De metadata die renderResults en generateImage verwachten. Zelfde vorm als
-   generate() in 10-kopieermodus.js oplevert — zo werkt de rest ongewijzigd. */
+   generate() in 10-kopieermodus.js oplevert -- zo werkt de rest ongewijzigd. */
 function wizMetadata() {
   var d = wizState.data, p = wizProduct(), pers = wizPersona();
   return {
@@ -237,38 +278,62 @@ var WIZ_CONCEPT_COUNT = 3;
 function wizRender_concepts() {
   var lijst = wizState.data.concepts.list || [];
   if (wizState.busy && !lijst.length) {
-    return '<div class="wiz-loading">Rory is working out ' + WIZ_CONCEPT_COUNT + ' routes within the approved strategy…</div>';
+    return wizDenkt('Rory is working out ' + WIZ_CONCEPT_COUNT + ' routes within the approved strategy.');
   }
   if (!lijst.length) {
-    return '<div class="wiz-prompt-card"><p>No concepts yet.</p>' +
-      '<button type="button" class="wiz-btn advise" onclick="wizGenerateConcepts()">Generate concepts</button></div>';
+    return '<div class="wiz-empty">No concepts yet. ' +
+      '<button type="button" class="wiz-linkbtn" onclick="wizGenerateConcepts()">Work them out</button></div>';
   }
+
   var sel = wizState.data.concepts.selected;
-  var h = '<div class="wiz-concepts">' + lijst.map(function (c, i) {
+  var beelden = (typeof state !== 'undefined' && state.generatedImages) ? state.generatedImages : {};
+  var zonderBeeld = lijst.filter(function (c, i) { return !beelden[i]; }).length;
+
+  var h = '<p class="wiz-zin">Same strategy, ' + lijst.length + ' ways to execute it. Pick the one to build.</p>';
+
+  h += '<div class="wiz-concepts">' + lijst.map(function (c, i) {
     var aan = (sel === i);
-    return '<div class="wiz-concept' + (aan ? ' on' : '') + '">' +
-      '<div class="wiz-concept-preview" id="gen-image-' + i + '">' +
-      '<button type="button" class="wiz-btn small" onclick="wizPreview(' + i + ')">Generate preview</button>' +
-      '</div>' +
-      '<div class="wiz-concept-body">' +
-      '<div class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</div>' +
-      (c.hook_label_nl ? '<div class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</div>' : '') +
-      (c.visual_nl ? '<div class="wiz-concept-vis"><span>Composition</span>' + wizEsc(c.visual_nl) + '</div>' : '') +
-      (c.reasoning_nl ? '<div class="wiz-concept-why"><span>Rory</span>' + wizEsc(c.reasoning_nl) + '</div>' : '') +
-      '<button type="button" class="wiz-btn ' + (aan ? 'primary' : 'ghost') + ' full" onclick="wizPickConcept(' + i + ')">' +
-      (aan ? 'Selected' : 'Choose this concept') + '</button>' +
-      '</div></div>';
+    return '<button type="button" class="wiz-concept' + (aan ? ' on' : '') + '" ' +
+      'aria-pressed="' + (aan ? 'true' : 'false') + '" onclick="wizPickConcept(' + i + ')">' +
+      '<span class="wiz-concept-preview" id="gen-image-' + i + '">' +
+        '<span class="wiz-concept-geenbeeld">no preview yet</span></span>' +
+      '<span class="wiz-concept-body">' +
+        '<span class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</span>' +
+        (c.hook_label_nl ? '<span class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</span>' : '') +
+        (c.visual_nl ? '<span class="wiz-concept-vis">' + wizEsc(c.visual_nl) + '</span>' : '') +
+        (c.reasoning_nl ? '<span class="wiz-concept-why"><em>Rory</em>' + wizEsc(c.reasoning_nl) + '</span>' : '') +
+      '</span></button>';
   }).join('') + '</div>';
+
+  /* Beeld kost geld, dus dit blijft een bewuste klik met het aantal erbij. */
   h += '<div class="wiz-actions">' +
-    '<button type="button" class="wiz-btn ghost" onclick="wizGenerateConcepts()"' + (wizState.busy ? ' disabled' : '') + '>Generate different concepts</button>' +
-    '<button type="button" class="wiz-btn ghost" onclick="wizPreviewAll()"' + (wizState.busy ? ' disabled' : '') + '>Generate all previews</button>' +
+    (zonderBeeld
+      ? '<button type="button" class="wiz-btn" onclick="wizPreviewAll()">Generate ' + zonderBeeld +
+        ' preview' + (zonderBeeld > 1 ? 's' : '') + '</button>'
+      : '') +
+    '<button type="button" class="wiz-btn ghost small" onclick="wizGenerateConcepts()"' +
+      (wizState.busy ? ' disabled' : '') + '>Work out three different ones</button>' +
     '</div>';
   return h;
 }
 
+/* Na het tekenen de al gemaakte beelden terugzetten: generateImage schrijft ze
+   ooit in deze containers, maar een hertekening maakt die leeg. */
+function wizAfter_concepts() { wizToonBewaardeBeelden(); }
+
+function wizToonBewaardeBeelden() {
+  var beelden = (typeof state !== 'undefined' && state.generatedImages) ? state.generatedImages : {};
+  Object.keys(beelden).forEach(function (i) {
+    var el = document.getElementById('gen-image-' + i);
+    if (el && beelden[i]) {
+      el.innerHTML = '<img src="data:image/png;base64,' + beelden[i] + '" alt="">';
+    }
+  });
+}
+
 function wizGenerateConcepts() {
   if (wizState.busy) return;
-  var sleutel = (window.__WG_TEAMSERVER ? 'teamserver' : (document.getElementById('anthropic-key') || {}).value);
+  var sleutel = (window.__WG_TEAMSERVER ? 'teamserver' : ((document.getElementById('anthropic-key') || {}).value || ''));
   if (!sleutel) { if (typeof toast === 'function') toast('Fill in your Anthropic API key first', true); return; }
   wizState.busy = true;
   wizState.data.concepts.list = [];
@@ -308,79 +373,127 @@ function wizPickConcept(i) {
   wizRender();
 }
 
-/* Preview via de bestaande beeldpijplijn. generateImage schrijft in
-   #gen-image-<i>, en die staat hier op de conceptkaart. */
 function wizPreview(i) {
-  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Generate the concepts first', true); return; }
+  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
   if (typeof generateImage !== 'function') return;
   generateImage(i);
 }
 
 function wizPreviewAll() {
   var n = (wizState.data.concepts.list || []).length;
-  for (var i = 0; i < n; i++) wizPreview(i);
+  var beelden = (state && state.generatedImages) || {};
+  for (var i = 0; i < n; i++) if (!beelden[i]) wizPreview(i);
 }
 
 /* ── Stap 9: De uiteindelijke static ────────────────────────────────────── */
 
 /* De gerichte acties na generatie. Elke actie verandert één element en laat de
    rest staan; ze gaan naar het bestaande bewerkpaneel in plaats van de hele
-   strategie opnieuw op te bouwen. */
+   strategie opnieuw op te bouwen. Gegroepeerd naar wat ze raken, want negen
+   losse chips op een rij is weer een control panel. */
 var WIZ_TWEAKS = [
-  { key: 'headline',    label: 'Change headline',      instructie: 'Replace only the headline text. Keep the composition, product, scene, lighting and every other element exactly as they are.' },
-  { key: 'composition', label: 'Change composition',   instructie: 'Rearrange the composition and framing. Keep the same product, scene, headline text and mood.' },
-  { key: 'scene',       label: 'Change scene',         instructie: 'Move this to a different scene or environment. Keep the product, the headline text, the framing and the mood.' },
-  { key: 'model',       label: 'Change model',         instructie: 'Change the person in frame. Keep the product, scene, composition, headline text and mood.' },
-  { key: 'position',    label: 'Change product position', instructie: 'Move the product to a different position in frame. Change nothing else.' },
-  { key: 'background',  label: 'Change background',    instructie: 'Replace only the background. Keep the product, any person, the framing and all text exactly as they are.' },
-  { key: 'text',        label: 'Change text placement', instructie: 'Move the text block to a different position within the safe zone. Do not change the wording, the product or the scene.' },
-  { key: 'variation',   label: 'Create variation',     instructie: 'Produce a close variation of this image: same strategy, same headline, slightly different execution.' },
-  { key: 'regenerate',  label: 'Regenerate visual',    instructie: 'Generate this same concept again from scratch.' }
+  { key: 'headline',    groep: 'Words',   label: 'Change headline',         vraag: 'What should the headline become?',
+    instructie: 'Replace only the headline text. Keep the composition, product, scene, lighting and every other element exactly as they are.' },
+  { key: 'text',        groep: 'Words',   label: 'Move the text',           vraag: 'Where should the text sit?',
+    instructie: 'Move the text block to a different position within the safe zone. Do not change the wording, the product or the scene.' },
+  { key: 'composition', groep: 'Framing', label: 'Change composition',      vraag: 'How should it be composed?',
+    instructie: 'Rearrange the composition and framing. Keep the same product, scene, headline text and mood.' },
+  { key: 'position',    groep: 'Framing', label: 'Move the product',        vraag: 'Where should the product sit?',
+    instructie: 'Move the product to a different position in frame. Change nothing else.' },
+  { key: 'scene',       groep: 'Scene',   label: 'Change scene',            vraag: 'Which scene should it be?',
+    instructie: 'Move this to a different scene or environment. Keep the product, the headline text, the framing and the mood.' },
+  { key: 'background',  groep: 'Scene',   label: 'Change background',       vraag: 'What should the background become?',
+    instructie: 'Replace only the background. Keep the product, any person, the framing and all text exactly as they are.' },
+  { key: 'model',       groep: 'Scene',   label: 'Change model',            vraag: 'Who should be in frame?',
+    instructie: 'Change the person in frame. Keep the product, scene, composition, headline text and mood.' },
+  { key: 'variation',   groep: 'Rebuild', label: 'Create a variation',      vraag: 'Anything to steer the variation?',
+    instructie: 'Produce a close variation of this image: same strategy, same headline, slightly different execution.' },
+  { key: 'regenerate',  groep: 'Rebuild', label: 'Regenerate the visual',   vraag: 'Anything to change while regenerating?',
+    instructie: 'Generate this same concept again from scratch.' }
 ];
 
 function wizRender_generate() {
   var sel = wizState.data.concepts.selected;
   if (sel == null) {
-    return '<div class="wiz-empty">Pick a concept first. <button type="button" class="wiz-linkbtn" onclick="wizGo(\'concepts\')">Back to concepts</button></div>';
+    return '<div class="wiz-empty">Pick a concept first. ' +
+      '<button type="button" class="wiz-linkbtn" onclick="wizGo(\'concepts\')">Back to the concepts</button></div>';
   }
   var c = (wizState.data.concepts.list || [])[sel] || {};
+  var heeftBeeld = !!((state && state.generatedImages) || {})[sel];
   var h = '';
+
   h += '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
     (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>';
+
   h += '<div class="wiz-final-preview" id="gen-image-' + sel + '">' +
-    '<button type="button" class="wiz-btn primary" onclick="wizPreview(' + sel + ')">Generate the final static</button></div>';
-  h += '<div class="wiz-block"><div class="wiz-block-t">Adjust one element</div>' +
-    '<div class="wiz-tweaks">' + WIZ_TWEAKS.map(function (t) {
-      return '<button type="button" class="wiz-chip" onclick="wizTweak(\'' + t.key + '\')">' + wizEsc(t.label) + '</button>';
-    }).join('') + '</div>' +
-    '<div class="wiz-tweak-note">Each action changes that one element and leaves the rest of the ad alone.</div></div>';
-  h += '<div class="wiz-actions big">' +
-    '<button type="button" class="wiz-btn primary" onclick="wizHandOff()">Open in the full editor</button>' +
+    (heeftBeeld ? '' :
+      '<button type="button" class="wiz-btn primary" onclick="wizPreview(' + sel + ')">Generate the final static</button>') +
     '</div>';
+
+  if (heeftBeeld) {
+    var groepen = [];
+    WIZ_TWEAKS.forEach(function (t) { if (groepen.indexOf(t.groep) === -1) groepen.push(t.groep); });
+    h += '<div class="wiz-block"><div class="wiz-block-t">Adjust one element</div>' +
+      groepen.map(function (g) {
+        return '<div class="wiz-tweakgroep"><span class="wiz-tweakgroep-t">' + wizEsc(g) + '</span>' +
+          '<div class="wiz-tweaks">' + WIZ_TWEAKS.filter(function (t) { return t.groep === g; }).map(function (t) {
+            var aan = (wizState.tweakOpen === t.key);
+            return '<button type="button" class="wiz-chip' + (aan ? ' on' : '') + '" ' +
+              'onclick="wizOpenTweak(\'' + t.key + '\')">' + wizEsc(t.label) + '</button>';
+          }).join('') + '</div></div>';
+      }).join('') +
+      wizTweakPaneel() +
+      '<div class="wiz-tweak-note">Each action changes that one element and leaves the rest of the ad alone.</div>' +
+      '</div>';
+
+    h += '<div class="wiz-actions big">' +
+      '<button type="button" class="wiz-btn primary" onclick="wizHandOff()">Open in the full editor</button>' +
+      '</div>';
+  }
   return h;
 }
 
-/* De gerichte actie zet de instructie klaar in het bestaande bewerkpaneel en
-   draait dat. Zo krijgt de wizard geen tweede, afwijkende bewerkroute. */
-function wizTweak(key) {
+function wizAfter_generate() { wizToonBewaardeBeelden(); }
+
+/* Geen prompt()-venster meer. Dat blokkeert de pagina, is niet te testen en
+   past bij geen enkel ander scherm hier. */
+function wizTweakPaneel() {
+  var t = WIZ_TWEAKS.filter(function (x) { return x.key === wizState.tweakOpen; })[0];
+  if (!t) return '';
+  return '<div class="wiz-veldpaneel">' +
+    '<div class="wiz-veldpaneel-t">' + wizEsc(t.vraag) + '</div>' +
+    '<textarea id="wiz-tweak-in" rows="2" placeholder="Leave empty to let Rory decide."></textarea>' +
+    '<div class="wiz-actions">' +
+    '<button type="button" class="wiz-btn primary small" onclick="wizTweak()">Apply this change</button>' +
+    '<button type="button" class="wiz-btn ghost small" onclick="wizOpenTweak(null)">Cancel</button>' +
+    '</div></div>';
+}
+
+function wizOpenTweak(key) {
+  wizState.tweakOpen = (wizState.tweakOpen === key) ? null : key;
+  wizRender();
+}
+
+function wizTweak() {
   var sel = wizState.data.concepts.selected;
-  if (sel == null) return;
+  var t = WIZ_TWEAKS.filter(function (x) { return x.key === wizState.tweakOpen; })[0];
+  if (sel == null || !t) return;
   if (!state.generatedImages || !state.generatedImages[sel]) {
     if (typeof toast === 'function') toast('Generate the static first, then adjust it', true);
     return;
   }
-  var t = WIZ_TWEAKS.find(function (x) { return x.key === key; });
-  if (!t) return;
-  var extra = prompt(t.label + '\n\nWhat should it become? Leave empty to let Rory decide.');
-  if (extra === null) return;
-  var instructie = t.instructie + (extra.trim() ? (' Requested change: ' + extra.trim()) : '');
-  if (typeof state.pendingEdits !== 'object' || !state.pendingEdits) state.pendingEdits = {};
+  var el = document.getElementById('wiz-tweak-in');
+  var extra = el ? el.value.trim() : '';
+  var instructie = t.instructie + (extra ? (' Requested change: ' + extra) : '');
+  if (!state.pendingEdits || typeof state.pendingEdits !== 'object') state.pendingEdits = {};
   state.pendingEdits[sel] = [{ type: 'adjust', text: instructie }];
+  wizState.tweakOpen = null;
   if (typeof applyCombinedEdits === 'function') {
     applyCombinedEdits(sel);
   } else if (typeof toast === 'function') {
     toast('The edit panel is not available', true);
   }
+  wizRender();
 }
 
 /* Overdracht naar het bestaande resultatenscherm, met het volledige
@@ -402,11 +515,14 @@ function wizHandOff() {
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
 window.wizRender_generate = wizRender_generate;
+window.wizAfter_review = wizAfter_review; window.wizAfter_concepts = wizAfter_concepts;
+window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll;
-window.wizTweak = wizTweak; window.wizHandOff = wizHandOff;
+window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOff = wizHandOff;
 window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata;
 window.wizBlueprintGaps = wizBlueprintGaps; window.wizVisualLabel = wizVisualLabel;
 window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;
-window.wizClearMainResults = wizClearMainResults;
+window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBriefGroep;
+window.wizToonBewaardeBeelden = wizToonBewaardeBeelden; window.WIZ_CONCEPT_COUNT = WIZ_CONCEPT_COUNT;

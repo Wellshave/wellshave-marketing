@@ -233,7 +233,9 @@ const VULLEN = `
     return {
       hoek: t.indexOf('Scheren hoeft niet te schuren.') > -1,
       boodschap: t.indexOf('Een mesje dat de huid met rust laat.') > -1,
-      awareness: t.indexOf('Problem aware') > -1,
+      /* Leesbaar, niet de ruwe slug. Valt dit terug op 'problem', dan mist
+         'problem aware' en slaat deze controle alsnog aan. */
+      awareness: t.toLowerCase().indexOf('problem aware') > -1,
       visueel: t.indexOf('Split composition') > -1,
       scene: t.indexOf('Bathroom') > -1,
       slot: t.indexOf('DEZELFDE persona, awareness, marketing-angle en kernboodschap') > -1,
@@ -388,6 +390,107 @@ const VULLEN = `
   }, VULLEN);
   check('dichtgeklapt staan er geen velden', uitklap.dicht, 0);
   check('opengeklapt staat het volledige formulier er wel', uitklap.open > 3, true);
+
+  /* ── Stap 7, 8 en 9 ───────────────────────────────────────────────────── */
+  console.log('\n  de blueprint, de concepten en het eindbeeld');
+
+  const uitvoer = await page.evaluate(vullen => {
+    wizReset(true);
+    eval(vullen);
+    wizState.data.review.visualDescription = 'Premium bathroom, hands holding the Groom Guard.';
+    var d = document.createElement('div');
+    d.innerHTML = wizRender_review();
+    return {
+      /* geen tabel meer, maar groepen met elk een eigen ingang */
+      groepen: d.querySelectorAll('.wiz-brief-groep').length,
+      ingangen: d.querySelectorAll('.wiz-bp-edit').length,
+      tabelrijen: d.querySelectorAll('.wiz-bp-row').length,
+      beschrijvingBoven: !!d.querySelector('.wiz-vizdesc'),
+      velden: d.querySelectorAll('input, textarea').length
+    };
+  }, VULLEN);
+  check('de blueprint is geen tabel meer', uitvoer.tabelrijen, 0);
+  check('maar vier groepen', uitvoer.groepen, 4);
+  check('elk met een eigen ingang om terug te springen', uitvoer.ingangen, 4);
+  check('en de beschrijving van het beeld staat er', uitvoer.beschrijvingBoven, true);
+
+  /* Beeld kost geld. Dat mag nooit vanzelf gebeuren, hoe graag de wizard ook
+     wil leiden -- de menselijke goedkeuring is de enige rem op uitgaven. */
+  const geldrem = await page.evaluate(vullen => {
+    wizReset(true);
+    eval(vullen);
+    var geroepen = [];
+    var echt = window.generateImage;
+    window.generateImage = function (i) { geroepen.push(i); };
+    wizState.data.concepts.list = [
+      { headline_nl: 'A', visual_nl: 'x', reasoning_nl: 'r' },
+      { headline_nl: 'B', visual_nl: 'y', reasoning_nl: 'r' },
+      { headline_nl: 'C', visual_nl: 'z', reasoning_nl: 'r' }
+    ];
+    /* wizPreview weigert terecht zolang er geen gegenereerde varianten staan;
+       zonder dit test dit blok die weigering in plaats van de geldrem. */
+    state.lastGenerated = { variations: wizState.data.concepts.list, metadata: wizMetadata() };
+    state.generatedImages = {};
+    wizState.current = 'concepts';
+    wizRender();
+    var naRender = geroepen.slice();
+    wizPreviewAll();
+    var naKlik = geroepen.slice();
+    window.generateImage = echt;
+    return { naRender, naKlik };
+  }, VULLEN);
+  check('concepten tekenen genereert uit zichzelf geen beeld', geldrem.naRender, []);
+  check('pas na de klik worden de drie previews gemaakt', geldrem.naKlik, [0, 1, 2]);
+
+  const concepten = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    wizState.data.concepts.list = [
+      { headline_nl: 'Glad zonder gedoe', visual_nl: 'split frame', reasoning_nl: 'werkt omdat' },
+      { headline_nl: 'Tweede', visual_nl: 'x', reasoning_nl: 'y' }
+    ];
+    var d = document.createElement('div');
+    d.innerHTML = wizRender_concepts();
+    var kaarten = d.querySelectorAll('.wiz-concept');
+    wizPickConcept(1);
+    var d2 = document.createElement('div');
+    d2.innerHTML = wizRender_concepts();
+    return {
+      kaarten: kaarten.length,
+      /* de hele kaart is de knop, niet een knopje erin */
+      kaartIsKnop: kaarten[0] ? kaarten[0].tagName : '',
+      gekozen: d2.querySelectorAll('.wiz-concept.on').length,
+      gekozenIndex: wizState.data.concepts.selected
+    };
+  }, VULLEN);
+  check('elk concept is een kaart', concepten.kaarten, 2);
+  check('en de hele kaart is de keuzeknop', concepten.kaartIsKnop, 'BUTTON');
+  check('kiezen markeert er precies een', concepten.gekozen, 1);
+  check('en onthoudt welke', concepten.gekozenIndex, 1);
+
+  /* Stap 9 gebruikte een prompt()-venster. Dat blokkeert de pagina en is niet
+     te bedienen vanuit een test; het hoort een paneel in het scherm te zijn. */
+  const bijstellen = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    wizState.data.concepts.list = [{ headline_nl: 'A', visual_nl: 'x' }];
+    wizState.data.concepts.selected = 0;
+    state.generatedImages = { 0: 'nepbeeld' };
+    var telPaneel = function () {
+      var d = document.createElement('div'); d.innerHTML = wizRender_generate();
+      return { paneel: d.querySelectorAll('#wiz-tweak-in').length,
+               groepen: d.querySelectorAll('.wiz-tweakgroep').length,
+               chips: d.querySelectorAll('.wiz-tweaks .wiz-chip').length };
+    };
+    var dicht = telPaneel();
+    wizOpenTweak('headline');
+    var open = telPaneel();
+    wizOpenTweak(null);
+    return { dicht, open, prompt: String(window.wizTweak).indexOf('prompt(') > -1 };
+  }, VULLEN);
+  check('de bewerkacties staan gegroepeerd', bijstellen.dicht.groepen, 4);
+  check('met alle negen acties', bijstellen.dicht.chips, 9);
+  check('dicht staat er geen invoerpaneel', bijstellen.dicht.paneel, 0);
+  check('een actie kiezen opent het paneel in het scherm', bijstellen.open.paneel, 1);
+  check('en er komt geen prompt-venster meer aan te pas', bijstellen.prompt, false);
 
   /* ── De opdracht: Engels, en de rest ongemoeid ────────────────────────── */
   console.log('\n  de randvoorwaarden uit de opdracht');
