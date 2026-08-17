@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 17;
-const VERSIE_DATUM = '2026-08-15';
-const VERSIE_WAT = 'de inhaalslag knipt een venster dat Meta weigert in tweeen en probeert het opnieuw, zodat advertentieniveau ook over lange periodes binnenkomt; en hij zet zichzelf alleen terug in de rij als er iets is opgeschoten -- zonder die voorwaarde bleef hij een blok herhalen dat nooit lukte';
+const VERSIE = 18;
+const VERSIE_DATUM = '2026-08-17';
+const VERSIE_WAT = 'deploy previews van de twee console-sites mogen de worker rechtstreeks aanroepen; via de tussenstap op hun eigen origin sneuvelden lange calls -- drie concepten uitwerken -- op de dertig seconden die die stap toestaat';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -70,6 +70,12 @@ const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
    omzeilen ervan. */
 const ORIGINS = ['https://wellshave-adgen.netlify.app', 'https://wellshave-werkbank.netlify.app',
                  'http://localhost:8823', 'http://127.0.0.1:8823'];
+/* De deploy previews van diezelfde twee sites draaien dezelfde console en dus
+   dezelfde lange calls; via de tussenstap sneuvelt het uitwerken van drie
+   concepten op de dertig seconden. Alleen previews van deze twee sites, en
+   toegang blijft hoe dan ook een ingelogd en goedgekeurd teamaccount. */
+const ORIGIN_PATROON = /^https:\/\/deploy-preview-\d+--wellshave-(adgen|werkbank)\.netlify\.app$/;
+const originMag = (o) => ORIGINS.includes(o) || ORIGIN_PATROON.test(o);
 
 const MODEL = 'claude-fable-5';
 const FALLBACK_MODEL = 'claude-opus-4-8';
@@ -1427,7 +1433,7 @@ async function tick(env, workerId) {
 function corsHeaders(request) {
   const o = request.headers.get('Origin') || '';
   return {
-    'Access-Control-Allow-Origin': ORIGINS.includes(o) ? o : ORIGINS[0],
+    'Access-Control-Allow-Origin': originMag(o) ? o : ORIGINS[0],
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version, anthropic-beta',
     'Access-Control-Max-Age': '86400',

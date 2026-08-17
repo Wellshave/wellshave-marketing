@@ -53,7 +53,7 @@ const check = (label, echt, verwacht) => {
      wijst. Anders is er geen manier om de console op een ándere host te laten
      draaien dan localhost, en juist dát verschil is wat hier getest wordt. */
   const opties = fs.existsSync(CHROOM) ? { executablePath: CHROOM } : {};
-  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1, MAP wellshave-werkbank.netlify.app 127.0.0.1'];
+  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1, MAP wellshave-werkbank.netlify.app 127.0.0.1, MAP deploy-preview-14--wellshave-adgen.netlify.app 127.0.0.1'];
   const browser = await chromium.launch(opties);
 
   /* Twee pagina's, want er zijn twee situaties en ze verschillen alleen in de
@@ -74,6 +74,13 @@ const check = (label, echt, verwacht) => {
   const werkbankPage = await browser.newPage();
   await werkbankPage.goto(`http://wellshave-werkbank.netlify.app:${poort}/`, { waitUntil: 'load' });
   await werkbankPage.waitForTimeout(1200);
+
+  /* En een deploy preview van diezelfde console. Die draait dezelfde code en
+     dus dezelfde lange calls; via de tussenstap sneuvelt het uitwerken van
+     drie concepten op de dertig seconden. */
+  const previewPage = await browser.newPage();
+  await previewPage.goto(`http://deploy-preview-14--wellshave-adgen.netlify.app:${poort}/`, { waitUntil: 'load' });
+  await previewPage.waitForTimeout(1200);
 
   console.log('\n  PROXY_BASE kiest per host');
   const basis = await page.evaluate(() => ({
@@ -102,12 +109,20 @@ const check = (label, echt, verwacht) => {
     werkbank.hier, werkbank.worker);
   check('en heeft de tussenstap dus niet meer nodig', werkbank.tussenstap, false);
 
+  const preview = await previewPage.evaluate(() => ({
+    hier: PROXY_BASE, worker: WORKER_URL, tussenstap: PROXY_BASE === location.origin
+  }));
+  check('een deploy preview praat rechtstreeks met de worker', preview.hier, preview.worker);
+  check('en heeft de tussenstap dus niet nodig', preview.tussenstap, false);
+
   console.log('\n  wie krijgt het token');
   // De kern. De vraag is niet "welke hostnaam" maar "gaat dit naar onze
   // server" -- rechtstreeks of over de proxy op de eigen origin.
   const oordeel = await proxyPage.evaluate(() => {
+    /* /agents/status stond hier ook in. Die route is verdwenen met de agents
+       zelf, dus de console routeert hem niet meer -- en dat hoort ook niet. */
     const paden = [
-      '/anthropic', '/v1/images/edits', '/openai/images', '/agents/status', '/health'
+      '/anthropic', '/v1/images/edits', '/openai/images', '/health'
     ].map(p => [location.origin + p, _naarDeWorker(location.origin + p)]);
     return {
       viaEigenOrigin: paden,
@@ -121,7 +136,7 @@ const check = (label, echt, verwacht) => {
     };
   });
   check('elk doorgezet pad op de eigen origin telt als de worker',
-    oordeel.viaEigenOrigin.map(p => p[1]), [true, true, true, true, true]);
+    oordeel.viaEigenOrigin.map(p => p[1]), [true, true, true, true]);
   check('rechtstreeks naar de worker ook', oordeel.rechtstreeks, true);
   check('en een relatief pad net zo goed', oordeel.relatief, true);
 
@@ -230,6 +245,26 @@ const check = (label, echt, verwacht) => {
     .split(',').map(s2 => s2.trim().replace(/'/g, '')).filter(Boolean);
   check('elke host die de console rechtstreeks aanroept, staat ook in de worker',
     hostsApp.filter(h => hostsWorker.indexOf(h) === -1), []);
+
+  /* Sinds de deploy previews erbij mogen staat er naast de lijst een patroon,
+     aan beide kanten. Lopen die uit elkaar, dan belt de console rechtstreeks
+     aan bij een worker die de deur dichthoudt -- en dan valt de app terug op
+     de tussenstap die lange calls afkapt. Precies de storing die dit patroon
+     moest oplossen, maar dan onvindbaar. */
+  const patroonApp = new RegExp(
+    (appBron.match(/WORKER_HOST_PATROON = \/(.+?)\/;/) || [])[1] || '$^');
+  const patroonWorker = new RegExp(
+    (workerBron.match(/ORIGIN_PATROON = \/(.+?)\/;/) || [])[1] || '$^');
+  const proef = ['deploy-preview-14--wellshave-adgen.netlify.app',
+                 'deploy-preview-7--wellshave-werkbank.netlify.app'];
+  const nep = ['deploy-preview-14--wellshave-adgen.netlify.app.kwaad.nl',
+               'boos--wellshave-adgen.netlify.app'];
+  check('de console laat de deploy previews rechtstreeks bellen',
+    proef.filter(h => !patroonApp.test(h)), []);
+  check('en de worker doet voor exact dezelfde adressen open',
+    proef.filter(h => !patroonWorker.test('https://' + h)), []);
+  check('een adres dat er alleen op lijkt komt er bij geen van beide in',
+    nep.filter(h => patroonApp.test(h) || patroonWorker.test('https://' + h)), []);
 
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);

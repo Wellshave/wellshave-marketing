@@ -41,9 +41,17 @@ const WORKER_URL = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING
    3 augustus: de tussenstap bleek goedkoop tot Rory halverwege een gesprek
    werd afgebroken. */
 var WORKER_HOSTS = ['wellshave-adgen.netlify.app', 'wellshave-werkbank.netlify.app'];
+/* De deploy previews van diezelfde twee sites horen erbij. Ze draaien dezelfde
+   console en dus dezelfde lange calls: drie concepten uitwerken duurt meer dan
+   de dertig seconden die de tussenstap toestaat, en dan komt er niets terug.
+   Het patroon laat alleen previews van deze twee sites toe -- die adressen kan
+   alleen dit repository laten ontstaan -- en de worker vraagt daarnaast nog
+   steeds om een ingelogd, goedgekeurd teamaccount. */
+var WORKER_HOST_PATROON = /^deploy-preview-\d+--wellshave-(adgen|werkbank)\.netlify\.app$/;
 const PROXY_BASE = (function () {
   var h = location.hostname;
   if (WORKER_HOSTS.indexOf(h) > -1)          return WORKER_URL;
+  if (WORKER_HOST_PATROON.test(h))           return WORKER_URL;
   if (/^(localhost|127\.0\.0\.1)$/.test(h)) return WORKER_URL;
   if (location.protocol === 'file:')         return WORKER_URL;
   return location.origin;
