@@ -587,7 +587,13 @@ const VULLEN = `
        voordat er iets te tonen valt. */
     state.lastGenerated = { variations: [{ headline_nl: 'A' }], metadata: {} };
     var takes = wizTakeIndexen();
-    state.generatedImages = {}; takes.forEach(function (i) { state.generatedImages[i] = 'nepbeeld'; });
+    /* Zo bewaart de app een beeld echt: een versielijst met een index. Deze
+       fixture stond hier als losse string, en juist daardoor bleef een fout in
+       het terugzetten van beelden onopgemerkt. */
+    var NEPBEELD = { versions: [{ b64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+                                  model: 'gpt-image-1', size: '1024x1024', quality: 'high' }], currentIndex: 0 };
+    var nep = function () { return JSON.parse(JSON.stringify(NEPBEELD)); };
+    state.generatedImages = {}; takes.forEach(function (i) { state.generatedImages[i] = nep(); });
     var telPaneel = function () {
       var uit = wizRender_generate();
       var d = document.createElement('div');
@@ -611,7 +617,7 @@ const VULLEN = `
        uitleg te staan in plaats van knoppen die niets doen. */
     state.generatedImages = {};
     var zonderBeeld = telPaneel();
-    takes.forEach(function (i) { state.generatedImages[i] = 'nepbeeld'; });
+    takes.forEach(function (i) { state.generatedImages[i] = nep(); });
     /* Drie takes, en geen twee keer dezelfde plek in de beeldpijplijn -- dan
        zouden ze elkaars beeld overschrijven. */
     var uniek = takes.filter(function (v, n) { return takes.indexOf(v) === n; });
@@ -795,6 +801,39 @@ const VULLEN = `
   check('en alle negen in beeld', breed.inBeeld, 9);
   check('op een smal scherm vervallen de namen', smal.namen, false);
   check('maar de negen stappen blijven in beeld', smal.inBeeld, 9);
+
+  /* Elke hertekening bouwt de beeldvakken leeg opnieuw op. Zet de wizard de
+     bewaarde beelden er dan niet goed in terug, dan verdwijnen bij het kiezen
+     van een andere take alle drie de beelden -- en dan valt er niets meer te
+     kiezen, want je ziet niet meer waar je uit koos. */
+  const beeldBlijft = await page.evaluate(() => {
+    wizReset(true);
+    switchMainTab('generator');
+    wizState.data.concepts.list = [{ headline_nl: 'A', visual_nl: 'x' }];
+    wizState.data.concepts.selected = 0;
+    state.lastGenerated = { variations: [{ headline_nl: 'A', image_prompt_en: 'x' }],
+                            metadata: { placement: 'feed11' } };
+    var takes = wizTakeIndexen();
+    var beeld = { versions: [{ b64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+                              model: 'gpt-image-1', size: '1024x1024', quality: 'high' }], currentIndex: 0 };
+    state.generatedImages = {};
+    takes.forEach(function (i) { state.generatedImages[i] = JSON.parse(JSON.stringify(beeld)); });
+    wizState.current = 'generate';
+    wizRender();
+    /* Tellen dat er een img-tag staat zegt niets: een kapotte bron is ook een
+       img. Het moet het beeld zijn dat we erin zetten. */
+    var tel = function () {
+      return [].slice.call(document.querySelectorAll('#wiz-body [id^="gen-image-"] img'))
+        .filter(function (b) { return b.getAttribute('src') === 'data:image/png;base64,' + beeld.versions[0].b64; })
+        .length;
+    };
+    var voor = tel();
+    wizPickTake(takes[1]);
+    return { voor: voor, na: tel(), gekozen: wizHuidigeTake() === takes[1] };
+  });
+  check('na het genereren staan er drie beelden op het scherm', beeldBlijft.voor, 3);
+  check('een andere take kiezen laat alle drie staan', beeldBlijft.na, 3);
+  check('en de keuze verschuift echt', beeldBlijft.gekozen, true);
 
   /* Het einde van de negen stappen. Dit ging naar het oude resultatenscherm in
      de rechterkolom; die kolom is er niet meer, dus de ad hoort naar de

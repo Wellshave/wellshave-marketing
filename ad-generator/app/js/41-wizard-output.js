@@ -323,12 +323,23 @@ function wizRender_concepts() {
    ooit in deze containers, maar een hertekening maakt die leeg. */
 function wizAfter_concepts() { wizToonBewaardeBeelden(); }
 
+/* Elke hertekening bouwt de beeldvakken leeg opnieuw op; de beelden zelf staan
+   in state.generatedImages en moeten er daarna weer in. Dit stond hier fout: het
+   plakte state.generatedImages[i] als base64 in een img-tag, terwijl daar een
+   object met een versielijst in zit. Resultaat was "[object Object]" als bron --
+   een leeg vak. Je zag het alleen als er iets hertekende, dus precies bij het
+   kiezen van een andere take, en dan waren alle drie de beelden weg.
+
+   renderGeneratedImage is de functie die dit al goed doet, inclusief de
+   versieknoppen en de safe-zone-overlay. Die roepen we dus aan in plaats van er
+   een tweede, slechtere versie van te onderhouden. */
 function wizToonBewaardeBeelden() {
   var beelden = (typeof state !== 'undefined' && state.generatedImages) ? state.generatedImages : {};
   Object.keys(beelden).forEach(function (i) {
-    var el = document.getElementById('gen-image-' + i);
-    if (el && beelden[i]) {
-      el.innerHTML = '<img src="data:image/png;base64,' + beelden[i] + '" alt="">';
+    if (!document.getElementById('gen-image-' + i)) return;
+    var st = beelden[i];
+    if (st && st.versions && st.versions.length && typeof renderGeneratedImage === 'function') {
+      renderGeneratedImage(i);
     }
   });
 }
