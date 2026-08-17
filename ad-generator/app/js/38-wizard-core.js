@@ -493,16 +493,27 @@ function wizVoorwaardenGehaald(stepKey) {
   return deps.every(function (d) { return wizStepComplete(d); });
 }
 
+/* De hoofdknop heet naar wat er gebeurt als je hem indrukt. "Continue" op de
+   stap waar drie beelden gegenereerd worden verzwijgt precies het enige wat je
+   moet weten: dat het nu geld gaat kosten. */
+var WIZ_KNOP = {
+  review:   { label: 'Generate concepts →', fn: 'wizApproveBlueprint()' },
+  concepts: { label: 'Generate final ad →', fn: 'wizNaarEindbeeld()' },
+  generate: { label: 'Save ad →',           fn: 'wizHandOff()' }
+};
+
 function wizRenderFooter() {
   var el = document.getElementById('wiz-footer');
   if (!el) return;
   var i = wizStepIndex(wizState.current);
-  var laatste = (i === WIZ_STEPS.length - 1);
+  var k = WIZ_KNOP[wizState.current];
   el.innerHTML =
     (i > 0 ? '<button type="button" class="wiz-btn ghost" onclick="wizBack()">← Back</button>' : '<span></span>') +
     '<div class="wiz-footer-right">' +
     '<button type="button" class="wiz-btn ghost" onclick="wizReset()">Start over</button>' +
-    (laatste ? '' : '<button type="button" class="wiz-btn primary" id="wiz-next" onclick="wizNext()">Continue →</button>') +
+    '<button type="button" class="wiz-btn primary" id="wiz-next" onclick="' +
+      (k ? k.fn : 'wizNext()') + '"' + (wizState.busy ? ' disabled' : '') + '>' +
+      wizEsc(k ? k.label : 'Continue →') + '</button>' +
     '</div>';
 }
 

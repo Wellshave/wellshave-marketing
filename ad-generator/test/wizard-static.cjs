@@ -449,8 +449,11 @@ const VULLEN = `
     wizReset(true);
     eval(vullen);
     wizState.data.review.visualDescription = 'Premium bathroom, hands holding the Groom Guard.';
+    /* Stap 7 levert sinds de mockup-indeling twee kolommen op in plaats van
+       één string. Beide kolommen samen zijn wat de gebruiker ziet. */
+    var uit = wizRender_review();
     var d = document.createElement('div');
-    d.innerHTML = wizRender_review();
+    d.innerHTML = (typeof uit === 'string') ? uit : ((uit.links || '') + (uit.rechts || ''));
     return {
       /* geen tabel meer, maar groepen met elk een eigen ingang */
       groepen: d.querySelectorAll('.wiz-brief-groep').length,
@@ -461,9 +464,27 @@ const VULLEN = `
     };
   }, VULLEN);
   check('de blueprint is geen tabel meer', uitvoer.tabelrijen, 0);
-  check('maar vier groepen', uitvoer.groepen, 4);
-  check('elk met een eigen ingang om terug te springen', uitvoer.ingangen, 4);
+  check('maar zes groepen, één per stap', uitvoer.groepen, 6);
+  check('elk met een eigen ingang om terug te springen', uitvoer.ingangen, 6);
   check('en de beschrijving van het beeld staat er', uitvoer.beschrijvingBoven, true);
+
+  /* De hoofdknop heet naar wat er gebeurt. "Continue" op de stap waar drie
+     beelden gemaakt worden verzwijgt precies het enige wat je moet weten. */
+  const knoppen = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    wizOpen();
+    var lees = function (k) {
+      wizState.current = k; wizRenderFooter();
+      var b = document.getElementById('wiz-next');
+      return b ? b.textContent.trim() : '(geen knop)';
+    };
+    return { product: lees('product'), review: lees('review'),
+             concepts: lees('concepts'), generate: lees('generate') };
+  }, VULLEN);
+  check('op een gewone stap staat Continue', knoppen.product, 'Continue →');
+  check('op de blueprint staat wat er gaat gebeuren', knoppen.review, 'Generate concepts →');
+  check('op de concepten ook', knoppen.concepts, 'Generate final ad →');
+  check('en op het eindbeeld Save ad', knoppen.generate, 'Save ad →');
 
   /* Beeld kost geld. Dat mag nooit vanzelf gebeuren, hoe graag de wizard ook
      wil leiden -- de menselijke goedkeuring is de enige rem op uitgaven. */
@@ -518,6 +539,37 @@ const VULLEN = `
   check('kiezen markeert er precies een', concepten.gekozen, 1);
   check('en onthoudt welke', concepten.gekozenIndex, 1);
 
+  /* De knop op stap 8 maakt het eindbeeld van een van de drie concepten. Zonder
+     keuze zou de wizard moeten raden welk; dan hoort hij te blijven staan. */
+  const doorlopen = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    /* Stap 7 moet af zijn, anders houdt de gewone poort je al tegen en zegt
+       deze test niets over de conceptkeuze zelf. */
+    wizState.data.review.visualDescription = 'Premium bathroom, hands holding the Groom Guard.';
+    wizState.done.review = true;
+    wizState.data.concepts.list = [{ headline_nl: 'A', visual_nl: 'x' }];
+    wizState.current = 'concepts';
+    /* De algemene poort houdt je hier ook tegen, maar met "Finish the earlier
+       steps first" -- terwijl de eerdere stappen af zijn. Daarom kijken we naar
+       wat er gezegd wordt, en of stap 8 niet ten onrechte op af gaat. */
+    var gezegd = [];
+    var echteToast = window.toast;
+    window.toast = function (t) { gezegd.push(String(t)); };
+    wizNaarEindbeeld();
+    var zonderKeuze = wizState.current;
+    var zonderKeuzeAf = !!wizState.done.concepts;
+    var melding = gezegd[0] || '';
+    window.toast = echteToast;
+    wizPickConcept(0);
+    wizNaarEindbeeld();
+    return { zonderKeuze: zonderKeuze, zonderKeuzeAf: zonderKeuzeAf,
+             melding: melding, metKeuze: wizState.current };
+  }, VULLEN);
+  check('zonder gekozen concept blijf je op stap 8', doorlopen.zonderKeuze, 'concepts');
+  check('en de stap gaat niet ten onrechte op af', doorlopen.zonderKeuzeAf, false);
+  check('en je hoort waarom: kies een concept', /pick a concept/i.test(doorlopen.melding), true);
+  check('met een keuze ga je door naar het eindbeeld', doorlopen.metKeuze, 'generate');
+
   /* Stap 9 gebruikte een prompt()-venster. Dat blokkeert de pagina en is niet
      te bedienen vanuit een test; het hoort een paneel in het scherm te zijn. */
   const bijstellen = await page.evaluate(vullen => {
@@ -526,22 +578,37 @@ const VULLEN = `
     wizState.data.concepts.selected = 0;
     state.generatedImages = { 0: 'nepbeeld' };
     var telPaneel = function () {
-      var d = document.createElement('div'); d.innerHTML = wizRender_generate();
+      var uit = wizRender_generate();
+      var d = document.createElement('div');
+      d.innerHTML = (typeof uit === 'string') ? uit : ((uit.links || '') + (uit.rechts || ''));
       return { paneel: d.querySelectorAll('#wiz-tweak-in').length,
                groepen: d.querySelectorAll('.wiz-tweakgroep').length,
-               chips: d.querySelectorAll('.wiz-tweaks .wiz-chip').length };
+               knoppen: d.querySelectorAll('.wiz-tweaklijst .wiz-tweakknop').length,
+               beeldlinks: (typeof uit === 'object') &&
+                 /gen-image-/.test(uit.links || '') };
     };
     var dicht = telPaneel();
     wizOpenTweak('headline');
     var open = telPaneel();
     wizOpenTweak(null);
-    return { dicht, open, prompt: String(window.wizTweak).indexOf('prompt(') > -1 };
+    /* Zonder beeld hebben de acties niets om aan te werken; dan hoort er een
+       uitleg te staan in plaats van knoppen die niets doen. */
+    state.generatedImages = {};
+    var zonderBeeld = telPaneel();
+    state.generatedImages = { 0: 'nepbeeld' };
+    return { dicht, open, zonderBeeld,
+             prompt: String(window.wizTweak).indexOf('prompt(') > -1 };
   }, VULLEN);
   check('de bewerkacties staan gegroepeerd', bijstellen.dicht.groepen, 4);
-  check('met alle negen acties', bijstellen.dicht.chips, 9);
+  check('met alle negen acties', bijstellen.dicht.knoppen, 9);
   check('dicht staat er geen invoerpaneel', bijstellen.dicht.paneel, 0);
   check('een actie kiezen opent het paneel in het scherm', bijstellen.open.paneel, 1);
   check('en er komt geen prompt-venster meer aan te pas', bijstellen.prompt, false);
+  check('zonder gegenereerd beeld staan er geen bewerkacties', bijstellen.zonderBeeld.knoppen, 0);
+  /* Het beeld is waar je naar kijkt, de bewerkacties zijn wat je ermee doet.
+     In de mockup staat het beeld links en de acties rechts; omgedraaid kijk je
+     naar een knoppenlijst met de advertentie ernaast. */
+  check('het beeld staat links, de acties rechts', bijstellen.dicht.beeldlinks, true);
 
   /* ── De opdracht: Engels, en de rest ongemoeid ────────────────────────── */
   console.log('\n  de randvoorwaarden uit de opdracht');
