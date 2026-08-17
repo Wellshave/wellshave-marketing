@@ -192,7 +192,7 @@ function buildRecipeChips(m){
 /* ===== Rijke Customer Persona's (v5.15): Schwartz-stages + angle-brein + launch + test-hook ===== */
 var px = { selectedId:null, stage:'unaware', busy:false, angleStats:{}, statsLoaded:{} };
 var PX_STAGES = [['unaware','Onbewust'],['problem','Probleembewust'],['solution','Oplossingsbewust'],['product','Productbewust'],['most','Meest bewust']];
-function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function pxE(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function pxText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function pxJson(txt){ var a=txt.indexOf('{'),b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }

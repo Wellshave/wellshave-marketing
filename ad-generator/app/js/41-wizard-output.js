@@ -446,14 +446,102 @@ function wizPickTake(i) {
   wizRender();
 }
 
+/* De briefing voor de drie uitvoeringen. Dit is het verschil tussen drie takes
+ * en drie pogingen: één concept, drie manieren om het te maken.
+ *
+ * Wat vast staat, staat vast: product, persona, funnelfase, de invalshoek en de
+ * kernboodschap. Dat is het concept en dat is in stap 1 tot 7 besloten.
+ *
+ * Wat moet verschillen: de headline en de manier waaróp die communiceert, en de
+ * hele visuele uitwerking -- scene, wie of wat er in beeld is, compositie,
+ * tekstindeling, sfeer. De eerste versie kopieerde het concept drie keer, dus
+ * ging dezelfde prompt drie keer naar het beeldmodel. Dan krijg je drie keer
+ * dezelfde foto met een andere ruis erover, en dan valt er niets te kiezen.
+ */
+function wizBuildTakeBrief() {
+  var d = wizState.data, p = wizProduct(), pers = wizPersona(), f = wizFormat();
+  var c = (d.concepts.list || [])[d.concepts.selected] || {};
+  var t = '';
+
+  t += 'ONE CONCEPT, THREE EXECUTIONS.\n\n';
+  t += 'LOCKED — identical in all three, do not reinterpret:\n';
+  if (p) t += '- Product: ' + p.name + '\n';
+  if (pers) t += '- Persona: ' + pers.name + '\n';
+  if (d.audience.awareness) t += '- Awareness: ' + wizLabel('awareness', d.audience.awareness) + '\n';
+  if (d.product.funnel) t += '- Funnel stage: ' + wizLabel('funnel', d.product.funnel) + '\n';
+  if (d.strategy.theme) t += '- Angle: ' + d.strategy.theme + '\n';
+  if (d.strategy.marketingAngle) t += '- Marketing angle: ' + d.strategy.marketingAngle + '\n';
+  if (d.strategy.messaging) t += '- Core message: ' + d.strategy.messaging + '\n';
+  if (d.strategy.proof) t += '- Proof: ' + d.strategy.proof + '\n';
+  if (f) t += '- Format: ' + f.name + ' (' + f.desc + ')\n';
+  if (c.headline_nl) t += '- Approved concept headline: ' + c.headline_nl + '\n';
+  if (c.visual_nl) t += '- Approved concept visual: ' + c.visual_nl + '\n';
+  t += '\nThe promise the ad makes is the same in all three. Do not add claims that ' +
+       'are not in this brief.\n\n';
+
+  t += 'MUST DIFFER between the three, and clearly so:\n' +
+       '1. The headline: same promise, different wording AND a different way of ' +
+       'communicating it. Default spread, adapt to the format but keep them apart: ' +
+       'take 1 speaks with authority (expert, editorial, news), take 2 opens with ' +
+       'curiosity (a question, a surprising fact), take 3 simply demonstrates.\n' +
+       '2. The visual: a different scene, different framing, a different subject in ' +
+       'frame, and a different text layout. Default spread: take 1 a credible person ' +
+       'holding or using the product, looking at camera, editorial framing; take 2 an ' +
+       'extreme macro of the area or the mechanism the claim is about, no person; ' +
+       'take 3 the product itself with callouts, icons or labels pointing at what ' +
+       'matters.\n' +
+       '3. The vibe: three takes that could not be mistaken for each other in a feed.\n\n' +
+       'Three macro shots of the same product head is a failure, even with different ' +
+       'headlines. If two takes would look alike, change one of them.\n\n';
+
+  t += 'Placement: ' + wizLabel('placement', d.product.placement) + '.\n';
+  t += 'Return exactly 3 variations in the JSON shape you always use.\n';
+  return t;
+}
+
 function wizGenerateTakes() {
+  if (wizState.busy) return;
   if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
+  if (wizState.data.concepts.selected == null) {
+    if (typeof toast === 'function') toast('Pick a concept first', true); return;
+  }
+  var sleutel = (window.__WG_TEAMSERVER ? 'teamserver' : ((document.getElementById('anthropic-key') || {}).value || ''));
+  if (!sleutel) { if (typeof toast === 'function') toast('Fill in your Anthropic API key first', true); return; }
+
   var idx = wizTakeIndexen();
   if (!idx.length) return;
-  /* Eerst tekenen, dan genereren: generateImage schrijft in #gen-image-<i> en
-     die vakken moeten er dus al staan. */
+  wizState.busy = true;
+  /* Nog geen beeld genereren: eerst moeten de drie uitwerkingen er zijn. Anders
+     betaal je voor drie keer hetzelfde beeld. */
   wizRender();
-  idx.forEach(function (i) { wizPreview(i); });
+
+  wizCall(SYSTEM_PROMPT, [{ role: 'user', content: wizBuildTakeBrief() }], 8000)
+    .then(function (data) {
+      var parsed = wizParseJson(wizTextOf(data));
+      var vars = parsed.variations || [];
+      if (vars.length < WIZ_TAKE_COUNT) {
+        throw new Error('got ' + vars.length + ' executions instead of ' + WIZ_TAKE_COUNT);
+      }
+      /* De gereserveerde plekken vullen met de echte uitwerkingen. */
+      idx.forEach(function (plek, n) { state.lastGenerated.variations[plek] = vars[n]; });
+      state.generatedImages = {};
+      wizSave();
+      wizState.busy = false;
+      /* Tekenen voordat de beelden komen: generateImage schrijft in
+         #gen-image-<i> en die vakken moeten er staan. En je ziet nu al waarin de
+         drie verschillen, voordat er een euro aan beeld op gaat. */
+      wizRender();
+      idx.forEach(function (i) { wizPreview(i); });
+    })
+    .catch(function (err) {
+      wizState.busy = false;
+      /* Mislukt betekent geen beeld. Drie identieke beelden zouden hier het
+         ergste antwoord zijn: je betaalt drie keer en kunt niets kiezen. */
+      wizState.data.generate.takes = null;
+      wizSave();
+      wizRender();
+      if (typeof toast === 'function') toast('Could not work out the three takes: ' + err.message, true);
+    });
 }
 
 /* De gerichte acties na generatie. Elke actie verandert één element en laat de
@@ -503,21 +591,30 @@ function wizRender_generate() {
   if (!takes.length) {
     links += '<div class="wiz-final-preview">' +
       '<button type="button" class="wiz-btn primary" onclick="wizGenerateTakes()">' +
-      'Generate ' + WIZ_TAKE_COUNT + ' takes of this concept</button>' +
-      '<div class="wiz-take-uitleg">Same strategy and the same headline, three executions. ' +
-      'You pick the one that runs.</div></div>';
+      'Work out ' + WIZ_TAKE_COUNT + ' takes of this concept</button>' +
+      '<div class="wiz-take-uitleg">Same persona, same angle, same promise. Three ' +
+      'different headlines and three different visual treatments. You pick the one ' +
+      'that runs.</div></div>';
   } else {
     links += '<div class="wiz-takes">' + takes.map(function (i, n) {
       var aan = (i === gekozen);
+      /* De headline en de uitwerking van déze take erbij. Drie beelden zonder
+         woorden zijn drie plaatjes; met de headline en de scene erbij zie je
+         waarin ze verschillen -- en dat is waar je tussen kiest. */
+      var v = (state.lastGenerated && state.lastGenerated.variations[i]) || {};
       return '<div class="wiz-take' + (aan ? ' on' : '') + '">' +
-        '<div class="wiz-take-kop">Take ' + (n + 1) + '</div>' +
+        '<div class="wiz-take-kop">Take ' + (n + 1) +
+        (v.hook_label_nl ? '<span class="wiz-take-hook">' + wizEsc(v.hook_label_nl) + '</span>' : '') +
+        '</div>' +
         '<div class="wiz-final-preview" id="gen-image-' + i + '"></div>' +
+        (v.headline_nl ? '<div class="wiz-take-h">' + wizEsc(v.headline_nl) + '</div>' : '') +
+        (v.visual_nl ? '<div class="wiz-take-v">' + wizEsc(v.visual_nl) + '</div>' : '') +
         '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
         'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
         '</div>';
     }).join('') + '</div>' +
     '<div class="wiz-take-opnieuw">' +
-    '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()">Generate three new takes</button>' +
+    '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()">Work out three new takes</button>' +
     '</div>';
   }
 

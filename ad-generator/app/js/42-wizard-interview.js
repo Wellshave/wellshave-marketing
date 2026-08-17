@@ -81,7 +81,7 @@ var IW2_VRAGEN = [
     vraagUitleg: 'From your persona library.'
   },
   {
-    key: 'goal', titel: 'Goal', spoor: 'beide',
+    key: 'goal', titel: 'Goal', spoor: 'beide', vrij: ['strategy', 'goal'],
     vraag: 'To get started, what is the main goal for this ad?',
     opts: [
       { key: 'reach', label: 'Reach new customers',
@@ -101,7 +101,7 @@ var IW2_VRAGEN = [
     ]
   },
   {
-    key: 'theme', titel: 'Angle direction', spoor: 'beide',
+    key: 'theme', titel: 'Angle direction', spoor: 'beide', vrij: ['strategy', 'theme'],
     vraag: 'The next big decision is the angle. Which direction should we lead with?',
     opts: [
       { key: 'safety', label: 'Safety & Confidence',
@@ -163,7 +163,7 @@ var IW2_VRAGEN = [
     ]
   },
   {
-    key: 'copy', titel: 'Copy direction', spoor: 'beide',
+    key: 'copy', titel: 'Copy direction', spoor: 'beide', vrij: ['copy', 'direction'],
     vraag: 'Let us craft the message. Which headline direction do you prefer?',
     opts: [
       { key: 'pain', label: 'Pain-focused', sub: 'Focus on the problem and the fear',
@@ -259,6 +259,17 @@ function iw2AanbevolenFormat() {
 /* ── Openen en sluiten ──────────────────────────────────────────────────── */
 
 function iw2Start() {
+  /* Schone lei voor alles waar het gesprek zelf over gaat. Zonder dit staat er
+     bij "wat ik tot nu toe begrepen heb" een doelgroep, een format en een stijl
+     uit een vorige sessie, terwijl je nog bij de eerste vraag zit -- en dan
+     beweert het scherm iets wat Rory helemaal niet weet. Stap 1 blijft staan:
+     product, plaatsing en funnel heb je daar net zelf gekozen. */
+  ['audience', 'strategy', 'format', 'visual', 'copy'].forEach(function (vak) {
+    Object.keys(wizState.data[vak]).forEach(function (veld) {
+      if (veld === 'referenceUsage') return;   /* geen keuze maar een instelling */
+      wizSet(vak, veld, '', 'user');
+    });
+  });
   iw2.open = true;
   iw2.spoor = null;
   iw2.i = 0;
@@ -446,27 +457,111 @@ function iw2VulAan(fill) {
   });
 }
 
-/* Zelf typen in plaats van kiezen. Dit verandert geen velden -- het is een vraag
-   aan Rory, niet een besluit. Anders zou een terzijde stilletjes je briefing
-   omgooien. */
-function iw2Vraag_verstuur() {
+/* ── Zelf antwoorden ────────────────────────────────────────────────────────
+ *
+ * Dit is het verschil tussen een interview en een formulier met tekstballonnen.
+ * De keuzelijst is een snelkoppeling, niet de enige weg: je mag in je eigen
+ * woorden antwoorden, en dan is het aan Rory om te bepalen wat je gezegd hebt.
+ *
+ * Hij kan drie dingen met je antwoord:
+ *
+ *   1. Het beantwoordt de vraag  -> hij legt vast wat je bedoelde en gaat door.
+ *   2. Het is te vaag om vast te leggen -> hij zegt waarom en vraagt door op
+ *      dezelfde vraag. Je blijft dus staan tot het concreet genoeg is.
+ *   3. Het gaat ergens anders over -> hij gaat erop in en brengt je terug.
+ *
+ * Zonder die derde mogelijkheid zou een terzijde ("de batterij van de concurrent
+ * gaat binnen drie jaar stuk") ofwel genegeerd worden ofwel als antwoord op de
+ * vraag geboekt worden. Allebei fout: het is bruikbare informatie, alleen niet
+ * het antwoord op déze vraag.
+ */
+function iw2Antwoord() {
   var el = document.getElementById('iw2-in');
   var t = el ? el.value.trim() : '';
   if (!t || iw2.busy) return;
   el.value = '';
   iw2Zeg('user', t);
   wizRender();
+
   if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) {
-    iw2Zeg('rory', 'I cannot answer without a key on the server.');
+    iw2Zeg('rory', 'I cannot read that without a key on the server. Pick one of the options for now.');
     wizRender();
     return;
   }
+
+  var v = iw2Vraag();
+  /* Na de blueprint is er geen vraag meer; dan is het een gewone vraag aan Rory. */
+  if (!v || iw2.klaar) return iw2Losvraag(t);
+
+  var opts = iw2Opties(v).filter(function (o) { return !o.rory; });
+  iw2.busy = true;
+  wizRender();
+
+  var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
+  var vrij = !!v.vrij;
+  var sys = 'You are Rory Sutherland, interviewing a marketer about one static ad. ' +
+    'You asked: "' + v.vraag + '". They replied in their own words. ' +
+    'Decide what their reply means for this one decision. Be a sparring partner, not a form: ' +
+    'if the reply is vague, say what is missing and ask one sharper question. ' +
+    'If the reply is about something else, respond to it properly and then bring them back. ' +
+    'If it does answer, say in one or two sentences what you take from it and why that works. ' +
+    'Never invent facts about the product or the audience.\n' +
+    'The options on screen are: ' + opts.map(function (o) { return o.key + ' = ' + o.label; }).join('; ') + '.\n' +
+    (vrij
+      ? 'You may also record their own wording as the answer, if it is concrete enough.'
+      : 'This decision must end up as one of the options above; their own wording cannot be stored here. ' +
+        'If their reply points at one of them, choose it and say so.') + '\n' +
+    'Answer with strict JSON: {"reply":"what you say back","resolved":true|false,' +
+    '"choice":"option key or null","value":"their answer in a few words, or null",' +
+    '"funnel":"tof|mof|bof|retargeting or null"}. ' +
+    'Set resolved false whenever you are asking something back.';
+
+  wizCall(sys, [{ role: 'user', content: ctx.text + '\n\nTheir reply: ' + t }], 700)
+    .then(function (data) {
+      var o = wizParseJson(wizTextOf(data));
+      iw2Zeg('rory', o.reply || 'Let me put that differently.');
+      if (!o.resolved) { wizRender(); return; }
+      iw2Vastleggen(v, o, t);
+      iw2Volgende();
+    })
+    .catch(function (err) {
+      iw2Zeg('rory', 'That did not go through: ' + err.message + ' — pick an option, or try again.');
+    })
+    .finally(function () { iw2.busy = false; wizRender(); });
+}
+
+/* Wat Rory uit je antwoord haalde vastleggen. Een gekozen optie zet zijn eigen
+   velden, precies alsof je erop geklikt had; anders gaan je eigen woorden het
+   veld in -- maar alleen bij vragen waar dat kan. */
+function iw2Vastleggen(v, o, tekst) {
+  /* Vraagt hij door, dan is er nog geen antwoord om vast te leggen. De aanroeper
+     let daar al op, maar een functie die "leg dit vast" heet en dat ook doet bij
+     een onafgemaakt antwoord is een val voor de volgende aanroeper. */
+  if (!o || !o.resolved) return;
+  iw2.antwoorden[v.key] = o.choice || 'vrij';
+  if (v.key === 'start' && (o.choice === 'angle' || o.choice === 'persona')) iw2.spoor = o.choice;
+
+  var opt = o.choice ? iw2Opties(v).filter(function (x) { return x.key === o.choice; })[0] : null;
+  if (opt && opt.zet) {
+    opt.zet.forEach(function (z) { wizSet(z[0], z[1], z[2], 'user'); });
+    return;
+  }
+  if (v.vrij) {
+    wizSet(v.vrij[0], v.vrij[1], o.value || tekst, 'user');
+    /* Het doel zegt vaak ook iets over de funnelfase; die hoef je niet apart
+       te vertellen. */
+    if (o.funnel && !wizState.data.product.funnel) wizSet('product', 'funnel', o.funnel, 'rory');
+  }
+}
+
+/* Een vraag die niet over de huidige stap gaat, of gesteld na de blueprint. */
+function iw2Losvraag(t) {
   iw2.busy = true;
   wizRender();
   var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
   var sys = 'You are Rory Sutherland, mid-interview with a marketer about one static ad. ' +
-    'Answer the question in two or three plain sentences. Do not change their decisions, ' +
-    'do not restate the whole brief. Answer with strict JSON: {"answer":"..."}';
+    'Answer their question in two or three plain sentences. Do not change their decisions. ' +
+    'Answer with strict JSON: {"answer":"..."}';
   wizCall(sys, [{ role: 'user', content: ctx.text + '\n\nTheir question: ' + t }], 500)
     .then(function (data) {
       var o = wizParseJson(wizTextOf(data));
@@ -601,10 +696,17 @@ function iw2RenderVoet() {
       '<button type="button" class="wiz-btn ghost small" onclick="iw2ExitAf()">Stay in the interview</button>' +
       '</div></div>';
   }
+  /* De uitnodiging zegt wat je hier kunt: antwoorden in je eigen woorden. Met
+     "ask Rory anything" leest het als een hulpvenster naast de vraag, en dan
+     blijft de keuzelijst het enige wat een antwoord lijkt. */
+  var v = iw2Vraag();
+  var uitnodiging = (iw2.klaar || !v)
+    ? 'Ask Rory anything, or tell him what to change…'
+    : 'Answer in your own words, or pick one above…';
   return '<div class="iw2-invoer">' +
-    '<textarea id="iw2-in" rows="1" placeholder="Ask Rory anything…"' +
+    '<textarea id="iw2-in" rows="1" placeholder="' + wizEsc(uitnodiging) + '"' +
     (iw2.busy ? ' disabled' : '') + '></textarea>' +
-    '<button type="button" class="iw2-stuur" onclick="iw2Vraag_verstuur()"' +
+    '<button type="button" class="iw2-stuur" onclick="iw2Antwoord()"' +
     (iw2.busy ? ' disabled' : '') + ' aria-label="Send">➤</button>' +
     '</div>';
 }
@@ -613,7 +715,8 @@ window.iw2 = iw2;
 window.iw2Start = iw2Start; window.iw2Hervat = iw2Hervat;
 window.iw2Exit = iw2Exit; window.iw2VraagExit = iw2VraagExit; window.iw2ExitAf = iw2ExitAf;
 window.iw2Kies = iw2Kies; window.iw2Render = iw2Render; window.iw2Kop = iw2Kop;
-window.iw2RenderVoet = iw2RenderVoet; window.iw2Vraag_verstuur = iw2Vraag_verstuur;
+window.iw2RenderVoet = iw2RenderVoet; window.iw2Antwoord = iw2Antwoord;
+window.iw2Losvraag = iw2Losvraag; window.iw2Vastleggen = iw2Vastleggen;
 window.iw2Genereer = iw2Genereer; window.iw2NaarWizard = iw2NaarWizard;
 window.iw2Doorpraten = iw2Doorpraten; window.iw2Vragen = iw2Vragen;
 window.iw2Vraag = iw2Vraag; window.iw2Opties = iw2Opties; window.IW2_VRAGEN = IW2_VRAGEN;

@@ -341,23 +341,105 @@ const OPZET = `
   check('en gooit het weg', exit.na.chat, 0);
   check('je staat weer in de stappen', exit.stappenbalk, true);
 
-  /* ── Zelf typen verandert geen besluiten ─────────────────────────────── */
-  console.log('\n  een vraag tussendoor is geen besluit');
+  /* ── Zelf antwoorden ─────────────────────────────────────────────────── */
+  console.log('\n  je mag in je eigen woorden antwoorden');
 
-  const typen = await page.evaluate(opzet => {
+  const zonderSleutel = await page.evaluate(opzet => {
     eval(opzet);
     iw2Start();
     iw2Kies('angle');
-    var voor = JSON.parse(JSON.stringify(wizState.data));
-    document.getElementById('iw2-in').value = 'Why not start from the persona instead?';
-    iw2Vraag_verstuur();
-    return { velden: JSON.stringify(wizState.data) === JSON.stringify(voor),
-             staatInGesprek: iw2.chat.some(function (r) {
-               return r.wie === 'user' && /persona instead/.test(r.tekst);
-             }) };
+    var voor = JSON.stringify(wizState.data);
+    document.getElementById('iw2-in').value = 'Safety, but only if we can prove it.';
+    iw2Antwoord();
+    return { staatInGesprek: iw2.chat.some(function (r) {
+               return r.wie === 'user' && /only if we can prove it/.test(r.tekst);
+             }),
+             velden: JSON.stringify(wizState.data) === voor,
+             zegtWaarom: /without a key/.test((iw2.chat[iw2.chat.length - 1] || {}).tekst || '') };
   }, OPZET);
-  check('je vraag komt in het gesprek', typen.staatInGesprek, true);
-  check('maar raakt geen enkel veld', typen.velden, true);
+  check('je antwoord komt in het gesprek', zonderSleutel.staatInGesprek, true);
+  /* Zonder model kan niemand bepalen wat je bedoelde. Dan mag er ook niets
+     vastgelegd worden -- een gok is hier erger dan een lege plek. */
+  check('zonder sleutel wordt er niets vastgelegd', zonderSleutel.velden, true);
+  check('en Rory zegt waarom', zonderSleutel.zegtWaarom, true);
+
+  /* De kern van het gesprek is wat er met Rory's oordeel gebeurt. Dat oordeel
+     komt van het model en is hier dus nagemaakt; wat de wizard ermee doet is
+     wel te testen, en dat is precies waar het misgaat. */
+  console.log('\n  wat Rory uit je antwoord haalt');
+
+  const vastleggen = await page.evaluate(opzet => {
+    eval(opzet);
+    iw2Start(); iw2Kies('angle');
+    var v = iw2Vraag();                      /* de hoek-vraag: vrij veld */
+    var uit = {};
+
+    /* 1. Hij vraagt door: dan verandert er niets en blijf je op de vraag. */
+    var voor = JSON.stringify(wizState.data);
+    iw2Vastleggen(v, { resolved: false, reply: 'Which part exactly?' }, 'iets vaags');
+    uit.vraagtDoorLaatStaan = JSON.stringify(wizState.data) === voor;
+    uit.zelfdeVraag = iw2Vraag().key === v.key;
+
+    /* 2. Hij herkent je woorden als antwoord: die woorden gaan het veld in. */
+    iw2Vastleggen(v, { resolved: true, choice: null, value: 'Cuts, not convenience' }, 'lange uitleg');
+    uit.eigenWoorden = wizState.data.strategy.theme;
+    uit.bron = wizSourceOf('strategy', 'theme');
+
+    /* 3. Hij wijst je antwoord aan als een van de opties: dan doet die optie
+          zijn eigen werk, inclusief de velden die eraan hangen. */
+    eval(opzet);
+    iw2Start(); iw2Kies('angle');
+    iw2Vastleggen(iw2Vraag(), { resolved: true, choice: 'premium', value: null }, 'ik wil premium');
+    uit.viaOptie = wizState.data.strategy.theme;
+
+    /* 4. Bij een vraag die géén vrij veld heeft blijft het leeg als hij geen
+          optie aanwijst -- daar kan je eigen formulering niet in. */
+    eval(opzet);
+    iw2Start(); iw2Kies('persona');
+    var pv = iw2Vraag();
+    iw2Vastleggen(pv, { resolved: true, choice: null, value: 'iemand van 45 met een baard' }, 'x');
+    uit.geenVrijVeld = wizState.data.audience.personaId;
+    return uit;
+  }, OPZET);
+  check('vraagt hij door, dan verandert er niets', vastleggen.vraagtDoorLaatStaan, true);
+  check('en je blijft op dezelfde vraag', vastleggen.zelfdeVraag, true);
+  check('herkent hij je woorden, dan komen die in het veld',
+        vastleggen.eigenWoorden, 'Cuts, not convenience');
+  check('met de gebruiker als bron', vastleggen.bron, 'user');
+  check('wijst hij een optie aan, dan doet die zijn eigen werk',
+        vastleggen.viaOptie, 'Premium & Upgrade');
+  check('bij een vraag zonder vrij veld blijft het leeg', vastleggen.geenVrijVeld, '');
+
+  /* ── Een schone lei bij de start ─────────────────────────────────────── */
+  console.log('\n  het gesprek begint niet met andermans antwoorden');
+
+  const schoon = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Een vorige sessie liet dit achter. Het gesprek gaat hier nog over. */
+    wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x1', 'user');
+    wizSet('format', 'formatId', 'product-hero', 'user');
+    wizSet('visual', 'mood', 'premium', 'rory');
+    wizSet('copy', 'direction', 'Pain-focused', 'user');
+    wizSet('product', 'funnel', 'tof', 'user');
+    iw2Start();
+    return { persona: wizState.data.audience.personaId,
+             format: wizState.data.format.formatId,
+             mood: wizState.data.visual.mood,
+             richting: wizState.data.copy.direction,
+             /* stap 1 blijft: dat heb je net zelf gekozen */
+             funnel: wizState.data.product.funnel,
+             product: !!wizState.data.product.productId,
+             gevuld: document.querySelectorAll('.iw2-brij.vol').length };
+  }, OPZET);
+  check('de doelgroep uit een vorige sessie is weg', schoon.persona, '');
+  check('het format ook', schoon.format, '');
+  check('de visuele stijl ook', schoon.mood, '');
+  check('en de copy-richting ook', schoon.richting, '');
+  check('maar stap 1 blijft staan: het product', schoon.product, true);
+  check('en de funnelfase die je daar koos', schoon.funnel, 'tof');
+  /* Product en Funnel: de twee regels die stap 1 kan vullen. Plaatsing is geen
+     regel in dit paneel. */
+  check('dus alleen stap 1 staat er bij "wat ik begrepen heb"', schoon.gevuld, 2);
 
   /* ── Engels ───────────────────────────────────────────────────────────── */
   console.log('\n  de randvoorwaarde: Engelse interface');
@@ -382,6 +464,46 @@ const OPZET = `
     return gezien;
   }, OPZET);
   check('geen Nederlandse interface-tekst in het interview', engels, []);
+
+  /* ── Leesbaarheid van de zwevende knop ───────────────────────────────── */
+  console.log('\n  de knop is leesbaar tegen zijn eigen achtergrond');
+
+  const leesbaar = await page.evaluate(opzet => {
+    eval(opzet);
+    /* De knop draagt een vaste donkere achtergrond, ongeacht het thema van de
+       console. Een themakleur voor de tekst wordt dan zwart-op-zwart zodra de
+       console licht staat, en dan is het een leeg zwart vlak. */
+    var el = document.getElementById('iw2-ingang');
+    var st = getComputedStyle(el);
+    var lum = function (kleur) {
+      var m = kleur.match(/[\d.]+/g).slice(0, 3).map(Number).map(function (v) {
+        v = v / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+    };
+    var a = lum(st.color), b = lum(st.backgroundColor);
+    var hoog = Math.max(a, b), laag = Math.min(a, b);
+    return { verhouding: Math.round(((hoog + 0.05) / (laag + 0.05)) * 10) / 10,
+             tekst: st.color, achtergrond: st.backgroundColor };
+  }, OPZET);
+  console.log(`       gemeten: ${leesbaar.verhouding}:1 — ${leesbaar.tekst} op ${leesbaar.achtergrond}`);
+  check('tekst tegen achtergrond haalt minstens 4.5:1', leesbaar.verhouding >= 4.5, true);
+
+  /* ── Welk model er gevraagd wordt ────────────────────────────────────── */
+  console.log('\n  welk model de console vraagt');
+
+  const model = await page.evaluate(() => {
+    var el = document.getElementById('anthropic-model');
+    var gekozen = el.value;
+    /* En waar hij op terugvalt als er niets gekozen is. */
+    el.value = '';
+    var terugval = wizModel();
+    el.value = gekozen;
+    return { gekozen: gekozen, terugval: terugval };
+  });
+  check('standaard staat Opus 5 ingesteld', model.gekozen, 'claude-opus-5');
+  check('en zonder keuze valt hij daar ook op terug', model.terugval, 'claude-opus-5');
 
   console.log('\n  geen stille fouten');
   const onclicks = await page.evaluate(() => {

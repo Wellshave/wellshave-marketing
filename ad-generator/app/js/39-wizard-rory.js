@@ -22,7 +22,7 @@
 
 function wizModel() {
   var el = document.getElementById('anthropic-model');
-  return (el && el.value) || 'claude-fable-5';
+  return (el && el.value) || 'claude-opus-5';
 }
 
 function wizTextOf(data) {

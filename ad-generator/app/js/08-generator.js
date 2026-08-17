@@ -19,7 +19,7 @@ if (savedMode) {
 /* ===== Interview-mode (Wizard) voor Statics (v5.09): adaptief Rory-interview -> Theriot scherpt -> 3 statics ===== */
 var iw = { open:false, phase:'entrance', entrance:'persona', product:'', persona:null, angle:'', chat:[], known:{}, checklist:{}, hist:null, briefing:null, busy:false, suggest:[] };
 
-function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function iwEsc(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function iwText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function iwJson(txt){ var a=txt.indexOf('{'), b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }

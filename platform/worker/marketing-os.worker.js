@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 18;
+const VERSIE = 19;
 const VERSIE_DATUM = '2026-08-17';
-const VERSIE_WAT = 'deploy previews van de twee console-sites mogen de worker rechtstreeks aanroepen; via de tussenstap op hun eigen origin sneuvelden lange calls -- drie concepten uitwerken -- op de dertig seconden die die stap toestaat';
+const VERSIE_WAT = 'het standaardmodel is Opus 5; Fable 5 wordt de terugval. De console stuurt zelf een model mee, dus dit geldt voor alles wat de worker op eigen houtje doet';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -77,8 +77,8 @@ const ORIGINS = ['https://wellshave-adgen.netlify.app', 'https://wellshave-werkb
 const ORIGIN_PATROON = /^https:\/\/deploy-preview-\d+--wellshave-(adgen|werkbank)\.netlify\.app$/;
 const originMag = (o) => ORIGINS.includes(o) || ORIGIN_PATROON.test(o);
 
-const MODEL = 'claude-fable-5';
-const FALLBACK_MODEL = 'claude-opus-4-8';
+const MODEL = 'claude-opus-5';
+const FALLBACK_MODEL = 'claude-fable-5';
 const META_API = 'https://graph.facebook.com/v21.0';
 
 /* De Facebook-pagina waaronder de advertenties hangen. Geverifieerd tegen het

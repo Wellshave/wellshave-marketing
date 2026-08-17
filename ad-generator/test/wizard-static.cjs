@@ -802,6 +802,129 @@ const VULLEN = `
   check('op een smal scherm vervallen de namen', smal.namen, false);
   check('maar de negen stappen blijven in beeld', smal.inBeeld, 9);
 
+  /* ── Drie takes zijn drie uitvoeringen, geen drie pogingen ───────────────
+   *
+   * Dit ging fout en het was niet te zien aan de code: de wizard kopieerde het
+   * concept drie keer, dus ging dezelfde prompt drie keer naar het beeldmodel.
+   * Resultaat: drie keer dezelfde foto met andere ruis, en niets te kiezen. */
+  console.log('\n  drie takes van een concept verschillen echt');
+
+  const takeBrief = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    wizSet('strategy', 'theme', 'Safety & Confidence', 'user');
+    wizSet('strategy', 'proof', 'SkinSafe ceramic blades', 'rory');
+    wizState.data.concepts.list = [{ headline_nl: 'Zo trim je gevoelige zones', visual_nl: 'macro van de kop' }];
+    wizState.data.concepts.selected = 0;
+    var t = wizBuildTakeBrief();
+    return {
+      /* wat vast staat hoort er letterlijk in te staan, anders herinterpreteert
+         het model het concept en zijn het drie concepten in plaats van drie
+         uitvoeringen */
+      persona: /Persona:/.test(t),
+      hoek: /Safety & Confidence/.test(t),
+      boodschap: /Core message:/.test(t),
+      bewijs: /SkinSafe ceramic blades/.test(t),
+      /* en wat moet verschillen, moet er even hard in staan */
+      headlineAnders: /different wording/.test(t) && /different way of\s+communicating/.test(t.replace(/\n/g, ' ')),
+      beeldAnders: /different scene/.test(t),
+      geenClaims: /Do not add claims/.test(t),
+      waarschuwing: /Three macro shots/.test(t),
+      aantal: /exactly 3 variations/.test(t)
+    };
+  }, VULLEN);
+  check('de briefing zet de persona vast', takeBrief.persona, true);
+  check('de invalshoek ook', takeBrief.hoek, true);
+  check('en de kernboodschap', takeBrief.boodschap, true);
+  check('het bewijs gaat mee', takeBrief.bewijs, true);
+  check('hij eist een andere headline en een andere manier van communiceren', takeBrief.headlineAnders, true);
+  check('en een andere scene per take', takeBrief.beeldAnders, true);
+  check('zonder nieuwe claims te verzinnen', takeBrief.geenClaims, true);
+  check('met de val er expliciet in: drie macro-shots is mislukt', takeBrief.waarschuwing, true);
+  check('en precies drie uitvoeringen', takeBrief.aantal, true);
+
+  /* Wat er met het antwoord gebeurt. Het model is hier nagemaakt -- wat Rory
+     terugstuurt is niet te testen, wat de wizard ermee doet wel. */
+  const takeUitvoering = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    switchMainTab('generator');
+    wizState.data.concepts.list = [{ headline_nl: 'Concept', visual_nl: 'macro' }];
+    wizState.data.concepts.selected = 0;
+    state.lastGenerated = { variations: [{ headline_nl: 'Concept', visual_nl: 'macro' }], metadata: {} };
+    window.__WG_TEAMSERVER = true;
+    /* Een eerder blok kan de wizard op bezig hebben laten staan, en dan stapt
+       wizGenerateTakes er meteen weer uit -- dan meet dit blok niets. */
+    wizState.busy = false;
+
+    var drie = { content: [{ type: 'text', text: JSON.stringify({ variations: [
+      { headline_nl: 'Huidtherapeut: zo trim je gevoelige zones', visual_nl: 'Huidtherapeut kijkt in de camera met het product in haar hand, redactioneel', hook_label_nl: 'Persstory', image_prompt_en: 'a' },
+      { headline_nl: 'Wist je dat 37% de rug vergeet?', visual_nl: 'Extreme macro van de huid, geen persoon in beeld', hook_label_nl: 'Vondst', image_prompt_en: 'b' },
+      { headline_nl: 'Keramische bladen, geen sneetjes', visual_nl: 'Het product met annotaties en icoontjes bij de bladen', hook_label_nl: 'Voor-na', image_prompt_en: 'c' }
+    ] }) }] };
+
+    var echtCall = window.wizCall, echtPreview = window.wizPreview;
+    var beeldjes = [];
+    window.wizPreview = function (i) { beeldjes.push(i); };
+    window.wizCall = function () { return Promise.resolve(drie); };
+    wizState.current = 'generate';
+    wizGenerateTakes();
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        var takes = wizState.data.generate.takes || [];
+        var vs = takes.map(function (i) { return state.lastGenerated.variations[i] || {}; });
+        window.wizCall = echtCall; window.wizPreview = echtPreview;
+        klaar({
+          aantal: takes.length,
+          headlines: vs.map(function (v) { return v.headline_nl; }),
+          uniekeHeadlines: vs.map(function (v) { return v.headline_nl; })
+            .filter(function (h, n, a) { return a.indexOf(h) === n; }).length,
+          uniekeBeelden: vs.map(function (v) { return v.visual_nl; })
+            .filter(function (h, n, a) { return a.indexOf(h) === n; }).length,
+          beeldjes: beeldjes.length,
+          /* en op het scherm moet je het verschil kunnen lezen */
+          headlinesOpScherm: document.querySelectorAll('.wiz-take-h').length,
+          beeldtekstOpScherm: document.querySelectorAll('.wiz-take-v').length
+        });
+      }, 60);
+    });
+  }, VULLEN);
+  check('er komen drie takes', takeUitvoering.aantal, 3);
+  check('met drie verschillende headlines', takeUitvoering.uniekeHeadlines, 3);
+  check('en drie verschillende visuele uitwerkingen', takeUitvoering.uniekeBeelden, 3);
+  check('daarna gaan er drie beelden in de maak', takeUitvoering.beeldjes, 3);
+  check('de headline van elke take staat op het scherm', takeUitvoering.headlinesOpScherm, 3);
+  check('en de uitwerking ernaast', takeUitvoering.beeldtekstOpScherm, 3);
+
+  /* Mislukt de uitwerking, dan hoort er geen enkel beeld te komen. Drie
+     identieke beelden zijn hier het slechtste antwoord: je betaalt drie keer en
+     kunt nog niets kiezen. */
+  const takeMislukt = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    switchMainTab('generator');
+    wizState.data.concepts.list = [{ headline_nl: 'Concept', visual_nl: 'macro' }];
+    wizState.data.concepts.selected = 0;
+    state.lastGenerated = { variations: [{ headline_nl: 'Concept' }], metadata: {} };
+    window.__WG_TEAMSERVER = true;
+    wizState.busy = false;
+    var echtCall = window.wizCall, echtPreview = window.wizPreview, echtToast = window.toast;
+    var beeldjes = 0, gezegd = [];
+    window.wizPreview = function () { beeldjes++; };
+    window.toast = function (t) { gezegd.push(String(t)); };
+    window.wizCall = function () { return Promise.reject(new Error('model deed niets')); };
+    wizState.current = 'generate';
+    wizGenerateTakes();
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echtCall; window.wizPreview = echtPreview; window.toast = echtToast;
+        klaar({ beeldjes: beeldjes, takes: wizState.data.generate.takes,
+                busy: wizState.busy, melding: gezegd.join(' ') });
+      }, 60);
+    });
+  }, VULLEN);
+  check('een mislukte uitwerking genereert geen enkel beeld', takeMislukt.beeldjes, 0);
+  check('en laat geen halve takes staan', takeMislukt.takes, null);
+  check('de wizard blijft niet hangen op bezig', takeMislukt.busy, false);
+  check('en je hoort wat er misging', /Could not work out the three takes/.test(takeMislukt.melding), true);
+
   /* Elke hertekening bouwt de beeldvakken leeg opnieuw op. Zet de wizard de
      bewaarde beelden er dan niet goed in terug, dan verdwijnen bij het kiezen
      van een andere take alle drie de beelden -- en dan valt er niets meer te
