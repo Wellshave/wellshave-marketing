@@ -81,10 +81,13 @@ function wizBlankData() {
   return {
     product:  { productId: '', placement: 'feed11', funnel: '' },
     audience: { personaId: '', awareness: '', market: '' },
-    strategy: { angleType: '', marketingAngle: '', messaging: '', desire: '', pain: '', proof: '', objection: '' },
+    /* goal en theme komen uit het interview en zijn echte velden, geen
+       samenvatting: straks wil je kunnen zien welk doel en welke hoek het
+       best liepen. */
+    strategy: { angleType: '', goal: '', theme: '', marketingAngle: '', messaging: '', desire: '', pain: '', proof: '', objection: '' },
     format:   { formatId: '' },
     visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product' },
-    copy:     { headline: '', supporting: '', body: '', proof: '', cta: '' },
+    copy:     { direction: '', headline: '', supporting: '', body: '', proof: '', cta: '' },
     review:   { visualDescription: '' },
     concepts: { list: [], selected: null },
     generate: { varIndex: null, takes: null, selectedTake: null }
@@ -125,7 +128,12 @@ function wizSave() {
       current: wizState.current, data: wizState.data, source: wizState.source,
       done: wizState.done, stale: wizState.stale, advice: wizState.advice,
       chat: wizState.chat.slice(-40), asked: wizState.asked,
-      advised: wizState.advised, unfolded: wizState.unfolded
+      advised: wizState.advised, unfolded: wizState.unfolded,
+      /* Het gesprek hoort ook een refresh te overleven: het is werk. */
+      interview: (typeof iw2 !== 'undefined')
+        ? { spoor: iw2.spoor, i: iw2.i, chat: iw2.chat.slice(-60), antwoorden: iw2.antwoorden,
+            klaar: iw2.klaar, samenvatting: iw2.samenvatting }
+        : null
     }));
   } catch (e) { /* localStorage vol of geblokkeerd: de wizard werkt door, alleen zonder geheugen */ }
 }
@@ -153,6 +161,14 @@ function wizLoad() {
     wizState.asked = saved.asked || {};
     wizState.advised = saved.advised || {};
     wizState.unfolded = saved.unfolded || {};
+    if (saved.interview && typeof iw2 !== 'undefined') {
+      iw2.spoor = saved.interview.spoor || null;
+      iw2.i = saved.interview.i || 0;
+      iw2.chat = saved.interview.chat || [];
+      iw2.antwoorden = saved.interview.antwoorden || {};
+      iw2.klaar = !!saved.interview.klaar;
+      iw2.samenvatting = saved.interview.samenvatting || '';
+    }
     return true;
   } catch (e) { return false; }
 }
@@ -276,7 +292,46 @@ function wizToonInline() {
      zijn het twee kolommen die om aandacht vragen die je nu niet hebt. */
   var tab = document.getElementById('main-tab-generator');
   if (tab) tab.classList.toggle('wiz-volscherm', aan);
+  wizIngangBij();
   wizSyncClassic();
+}
+
+/* De ingang naar het gesprek. Twee gedaanten op dezelfde plek:
+ *   - op stap 1, zonder lopend gesprek: de tweede weg naar binnen
+ *   - met een lopend gesprek, op elke stap: de weg terug
+ * Tijdens het interview zelf staat hij er niet -- je bent er al.
+ * Alleen op stap 1 beginnen is een bewuste keuze: halverwege de stappen een
+ * gesprek starten zou betekenen dat twee routes tegelijk aan dezelfde ad
+ * werken, en dan is niet meer te zeggen welke gewonnen heeft. */
+function wizIngangBij() {
+  var el = document.getElementById('iw2-ingang');
+  if (!el) return;
+  var bezig = (typeof iw2 !== 'undefined') && iw2.open;
+  var loopt = (typeof iw2 !== 'undefined') && iw2.chat && iw2.chat.length > 0;
+  var mag = wizState.open && !bezig && (loopt || wizState.current === 'product');
+  el.style.display = mag ? '' : 'none';
+  if (!mag) return;
+  el.className = 'iw2-ingang' + (loopt ? ' terug' : '');
+  el.innerHTML = loopt
+    ? '<span class="iw2-ingang-i">✦</span><span class="iw2-ingang-t">Return to interview</span>'
+    : '<span class="iw2-ingang-i">R</span>' +
+      '<span><span class="iw2-ingang-t">Interview with Rory</span>' +
+      '<span class="iw2-ingang-s">Let Rory build it with you</span></span>';
+}
+
+/* Eén knop rechtsboven, twee betekenissen: uit de wizard, of uit het gesprek.
+   Het gesprek verlaten vraagt door, want daar gaat werk verloren. */
+function iw2Ingang() {
+  if (typeof iw2 === 'undefined') return;
+  if (iw2.chat && iw2.chat.length) iw2Hervat(); else iw2Start();
+}
+
+function wizExitBij() {
+  var el = document.getElementById('wiz-exit');
+  if (!el) return;
+  var bezig = (typeof iw2 !== 'undefined') && iw2.open;
+  el.textContent = bezig ? 'Exit interview' : 'Exit';
+  el.setAttribute('onclick', bezig ? 'iw2VraagExit()' : 'wizClose()');
 }
 
 function wizGo(stepKey) {
@@ -427,12 +482,60 @@ var WIZ_OPENING = {
   generate: 'Generate and fine-tune your final static ad.'
 };
 
+/* Het interview in hetzelfde paneel, maar met een eigen kop en een eigen voet.
+   Hergebruik van de romp in plaats van een tweede scherm ernaast: de zijbalk,
+   het paneel en de plek op het scherm blijven zo gelijk, en je hoeft niet te
+   ontdekken waar je nu weer bent. */
+function wizRenderInterview() {
+  var paneel = document.querySelector('.wiz-paneel');
+  if (paneel) paneel.classList.add('iw2-modus');
+  /* Rory's eigen kolom gaat weg zolang het gesprek loopt: hij zit erin. Twee
+     Rory's naast elkaar op één scherm is niet dubbel zo veel hulp, het is de
+     vraag welke van de twee je aanspreekt. */
+  var kolom = document.getElementById('wiz-rory');
+  if (kolom) kolom.style.display = 'none';
+  wizExitBij();
+  wizIngangBij();
+
+  var kop = iw2Kop();
+  var head = document.getElementById('wiz-head');
+  if (head) {
+    head.innerHTML = '<h2 class="wiz-title">' + kop.num + '. Interview — ' + wizEsc(kop.titel) +
+      ' <span class="iw2-beta">Beta</span></h2>';
+  }
+  var balk = document.getElementById('wiz-rorybalk');
+  if (balk) balk.innerHTML = '';
+
+  var body = document.getElementById('wiz-body');
+  if (body) {
+    var uit = iw2Render();
+    body.className = 'wiz-body wiz-tweekolom iw2-body';
+    body.innerHTML = '<div class="wiz-links">' + (uit.links || '') + '</div>' +
+                     '<div class="wiz-rechts">' + (uit.rechts || '') + '</div>';
+    /* Het gesprek groeit naar onderen; je wil het laatste zien, niet het eerste. */
+    var chat = document.getElementById('iw2-chat');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+  }
+  var voet = document.getElementById('wiz-footer');
+  if (voet) voet.innerHTML = iw2RenderVoet();
+}
+
 /* Een stap levert twee kolommen: de beslissingen links, en rechts de
    tegenhanger die laat zien waar ze op rusten -- de productkaart, de andere
    persona's, "Why this works", de preview. Een renderer mag ook één string
    teruggeven; dan vult die de volle breedte. */
 function wizRender() {
   if (!wizState.open) return;
+  /* Draait het interview, dan neemt dat het paneel over: geen stappenbalk, geen
+     stapkop, geen voetknoppen. Je bent uit de stappenmodus, en een halve
+     stappenbalk boven een gesprek zegt iets wat niet waar is. */
+  if (typeof iw2 !== 'undefined' && iw2.open) { wizRenderInterview(); return; }
+  var paneel = document.querySelector('.wiz-paneel');
+  if (paneel) paneel.classList.remove('iw2-modus');
+  var roryKolom = document.getElementById('wiz-rory');
+  if (roryKolom) roryKolom.style.display = '';
+  wizExitBij();
+  wizIngangBij();
   wizRenderProgress();
   var s = wizStep(wizState.current);
   var head = document.getElementById('wiz-head');
@@ -570,7 +673,7 @@ function wizMount() {
     '  <div class="wiz-topbar">' +
     '    <div class="wiz-topbar-rij">' +
     '      <div class="wiz-brand">Static Ad Generator</div>' +
-    '      <button type="button" class="wiz-close" onclick="wizClose()">Exit</button>' +
+    '      <button type="button" class="wiz-close" id="wiz-exit" onclick="wizClose()">Exit</button>' +
     '    </div>' +
     '    <div class="wiz-progress" id="wiz-progress"></div>' +
     '  </div>' +
@@ -578,6 +681,10 @@ function wizMount() {
     '  <div class="wiz-head" id="wiz-head"></div>' +
     '  <div class="wiz-body" id="wiz-body"></div>' +
     '  <div class="wiz-footer" id="wiz-footer"></div>' +
+    /* De ingang naar het gesprek, zwevend rechtsonder in het paneel. Subtiel en
+       altijd op dezelfde plek: op stap 1 is het de tweede weg naar binnen, en
+       daarna is het de weg terug naar een gesprek dat al loopt. */
+    '  <button type="button" class="iw2-ingang" id="iw2-ingang" onclick="iw2Ingang()"></button>' +
     '</div>' +
     '<aside class="wiz-rory" id="wiz-rory"></aside>';
   anker.parentNode.insertBefore(el, anker);
@@ -661,6 +768,8 @@ window.wizDependentsOf = wizDependentsOf; window.wizSourceOf = wizSourceOf;
 window.wizEsc = wizEsc; window.WIZ_STEPS = WIZ_STEPS; window.wizSave = wizSave;
 window.wizFirstIncomplete = wizFirstIncomplete; window.wizHasContent = wizHasContent;
 window.wizMissingMessage = wizMissingMessage; window.toggleClassicForm = toggleClassicForm;
+window.iw2Ingang = iw2Ingang; window.wizIngangBij = wizIngangBij;
+window.wizRenderInterview = wizRenderInterview;
 window.wizSyncClassic = wizSyncClassic; window.wizRenderProgress = wizRenderProgress;
 window.wizRenderFooter = wizRenderFooter; window.wizInvalidate = wizInvalidate;
 window.wizStepIndex = wizStepIndex; window.wizBlankData = wizBlankData;
