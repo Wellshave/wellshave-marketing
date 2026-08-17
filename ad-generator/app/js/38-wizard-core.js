@@ -334,9 +334,30 @@ function wizExitBij() {
   el.setAttribute('onclick', bezig ? 'iw2VraagExit()' : 'wizClose()');
 }
 
+/* De eerste stap vóór het doel die nog niet af is. Dat is de reden dat je er
+   niet in mag, en dus ook de enige zinnige plek om je heen te sturen. */
+function wizBlokkerendeStap(stepKey) {
+  var doel = wizStepIndex(stepKey);
+  for (var i = 0; i < doel; i++) {
+    if (!wizStepComplete(WIZ_STEPS[i].key)) return WIZ_STEPS[i].key;
+  }
+  return null;
+}
+
 function wizGo(stepKey) {
   if (!wizCanEnter(stepKey)) {
-    if (typeof toast === 'function') toast('Finish the earlier steps first', true);
+    /* "Finish the earlier steps first" is waar en waardeloos: op stap 8 met
+       drie concepten in beeld weet je niet wat er acht stappen terug ontbreekt.
+       Noem de stap, noem het veld, en zet de gebruiker er meteen neer. */
+    var blok = wizBlokkerendeStap(stepKey);
+    if (!blok) return;
+    var s = wizStep(blok);
+    if (typeof toast === 'function') {
+      toast((s ? s.label + ': ' : '') + wizMissingMessage(blok), true);
+    }
+    wizState.current = blok;
+    wizSave();
+    wizRender();
     return;
   }
   wizState.current = stepKey;
@@ -768,6 +789,7 @@ window.wizDependentsOf = wizDependentsOf; window.wizSourceOf = wizSourceOf;
 window.wizEsc = wizEsc; window.WIZ_STEPS = WIZ_STEPS; window.wizSave = wizSave;
 window.wizFirstIncomplete = wizFirstIncomplete; window.wizHasContent = wizHasContent;
 window.wizMissingMessage = wizMissingMessage; window.toggleClassicForm = toggleClassicForm;
+window.wizBlokkerendeStap = wizBlokkerendeStap;
 window.iw2Ingang = iw2Ingang; window.wizIngangBij = wizIngangBij;
 window.wizRenderInterview = wizRenderInterview;
 window.wizSyncClassic = wizSyncClassic; window.wizRenderProgress = wizRenderProgress;

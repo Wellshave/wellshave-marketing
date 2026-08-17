@@ -481,15 +481,11 @@ function iw2Afronden() {
   wizRender();
 
   var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
-  var d = wizState.data;
-  var open = [];
-  if (!d.audience.personaId) open.push('persona (pick one from the library by name)');
-  if (!d.audience.awareness) open.push('awareness level');
-  if (!d.strategy.goal) open.push('goal');
-  if (!d.strategy.theme) open.push('angle theme');
-  if (!d.format.formatId) open.push('format');
-  if (!d.visual.mood) open.push('visual mood');
-  if (!d.copy.direction) open.push('headline direction');
+  var open = iw2OpenVelden().map(iw2OpenTekst);
+  /* Twee zachte velden erbij: ze zijn niet verplicht, maar ze sturen wel de
+     concepten, en het gesprek vraagt ze niet altijd. */
+  if (!wizState.data.strategy.theme) open.push('strategy.theme (the angle direction, short)');
+  if (!wizState.data.copy.direction) open.push('copy.direction (the headline direction, short)');
 
   var sys = 'You are Rory Sutherland, closing an interview with a marketer. ' +
     'The decisions already made are in the context. Write the parts a picklist cannot deliver, ' +
@@ -497,7 +493,9 @@ function iw2Afronden() {
     'Answer with strict JSON: {"marketingAngle":"one sentence","messaging":"one sentence",' +
     '"headline":"the headline itself","fill":{"field":"value"},"summary":"two or three sentences ' +
     'explaining what this creative does and why"}. ' +
-    'Use field names from this list only when they are still open: ' + (open.join(', ') || 'none') + '.';
+    'Fill every one of these still-open fields, using the exact field name as the key ' +
+    'and, where a list of values is given, one value from that list verbatim: ' +
+    (open.join('; ') || 'none') + '.';
 
   wizCall(sys, [{ role: 'user', content: ctx.text }], 900)
     .then(function (data) {
@@ -520,6 +518,51 @@ function iw2Afronden() {
     .finally(function () { iw2.busy = false; wizRender(); });
 }
 
+/* Welke waarden een veld aankan. Zonder deze lijst mag Rory iets terugsturen
+   wat de wizard niet kent -- 'moody bathroom' waar 'bathroom' hoort -- en dan
+   is het veld formeel gevuld maar staat er niets dat de generator leest. */
+function iw2Toegestaan(vak, veld) {
+  function w(lijst) { return (lijst || []).map(function (o) { return o.value; }); }
+  if (vak === 'product' && veld === 'placement' && typeof WIZ_PLACEMENTS !== 'undefined') return w(WIZ_PLACEMENTS);
+  if (vak === 'product' && veld === 'funnel' && typeof WIZ_FUNNELS !== 'undefined') return w(WIZ_FUNNELS);
+  if (vak === 'audience' && veld === 'awareness' && typeof WIZ_AWARENESS !== 'undefined') return w(WIZ_AWARENESS);
+  if (vak === 'visual' && typeof WIZ_VISUAL !== 'undefined') {
+    var r = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
+    if (r) return w(r.opts);
+  }
+  if (vak === 'format' && veld === 'formatId' && typeof AD_FORMATS !== 'undefined') {
+    return AD_FORMATS.map(function (x) { return x.id; });
+  }
+  return null;
+}
+
+/* Elk verplicht veld dat nog leeg staat, uit dezelfde tabel als de poort van de
+ * wizard. Dat het dezelfde tabel is, is het hele punt: het gesprek kan zo niets
+ * overslaan waar stap 9 later op vastloopt. Het product zelf staat er niet bij
+ * -- dat kies je vóór het gesprek, en Rory hoort niet te raden waar je reclame
+ * voor maakt. */
+function iw2OpenVelden() {
+  var uit = [];
+  if (typeof WIZ_REQUIRED === 'undefined') return uit;
+  Object.keys(WIZ_REQUIRED).forEach(function (vak) {
+    (WIZ_REQUIRED[vak] || []).forEach(function (veld) {
+      if (veld === 'productId') return;
+      var w = (wizState.data[vak] || {})[veld];
+      if (w !== '' && w != null) return;
+      uit.push({ vak: vak, veld: veld, toegestaan: iw2Toegestaan(vak, veld) });
+    });
+  });
+  return uit;
+}
+
+function iw2OpenTekst(o) {
+  var naam = o.vak + '.' + o.veld;
+  if (naam === 'audience.personaId') return 'audience.personaId (the exact name of a persona from the library)';
+  if (o.toegestaan && o.toegestaan.length) return naam + ' (one of: ' + o.toegestaan.join(', ') + ')';
+  var label = (typeof WIZ_FIELD_LABELS !== 'undefined' && WIZ_FIELD_LABELS[o.veld]) || o.veld;
+  return naam + ' (' + label + ', a few words)';
+}
+
 /* Rory's aanvullingen op de open gebleven velden. Alleen velden die de wizard
    kent, en alleen als ze nog leeg zijn -- een advies mag geen keuze van de
    gebruiker overschrijven. */
@@ -532,9 +575,18 @@ var IW2_VULBAAR = {
   direction: ['copy', 'direction']
 };
 
+/* De sleutel mag 'visual.mood' zijn of het kale 'mood'. Beide vormen komen
+   voor: de opdracht vraagt de volledige naam, de korte namen stonden er al. */
+function iw2Doel(naam) {
+  if (IW2_VULBAAR[naam]) return IW2_VULBAAR[naam];
+  var d = String(naam).split('.');
+  if (d.length === 2 && wizState.data[d[0]] && d[1] in wizState.data[d[0]]) return [d[0], d[1]];
+  return null;
+}
+
 function iw2VulAan(fill) {
   Object.keys(fill || {}).forEach(function (naam) {
-    var doel = IW2_VULBAAR[naam];
+    var doel = iw2Doel(naam);
     if (!doel) return;
     var huidig = wizState.data[doel[0]][doel[1]];
     if (huidig) return;
@@ -546,6 +598,18 @@ function iw2VulAan(fill) {
       })[0];
       if (!p) return;
       waarde = p.id;
+    } else {
+      /* Kent het veld een vaste lijst, dan moet het antwoord daarin staan.
+         Een waarde ernaast laat het veld liever leeg: leeg is zichtbaar, een
+         onbekende waarde ziet eruit als een besluit en is het niet. */
+      var lijst = iw2Toegestaan(doel[0], doel[1]);
+      if (lijst && lijst.length && lijst.indexOf(waarde) === -1) {
+        var raak = lijst.filter(function (v) {
+          return String(v).toLowerCase() === String(waarde).toLowerCase();
+        })[0];
+        if (!raak) return;
+        waarde = raak;
+      }
     }
     wizSet(doel[0], doel[1], waarde, 'rory');
   });
@@ -806,6 +870,19 @@ function iw2Doorpraten() {
 /* Concepten uitwerken vanaf de blueprint. Het conceptenscherm bestaat al in de
    wizard; dat bouwen we hier niet nog een keer. */
 function iw2Genereer() {
+  /* Bleef er een verplicht veld open -- Rory kwam er niet uit, of de aanroep
+     mislukte -- dan sturen we je daarheen in plaats van naar de concepten.
+     Anders loop je door tot stap 8 en pas daar tegen de poort aan, met drie
+     beelden op het scherm en geen idee wat er acht stappen terug ontbreekt. */
+  var open = iw2OpenVelden();
+  if (open.length) {
+    var stap = open[0].vak;
+    wizState.done.review = false;
+    iw2.open = false;
+    wizSave();
+    wizGo(stap);
+    return;
+  }
   wizState.done.review = true;
   wizSave();
   iw2NaarWizard('concepts');
@@ -849,3 +926,5 @@ window.iw2Genereer = iw2Genereer; window.iw2NaarWizard = iw2NaarWizard;
 window.iw2Doorpraten = iw2Doorpraten; window.iw2Vragen = iw2Vragen;
 window.iw2Vraag = iw2Vraag; window.iw2Opties = iw2Opties; window.IW2_VRAGEN = IW2_VRAGEN;
 window.IW2_RIJEN = IW2_RIJEN; window.iw2Afronden = iw2Afronden;
+window.iw2OpenVelden = iw2OpenVelden; window.iw2OpenTekst = iw2OpenTekst;
+window.iw2Toegestaan = iw2Toegestaan; window.iw2VulAan = iw2VulAan;

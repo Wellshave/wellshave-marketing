@@ -299,14 +299,41 @@ const OPZET = `
     var echt = window.wizGenerateConcepts;
     var geroepen = 0;
     window.wizGenerateConcepts = function () { geroepen++; };
+
+    /* Zonder sleutel vult Rory de open velden niet in. Dan hoort het gesprek je
+       niet naar de concepten te sturen: dat is precies de doodlopende weg waar
+       je acht stappen verderop pas tegenaan liep. */
+    iw2Genereer();
+    var zonderVulling = { stap: wizState.current, geroepen: geroepen,
+                          reviewAf: !!wizState.done.review };
+
+    /* Dezelfde handeling met alles ingevuld. */
+    wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('strategy', 'angleType', 'risk reversal', 'user');
+    wizSet('strategy', 'marketingAngle', 'a', 'user');
+    wizSet('strategy', 'messaging', 'b', 'user');
+    wizSet('format', 'formatId', (AD_FORMATS[0] || {}).id, 'user');
+    wizSet('visual', 'composition', 'editorial', 'user');
+    wizSet('visual', 'humanPresence', 'hands', 'user');
+    wizSet('visual', 'scene', 'bathroom', 'user');
+    wizSet('visual', 'mood', 'premium', 'user');
+    wizSet('copy', 'headline', 'c', 'user');
+    wizSet('copy', 'cta', 'Shop now', 'user');
+    iw2.open = true;
     iw2Genereer();
     window.wizGenerateConcepts = echt;
-    return { stap: wizState.current, interviewOpen: iw2.open,
-             geroepen: geroepen, reviewAf: !!wizState.done.review };
+    return { zonderVulling: zonderVulling, stap: wizState.current,
+             interviewOpen: iw2.open, geroepen: geroepen,
+             reviewAf: !!wizState.done.review };
   }, OPZET);
   /* Er is één conceptenscherm en dat staat in de wizard. Het interview bouwt
      het niet nog een keer -- twee schermen voor hetzelfde lopen uit elkaar. */
-  check('je komt op stap 8 uit', concepten.stap, 'concepts');
+  check('met een open veld kom je op die stap uit, niet op stap 8',
+        concepten.zonderVulling.stap, 'audience');
+  check('en er worden dan geen concepten uitgewerkt', concepten.zonderVulling.geroepen, 0);
+  check('en stap 7 staat dan niet af', concepten.zonderVulling.reviewAf, false);
+  check('is alles ingevuld, dan kom je op stap 8 uit', concepten.stap, 'concepts');
   check('en de concepten worden meteen uitgewerkt', concepten.geroepen, 1);
   check('het interview sluit', concepten.interviewOpen, false);
   check('en stap 7 staat af, want de blueprint is goedgekeurd', concepten.reviewAf, true);
@@ -602,6 +629,105 @@ const OPZET = `
   check('en: vertaal advertentiecopy en onderzoek nooit', taal.nietVertalen, true);
   check('en vraagt om nieuwe snelle antwoorden bij een vervolgvraag',
         taal.vraagtOmAntwoorden, true);
+
+  /* ── Geen doodlopende weg aan het eind ───────────────────────────────── */
+  console.log('\n  het gesprek laat geen verplicht veld open staan');
+
+  const open = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Alles leeg op stap 1 na: dan moet de lijst voor Rory precies de velden
+       noemen waar de poort van stap 9 later op controleert. */
+    wizSet('product', 'funnel', 'tof', 'user');
+    var velden = iw2OpenVelden().map(function (o) { return o.vak + '.' + o.veld; });
+
+    /* De poort van de wizard, uit dezelfde tabel opgebouwd. */
+    var poort = [];
+    Object.keys(WIZ_REQUIRED).forEach(function (vak) {
+      (WIZ_REQUIRED[vak] || []).forEach(function (veld) {
+        if (veld === 'productId') return;
+        var w = (wizState.data[vak] || {})[veld];
+        if (w === '' || w == null) poort.push(vak + '.' + veld);
+      });
+    });
+
+    /* En de tekst die Rory krijgt noemt bij een keuzeveld de toegestane
+       waarden, zodat er geen 'moody bathroom' terugkomt. */
+    var scene = iw2OpenVelden().filter(function (o) { return o.veld === 'scene'; })[0];
+    return {
+      velden: velden.sort(),
+      poort: poort.sort(),
+      sceneTekst: scene ? iw2OpenTekst(scene) : '',
+      productErbuiten: velden.indexOf('product.productId') === -1
+    };
+  }, OPZET);
+  check('elk verplicht leeg veld staat op de lijst voor Rory', open.velden, open.poort);
+  /* De velden die eerder ontbraken en het dus vastliepen op stap 9. */
+  check('waaronder de velden die het eerder liet liggen',
+        ['strategy.angleType', 'visual.composition', 'visual.scene', 'copy.cta']
+          .every(function (v) { return open.velden.indexOf(v) > -1; }), true);
+  check('het product blijft erbuiten -- dat kies je zelf', open.productErbuiten, true);
+  check('een keuzeveld noemt zijn toegestane waarden',
+        /one of: .*bathroom/.test(open.sceneTekst), true);
+
+  const vulling = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Rory antwoordt met de volledige veldnaam, en met één waarde die niet in
+       de lijst staat. Die laatste hoort geweigerd te worden. */
+    iw2VulAan({
+      'visual.scene': 'bathroom',
+      'visual.mood': 'moody candlelit bathroom',
+      'strategy.angleType': 'risk reversal',
+      'copy.cta': 'Try it for 100 days'
+    });
+    var d = wizState.data;
+    return { scene: d.visual.scene, mood: d.visual.mood,
+             angleType: d.strategy.angleType, cta: d.copy.cta };
+  }, OPZET);
+  check('een waarde uit de lijst komt binnen', vulling.scene, 'bathroom');
+  check('een waarde ernaast wordt geweigerd -- leeg is eerlijker', vulling.mood, '');
+  check('een vrij tekstveld komt gewoon binnen', vulling.angleType, 'risk reversal');
+  check('en de call to action ook', vulling.cta, 'Try it for 100 days');
+
+  /* ── De poort stuurt je ergens heen ──────────────────────────────────── */
+  console.log('\n  loop je toch vast, dan weet je waarop');
+
+  const gate = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Alles af behalve de call to action: precies het geval uit de melding --
+       drie concepten in beeld, en dan mag je niet door. */
+    wizSet('product', 'funnel', 'tof', 'user');
+    wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('strategy', 'angleType', 'risk reversal', 'user');
+    wizSet('strategy', 'marketingAngle', 'a', 'user');
+    wizSet('strategy', 'messaging', 'b', 'user');
+    wizSet('format', 'formatId', (AD_FORMATS[0] || {}).id, 'user');
+    ['composition', 'humanPresence', 'scene', 'mood'].forEach(function (v) {
+      wizSet('visual', v, v === 'scene' ? 'bathroom' : 'x', 'user');
+    });
+    wizSet('copy', 'headline', 'c', 'user');
+    wizState.done.review = true;
+    wizState.data.concepts.selected = 0;
+    wizState.current = 'concepts';
+
+    var gezegd = [];
+    var echt = window.toast;
+    window.toast = function (t) { gezegd.push(String(t)); };
+    wizGo('generate');
+    window.toast = echt;
+    return { melding: gezegd.join(' | '), waar: wizState.current };
+  }, OPZET);
+  check('de melding noemt de stap', /^Copy: /.test(gate.melding), true);
+  check('en het veld dat ontbreekt', /call to action/.test(gate.melding), true);
+  check('en je staat op die stap in plaats van vast', gate.waar, 'copy');
+
+  const geenBlok = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Is er niets open, dan blijft de poort gewoon open. */
+    wizSet('product', 'funnel', 'tof', 'user');
+    return wizBlokkerendeStap('audience');
+  }, OPZET);
+  check('is er niets open, dan blokkeert er niets', geenBlok, null);
 
   /* ── Leesbaarheid van de zwevende knop ───────────────────────────────── */
   console.log('\n  de knop is leesbaar tegen zijn eigen achtergrond');
