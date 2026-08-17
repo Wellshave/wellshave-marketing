@@ -114,7 +114,7 @@ const VULLEN = `
   check('er is een adviesregel onder de stappenbalk', romp.adviesregel, true);
   check('en Rory heeft nog steeds zijn eigen kolom', romp.roryKolom, true);
   check('en begint bij het product', romp.eerste, 'product');
-  check('met de kop van stap 1', romp.kop, 'Product and placement');
+  check('met de kop van stap 1, met nummer', romp.kop, '1. Product and placement');
 
   /* ── 1. Poortwachter ──────────────────────────────────────────────────── */
   console.log('\n  je komt niet in een stap waarvan de voorganger leeg is');
@@ -673,12 +673,14 @@ const VULLEN = `
     return uit;
   });
   /* Dat #wiz-launch bestáát zei niets: hij stond twee schermen onder de brain
-     dump, dus in Vanaf nul kreeg je nog steeds de oude werkwijze te zien. Wat
-     telt is wat je als eerste tegenkomt, niet wat er ergens in de DOM staat. */
+     dump, dus wie Exit koos kreeg alsnog de oude werkwijze te zien. Wat telt
+     is wat je als eerste tegenkomt, niet wat er ergens in de DOM staat. */
   const eersteIndruk = await page.evaluate(() => {
-    wizClose();
     switchMainTab('generator');
     setMode('scratch');
+    /* Dit blok gaat over het scherm achter Exit; Statics zelf opent in de
+       wizard en dat wordt hieronder apart gecontroleerd. */
+    wizClose();
     /* Een eerder blok klapt het klassieke formulier met de hand open en laat
        het zo staan. Wij meten wat een verse bezoeker ziet, dus zetten we het
        terug op de begintoestand. */
@@ -699,6 +701,57 @@ const VULLEN = `
      dat bewust doen. */
   check('in vanaf nul is het werkblad de wizard, meer niet',
         eersteIndruk, ['wiz-launch', 'classic-toggle', 'generate-row']);
+
+  /* Statics IS de wizard. Je komt binnen op stap 1 en het scherm is van hem:
+     Configuratie links en Resultaat rechts tonen dezelfde beslissingen nog
+     een keer, naast een scherm dat je één vraag tegelijk stelt. */
+  const volScherm = await page.evaluate(() => {
+    wizReset(true);
+    switchMainTab('library');
+    switchMainTab('generator');
+    var zicht = function (sel) {
+      var e = document.querySelector(sel);
+      return !!(e && e.offsetParent !== null);
+    };
+    var meet = function () {
+      return { wizard: zicht('#wiz-inline'), configuratie: zicht('.ws8-left'),
+               resultaat: zicht('.ws8-right'), balk: zicht('.ws8-header'),
+               ingang: zicht('#wiz-launch'), stap: wizState.current };
+    };
+    var binnen = meet();
+    wizClose();
+    var naExit = meet();
+    /* Weglopen en terugkomen brengt je terug in de wizard: Exit gold voor dat
+       bezoek aan het scherm, niet voor altijd. */
+    switchMainTab('library');
+    switchMainTab('generator');
+    var terug = meet();
+    return { binnen: binnen, naExit: naExit, terug: terug };
+  });
+  check('Statics opent meteen in de wizard', volScherm.binnen.wizard, true);
+  check('en begint bij stap 1', volScherm.binnen.stap, 'product');
+  check('de configuratiekolom is weg', volScherm.binnen.configuratie, false);
+  check('de resultaatkolom ook', volScherm.binnen.resultaat, false);
+  check('en de chipbalk erboven', volScherm.binnen.balk, false);
+  check('Exit brengt het oude scherm terug', volScherm.naExit.configuratie, true);
+  check('met de wizard-ingang erin', volScherm.naExit.ingang, true);
+  check('en terugkomen op Statics zet je weer in de wizard', volScherm.terug.wizard, true);
+
+  /* De stappenbalk is de enige plek die zegt waar je bent en wat er nog komt.
+     Een stap die buiten beeld valt doet dat niet: op één regel met de naam
+     ernaast paste de negende er niet meer bij. */
+  const balk = await page.evaluate(() => {
+    switchMainTab('generator');
+    wizOpen();
+    var vak = document.getElementById('wiz-progress').getBoundingClientRect();
+    var pillen = [].slice.call(document.querySelectorAll('.wiz-step'));
+    return { totaal: pillen.length,
+             binnenBeeld: pillen.filter(function (b) {
+               return b.getBoundingClientRect().right <= vak.right + 1;
+             }).length };
+  });
+  check('alle negen stappen staan in beeld', balk.binnenBeeld, balk.totaal);
+  check('en dat zijn er ook echt negen', balk.totaal, 9);
 
   check('vanaf nul staat het oude formulier ingeklapt', oud.scratchIngeklapt, true);
   check('en staat de wizard-ingang er', oud.launchZichtbaar, true);

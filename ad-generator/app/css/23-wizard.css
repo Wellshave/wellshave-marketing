@@ -16,6 +16,23 @@
   display: flex; align-items: flex-start; gap: 14px;
   margin-bottom: 8px;
 }
+
+/* ── De wizard als heel scherm ──────────────────────────────────────────────
+   Draait de wizard, dan is Statics de wizard. De kolommen Configuratie en
+   Resultaat en de chipbalk erboven horen bij het klassieke formulier: ze
+   tonen dezelfde beslissingen nog een keer, naast een scherm dat je juist één
+   vraag tegelijk stelt. Ze verdwijnen daarom zolang de wizard aanstaat, en
+   komen terug zodra je Exit kiest.
+   De regel voor #wiz-inline is specifieker dan die voor de zusjes, dus die
+   wint zonder !important; staat de wizard uit, dan zet JS er display:none op
+   en wint de inline-stijl alsnog. */
+#main-tab-generator.wiz-volscherm .ws8-header,
+#main-tab-generator.wiz-volscherm .ws8-left,
+#main-tab-generator.wiz-volscherm .ws8-right { display: none; }
+#main-tab-generator.wiz-volscherm .ws8-grid { display: block; }
+#main-tab-generator.wiz-volscherm .ws8-center > * { display: none; }
+#main-tab-generator.wiz-volscherm .ws8-center > #wiz-inline { display: flex; }
+#main-tab-generator.wiz-volscherm .wiz-inline { margin-bottom: 0; }
 .wiz-paneel {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column;
@@ -28,7 +45,7 @@
 /* ── Topbalk en voortgang ───────────────────────────────────────────────── */
 
 .wiz-topbar {
-  display: flex; align-items: center; gap: 20px;
+  display: flex; flex-direction: column; gap: 10px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--hairline);
   background: var(--glass-2);
@@ -37,10 +54,20 @@
   font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--gold); white-space: nowrap;
 }
-.wiz-progress { display: flex; gap: 4px; flex: 1; overflow-x: auto; }
+.wiz-topbar-rij { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.wiz-progress { display: flex; gap: 4px; overflow-x: auto; }
+/* Is er geen ruimte voor negen namen, dan blijven de nummers staan en houdt
+   alleen de stap waar je nu bent zijn naam. Negen bolletjes waarvan één
+   uitgeschreven is nog steeds een balk die zegt waar je bent; drie namen en
+   zes stappen buiten beeld is dat niet. */
+@media (max-width: 1560px) {
+  .wiz-step:not(.on) .wiz-step-label { display: none; }
+}
 .wiz-step {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 12px; border-radius: 999px;
+  /* Krap genoeg dat alle negen stappen náást elkaar passen: een stap die je
+     alleen ziet door te scrollen vertelt je niet wat er nog komt. */
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 9px; border-radius: 999px;
   background: transparent; border: 1px solid var(--hairline);
   color: var(--text-faint); cursor: pointer; white-space: nowrap;
   font-size: 12px; font-family: inherit;
@@ -61,8 +88,9 @@
   color: var(--red); font-weight: 700;
 }
 .wiz-close {
-  background: none; border: none; color: var(--text-faint);
-  font-size: 18px; cursor: pointer; padding: 4px 8px;
+  background: none; color: var(--text-soft);
+  border: 1px solid var(--hairline); border-radius: 999px;
+  font-size: 12.5px; font-family: inherit; cursor: pointer; padding: 6px 14px;
 }
 .wiz-close:hover { color: var(--text); }
 

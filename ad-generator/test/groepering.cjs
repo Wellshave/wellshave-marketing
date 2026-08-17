@@ -115,6 +115,11 @@ function meetInPagina() {
   await page.waitForTimeout(2500);
   await page.click('#main-tab-btn-generator');
   await page.waitForTimeout(900);
+  /* Statics opent in de wizard en die neemt het hele scherm; de drie kolommen
+     die deze lus meet zitten erachter. Dus eerst Exit, dan meten. Het contract
+     geldt onverminderd voor dat scherm -- het is waar Kopieer ad en Itereren
+     ook op draaien. */
+  await page.evaluate(() => wizClose());
   /* De stapkoppen van het klassieke formulier staan sinds de wizard achter de
      uitklap "gebruik het klassieke formulier". Ze gelden nog steeds: een kop
      hoort bij wat eronder staat, ook als je hem zelf openklapt. Dus klappen we

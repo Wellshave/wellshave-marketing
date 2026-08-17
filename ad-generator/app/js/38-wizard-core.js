@@ -29,7 +29,7 @@ var WIZ_STEPS = [
   { key: 'copy',     num: 6, label: 'Copy',     title: 'Copy',                   sub: 'The words on the ad.' },
   { key: 'review',   num: 7, label: 'Review',   title: 'Creative blueprint',     sub: 'Everything we decided, before we spend a generation.' },
   { key: 'concepts', num: 8, label: 'Concepts', title: 'Creative concepts',      sub: 'Three routes within the approved strategy.' },
-  { key: 'generate', num: 9, label: 'Generate', title: 'Final static',           sub: 'Generate, then adjust one element at a time.' }
+  { key: 'generate', num: 9, label: 'Final',    title: 'Final static',           sub: 'Generate, then adjust one element at a time.' }
 ];
 
 function wizStepIndex(key) {
@@ -251,8 +251,23 @@ function wizOpen() {
 
 function wizClose() {
   wizState.open = false;
+  /* Exit is een keuze voor dit bezoek: je wilt het klassieke scherm zien. Loop
+     je later opnieuw Statics binnen, dan sta je weer in de wizard. De vlag gaat
+     bewust niet mee in wizSave -- anders zou één keer Exit de wizard voorgoed
+     uitzetten. */
+  wizState.afgesloten = true;
   wizToonInline();
   wizSave();
+}
+
+/* Statics IS de wizard: je komt binnen op stap 1, niet op een startkaart met
+   een scherm vol kolommen eromheen. */
+function wizMisschienOpenen() {
+  if (wizState.open || wizState.afgesloten) return;
+  if (state.generatorMode && state.generatorMode !== 'scratch') return;
+  var tab = document.getElementById('main-tab-generator');
+  if (!tab || tab.style.display === 'none') return;
+  wizOpen();
 }
 
 /* Wat er zichtbaar is in de generatorkolom hangt af van twee dingen: draait de
@@ -267,6 +282,11 @@ function wizToonInline() {
   if (paneel) paneel.style.display = aan ? '' : 'none';
   if (ingang) ingang.style.display = (scratch && !wizState.open) ? '' : 'none';
   if (schakel) schakel.style.display = (scratch && !wizState.open) ? '' : 'none';
+  /* Draait de wizard, dan is hij het scherm. Configuratie links en Resultaat
+     rechts horen bij het klassieke formulier; naast een stap-voor-stap-vraag
+     zijn het twee kolommen die om aandacht vragen die je nu niet hebt. */
+  var tab = document.getElementById('main-tab-generator');
+  if (tab) tab.classList.toggle('wiz-volscherm', aan);
   wizSyncClassic();
 }
 
@@ -410,7 +430,9 @@ function wizRender() {
   var s = wizStep(wizState.current);
   var head = document.getElementById('wiz-head');
   if (head && s) {
-    head.innerHTML = '<h2 class="wiz-title">' + wizEsc(s.title) + '</h2>' +
+    /* Het nummer hoort bij de kop, niet alleen bij het balkje: dan weet je op
+       elk scherm hoeveelste vraag dit is zonder omhoog te kijken. */
+    head.innerHTML = '<h2 class="wiz-title">' + s.num + '. ' + wizEsc(s.title) + '</h2>' +
       '<p class="wiz-sub">' + wizEsc(s.sub) + '</p>' +
       (wizState.stale[wizState.current]
         ? '<div class="wiz-stale-note">An earlier decision changed after this step was filled in. ' +
@@ -534,10 +556,16 @@ function wizMount() {
   el.style.display = 'none';
   el.innerHTML =
     '<div class="wiz-paneel">' +
+    /* Naam en uitgang op de eerste regel, de stappen op de tweede. Op één
+       regel samen paste de negende stap er niet meer bij en schoof hij buiten
+       beeld -- en juist die balk moet vertellen waar je bent en wat er nog
+       komt. */
     '  <div class="wiz-topbar">' +
-    '    <div class="wiz-brand">Static Ad Generator</div>' +
+    '    <div class="wiz-topbar-rij">' +
+    '      <div class="wiz-brand">Static Ad Generator</div>' +
+    '      <button type="button" class="wiz-close" onclick="wizClose()">Exit</button>' +
+    '    </div>' +
     '    <div class="wiz-progress" id="wiz-progress"></div>' +
-    '    <button type="button" class="wiz-close" onclick="wizClose()" aria-label="Close the wizard">✕</button>' +
     '  </div>' +
     '  <div class="wiz-rorybalk" id="wiz-rorybalk"></div>' +
     '  <div class="wiz-head" id="wiz-head"></div>' +
@@ -580,8 +608,6 @@ function toggleClassicForm() {
 function wizBoot() {
   wizMount();
   wizLoad();
-  /* Nooit openen bij het laden van de pagina: de gebruiker beslist wanneer hij
-     de wizard in gaat. We herstellen alleen de inhoud. */
 
   /* setMode omwikkelen in plaats van aanpassen: de modus-logica zelf is van
      Kopieer ad en Itereren en daar blijven we vanaf. We willen alleen weten
@@ -591,10 +617,26 @@ function wizBoot() {
     var omhulsel = function () {
       var r = origineel.apply(this, arguments);
       wizToonInline();
+      wizMisschienOpenen();
       return r;
     };
     omhulsel.__wizWrapped = true;
     window.setMode = omhulsel;
+  }
+
+  /* Hetzelfde voor het tabblad: Statics binnenlopen is de wizard binnenlopen.
+     Wie eerder Exit koos krijgt bij terugkomst weer stap 1 -- die keuze gold
+     voor dat bezoek aan het scherm, niet voor altijd. */
+  if (typeof window.switchMainTab === 'function' && !window.switchMainTab.__wizWrapped) {
+    var origTab = window.switchMainTab;
+    var omhulselTab = function (tab) {
+      var r = origTab.apply(this, arguments);
+      if (tab === 'generator') { wizState.afgesloten = false; wizMisschienOpenen(); }
+      wizToonInline();
+      return r;
+    };
+    omhulselTab.__wizWrapped = true;
+    window.switchMainTab = omhulselTab;
   }
   wizToonInline();
 }
