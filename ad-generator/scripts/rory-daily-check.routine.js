@@ -18,7 +18,7 @@
  *   ROAS_WINNER           drempel Winner (default 3.5)
  *   ROAS_LOSER            drempel Loser (default 2.5)
  *
- * Fable 5-regels: model 'claude-fable-5', geen thinking-param, effort via
+ * Opus 5-regels: model 'claude-opus-5', geen thinking-param, effort via
  * output_config, JSON via output_config.format, refusal-fallback → opus-4-8.
  * ============================================================ */
 
@@ -106,7 +106,7 @@ async function judge(metric) {
     + `Geef het eindoordeel (Winner/Test/Loser), één actie (scale/iterate/copy/new/pause) en een korte onderbouwing van max 2 zinnen.`;
   try {
     const body = {
-      model: 'claude-fable-5',
+      model: 'claude-opus-5',
       max_tokens: 600,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: REC_SCHEMA } },
       fallbacks: [{ model: 'claude-opus-4-8' }],
