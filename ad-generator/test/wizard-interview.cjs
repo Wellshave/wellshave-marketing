@@ -465,6 +465,144 @@ const OPZET = `
   }, OPZET);
   check('geen Nederlandse interface-tekst in het interview', engels, []);
 
+  /* ── De snelle antwoorden bewegen mee ────────────────────────────────── */
+  console.log('\n  vraagt Rory iets anders, dan komen er andere antwoorden');
+
+  const meebewegen = await page.evaluate(opzet => {
+    eval(opzet);
+    iw2Start(); iw2Kies('angle');
+    var v = iw2Vraag();
+    var voor = iw2Opties(v).map(function (o) { return o.label; });
+
+    /* Rory vraagt iets terug en stelt daar zelf antwoorden bij voor. Dat is
+       precies het moment waarop de oude lijst niet meer klopt: die gaat over
+       de oorspronkelijke vraag, niet over wat hij zojuist vroeg. */
+    iw2.dynOpties = iw2VerwerkVoorstellen(v, [
+      { label: 'Defuse the fear' }, { label: 'Promise the result' }
+    ]);
+    var na = iw2Opties(v).map(function (o) { return o.label; });
+
+    /* En ze horen weg te zijn zodra de vraag beantwoord is -- ook als je later
+       op dezelfde vraag terugkomt. Dat gebeurt via "refine with Rory" na de
+       blueprint: dan staat de laatste vraag weer voor je, en voorstellen uit een
+       eerdere ronde gaan dan over iets wat allang besloten is. */
+    iw2Vastleggen(v, { resolved: true, choice: null, value: 'Safety first' }, 'x');
+    iw2Volgende();
+    var daarna = iw2Opties(iw2Vraag()).map(function (o) { return o.label; });
+
+    /* Terug op dezelfde vraag: de voorstellen van toen mogen niet terugkomen. */
+    var terugV = iw2Vraag();
+    iw2.dynOpties = iw2VerwerkVoorstellen(terugV, [{ label: 'Oud voorstel' }]);
+    iw2Vastleggen(terugV, { resolved: true, choice: null, value: 'x' }, 'x');
+    iw2Volgende();
+    iw2.i = iw2Vragen().indexOf(terugV);
+    var naTerugkeer = iw2Opties(iw2Vraag()).map(function (o) { return o.label; });
+
+    return { voor: voor, na: na, daarna: daarna, naTerugkeer: naTerugkeer,
+             uitwegNa: na.filter(function (l) { return /Let Rory/.test(l); }).length };
+  }, OPZET);
+  check('zijn voorstellen vervangen de vaste lijst', meebewegen.na.slice(0, 2),
+        ['Defuse the fear', 'Promise the result']);
+  check('de oude antwoorden staan er niet meer bij',
+        meebewegen.na.indexOf(meebewegen.voor[0]), -1);
+  check('maar de uitweg blijft', meebewegen.uitwegNa, 1);
+  check('en bij de volgende vraag zijn ze weg',
+        meebewegen.daarna.indexOf('Defuse the fear'), -1);
+  check('en ze komen niet terug als je op die vraag terugkomt',
+        meebewegen.naTerugkeer.indexOf('Oud voorstel'), -1);
+
+  /* Een voorgesteld antwoord legt niets vast uit zichzelf: het gaat terug als
+     tekst, zodat Rory zelf bepaalt wat het voor de blueprint betekent. */
+  const voorstelKlik = await page.evaluate(opzet => {
+    eval(opzet);
+    iw2Start(); iw2Kies('angle');
+    var v = iw2Vraag();
+    iw2.dynOpties = iw2VerwerkVoorstellen(v, [{ label: 'Defuse the fear' }]);
+    var voor = wizState.data.strategy.theme;
+    var vraagVoor = iw2Vraag().key;
+    /* Met een sleutel en een onderschepte aanroep: het punt is dat het antwoord
+       naar Rory gaat om beoordeeld te worden, en dat je op de vraag blijft
+       staan tot hij hem afrondt. Zonder die route zou een klik de vraag zelf
+       afvinken en doorschuiven -- terwijl Rory net iets anders vroeg. */
+    window.__WG_TEAMSERVER = true;
+    var echt = window.wizCall;
+    var geroepen = 0;
+    window.wizCall = function () { geroepen++; return new Promise(function () {}); };
+    iw2Kies('voorstel0');
+    window.wizCall = echt;
+    var uit = { veldOngemoeid: wizState.data.strategy.theme === voor,
+                naarRory: geroepen,
+                blijftOpDeVraag: iw2Vraag().key === vraagVoor,
+                staatInGesprek: iw2.chat.some(function (r) {
+                  return r.wie === 'user' && r.tekst === 'Defuse the fear';
+                }) };
+    iw2.busy = false;
+    return uit;
+  }, OPZET);
+  check('een voorstel aanklikken zet zelf geen veld', voorstelKlik.veldOngemoeid, true);
+  check('maar gaat wel als antwoord het gesprek in', voorstelKlik.staatInGesprek, true);
+  check('en wordt door Rory beoordeeld', voorstelKlik.naarRory, 1);
+  check('je blijft dus op de vraag staan', voorstelKlik.blijftOpDeVraag, true);
+
+  /* ── De keuzelijsten dekken het vak ──────────────────────────────────── */
+  console.log('\n  genoeg richtingen om echt te kiezen');
+
+  const lijsten = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Koud publiek en warm publiek horen andere richtingen te zien: een
+       aanbieding zegt niets tegen wie het merk nog niet kent, en
+       nieuwsgierigheid is verspild aan wie al in het karretje staat. */
+    wizSet('product', 'funnel', 'tof', 'user');
+    iw2Start(); iw2Kies('angle');
+    var hoekTof = iw2Opties(iw2Vraag()).map(function (o) { return o.label; });
+    wizSet('product', 'funnel', 'bof', 'user');
+    var hoekBof = iw2Opties(iw2Vraag()).map(function (o) { return o.label; });
+    return { catalogusHoeken: IW2_THEMES.length, catalogusCopy: IW2_COPY.length,
+             hoekTof: hoekTof, hoekBof: hoekBof,
+             getoond: hoekTof.length };
+  }, OPZET);
+  check('de catalogus met hoeken is ruim', lijsten.catalogusHoeken >= 8, true);
+  check('en die met headline-richtingen ook', lijsten.catalogusCopy >= 8, true);
+  /* Wel ruim, niet uitgestald: een lijst van elf knoppen onder een vraag is
+     weer een catalogus in plaats van een gesprek. */
+  check('maar er staan er hooguit zeven op het scherm', lijsten.getoond <= 7, true);
+  check('koud en warm publiek zien niet dezelfde richtingen',
+        JSON.stringify(lijsten.hoekTof) !== JSON.stringify(lijsten.hoekBof), true);
+
+  /* ── De taal van het gesprek ─────────────────────────────────────────── */
+  console.log('\n  Rory blijft in één taal');
+
+  const taal = await page.evaluate(opzet => {
+    eval(opzet);
+    /* Met een sleutel, anders komt de aanroep er niet eens aan toe. De aanroep
+       zelf onderscheppen: wat Rory terugstuurt is niet te testen, wat we hem
+       meegeven wel -- en daar zat het probleem. */
+    window.__WG_TEAMSERVER = true;
+    iw2Start(); iw2Kies('angle');
+    var echt = window.wizCall;
+    var meegegeven = null;
+    window.wizCall = function (sys) {
+      meegegeven = sys;
+      return new Promise(function () {});   /* blijft open; we willen alleen de opdracht */
+    };
+    document.getElementById('iw2-in').value = 'Promise result.';
+    iw2Antwoord();
+    window.wizCall = echt;
+    iw2.busy = false;
+    return {
+      engels: /ALWAYS write your reply in English/.test(meegegeven || ''),
+      nietVertalen: /Do not translate ad copy/.test(meegegeven || ''),
+      vraagtOmAntwoorden: /also give three or four short quick answers/.test(meegegeven || '')
+    };
+  }, OPZET);
+  /* Hij dreef weg naar het Nederlands omdat de context vol Nederlandse
+     productteksten en klantonderzoek zit. De afspraak is Engels voor de
+     interface, dus ook voor het gesprek. */
+  check('de opdracht zegt: antwoord altijd in het Engels', taal.engels, true);
+  check('en: vertaal advertentiecopy en onderzoek nooit', taal.nietVertalen, true);
+  check('en vraagt om nieuwe snelle antwoorden bij een vervolgvraag',
+        taal.vraagtOmAntwoorden, true);
+
   /* ── Leesbaarheid van de zwevende knop ───────────────────────────────── */
   console.log('\n  de knop is leesbaar tegen zijn eigen achtergrond');
 

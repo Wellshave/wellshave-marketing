@@ -44,7 +44,11 @@ var iw2 = {
   klaar: false,
   busy: false,
   /* Rory's samenvatting bij de blueprint. */
-  samenvatting: ''
+  samenvatting: '',
+  /* Antwoorden die Rory zelf voorstelde bij zijn laatste vervolgvraag. Zolang
+     die er staan vervangen ze de vaste lijst -- zijn vraag is veranderd, dus de
+     snelle antwoorden horen mee te veranderen. */
+  dynOpties: null
 };
 
 function iw2Tijd() {
@@ -103,22 +107,7 @@ var IW2_VRAGEN = [
   {
     key: 'theme', titel: 'Angle direction', spoor: 'beide', vrij: ['strategy', 'theme'],
     vraag: 'The next big decision is the angle. Which direction should we lead with?',
-    opts: [
-      { key: 'safety', label: 'Safety & Confidence',
-        zet: [['strategy', 'theme', 'Safety & Confidence']],
-        gevolg: 'Leading with safety works when the fear of getting it wrong is bigger than the wish to get it right.' },
-      { key: 'convenience', label: 'Convenience & Simplicity',
-        zet: [['strategy', 'theme', 'Convenience & Simplicity']],
-        gevolg: 'Convenience sells the time back, not the product. That needs a concrete before and after.' },
-      { key: 'performance', label: 'Performance & Quality',
-        zet: [['strategy', 'theme', 'Performance & Quality']],
-        gevolg: 'Performance needs proof in the ad itself, otherwise it is a claim like every other claim.' },
-      { key: 'premium', label: 'Premium & Upgrade',
-        zet: [['strategy', 'theme', 'Premium & Upgrade']],
-        gevolg: 'Premium is a promise about the buyer, not about the product. The visual has to carry it.' },
-      { key: 'rory', label: 'Let Rory choose based on research', rory: true,
-        gevolg: 'I will read the customer research and pick the entry point with the least resistance.' }
-    ]
+    opties: 'themes'
   },
   {
     key: 'format', titel: 'Format preference', spoor: 'beide',
@@ -165,21 +154,93 @@ var IW2_VRAGEN = [
   {
     key: 'copy', titel: 'Copy direction', spoor: 'beide', vrij: ['copy', 'direction'],
     vraag: 'Let us craft the message. Which headline direction do you prefer?',
-    opts: [
-      { key: 'pain', label: 'Pain-focused', sub: 'Focus on the problem and the fear',
-        zet: [['copy', 'direction', 'Pain-focused']],
-        gevolg: 'I will write pain-led headlines that name the fear before the product.' },
-      { key: 'benefit', label: 'Benefit-focused', sub: 'Lead with the main benefit',
-        zet: [['copy', 'direction', 'Benefit-focused']],
-        gevolg: 'Benefit-led only beats pain-led when the benefit is one nobody else claims.' },
-      { key: 'curiosity', label: 'Curiosity-driven', sub: 'Use curiosity to start',
-        zet: [['copy', 'direction', 'Curiosity-driven']],
-        gevolg: 'Curiosity earns the click, but the ad has to pay it off or the click is wasted.' },
-      { key: 'rory', label: 'Let Rory write the headline', rory: true,
-        gevolg: 'I will pick the direction from the awareness level and write it out.' }
-    ]
+    opties: 'copyrichtingen'
   }
 ];
+
+/* ── De catalogus ───────────────────────────────────────────────────────────
+ *
+ * Vier hoeken en drie headline-richtingen waren te weinig, en dat is geen
+ * smaakkwestie: als de lijst het veld niet dekt, kiest iemand de minst
+ * verkeerde in plaats van de juiste, en dan staat er een besluit in de
+ * blueprint dat niemand genomen heeft.
+ *
+ * Alles tegelijk tonen is de andere fout -- twaalf knoppen onder een vraag is
+ * een catalogus, geen gesprek. Daarom staat hier de volledige lijst, en toont
+ * het scherm de zes die bij deze funnelfase horen. Een koud publiek heeft geen
+ * aanbieding nodig maar een reden om te kijken; een warm publiek precies
+ * andersom. En je kunt altijd zelf antwoorden met iets wat er niet bij staat.
+ */
+var IW2_THEMES = [
+  { key: 'safety',      label: 'Safety & Confidence',    fasen: ['tof', 'mof', 'bof', 'retargeting'],
+    gevolg: 'Leading with safety works when the fear of getting it wrong is bigger than the wish to get it right.' },
+  { key: 'convenience', label: 'Convenience & Simplicity', fasen: ['tof', 'mof'],
+    gevolg: 'Convenience sells the time back, not the product. That needs a concrete before and after.' },
+  { key: 'performance', label: 'Performance & Quality',  fasen: ['mof', 'bof'],
+    gevolg: 'Performance needs proof in the ad itself, otherwise it is a claim like every other claim.' },
+  { key: 'premium',     label: 'Premium & Upgrade',      fasen: ['mof', 'bof'],
+    gevolg: 'Premium is a promise about the buyer, not about the product. The visual has to carry it.' },
+  { key: 'result',      label: 'The result, not the tool', fasen: ['tof', 'mof'],
+    gevolg: 'Selling the outcome works when the outcome is visible. If it is not, this becomes a vague claim.' },
+  { key: 'identity',    label: 'Identity & Belonging',   fasen: ['tof', 'mof'],
+    gevolg: 'Identity narrows the audience on purpose: fewer people, far more recognition.' },
+  { key: 'value',       label: 'Price & Value',          fasen: ['bof', 'retargeting'],
+    gevolg: 'Price is only an angle if the comparison is concrete. Cheap on its own is not a reason.' },
+  { key: 'health',      label: 'Health & Skin Care',     fasen: ['tof', 'mof'],
+    gevolg: 'Care reframes the product as maintenance rather than grooming. That needs a mechanism.' },
+  { key: 'contrarian',  label: 'Against the category',   fasen: ['tof'],
+    gevolg: 'Saying the opposite of the category buys attention, and then you have to make it stand up.' },
+  { key: 'time',        label: 'Time and effort saved',  fasen: ['tof', 'mof', 'bof'],
+    gevolg: 'Time saved lands when you name the minutes. "Faster" is not a number.' }
+];
+
+var IW2_COPY = [
+  { key: 'pain',       label: 'Pain-focused',       sub: 'Name the problem and the fear',
+    fasen: ['tof', 'mof', 'bof'],
+    gevolg: 'I will write pain-led headlines that name the fear before the product.' },
+  { key: 'benefit',    label: 'Benefit-focused',    sub: 'Lead with the main benefit',
+    fasen: ['mof', 'bof', 'retargeting'],
+    gevolg: 'Benefit-led only beats pain-led when the benefit is one nobody else claims.' },
+  { key: 'curiosity',  label: 'Curiosity-driven',   sub: 'Open a loop they want closed',
+    fasen: ['tof', 'mof'],
+    gevolg: 'Curiosity earns the click, but the ad has to pay it off or the click is wasted.' },
+  { key: 'authority',  label: 'Authority',          sub: 'An expert or a study says it',
+    fasen: ['tof', 'mof'],
+    gevolg: 'Authority borrows trust. It only holds if the source is real and named.' },
+  { key: 'proof',      label: 'Social proof',       sub: 'What other buyers say',
+    fasen: ['mof', 'bof', 'retargeting'],
+    gevolg: 'Specific proof beats loud proof: a number, a timeframe, a before-state.' },
+  { key: 'comparison', label: 'Comparison',         sub: 'Against the alternative they know',
+    fasen: ['mof', 'bof'],
+    gevolg: 'Comparison works for people already weighing options. Name what you are compared to.' },
+  { key: 'myth',       label: 'Myth-busting',       sub: 'Correct something they believe',
+    fasen: ['tof', 'mof'],
+    gevolg: 'Correcting a belief creates an aha-moment, and an opening for a new mechanism.' },
+  { key: 'number',     label: 'Number claim',       sub: 'One specific figure carries it',
+    fasen: ['tof', 'mof', 'bof'],
+    gevolg: 'A precise number stops the scroll. A round one reads as marketing.' },
+  { key: 'question',   label: 'Direct question',    sub: 'Ask what they recognise',
+    fasen: ['tof'],
+    gevolg: 'A question qualifies the right reader, as long as the answer is obviously yes.' },
+  { key: 'offer',      label: 'Offer-led',          sub: 'The deal is the message',
+    fasen: ['bof', 'retargeting'],
+    gevolg: 'Offer-led converts the ready and trains everyone else to wait for a discount.' },
+  { key: 'identity',   label: 'Identity',           sub: '"For men who…"',
+    fasen: ['tof', 'mof'],
+    gevolg: 'Identity headlines speak to fewer people and are read far more closely by those few.' }
+];
+
+/* Zes uit de lijst die bij deze funnelfase horen, plus de uitweg. Staat er nog
+   geen funnelfase, dan de eerste zes -- dat is beter dan niets tonen. */
+function iw2Selectie(catalogus, veld, hoeveel) {
+  var fase = wizState.data.product.funnel;
+  var passend = catalogus.filter(function (o) { return !fase || o.fasen.indexOf(fase) > -1; });
+  if (passend.length < 3) passend = catalogus;
+  return passend.slice(0, hoeveel || 6).map(function (o) {
+    return { key: o.key, label: o.label, sub: o.sub, gevolg: o.gevolg,
+             zet: [[veld[0], veld[1], o.label]] };
+  });
+}
 
 /* De twee routes. Dit is waarom de startvraag gesteld wordt: hij bepaalt de
  * volgorde, en die volgorde is het gesprek.
@@ -213,6 +274,19 @@ function iw2Vraag() {
 
 /* Opties die uit de eigen data komen in plaats van uit de lijst hierboven. */
 function iw2Opties(v) {
+  /* Heeft Rory op deze vraag zelf antwoorden voorgesteld, dan zijn dat ze. Zijn
+     vervolgvraag gaat over iets anders dan de oorspronkelijke vraag, en dan is
+     de oude lijst geen snelkoppeling meer maar een verkeerd antwoord dat klaar
+     ligt om aangeklikt te worden. */
+  if (iw2.dynOpties && iw2.dynOpties.vraag === v.key && iw2.dynOpties.opts.length) {
+    return iw2.dynOpties.opts.concat(iw2Uitweg(v));
+  }
+  if (v.opties === 'themes') return iw2Selectie(IW2_THEMES, ['strategy', 'theme'])
+    .concat([{ key: 'rory', label: 'Let Rory choose based on research', rory: true,
+               gevolg: 'I will read the customer research and pick the entry point with the least resistance.' }]);
+  if (v.opties === 'copyrichtingen') return iw2Selectie(IW2_COPY, ['copy', 'direction'])
+    .concat([{ key: 'rory', label: 'Let Rory write the headline', rory: true,
+               gevolg: 'I will pick the direction from the awareness level and write it out.' }]);
   if (v.opties === 'personas') {
     var lijst = (state.personas || []).slice(0, 6).map(function (p) {
       return { key: p.id, label: p.name, sub: p.role || p.summary_nl || '',
@@ -242,6 +316,14 @@ function iw2Opties(v) {
 
 /* Een korte lijst in plaats van alle formats. Tweeënveertig opties in een
    gesprek is geen vraag maar een catalogus. */
+/* De uitweg hoort bij elke vraag, ook bij de dynamische lijsten. */
+function iw2Uitweg(v) {
+  var vast = (v.opts || []).filter(function (o) { return o.rory; });
+  if (vast.length) return vast;
+  return [{ key: 'rory', label: 'Let Rory decide', rory: true,
+            gevolg: 'I will decide this one from the brief and the research.' }];
+}
+
 function iw2FormatKern() {
   return ['probleem-agitatie', 'product-hero', 'us-vs-them-tabel',
           'testimonial-pull-quote', 'news-headline-advertorial'];
@@ -277,6 +359,7 @@ function iw2Start() {
   iw2.antwoorden = {};
   iw2.klaar = false;
   iw2.samenvatting = '';
+  iw2.dynOpties = null;
   iw2Zeg('rory', IW2_VRAGEN[0].vraag);
   wizToonInline();
   wizRender();
@@ -346,6 +429,15 @@ function iw2Kies(optieKey) {
   var opt = iw2Opties(v).filter(function (o) { return o.key === optieKey; })[0];
   if (!opt) return;
 
+  /* Een antwoord dat Rory zelf voorstelde gaat terug als tekst, niet als
+     vastgelegde keuze: hij vroeg iets anders dan de oorspronkelijke vraag, en
+     wat dat voor de blueprint betekent moet hij zelf bepalen. */
+  if (opt.voorstel) {
+    var vak = document.getElementById('iw2-in');
+    if (vak) { vak.value = opt.label; iw2Antwoord(); }
+    return;
+  }
+
   iw2.antwoorden[v.key] = optieKey;
   iw2Zeg('user', opt.label);
 
@@ -362,6 +454,8 @@ function iw2Kies(optieKey) {
 }
 
 function iw2Volgende() {
+  /* Nieuwe vraag, dus de voorgestelde antwoorden van de vorige vervallen. */
+  iw2.dynOpties = null;
   var vragen = iw2Vragen();
   if (iw2.i < vragen.length - 1) {
     iw2.i++;
@@ -506,21 +600,40 @@ function iw2Antwoord() {
     'If the reply is about something else, respond to it properly and then bring them back. ' +
     'If it does answer, say in one or two sentences what you take from it and why that works. ' +
     'Never invent facts about the product or the audience.\n' +
+    /* De taal dreef weg: hij antwoordde in het Engels en sloeg halverwege om
+       naar Nederlands, omdat de context vol Nederlandse productteksten en
+       klantonderzoek zit. De afspraak is dat de interface Engels is, dus is het
+       gesprek dat ook -- ongeacht in welke taal de vraag gesteld wordt. Wat
+       geen interface is blijft staan zoals het is: advertentiecopy, quotes uit
+       onderzoek en productteksten worden nooit vertaald. */
+    'ALWAYS write your reply in English, whatever language they write in. ' +
+    'Do not translate ad copy, customer research quotes or product text: quote those verbatim.\n' +
     'The options on screen are: ' + opts.map(function (o) { return o.key + ' = ' + o.label; }).join('; ') + '.\n' +
     (vrij
       ? 'You may also record their own wording as the answer, if it is concrete enough.'
       : 'This decision must end up as one of the options above; their own wording cannot be stored here. ' +
         'If their reply points at one of them, choose it and say so.') + '\n' +
+    /* Vraag je iets terug, lever dan ook de antwoorden bij díé vraag. Anders
+       blijven de knoppen van de oorspronkelijke vraag staan, en die gaan over
+       iets anders dan wat je zojuist vroeg. */
+    'If you are asking something back, also give three or four short quick answers ' +
+    'for that new question, in English, each a few words. Leave options empty when ' +
+    'you resolved the question.\n' +
     'Answer with strict JSON: {"reply":"what you say back","resolved":true|false,' +
     '"choice":"option key or null","value":"their answer in a few words, or null",' +
-    '"funnel":"tof|mof|bof|retargeting or null"}. ' +
+    '"funnel":"tof|mof|bof|retargeting or null",' +
+    '"options":[{"label":"short answer","sub":"optional one-line explanation"}]}. ' +
     'Set resolved false whenever you are asking something back.';
 
   wizCall(sys, [{ role: 'user', content: ctx.text + '\n\nTheir reply: ' + t }], 700)
     .then(function (data) {
       var o = wizParseJson(wizTextOf(data));
       iw2Zeg('rory', o.reply || 'Let me put that differently.');
-      if (!o.resolved) { wizRender(); return; }
+      if (!o.resolved) {
+        iw2.dynOpties = iw2VerwerkVoorstellen(v, o.options);
+        wizRender();
+        return;
+      }
       iw2Vastleggen(v, o, t);
       iw2Volgende();
     })
@@ -528,6 +641,21 @@ function iw2Antwoord() {
       iw2Zeg('rory', 'That did not go through: ' + err.message + ' — pick an option, or try again.');
     })
     .finally(function () { iw2.busy = false; wizRender(); });
+}
+
+/* Rory's eigen antwoordvoorstellen omzetten naar knoppen. Ze leggen niets vast
+   uit zichzelf: klik je erop, dan gaat de tekst als jouw antwoord terug het
+   gesprek in en beoordeelt hij hem net zo goed als getypte tekst. Zo kan een
+   voorgesteld antwoord nooit een veld zetten dat Rory niet bedoeld had. */
+function iw2VerwerkVoorstellen(v, voorstellen) {
+  if (!Array.isArray(voorstellen) || !voorstellen.length) return null;
+  var opts = voorstellen.slice(0, 4)
+    .filter(function (o) { return o && o.label; })
+    .map(function (o, n) {
+      return { key: 'voorstel' + n, label: String(o.label).slice(0, 80),
+               sub: o.sub ? String(o.sub).slice(0, 120) : '', voorstel: true };
+    });
+  return opts.length ? { vraag: v.key, opts: opts } : null;
 }
 
 /* Wat Rory uit je antwoord haalde vastleggen. Een gekozen optie zet zijn eigen
