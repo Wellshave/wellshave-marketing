@@ -294,8 +294,12 @@ async function applyCombinedEdits(varIndex) {
   const szPlacementC = current.placement || ((state.lastGenerated && state.lastGenerated.metadata) ? state.lastGenerated.metadata.placement : 'feed11') || 'feed11';
   if (typeof buildSafeZoneInstruction === 'function') instr += buildSafeZoneInstruction(szPlacementC);
 
+  /* Deze knop hoort bij de kaart in het oude resultatenscherm. De wizard roept
+     dezelfde bewerkfunctie aan vanuit stap 9, en daar bestaat die knop niet --
+     dan viel de hele bewerking om op een null. De bewerking hangt er niet van
+     af; het is alleen een knop die zichzelf op bezig zet. */
   const btn = document.getElementById(`combo-btn-${varIndex}`);
-  btn.disabled = true; btn.textContent = 'Bezig met alle wijzigingen...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Bezig met alle wijzigingen...'; }
   setEditBusy(varIndex, `${steps.length} wijziging${steps.length === 1 ? '' : 'en'} word${steps.length === 1 ? 't' : 'en'} toegepast...`);
   try {
     const currentDataUrl = `data:${current.mime || 'image/png'};base64,${current.b64}`;
@@ -339,7 +343,7 @@ async function applyCombinedEdits(varIndex) {
     clearEditBusy(varIndex);
     toast('Wijzigen mislukt: ' + err.message, true);
     console.error(err);
-    btn.disabled = false; btn.textContent = 'Voer alle wijzigingen uit in een AI-ronde';
+    if (btn) { btn.disabled = false; btn.textContent = 'Voer alle wijzigingen uit in een AI-ronde'; }
   }
 }
 

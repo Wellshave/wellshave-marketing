@@ -925,6 +925,76 @@ const VULLEN = `
   check('de wizard blijft niet hangen op bezig', takeMislukt.busy, false);
   check('en je hoort wat er misging', /Could not work out the three takes/.test(takeMislukt.melding), true);
 
+  /* ── Bijstellen vanuit de wizard ─────────────────────────────────────────
+   *
+   * De bewerkacties roepen dezelfde functie aan als het oude resultatenscherm.
+   * Die functie zette een knop op "bezig" die alleen in dát scherm bestaat, dus
+   * viel elke bewerking vanuit stap 9 om op een null -- zichtbaar als een rode
+   * foutbalk, en er gebeurde niets. Deze lus voert de bewerking echt uit, met
+   * een nagemaakt antwoord in plaats van een beeldmodel. */
+  console.log('\n  een take bijstellen vanuit de wizard');
+
+  const bijwerken = await page.evaluate(() => {
+    wizReset(true);
+    switchMainTab('generator');
+    wizState.busy = false;
+    window.__WG_TEAMSERVER = true;
+    wizState.data.concepts.list = [{ headline_nl: 'A', visual_nl: 'x' }];
+    wizState.data.concepts.selected = 0;
+    state.lastGenerated = { variations: [{ headline_nl: 'A' }], metadata: { placement: 'feed11' } };
+    var takes = wizTakeIndexen();
+    var vlak = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
+    state.generatedImages = {};
+    takes.forEach(function (i) {
+      state.generatedImages[i] = { versions: [{ b64: vlak, mime: 'image/png', model: 'gpt-image-1',
+                                                size: '1024x1024', quality: 'high' }], currentIndex: 0 };
+    });
+    wizState.current = 'generate';
+    wizRender();
+
+    var echt = window.fetchJsonWithRetry;
+    var geroepen = 0;
+    window.fetchJsonWithRetry = function () {
+      geroepen++;
+      return Promise.resolve({ data: [{ b64_json: vlak }] });
+    };
+    var fouten = [];
+    var opgevangen = function (e) { fouten.push(String((e.reason && e.reason.message) || e.message || e)); };
+    window.addEventListener('unhandledrejection', opgevangen);
+    window.addEventListener('error', opgevangen);
+
+    var sel = wizHuidigeTake();
+    wizOpenTweak('headline');
+    document.getElementById('wiz-tweak-in').value = 'Maak hem korter';
+    /* De toestand waarin het misging: het beeld staat in de state, maar de kaart
+       eromheen staat niet in het scherm -- en dus ook niet de knop waar de
+       bewerkfunctie zonder omhaal op schreef. Dat gebeurt zodra er hertekend is
+       voordat de beelden er weer in stonden.
+
+       Dit moet ná wizOpenTweak: die hertekent, en dan zet de wizard de bewaarde
+       beelden netjes terug. Ervoor leegmaken bewijst dus niets -- daar liep mijn
+       eerste poging op stuk. */
+    var vak = document.getElementById('gen-image-' + sel);
+    if (vak) vak.innerHTML = '';
+    wizTweak();
+
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.fetchJsonWithRetry = echt;
+        window.removeEventListener('unhandledrejection', opgevangen);
+        window.removeEventListener('error', opgevangen);
+        var st = state.generatedImages[sel] || {};
+        klaar({ fouten: fouten, geroepen: geroepen,
+                versies: (st.versions || []).length,
+                staatOpNieuwste: st.currentIndex === (st.versions || []).length - 1 });
+      }, 300);
+    });
+  });
+  check('bijstellen valt niet om zonder kaart in beeld', bijwerken.fouten, []);
+  check('de bewerking gaat echt de deur uit', bijwerken.geroepen, 1);
+  check('en levert een tweede versie op', bijwerken.versies, 2);
+  check('waarbij je naar de nieuwste kijkt', bijwerken.staatOpNieuwste, true);
+
   /* Elke hertekening bouwt de beeldvakken leeg opnieuw op. Zet de wizard de
      bewaarde beelden er dan niet goed in terug, dan verdwijnen bij het kiezen
      van een andere take alle drie de beelden -- en dan valt er niets meer te
