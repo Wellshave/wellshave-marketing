@@ -59,10 +59,9 @@
 /* Is er geen ruimte voor negen namen, dan blijven de nummers staan en houdt
    alleen de stap waar je nu bent zijn naam. Negen bolletjes waarvan één
    uitgeschreven is nog steeds een balk die zegt waar je bent; drie namen en
-   zes stappen buiten beeld is dat niet. */
-@media (max-width: 1560px) {
-  .wiz-step:not(.on) .wiz-step-label { display: none; }
-}
+   zes stappen buiten beeld is dat niet. wizPasProgressAan() meet of het past
+   en zet deze klasse. */
+.wiz-progress.compact .wiz-step:not(.on) .wiz-step-label { display: none; }
 .wiz-step {
   /* Krap genoeg dat alle negen stappen náást elkaar passen: een stap die je
      alleen ziet door te scrollen vertelt je niet wat er nog komt. */

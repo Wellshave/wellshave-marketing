@@ -509,21 +509,32 @@ function wizTweak() {
   wizRender();
 }
 
-/* Overdracht naar het bestaande resultatenscherm, met het volledige
-   bewerkpaneel, de versiegeschiedenis en de bibliotheek eromheen. */
+/* Einde van de negen stappen: de ad gaat naar de bibliotheek, waar bewaarde
+   ads horen, en je gaat mee zodat je ziet dat hij er staat.
+
+   Dit ging eerst naar het oude resultatenscherm in de rechterkolom. Dat scherm
+   hoort bij het klassieke formulier en is in Statics weg; de bibliotheek heeft
+   hetzelfde bewerkpaneel en de versiegeschiedenis eromheen. */
 function wizHandOff() {
-  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Nothing to hand over yet', true); return; }
+  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Nothing to save yet', true); return; }
+  var sel = wizState.data.concepts.selected;
+  if (sel == null) { if (typeof toast === 'function') toast('Pick a concept first', true); return; }
   wizState.done.generate = true;
   wizSave();
-  /* Eerst de wizard-kaarten uit de DOM halen: die dragen dezelfde
-     gen-image-ids als de kaarten die renderResults zo aanmaakt. */
-  var body = document.getElementById('wiz-body');
-  if (body) body.innerHTML = '';
-  wizClose();
-  if (typeof renderResults === 'function') {
-    renderResults(state.lastGenerated.variations, state.lastGenerated.metadata);
+  var klaar = function () {
+    if (typeof switchMainTab === 'function') switchMainTab('library');
+    if (typeof toast === 'function') toast('Saved to the library, your wizard decisions are kept');
+  };
+  if (typeof saveToLibraryFromCard === 'function') {
+    var r = saveToLibraryFromCard(sel);
+    /* saveToLibraryFromCard is async en comprimeert het beeld; pas daarna staat
+       het er echt, dus pas daarna wisselen we van scherm. De belofte gaat terug
+       naar de aanroeper zodat een test op het einde kan wachten in plaats van
+       op een timer te gokken. */
+    if (r && typeof r.then === 'function') return r.then(klaar, klaar);
   }
-  if (typeof toast === 'function') toast('Opened in the editor, your wizard decisions are kept');
+  klaar();
+  return Promise.resolve();
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;

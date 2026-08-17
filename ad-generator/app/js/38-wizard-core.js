@@ -249,25 +249,13 @@ function wizOpen() {
   wizRender();
 }
 
+/* Exit verlaat Statics. Er is niets meer om naar terug te vallen: het
+   klassieke formulier hoort bij Kopieer ad en Itereren, niet hier. Je werk
+   blijft staan -- wizSave heeft het al -- dus je pakt het later op waar je
+   was. */
 function wizClose() {
-  wizState.open = false;
-  /* Exit is een keuze voor dit bezoek: je wilt het klassieke scherm zien. Loop
-     je later opnieuw Statics binnen, dan sta je weer in de wizard. De vlag gaat
-     bewust niet mee in wizSave -- anders zou één keer Exit de wizard voorgoed
-     uitzetten. */
-  wizState.afgesloten = true;
-  wizToonInline();
   wizSave();
-}
-
-/* Statics IS de wizard: je komt binnen op stap 1, niet op een startkaart met
-   een scherm vol kolommen eromheen. */
-function wizMisschienOpenen() {
-  if (wizState.open || wizState.afgesloten) return;
-  if (state.generatorMode && state.generatorMode !== 'scratch') return;
-  var tab = document.getElementById('main-tab-generator');
-  if (!tab || tab.style.display === 'none') return;
-  wizOpen();
+  if (typeof switchMainTab === 'function') switchMainTab('dashboard');
 }
 
 /* Wat er zichtbaar is in de generatorkolom hangt af van twee dingen: draait de
@@ -275,13 +263,14 @@ function wizMisschienOpenen() {
    scherm en hebben het oude formulier nodig. */
 function wizToonInline() {
   var paneel = document.getElementById('wiz-inline');
-  var ingang = document.getElementById('wiz-launch');
-  var schakel = document.getElementById('classic-toggle');
   var scratch = (!state.generatorMode || state.generatorMode === 'scratch');
-  var aan = wizState.open && scratch;
+  /* In Statics is de wizard het scherm, punt. Er valt niets te openen of te
+     sluiten: een nieuwe static maak je via de negen stappen. Kopieer ad en
+     Itereren delen dit tabblad en draaien op het klassieke formulier, dus daar
+     blijft de wizard weg. */
+  var aan = scratch;
+  wizState.open = aan;
   if (paneel) paneel.style.display = aan ? '' : 'none';
-  if (ingang) ingang.style.display = (scratch && !wizState.open) ? '' : 'none';
-  if (schakel) schakel.style.display = (scratch && !wizState.open) ? '' : 'none';
   /* Draait de wizard, dan is hij het scherm. Configuratie links en Resultaat
      rechts horen bij het klassieke formulier; naast een stap-voor-stap-vraag
      zijn het twee kolommen die om aandacht vragen die je nu niet hebt. */
@@ -372,7 +361,25 @@ function wizRenderProgress() {
       (oud ? '<span class="wiz-step-flag" title="Based on an earlier choice that changed">!</span>' : '') +
       '</button>';
   }).join('');
+  wizPasProgressAan();
 }
+
+/* Passen alle negen namen niet, dan houden de nummers hun plek en houdt alleen
+   de stap waar je staat zijn naam. Dat is een meting en geen breekpunt in de
+   css: hoeveel er past hangt af van de breedte van het paneel, niet van die
+   van het venster, en een geraden breekpunt verbergt de namen ook wanneer er
+   ruimte voor is -- of kapt de negende af wanneer er net geen ruimte is. */
+function wizPasProgressAan() {
+  var el = document.getElementById('wiz-progress');
+  if (!el) return;
+  /* Staat het paneel niet in beeld, dan valt er niets te meten en zou elke
+     uitkomst toeval zijn. */
+  if (!el.clientWidth) return;
+  el.classList.remove('compact');
+  if (el.scrollWidth > el.clientWidth + 1) el.classList.add('compact');
+}
+
+window.addEventListener('resize', function () { wizPasProgressAan(); });
 
 /* De adviesregel onder de stappenbalk: één zin over wat Rory op deze stap doet
    of gedaan heeft. In het ontwerp is dit de enige plek waar hij het woord
@@ -617,22 +624,21 @@ function wizBoot() {
     var omhulsel = function () {
       var r = origineel.apply(this, arguments);
       wizToonInline();
-      wizMisschienOpenen();
+      wizRender();
       return r;
     };
     omhulsel.__wizWrapped = true;
     window.setMode = omhulsel;
   }
 
-  /* Hetzelfde voor het tabblad: Statics binnenlopen is de wizard binnenlopen.
-     Wie eerder Exit koos krijgt bij terugkomst weer stap 1 -- die keuze gold
-     voor dat bezoek aan het scherm, niet voor altijd. */
+  /* Hetzelfde voor het tabblad: Statics binnenlopen is de wizard binnenlopen,
+     dus na de wissel moet hij getekend staan. */
   if (typeof window.switchMainTab === 'function' && !window.switchMainTab.__wizWrapped) {
     var origTab = window.switchMainTab;
     var omhulselTab = function (tab) {
       var r = origTab.apply(this, arguments);
-      if (tab === 'generator') { wizState.afgesloten = false; wizMisschienOpenen(); }
       wizToonInline();
+      if (tab === 'generator') wizRender();
       return r;
     };
     omhulselTab.__wizWrapped = true;

@@ -90,8 +90,12 @@ function meetInPagina() {
              eerste: k.firstElementChild === l };
   });
 
-  /* ── zwevende stapkoppen ── */
-  const stappen = [...document.querySelectorAll('.ws8-step')].filter(zichtbaar).map(s => {
+  /* ── stapkop van de wizard ──
+     Dit waren de "Stap 2"/"Stap 3"-koppen boven de format- en invalshoeksectie.
+     Die route is de wizard geworden en die draagt zijn eigen kop. De regel is
+     dezelfde: een kop hoort dichter bij wat hij benoemt dan bij wat erboven
+     staat. */
+  const stappen = [...document.querySelectorAll('#wiz-head')].filter(zichtbaar).map(s => {
     const zussen = [...s.parentNode.children].filter(zichtbaar);
     const i = zussen.indexOf(s);
     return { tekst: s.textContent.trim().slice(0, 22),
@@ -115,18 +119,17 @@ function meetInPagina() {
   await page.waitForTimeout(2500);
   await page.click('#main-tab-btn-generator');
   await page.waitForTimeout(900);
-  /* Statics opent in de wizard en die neemt het hele scherm; de drie kolommen
-     die deze lus meet zitten erachter. Dus eerst Exit, dan meten. Het contract
-     geldt onverminderd voor dat scherm -- het is waar Kopieer ad en Itereren
-     ook op draaien. */
-  await page.evaluate(() => wizClose());
-  /* De stapkoppen van het klassieke formulier staan sinds de wizard achter de
-     uitklap "gebruik het klassieke formulier". Ze gelden nog steeds: een kop
-     hoort bij wat eronder staat, ook als je hem zelf openklapt. Dus klappen we
-     hem open, anders meet regel 6c.3 hier nul koppen en bewijst hij niets. */
-  await page.evaluate(() => { if (!wizClassicOpen) toggleClassicForm(); });
-  await page.waitForTimeout(400);
+  /* Het scherm met de drie kolommen is dat van Kopieer ad en Itereren; in
+     Statics is de wizard het scherm. We meten de kolommen dus waar ze staan,
+     en de stapkop in Statics. Meten waar iets niet staat levert nul op en
+     bewijst niets. */
+  await page.evaluate(() => setMode('copy'));
+  await page.waitForTimeout(500);
   const m = await page.evaluate(meetInPagina);
+  await page.evaluate(() => setMode('scratch'));
+  await page.waitForTimeout(500);
+  const mWizard = await page.evaluate(meetInPagina);
+  m.stappen = mWizard.stappen;
 
   const max = a => a.length ? Math.max(...a) : null;
   const min = a => a.length ? Math.min(...a) : null;

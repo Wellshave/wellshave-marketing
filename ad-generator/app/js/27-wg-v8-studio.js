@@ -42,15 +42,13 @@
   kids.forEach(function (node) {
     if (node.classList && (node.classList.contains('field') || node.id === 'bundle-field')) accBasis.body.appendChild(node);
   });
-  /* Bovenaan het werkblad staat de weg die je moet nemen: de moduskeuze en dan
-     de wizard. De oude route -- brain dump, interview en de losse
-     formulier-secties -- gaat het klassieke formulier in. Die stond hier eerst
-     bovenaan en de wizard viel door naar de onderkant, twee schermen lager;
-     dan is "vanaf nul" in de praktijk nog steeds de oude weg. En wat het
-     klassieke formulier in gaat wordt door het inklappen ook echt verborgen --
-     dat werkte niet zolang deze secties er hier uit gehesen werden. */
+  /* Alles wat bij het klassieke formulier hoort -- brain dump, interview en de
+     losse formulier-secties -- gaat in #classic-form. Dat is het scherm van
+     Kopieer ad en Itereren; in Statics komt het niet in beeld, want daar is de
+     wizard het scherm. Deze secties werden hier eerst uit #classic-form
+     gehesen, en dan verbergt Statics ze niet. */
   var klassiek = document.getElementById('classic-form') || center;
-  var order = ['.mode-switcher', '#wiz-launch', '#source-ad-section'];
+  var order = ['.mode-switcher', '#source-ad-section'];
   order.forEach(function (sel) { var n = gen.querySelector(sel); if (n) center.appendChild(n); });
   ['#brain-dump-card', '.iw-launch'].forEach(function (sel) {
     var n = gen.querySelector(sel); if (n) klassiek.appendChild(n);
@@ -60,8 +58,11 @@
     if (accDoel.body.contains(sec) || klassiek.contains(sec) || center.contains(sec)) return;
     var t = sectionTitle(sec);
     if (/doelgroep/i.test(t)) { accDoel.body.appendChild(sec); return; }
-    if (/format/i.test(t)) klassiek.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 2</b><span>Kies het format</span><small>de creatieve opzet, 42 mogelijkheden</small>'));
-    if (/invalshoek/i.test(t)) klassiek.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 3</b><span>Scherp de invalshoek aan</span><small>archetype en concept-richting, of laat Rory het invullen</small>'));
+    /* Hier stonden "Stap 2" en "Stap 3" als koppen boven de format- en
+       invalshoeksectie. Die hoorden bij de oude weg vanaf nul, en die weg is
+       de wizard geworden -- met zijn eigen stapkop en stappenbalk. In Kopieer
+       ad en Itereren klopten de nummers al niet, want daar loopt een andere
+       route door hetzelfde formulier. */
     klassiek.appendChild(sec);
   });
   /* Restanten in .form-grid (copy-opties, iterate-blokken) in bronvolgorde mee */

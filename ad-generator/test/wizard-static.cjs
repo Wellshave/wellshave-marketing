@@ -278,18 +278,24 @@ const VULLEN = `
   await page.evaluate(vullen => { wizReset(true); eval(vullen); wizState.current = 'format'; wizSave(); }, VULLEN);
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(1200);
-  const naHerlaad = await page.evaluate(() => ({
-    hoek: wizState.data.strategy.marketingAngle,
-    stap: wizState.current,
-    bron: wizSourceOf('format', 'formatId'),
-    open: (document.getElementById('wiz-inline') || {}).style.display,
-    ingangZichtbaar: (document.getElementById('wiz-launch') || {}).style.display
-  }));
+  const naHerlaad = await page.evaluate(() => {
+    var uit = {
+      hoek: wizState.data.strategy.marketingAngle,
+      stap: wizState.current,
+      bron: wizSourceOf('format', 'formatId')
+    };
+    /* En je pakt hem op waar je was: Statics is de wizard, dus na een refresh
+       sta je weer op stap 4 en niet aan het begin. */
+    switchMainTab('generator');
+    uit.zichtbaar = !!(document.getElementById('wiz-inline') || {}).offsetParent;
+    uit.kop = (document.querySelector('#wiz-head .wiz-title') || {}).textContent;
+    return uit;
+  });
   check('de hoek staat er na een refresh nog', naHerlaad.hoek, 'Scheren hoeft niet te schuren.');
   check('en de stap waar je was', naHerlaad.stap, 'format');
   check('inclusief wie welk veld zette', naHerlaad.bron, 'user');
-  check('maar hij springt niet vanzelf open', naHerlaad.open, 'none');
-  check('en de ingang staat er dan gewoon', naHerlaad.ingangZichtbaar, '');
+  check('Statics staat er weer', naHerlaad.zichtbaar, true);
+  check('en op de stap waar je was', naHerlaad.kop, '4. Format');
 
   /* ── Rory leidt ───────────────────────────────────────────────────────────
    *
@@ -644,12 +650,8 @@ const VULLEN = `
      compleet zijn, anders sloopt deze wizard Kopieer ad en Itereren. */
   const oud = await page.evaluate(() => {
     var uit = {};
-    /* Begintoestand vastleggen: een eerder blok kan de wizard hebben
-       opengelaten, en dan meet dit blok iets anders dan het denkt. */
-    wizClose();
     setMode('scratch');
     uit.scratchIngeklapt = document.getElementById('classic-form').classList.contains('collapsed');
-    uit.launchZichtbaar = !!document.getElementById('wiz-launch');
     setMode('copy');
     uit.copyOpen = !document.getElementById('classic-form').classList.contains('collapsed');
     uit.copyKnop = !!document.getElementById('generate-btn');
@@ -659,32 +661,19 @@ const VULLEN = `
     uit.iterateVelden = !!document.getElementById('iterate-fields');
     setMode('scratch');
     uit.terugIngeklapt = document.getElementById('classic-form').classList.contains('collapsed');
-    var dicht = function () { return document.getElementById('classic-form').classList.contains('collapsed'); };
-    /* Zelf openklappen kan gewoon. */
+    /* In Statics is het formulier niet meer te bereiken -- ook niet met de
+       hand. Twee keer dezelfde beslissingen op één scherm lopen gegarandeerd
+       uit elkaar, en de negen stappen zijn nu de weg. */
     toggleClassicForm();
-    uit.handmatigOpen = !dicht();
-    /* Maar draait de wizard, dan gaat het weg -- dezelfde beslissingen twee
-       keer op één scherm lopen gegarandeerd uit elkaar. */
-    wizOpen();
-    uit.blijftWegTijdensWizard = dicht();
-    /* En het komt terug zoals je het had staan zodra je de wizard sluit. */
-    wizClose();
-    uit.komtTerugNaSluiten = !dicht();
+    uit.blijftDichtInStatics = document.getElementById('classic-form').classList.contains('collapsed');
     return uit;
   });
-  /* Dat #wiz-launch bestáát zei niets: hij stond twee schermen onder de brain
-     dump, dus wie Exit koos kreeg alsnog de oude werkwijze te zien. Wat telt
-     is wat je als eerste tegenkomt, niet wat er ergens in de DOM staat. */
+  /* Het werkblad van Statics bestond uit vier blokken oude route met de wizard
+     eronder. Wat telt is wat je tegenkomt, niet wat er ergens in de DOM staat:
+     in Statics is er niets anders dan de wizard. */
   const eersteIndruk = await page.evaluate(() => {
     switchMainTab('generator');
     setMode('scratch');
-    /* Dit blok gaat over het scherm achter Exit; Statics zelf opent in de
-       wizard en dat wordt hieronder apart gecontroleerd. */
-    wizClose();
-    /* Een eerder blok klapt het klassieke formulier met de hand open en laat
-       het zo staan. Wij meten wat een verse bezoeker ziet, dus zetten we het
-       terug op de begintoestand. */
-    wizClassicOpen = false; wizSyncClassic();
     var naam = function (e) { return e.id || e.className.split(' ')[0]; };
     /* Het werkblad is de middenkolom: de studio-opbouw leegt .form-grid en
        verdeelt alles over drie kolommen. Meten in .form-grid zou nul opleveren
@@ -696,11 +685,10 @@ const VULLEN = `
       /* de kolomkop "Werkblad" is een opschrift, geen blok waar je iets doet */
       .filter(function (n) { return n !== 'ws8-zone-lbl'; });
   });
-  /* Het hele werkblad, niet alleen het eerste blok: de oude route was vier
-     blokken lang en duwde de wizard eronder. Wie hier iets aan toevoegt moet
-     dat bewust doen. */
-  check('in vanaf nul is het werkblad de wizard, meer niet',
-        eersteIndruk, ['wiz-launch', 'classic-toggle', 'generate-row']);
+  /* Het hele werkblad, niet alleen het eerste blok. Wie hier iets aan toevoegt
+     moet dat bewust doen. */
+  check('in Statics is het werkblad de wizard, meer niet',
+        eersteIndruk, ['wiz-inline']);
 
   /* Statics IS de wizard. Je komt binnen op stap 1 en het scherm is van hem:
      Configuratie links en Resultaat rechts tonen dezelfde beslissingen nog
@@ -716,14 +704,14 @@ const VULLEN = `
     var meet = function () {
       return { wizard: zicht('#wiz-inline'), configuratie: zicht('.ws8-left'),
                resultaat: zicht('.ws8-right'), balk: zicht('.ws8-header'),
-               ingang: zicht('#wiz-launch'), stap: wizState.current };
+               formulier: zicht('#brain-dump-card'), stap: wizState.current };
     };
     var binnen = meet();
+    /* Exit verlaat Statics; er is niets meer om naar terug te vallen. */
     wizClose();
-    var naExit = meet();
-    /* Weglopen en terugkomen brengt je terug in de wizard: Exit gold voor dat
-       bezoek aan het scherm, niet voor altijd. */
-    switchMainTab('library');
+    var naExit = { generatorOpen: zicht('#wiz-inline'),
+                   tab: document.getElementById('main-tab-dashboard')
+                        ? document.getElementById('main-tab-dashboard').style.display : '(ontbreekt)' };
     switchMainTab('generator');
     var terug = meet();
     return { binnen: binnen, naExit: naExit, terug: terug };
@@ -733,9 +721,10 @@ const VULLEN = `
   check('de configuratiekolom is weg', volScherm.binnen.configuratie, false);
   check('de resultaatkolom ook', volScherm.binnen.resultaat, false);
   check('en de chipbalk erboven', volScherm.binnen.balk, false);
-  check('Exit brengt het oude scherm terug', volScherm.naExit.configuratie, true);
-  check('met de wizard-ingang erin', volScherm.naExit.ingang, true);
-  check('en terugkomen op Statics zet je weer in de wizard', volScherm.terug.wizard, true);
+  check('en het klassieke formulier komt er niet in voor', volScherm.binnen.formulier, false);
+  check('Exit verlaat Statics', volScherm.naExit.generatorOpen, false);
+  check('en zet je op het dashboard', volScherm.naExit.tab, 'block');
+  check('terugkomen op Statics zet je weer in de wizard', volScherm.terug.wizard, true);
 
   /* De stappenbalk is de enige plek die zegt waar je bent en wat er nog komt.
      Een stap die buiten beeld valt doet dat niet: op één regel met de naam
@@ -753,17 +742,64 @@ const VULLEN = `
   check('alle negen stappen staan in beeld', balk.binnenBeeld, balk.totaal);
   check('en dat zijn er ook echt negen', balk.totaal, 9);
 
-  check('vanaf nul staat het oude formulier ingeklapt', oud.scratchIngeklapt, true);
-  check('en staat de wizard-ingang er', oud.launchZichtbaar, true);
+  /* Of de namen erbij passen is een meting, geen breekpunt: op een breed scherm
+     horen ze er te staan, op een smal scherm horen de nummers te blijven in
+     plaats van dat er stappen wegscrollen. */
+  const meetBalk = async () => page.evaluate(() => {
+    wizOpen();
+    var el = document.getElementById('wiz-progress');
+    var vak = el.getBoundingClientRect();
+    var pillen = [].slice.call(document.querySelectorAll('.wiz-step'));
+    var naam = document.querySelector('.wiz-step:not(.on) .wiz-step-label');
+    return { inBeeld: pillen.filter(function (b) {
+               return b.getBoundingClientRect().right <= vak.right + 1;
+             }).length,
+             namen: naam ? getComputedStyle(naam).display !== 'none' : null };
+  });
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.waitForTimeout(300);
+  const breed = await meetBalk();
+  await page.setViewportSize({ width: 1150, height: 1000 });
+  await page.waitForTimeout(300);
+  const smal = await meetBalk();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  check('op een breed scherm staan de negen namen erbij', breed.namen, true);
+  check('en alle negen in beeld', breed.inBeeld, 9);
+  check('op een smal scherm vervallen de namen', smal.namen, false);
+  check('maar de negen stappen blijven in beeld', smal.inBeeld, 9);
+
+  /* Het einde van de negen stappen. Dit ging naar het oude resultatenscherm in
+     de rechterkolom; die kolom is er niet meer, dus de ad hoort naar de
+     bibliotheek te gaan en jij hoort mee te gaan om te zien dat hij er staat. */
+  const overdracht = await page.evaluate(async () => {
+    wizReset(true);
+    switchMainTab('generator');
+    wizState.data.concepts.list = [{ headline_nl: 'Glad zonder gedoe', visual_nl: 'x' }];
+    wizState.data.concepts.selected = 0;
+    state.lastGenerated = { variations: [{ headline_nl: 'Glad zonder gedoe' }],
+                            metadata: { product: 'Groom Guard' } };
+    /* Met een beeld erbij, anders vraagt het opslaan om bevestiging en dat
+       venster beantwoordt niemand in een test. */
+    state.generatedImages = { 0: { versions: [{ b64: '', mime: 'image/png' }], currentIndex: 0 } };
+    var voor = (state.library || []).length;
+    await wizHandOff();
+    var lib = document.getElementById('main-tab-library');
+    return { erbij: (state.library || []).length - voor,
+             naarBibliotheek: !!lib && lib.style.display !== 'none',
+             stapAf: !!wizState.done.generate };
+  });
+  check('opslaan zet de ad in de bibliotheek', overdracht.erbij, 1);
+  check('en brengt je erheen', overdracht.naarBibliotheek, true);
+  check('en zet stap 9 op af', overdracht.stapAf, true);
+
+  check('in Statics staat het oude formulier ingeklapt', oud.scratchIngeklapt, true);
   check('in Kopieer ad staat het oude formulier open', oud.copyOpen, true);
   check('met de genereer-knop erin', oud.copyKnop, true);
   check('en de bron-ad dropzone', oud.copyBron, true);
   check('in Itereren staat het ook open', oud.iterateOpen, true);
   check('met de iteratie-velden', oud.iterateVelden, true);
-  check('terug naar vanaf nul klapt het weer in', oud.terugIngeklapt, true);
-  check('en je kunt het zelf openklappen', oud.handmatigOpen, true);
-  check('zolang de wizard draait blijft het oude formulier weg', oud.blijftWegTijdensWizard, true);
-  check('en het komt terug zoals je het had staan', oud.komtTerugNaSluiten, true);
+  check('terug naar Statics klapt het weer in', oud.terugIngeklapt, true);
+  check('en in Statics is het niet te openen, ook niet met de hand', oud.blijftDichtInStatics, true);
 
   /* De Ad Transformer is een eigen tab en mag niet geraakt zijn. */
   const transformer = await page.evaluate(() => {
