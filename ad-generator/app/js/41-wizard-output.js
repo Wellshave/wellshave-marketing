@@ -387,7 +387,63 @@ function wizPreviewAll() {
   for (var i = 0; i < n; i++) if (!beelden[i]) wizPreview(i);
 }
 
-/* ── Stap 9: De uiteindelijke static ────────────────────────────────────── */
+/* ── Stap 9: De uiteindelijke static ──────────────────────────────────────
+ *
+ * Drie takes van hetzelfde concept, niet één. Eén beeld is geen keuze: het
+ * beeldmodel levert bij dezelfde briefing elke keer een andere uitvoering, en
+ * juist die spreiding is wat je wilt kunnen vergelijken voordat een ad de deur
+ * uit gaat. Met één beeld beslist het toeval welke uitvoering je krijgt. */
+var WIZ_TAKE_COUNT = 3;
+
+/* De beeldpijplijn werkt per variatie-index in state.lastGenerated. Drie takes
+   van één concept maken we daarom door drie kopieën van dat concept achter de
+   conceptenlijst te hangen. Daarmee werken generateImage, het bewerkpaneel, de
+   versiegeschiedenis en het opslaan in de bibliotheek ongewijzigd door -- geen
+   tweede pijplijn ernaast die daarna uit elkaar gaat lopen. */
+function wizTakeIndexen() {
+  var sel = wizState.data.concepts.selected;
+  if (sel == null || !state.lastGenerated || !state.lastGenerated.variations) return [];
+  var bewaard = wizState.data.generate.takes;
+  /* Nieuwe concepten betekenen een nieuwe lijst; oude indexen wijzen dan naar
+     niets meer en moeten opnieuw gemaakt worden. */
+  if (bewaard && bewaard.length === WIZ_TAKE_COUNT &&
+      bewaard.every(function (i) { return !!state.lastGenerated.variations[i]; })) return bewaard;
+
+  var concept = state.lastGenerated.variations[sel];
+  if (!concept) return [];
+  var idx = [];
+  for (var n = 0; n < WIZ_TAKE_COUNT; n++) {
+    idx.push(state.lastGenerated.variations.length);
+    state.lastGenerated.variations.push(JSON.parse(JSON.stringify(concept)));
+  }
+  wizState.data.generate.takes = idx;
+  wizState.data.generate.selectedTake = idx[0];
+  wizSave();
+  return idx;
+}
+
+function wizHuidigeTake() {
+  var idx = wizState.data.generate.takes || [];
+  var t = wizState.data.generate.selectedTake;
+  if (t != null && idx.indexOf(t) > -1) return t;
+  return idx.length ? idx[0] : null;
+}
+
+function wizPickTake(i) {
+  wizState.data.generate.selectedTake = i;
+  wizSave();
+  wizRender();
+}
+
+function wizGenerateTakes() {
+  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
+  var idx = wizTakeIndexen();
+  if (!idx.length) return;
+  /* Eerst tekenen, dan genereren: generateImage schrijft in #gen-image-<i> en
+     die vakken moeten er dus al staan. */
+  wizRender();
+  idx.forEach(function (i) { wizPreview(i); });
+}
 
 /* De gerichte acties na generatie. Elke actie verandert één element en laat de
    rest staan; ze gaan naar het bestaande bewerkpaneel in plaats van de hele
@@ -421,37 +477,63 @@ function wizRender_generate() {
       '<button type="button" class="wiz-linkbtn" onclick="wizGo(\'concepts\')">Back to the concepts</button></div>';
   }
   var c = (wizState.data.concepts.list || [])[sel] || {};
-  var heeftBeeld = !!((state && state.generatedImages) || {})[sel];
+  var beelden = (state && state.generatedImages) || {};
+  var takes = wizState.data.generate.takes || [];
+  var gekozen = wizHuidigeTake();
+  var heeftBeeld = takes.some(function (i) { return !!beelden[i]; });
 
-  /* Links het beeld zelf, zo groot als het paneel toelaat. Rechts de gerichte
-     acties, onder elkaar zoals in het ontwerp -- ze veranderen elk één ding en
-     laten de rest staan. */
+  /* Links de drie takes naast elkaar, zodat je ze vergelijkt in plaats van
+     achter elkaar te bekijken. Rechts de gerichte acties, onder elkaar zoals
+     in het ontwerp -- ze veranderen elk één ding en laten de rest staan, en ze
+     werken op de take die je gekozen hebt. */
   var links = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
-    (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>' +
-    '<div class="wiz-final-preview" id="gen-image-' + sel + '">' +
-    (heeftBeeld ? '' :
-      '<button type="button" class="wiz-btn primary" onclick="wizPreview(' + sel + ')">Generate the final static</button>') +
-    '</div>';
+    (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>';
 
-  var rechts;
+  if (!takes.length) {
+    links += '<div class="wiz-final-preview">' +
+      '<button type="button" class="wiz-btn primary" onclick="wizGenerateTakes()">' +
+      'Generate ' + WIZ_TAKE_COUNT + ' takes of this concept</button>' +
+      '<div class="wiz-take-uitleg">Same strategy and the same headline, three executions. ' +
+      'You pick the one that runs.</div></div>';
+  } else {
+    links += '<div class="wiz-takes">' + takes.map(function (i, n) {
+      var aan = (i === gekozen);
+      return '<div class="wiz-take' + (aan ? ' on' : '') + '">' +
+        '<div class="wiz-take-kop">Take ' + (n + 1) + '</div>' +
+        '<div class="wiz-final-preview" id="gen-image-' + i + '"></div>' +
+        '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
+        'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
+        '</div>';
+    }).join('') + '</div>' +
+    '<div class="wiz-take-opnieuw">' +
+    '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()">Generate three new takes</button>' +
+    '</div>';
+  }
+
+  var onder;
   if (!heeftBeeld) {
-    rechts = '<div class="wiz-leegzij">Generate the static first. The refine actions appear once there is an image to change.</div>';
+    onder = '<div class="wiz-leegzij">Generate the takes first. The refine actions appear once there is an image to change.</div>';
   } else {
     var groepen = [];
     WIZ_TWEAKS.forEach(function (t) { if (groepen.indexOf(t.groep) === -1) groepen.push(t.groep); });
-    rechts = wizPaneel('Refine this ad',
-      groepen.map(function (g) {
+    onder = wizPaneel('Refine the chosen take',
+      '<div class="wiz-refine-rij">' + groepen.map(function (g) {
         return '<div class="wiz-tweakgroep"><span class="wiz-tweakgroep-t">' + wizEsc(g) + '</span>' +
           '<div class="wiz-tweaklijst">' + WIZ_TWEAKS.filter(function (t) { return t.groep === g; }).map(function (t) {
             var aan = (wizState.tweakOpen === t.key);
             return '<button type="button" class="wiz-tweakknop' + (aan ? ' on' : '') + '" ' +
               'onclick="wizOpenTweak(\'' + t.key + '\')">' + wizEsc(t.label) + '</button>';
           }).join('') + '</div></div>';
-      }).join('') +
+      }).join('') + '</div>' +
       wizTweakPaneel() +
-      '<div class="wiz-tweak-note">Each action changes that one element and leaves the rest of the ad alone.</div>');
+      '<div class="wiz-tweak-note">Each action changes that one element of the chosen take and leaves the rest of the ad alone.</div>');
   }
-  return { links: links, rechts: rechts };
+
+  /* Eén kolom op deze stap, geen twee. Naast Rory's kolom is het paneel te smal
+     voor drie takes én een actiekolom ernaast: dan worden de beelden zo klein
+     dat vergelijken -- het hele punt van drie takes -- niet meer gaat. Boven de
+     beelden, eronder wat je ermee doet. */
+  return links + '<div class="wiz-refine">' + onder + '</div>';
 }
 
 /* De hoofdknop op stap 8. Doorlopen naar het eindbeeld kan alleen met een
@@ -488,11 +570,13 @@ function wizOpenTweak(key) {
 }
 
 function wizTweak() {
-  var sel = wizState.data.concepts.selected;
+  /* Bewerken gaat over de take die je gekozen hebt, niet over het concept:
+     er staan er drie, en zonder die keuze zou de wizard er zelf een aanwijzen. */
+  var sel = wizHuidigeTake();
   var t = WIZ_TWEAKS.filter(function (x) { return x.key === wizState.tweakOpen; })[0];
   if (sel == null || !t) return;
   if (!state.generatedImages || !state.generatedImages[sel]) {
-    if (typeof toast === 'function') toast('Generate the static first, then adjust it', true);
+    if (typeof toast === 'function') toast('Generate the takes first, then adjust one', true);
     return;
   }
   var el = document.getElementById('wiz-tweak-in');
@@ -517,8 +601,10 @@ function wizTweak() {
    hetzelfde bewerkpaneel en de versiegeschiedenis eromheen. */
 function wizHandOff() {
   if (!state.lastGenerated) { if (typeof toast === 'function') toast('Nothing to save yet', true); return; }
-  var sel = wizState.data.concepts.selected;
-  if (sel == null) { if (typeof toast === 'function') toast('Pick a concept first', true); return; }
+  /* De gekozen take gaat de bibliotheek in, niet het concept: die drie zijn
+     verschillende ads en er kan er maar één lopen. */
+  var sel = wizHuidigeTake();
+  if (sel == null) { if (typeof toast === 'function') toast('Generate the takes first', true); return; }
   wizState.done.generate = true;
   wizSave();
   var klaar = function () {
@@ -551,3 +637,6 @@ window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;
 window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBriefGroep;
 window.wizToonBewaardeBeelden = wizToonBewaardeBeelden; window.WIZ_CONCEPT_COUNT = WIZ_CONCEPT_COUNT;
 window.wizNaarEindbeeld = wizNaarEindbeeld;
+window.wizGenerateTakes = wizGenerateTakes; window.wizPickTake = wizPickTake;
+window.wizHuidigeTake = wizHuidigeTake; window.wizTakeIndexen = wizTakeIndexen;
+window.WIZ_TAKE_COUNT = WIZ_TAKE_COUNT;

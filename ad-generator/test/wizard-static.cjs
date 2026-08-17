@@ -582,7 +582,12 @@ const VULLEN = `
     wizReset(true); eval(vullen);
     wizState.data.concepts.list = [{ headline_nl: 'A', visual_nl: 'x' }];
     wizState.data.concepts.selected = 0;
-    state.generatedImages = { 0: 'nepbeeld' };
+    /* Stap 9 werkt met drie takes van het gekozen concept. Die takes hangen
+       achter de conceptenlijst in state.lastGenerated, dus die moet er zijn
+       voordat er iets te tonen valt. */
+    state.lastGenerated = { variations: [{ headline_nl: 'A' }], metadata: {} };
+    var takes = wizTakeIndexen();
+    state.generatedImages = {}; takes.forEach(function (i) { state.generatedImages[i] = 'nepbeeld'; });
     var telPaneel = function () {
       var uit = wizRender_generate();
       var d = document.createElement('div');
@@ -590,8 +595,13 @@ const VULLEN = `
       return { paneel: d.querySelectorAll('#wiz-tweak-in').length,
                groepen: d.querySelectorAll('.wiz-tweakgroep').length,
                knoppen: d.querySelectorAll('.wiz-tweaklijst .wiz-tweakknop').length,
-               beeldlinks: (typeof uit === 'object') &&
-                 /gen-image-/.test(uit.links || '') };
+               /* De takes horen bóven de bewerkacties te staan: eerst kijken
+                  waar je uit kiest, dan wat je ermee doet. */
+               beeldEerst: (function () {
+                 var h = (typeof uit === 'string') ? uit : ((uit.links || '') + (uit.rechts || ''));
+                 var b = h.indexOf('gen-image-'), a = h.indexOf('wiz-tweaklijst');
+                 return b > -1 && a > -1 && b < a;
+               })() };
     };
     var dicht = telPaneel();
     wizOpenTweak('headline');
@@ -601,20 +611,38 @@ const VULLEN = `
        uitleg te staan in plaats van knoppen die niets doen. */
     state.generatedImages = {};
     var zonderBeeld = telPaneel();
-    state.generatedImages = { 0: 'nepbeeld' };
+    takes.forEach(function (i) { state.generatedImages[i] = 'nepbeeld'; });
+    /* Drie takes, en geen twee keer dezelfde plek in de beeldpijplijn -- dan
+       zouden ze elkaars beeld overschrijven. */
+    var uniek = takes.filter(function (v, n) { return takes.indexOf(v) === n; });
+    var d3 = document.createElement('div');
+    var uit3 = wizRender_generate();
+    d3.innerHTML = (typeof uit3 === 'string') ? uit3 : ((uit3.links || '') + (uit3.rechts || ''));
     return { dicht, open, zonderBeeld,
+             aantalTakes: takes.length, uniekeTakes: uniek.length,
+             vakken: d3.querySelectorAll('[id^="gen-image-"]').length,
+             kiesknoppen: d3.querySelectorAll('.wiz-take-kies').length,
+             gekozenIsTake: takes.indexOf(wizHuidigeTake()) > -1,
              prompt: String(window.wizTweak).indexOf('prompt(') > -1 };
   }, VULLEN);
+  check('stap 9 maakt drie takes van het gekozen concept', bijstellen.aantalTakes, 3);
+  check('elk met een eigen plek in de beeldpijplijn', bijstellen.uniekeTakes, 3);
+  check('en er staan drie beeldvakken op het scherm', bijstellen.vakken, 3);
+  check('met per take een knop om hem te kiezen', bijstellen.kiesknoppen, 3);
+  /* Er staat er altijd een gekozen: anders zou opslaan of bijstellen moeten
+     raden welke van de drie je bedoelt. */
+  check('er staat er altijd een gekozen', bijstellen.gekozenIsTake, true);
   check('de bewerkacties staan gegroepeerd', bijstellen.dicht.groepen, 4);
   check('met alle negen acties', bijstellen.dicht.knoppen, 9);
   check('dicht staat er geen invoerpaneel', bijstellen.dicht.paneel, 0);
   check('een actie kiezen opent het paneel in het scherm', bijstellen.open.paneel, 1);
   check('en er komt geen prompt-venster meer aan te pas', bijstellen.prompt, false);
   check('zonder gegenereerd beeld staan er geen bewerkacties', bijstellen.zonderBeeld.knoppen, 0);
-  /* Het beeld is waar je naar kijkt, de bewerkacties zijn wat je ermee doet.
-     In de mockup staat het beeld links en de acties rechts; omgedraaid kijk je
-     naar een knoppenlijst met de advertentie ernaast. */
-  check('het beeld staat links, de acties rechts', bijstellen.dicht.beeldlinks, true);
+  /* Stap 9 stond als twee kolommen: beeld links, acties rechts. Met drie takes
+     werkt dat niet meer -- naast Rory's kolom is het paneel dan te smal en
+     krijg je drie duimnagels, precies wat vergelijken onmogelijk maakt. Dus
+     één kolom: de takes boven, wat je ermee doet eronder. */
+  check('de takes staan boven de bewerkacties', bijstellen.dicht.beeldEerst, true);
 
   /* ── De opdracht: Engels, en de rest ongemoeid ────────────────────────── */
   console.log('\n  de randvoorwaarden uit de opdracht');
@@ -778,9 +806,14 @@ const VULLEN = `
     wizState.data.concepts.selected = 0;
     state.lastGenerated = { variations: [{ headline_nl: 'Glad zonder gedoe' }],
                             metadata: { product: 'Groom Guard' } };
+    /* De drie takes maken en de tweede kiezen: opslaan hoort de gekozen take te
+       bewaren, niet het concept en niet de eerste die er staat. */
+    var takes = wizTakeIndexen();
+    wizPickTake(takes[1]);
     /* Met een beeld erbij, anders vraagt het opslaan om bevestiging en dat
        venster beantwoordt niemand in een test. */
-    state.generatedImages = { 0: { versions: [{ b64: '', mime: 'image/png' }], currentIndex: 0 } };
+    state.generatedImages = {};
+    state.generatedImages[takes[1]] = { versions: [{ b64: '', mime: 'image/png' }], currentIndex: 0 };
     var voor = (state.library || []).length;
     await wizHandOff();
     var lib = document.getElementById('main-tab-library');

@@ -671,6 +671,36 @@
   background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hairline);
 }
 .wiz-final-preview img { max-width: 100%; border-radius: 10px; display: block; }
+
+/* Drie takes naast elkaar, want vergelijken is het hele punt. Onder elkaar
+   moet je scrollen om twee beelden tegen elkaar te houden, en dan kies je de
+   bovenste. */
+.wiz-takes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.wiz-take {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px; border-radius: 14px;
+  border: 1px solid var(--hairline); background: transparent;
+}
+.wiz-take.on { border-color: var(--gold-line-strong); background: var(--glass-2); }
+.wiz-take-kop { font-size: 12px; color: var(--text-faint); letter-spacing: .04em; }
+/* Groot genoeg om een static op te beoordelen. Drie duimnagels van een
+   centimeter zijn geen keuze, alleen de suggestie van een keuze. */
+.wiz-take .wiz-final-preview { min-height: 230px; padding: 8px; }
+.wiz-take-kies {
+  border: 1px solid var(--hairline); border-radius: 999px;
+  background: transparent; color: var(--text-soft);
+  font-size: 12px; font-family: inherit; padding: 6px 10px; cursor: pointer;
+}
+.wiz-take-kies.on { border-color: var(--gold-line-strong); color: var(--text); }
+.wiz-take-uitleg { font-size: 12.5px; color: var(--text-faint); margin-top: 10px; line-height: 1.5; }
+.wiz-take-opnieuw { margin-top: 10px; }
+.wiz-refine { margin-top: 18px; }
+/* De vier groepen naast elkaar in plaats van als een lange lijst: onder de
+   beelden is er breedte en geen hoogte. */
+.wiz-refine-rij { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1100px) {
+  .wiz-takes { grid-template-columns: 1fr; }
+}
 .wiz-tweaks { display: flex; flex-wrap: wrap; gap: 7px; }
 .wiz-tweak-note { margin-top: 10px; font-size: 12px; color: var(--text-faint); }
 

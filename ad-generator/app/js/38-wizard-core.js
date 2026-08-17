@@ -87,7 +87,7 @@ function wizBlankData() {
     copy:     { headline: '', supporting: '', body: '', proof: '', cta: '' },
     review:   { visualDescription: '' },
     concepts: { list: [], selected: null },
-    generate: { varIndex: null }
+    generate: { varIndex: null, takes: null, selectedTake: null }
   };
 }
 
