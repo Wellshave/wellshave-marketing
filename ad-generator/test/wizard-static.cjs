@@ -91,17 +91,28 @@ const VULLEN = `
   const romp = await page.evaluate(() => {
     wizReset(true);
     wizOpen();
+    var paneel = document.getElementById('wiz-inline');
     return {
       stappen: WIZ_STEPS.length,
       knoppen: document.querySelectorAll('#wiz-progress .wiz-step').length,
-      zichtbaar: document.getElementById('wiz-overlay').style.display,
+      zichtbaar: paneel ? paneel.style.display : '(ontbreekt)',
+      /* In de pagina, niet in een overlay: de zijbalk van de console hoort
+         zichtbaar te blijven zodat je in een scherm ván het systeem zit. */
+      inDeGeneratorkolom: !!(paneel && paneel.closest('#main-tab-generator')),
+      zijbalkErnaast: !!document.querySelector('.ws-sidebar'),
       eerste: wizState.current,
-      kop: (document.querySelector('#wiz-head .wiz-title') || {}).textContent
+      kop: (document.querySelector('#wiz-head .wiz-title') || {}).textContent,
+      adviesregel: !!document.getElementById('wiz-rorybalk'),
+      roryKolom: !!document.getElementById('wiz-rory')
     };
   });
   check('de wizard heeft negen stappen', romp.stappen, 9);
   check('en tekent er negen in de voortgangsbalk', romp.knoppen, 9);
-  check('hij opent zichtbaar', romp.zichtbaar, 'flex');
+  check('hij opent zichtbaar', romp.zichtbaar, '');
+  check('hij staat in de generatorkolom, niet in een overlay', romp.inDeGeneratorkolom, true);
+  check('en de zijbalk blijft daarnaast staan', romp.zijbalkErnaast, true);
+  check('er is een adviesregel onder de stappenbalk', romp.adviesregel, true);
+  check('en Rory heeft nog steeds zijn eigen kolom', romp.roryKolom, true);
   check('en begint bij het product', romp.eerste, 'product');
   check('met de kop van stap 1', romp.kop, 'Product and placement');
 
@@ -271,12 +282,14 @@ const VULLEN = `
     hoek: wizState.data.strategy.marketingAngle,
     stap: wizState.current,
     bron: wizSourceOf('format', 'formatId'),
-    open: document.getElementById('wiz-overlay').style.display
+    open: (document.getElementById('wiz-inline') || {}).style.display,
+    ingangZichtbaar: (document.getElementById('wiz-launch') || {}).style.display
   }));
   check('de hoek staat er na een refresh nog', naHerlaad.hoek, 'Scheren hoeft niet te schuren.');
   check('en de stap waar je was', naHerlaad.stap, 'format');
   check('inclusief wie welk veld zette', naHerlaad.bron, 'user');
   check('maar hij springt niet vanzelf open', naHerlaad.open, 'none');
+  check('en de ingang staat er dan gewoon', naHerlaad.ingangZichtbaar, '');
 
   /* ── Rory leidt ───────────────────────────────────────────────────────────
    *
@@ -350,46 +363,84 @@ const VULLEN = `
   check('met een lege voorganger gaat hij niet gissen', wachten.metLegeVoorganger, 0);
   check('zodra de voorganger vol is begint hij wel', wachten.metVolledigeVoorganger, 1);
 
-  /* ── De stap is een zin, geen formulier ───────────────────────────────── */
-  console.log('\n  een stap is een zin, geen formulier');
+  /* ── Twee kolommen: beslissing links, onderbouwing rechts ─────────────────
+   *
+   * De vorm uit het ontwerp. Wat hier bewezen moet worden is niet hoe het
+   * eruitziet maar dat élke stap zijn onderbouwing meelevert: een persona
+   * kiezen zonder het onderzoek ernaast is gokken met een dropdown. */
+  console.log('\n  elke stap levert links de keuze en rechts waar die op rust');
 
-  const zin = await page.evaluate(vullen => {
+  const kolommen = await page.evaluate(vullen => {
     wizReset(true);
     eval(vullen);
-    var tel = function (html) {
-      var d = document.createElement('div'); d.innerHTML = html;
-      return { velden: d.querySelectorAll('input, textarea').length,
-               woorden: d.querySelectorAll('.wiz-woord').length,
-               zin: (d.querySelector('.wiz-zin') || {}).textContent || '' };
+    wizState.advice.strategy = {
+      recommendation: {}, why: 'Because the research says so.',
+      evidence: ['5 USPs on Groom Guard', 'Customer research'], alternatives: []
+    };
+    var lees = function (k) {
+      var uit = window['wizRender_' + k]();
+      if (typeof uit === 'string') return { tweekolom: false };
+      var L = document.createElement('div'); L.innerHTML = uit.links || '';
+      var R = document.createElement('div'); R.innerHTML = uit.rechts || '';
+      return {
+        tweekolom: true,
+        linksLeeg: !(uit.links || '').trim(),
+        rechtsLeeg: !(uit.rechts || '').trim(),
+        linksBedienbaar: L.querySelectorAll('button, select, input, textarea').length,
+        rechtsTekst: (R.textContent || '').trim().length
+      };
     };
     return {
-      product: tel(wizRender_product()),
-      visueel: tel(wizRender_visual()),
-      copy: tel(wizRender_copy()),
-      strategie: tel(wizRender_strategy())
+      product: lees('product'), audience: lees('audience'),
+      strategy: lees('strategy'), visual: lees('visual'), copy: lees('copy')
     };
   }, VULLEN);
-  check('stap 1 opent zonder een enkel invoerveld', zin.product.velden, 0);
-  check('en zet de beslissingen als woorden in de zin', zin.product.woorden, 3);
-  check('stap 5 toont vijf hoofdkeuzes, niet tien blokken', zin.visueel.woorden, 5);
-  check('stap 5 opent ook zonder invoervelden', zin.visueel.velden, 0);
-  check('stap 6 toont de copy, geen invoervakken', zin.copy.velden, 0);
-  check('stap 3 toont de stelling, geen formulier', zin.strategie.velden, 0);
+  ['product', 'audience', 'strategy', 'visual', 'copy'].forEach(k => {
+    check('stap ' + k + ' levert twee kolommen', kolommen[k].tweekolom, true);
+    check('  met bedienbare keuzes links', kolommen[k].linksBedienbaar > 0, true);
+    check('  en onderbouwing rechts', kolommen[k].rechtsTekst > 0, true);
+  });
 
-  /* De uitklap is waar het formulier zit. Dicht is dicht. */
+  /* Stap 1 toont de productdata waar het advies op rust, niet alleen de naam. */
+  const productkaart = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    var uit = wizRender_product();
+    var R = document.createElement('div'); R.innerHTML = uit.rechts;
+    var L = document.createElement('div'); L.innerHTML = uit.links;
+    return {
+      usps: R.querySelectorAll('.wiz-usps li').length,
+      tegels: L.querySelectorAll('.wiz-tegel').length,
+      keuzelijst: L.querySelectorAll('select').length
+    };
+  }, VULLEN);
+  check('de productkaart toont de USPs', productkaart.usps > 0, true);
+  check('plaatsing en funnel staan als tegels', productkaart.tegels, 8);
+  check('en het product zelf als keuzelijst', productkaart.keuzelijst, 1);
+
+  /* Stap 5: acht keuzes zichtbaar, niet verstopt achter een uitklap. */
+  const visueel = await page.evaluate(vullen => {
+    wizReset(true); eval(vullen);
+    var uit = wizRender_visual();
+    var L = document.createElement('div'); L.innerHTML = uit.links;
+    return { zichtbaar: L.querySelectorAll('.wiz-tweeveld select').length };
+  }, VULLEN);
+  check('stap 5 toont negen visuele keuzes in het zicht', visueel.zichtbaar, 9);
+
+  /* De uitklap draagt nu de extra's, niet het hoofdformulier. Dicht is dicht. */
   const uitklap = await page.evaluate(vullen => {
     wizReset(true); eval(vullen);
-    var telVelden = function (html) {
-      var d = document.createElement('div'); d.innerHTML = html;
+    var tel = function () {
+      var uit = wizRender_copy();
+      var d = document.createElement('div'); d.innerHTML = uit.links;
       return d.querySelectorAll('input, textarea').length;
     };
-    var dicht = telVelden(wizRender_copy());
+    var dicht = tel();
     wizToggleUitklap('copy');
-    var open = telVelden(wizRender_copy());
+    var open = tel();
     return { dicht, open };
   }, VULLEN);
-  check('dichtgeklapt staan er geen velden', uitklap.dicht, 0);
-  check('opengeklapt staat het volledige formulier er wel', uitklap.open > 3, true);
+  check('dichtgeklapt staan alleen de hoofdvelden', uitklap.dicht <= 3, true);
+  check('opengeklapt komen de extra velden erbij', uitklap.open > uitklap.dicht, true);
 
   /* ── Stap 7, 8 en 9 ───────────────────────────────────────────────────── */
   console.log('\n  de blueprint, de concepten en het eindbeeld');
@@ -526,6 +577,9 @@ const VULLEN = `
      compleet zijn, anders sloopt deze wizard Kopieer ad en Itereren. */
   const oud = await page.evaluate(() => {
     var uit = {};
+    /* Begintoestand vastleggen: een eerder blok kan de wizard hebben
+       opengelaten, en dan meet dit blok iets anders dan het denkt. */
+    wizClose();
     setMode('scratch');
     uit.scratchIngeklapt = document.getElementById('classic-form').classList.contains('collapsed');
     uit.launchZichtbaar = !!document.getElementById('wiz-launch');
@@ -538,9 +592,17 @@ const VULLEN = `
     uit.iterateVelden = !!document.getElementById('iterate-fields');
     setMode('scratch');
     uit.terugIngeklapt = document.getElementById('classic-form').classList.contains('collapsed');
-    /* en met de hand open te klappen */
+    var dicht = function () { return document.getElementById('classic-form').classList.contains('collapsed'); };
+    /* Zelf openklappen kan gewoon. */
     toggleClassicForm();
-    uit.handmatigOpen = !document.getElementById('classic-form').classList.contains('collapsed');
+    uit.handmatigOpen = !dicht();
+    /* Maar draait de wizard, dan gaat het weg -- dezelfde beslissingen twee
+       keer op één scherm lopen gegarandeerd uit elkaar. */
+    wizOpen();
+    uit.blijftWegTijdensWizard = dicht();
+    /* En het komt terug zoals je het had staan zodra je de wizard sluit. */
+    wizClose();
+    uit.komtTerugNaSluiten = !dicht();
     return uit;
   });
   check('vanaf nul staat het oude formulier ingeklapt', oud.scratchIngeklapt, true);
@@ -552,6 +614,8 @@ const VULLEN = `
   check('met de iteratie-velden', oud.iterateVelden, true);
   check('terug naar vanaf nul klapt het weer in', oud.terugIngeklapt, true);
   check('en je kunt het zelf openklappen', oud.handmatigOpen, true);
+  check('zolang de wizard draait blijft het oude formulier weg', oud.blijftWegTijdensWizard, true);
+  check('en het komt terug zoals je het had staan', oud.komtTerugNaSluiten, true);
 
   /* De Ad Transformer is een eigen tab en mag niet geraakt zijn. */
   const transformer = await page.evaluate(() => {

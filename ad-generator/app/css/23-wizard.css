@@ -8,22 +8,20 @@
  * altijd op dezelfde plek staat, welke stap je ook in bent.
  */
 
-.wiz-overlay {
-  position: fixed; inset: 0; z-index: 900;
-  display: none; align-items: stretch; justify-content: center;
-  background: rgba(4, 4, 4, 0.82);
-  backdrop-filter: var(--blur);
-  padding: 24px;
+/* De wizard staat in de generatorkolom, niet in een overlay: de zijbalk van de
+   console blijft staan zodat je in een scherm ván het systeem zit en niet in
+   een venster eroverheen. Drie zones naast elkaar -- beslissingen, hun
+   tegenhanger, en Rory. */
+.wiz-inline {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 8px;
 }
-body.wiz-open { overflow: hidden; }
-
-.wiz-shell {
+.wiz-paneel {
+  flex: 1; min-width: 0;
   display: flex; flex-direction: column;
-  width: 100%; max-width: 1360px; height: 100%;
   background: var(--bg-elevated);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lift);
   overflow: hidden;
 }
 
@@ -68,20 +66,42 @@ body.wiz-open { overflow: hidden; }
 }
 .wiz-close:hover { color: var(--text); }
 
+/* ── Rory's adviesregel ─────────────────────────────────────────────────────
+ *
+ * Eén regel onder de stappenbalk over wat hij op deze stap doet of gevonden
+ * heeft. In het ontwerp is dit het eerste wat je leest; de onderbouwing staat
+ * rechts in de kolom en de rest in zijn eigen paneel. */
+.wiz-rorybalk {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--gold-haze);
+  color: var(--text-soft); font-size: 13px; line-height: 1.5;
+}
+.wiz-rorybalk-punt {
+  width: 7px; height: 7px; border-radius: 50%; margin-top: 6px;
+  background: var(--gold); flex-shrink: 0;
+}
+.wiz-rorybalk-punt.bezig { animation: wiz-pols 1.4s ease-in-out infinite; }
+
 /* ── Hoofdindeling ──────────────────────────────────────────────────────── */
 
-.wiz-main { display: flex; flex: 1; min-height: 0; }
-.wiz-stage {
-  flex: 1; display: flex; flex-direction: column; min-width: 0;
-}
-.wiz-head { padding: 26px 32px 12px; }
+.wiz-head { padding: 22px 26px 10px; }
 .wiz-kicker {
   font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--text-faint); margin-bottom: 6px;
 }
-.wiz-title { margin: 0; font-size: 26px; color: var(--text); font-weight: 500; }
+.wiz-title { margin: 0; font-size: 22px; color: var(--text); font-weight: 500; }
+
+/* Twee kolommen: links wat je beslist, rechts waar die beslissing op rust --
+   de productkaart, de andere persona's, "Why this works", de preview. */
+.wiz-body.wiz-tweekolom {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px; align-items: start;
+}
+.wiz-links, .wiz-rechts { min-width: 0; }
 .wiz-sub { margin: 6px 0 0; color: var(--text-soft); font-size: 14px; }
-.wiz-body { flex: 1; overflow-y: auto; padding: 12px 32px 24px; }
+.wiz-body { padding: 10px 26px 22px; }
 .wiz-footer {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 14px 32px;
@@ -251,6 +271,147 @@ body.wiz-open { overflow: hidden; }
   font-size: 14px; font-weight: 600;
 }
 
+/* ── Gelabelde velden, tegels en pillen ─────────────────────────────────────
+ *
+ * De basisvormen uit het ontwerp: label boven, waarde eronder. */
+
+.wiz-veld { margin-bottom: 18px; }
+.wiz-veld > label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-soft); margin-bottom: 7px;
+}
+.wiz-veld select {
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--hairline); color: var(--text);
+  font-family: inherit; font-size: 14px;
+}
+.wiz-veld select:focus { outline: none; border-color: var(--gold-line-strong); }
+.wiz-tweeveld { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+
+/* Tegels met een miniatuur van de verhouding, voor plaatsing en funnelfase. */
+.wiz-tegels { display: flex; gap: 8px; flex-wrap: wrap; }
+.wiz-tegel {
+  flex: 1; min-width: 84px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 10px; border-radius: 12px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--hairline); color: var(--text-soft);
+  font-family: inherit; font-size: 12px;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.wiz-tegel:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-tegel.rec { border-color: var(--gold-line); }
+.wiz-tegel.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+.wiz-tegel-vorm { display: block; border: 1.5px solid currentColor; border-radius: 3px; opacity: 0.75; }
+.wiz-tegel-vorm.vk { width: 20px; height: 20px; }
+.wiz-tegel-vorm.st { width: 13px; height: 22px; }
+.wiz-tegel-vorm.lg { width: 18px; height: 22px; }
+
+/* Pillen op één rij, voor het awareness-niveau. */
+.wiz-pillen { display: flex; gap: 7px; flex-wrap: wrap; }
+.wiz-pil {
+  padding: 9px 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--hairline); color: var(--text-soft);
+  font-family: inherit; font-size: 12.5px;
+}
+.wiz-pil:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-pil.rec { border-color: var(--gold-line); }
+.wiz-pil.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+
+/* ── De rechterkolom ────────────────────────────────────────────────────── */
+
+.wiz-zijpaneel {
+  padding: 16px 18px; margin-bottom: 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-zijpaneel-t {
+  font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px;
+}
+.wiz-leegzij {
+  padding: 22px; border-radius: 12px; text-align: center;
+  border: 1px dashed var(--hairline-strong); color: var(--text-faint); font-size: 13px;
+}
+.wiz-waarom { margin: 0; color: var(--text); font-size: 13.5px; line-height: 1.6; }
+.wiz-bronnen { margin: 0; padding-left: 16px; color: var(--text-faint); font-size: 12px; }
+.wiz-bronnen li { margin-bottom: 4px; }
+
+/* De productkaart. */
+.wiz-prodbeeld {
+  border-radius: 10px; overflow: hidden; margin-bottom: 14px;
+  background: rgba(0, 0, 0, 0.3); text-align: center;
+}
+.wiz-prodbeeld img { max-width: 100%; max-height: 200px; display: inline-block; }
+.wiz-prodnaam { font-size: 17px; color: var(--text); }
+.wiz-prodcat { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+.wiz-usps { margin: 14px 0 0; padding: 0; list-style: none; }
+.wiz-usps li {
+  position: relative; padding-left: 22px; margin-bottom: 7px;
+  color: var(--text-soft); font-size: 13px; line-height: 1.45;
+}
+.wiz-usps li::before {
+  content: '✓'; position: absolute; left: 0; top: 0; color: var(--gold); font-size: 12px;
+}
+.wiz-prodprijs { margin-top: 12px; color: var(--gold); font-size: 13px; }
+
+/* Persona's. */
+.wiz-personakaart {
+  position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%;
+  padding: 16px 18px; border-radius: 12px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gold-line);
+  color: var(--text); font-family: inherit;
+}
+.wiz-personakaart.on { border-color: var(--gold); background: var(--gold-haze); }
+.wiz-personakaart-naam { font-size: 16px; }
+.wiz-personakaart-desc { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
+.wiz-personalijst { display: flex; flex-direction: column; gap: 6px; }
+.wiz-personarij {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  padding: 10px 12px; border-radius: 9px; text-align: left; cursor: pointer;
+  background: transparent; border: 1px solid var(--hairline);
+  color: var(--text-soft); font-family: inherit;
+}
+.wiz-personarij:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-personarij.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+.wiz-personarij-naam { font-size: 13.5px; }
+.wiz-personarij-desc { font-size: 11.5px; color: var(--text-faint); }
+
+/* Beeldvoorbeeld en ad-preview. */
+.wiz-vizvoorbeeld { border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.3); }
+.wiz-vizvoorbeeld img { width: 100%; display: block; }
+.wiz-vizvoorbeeld-bij { margin-top: 9px; font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+.wiz-adpreview { border-radius: 12px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.wiz-adpreview-beeld img { width: 100%; display: block; }
+.wiz-adpreview-tekst { padding: 18px; }
+
+/* Headline-opties. */
+.wiz-headlines { display: flex; flex-direction: column; gap: 7px; }
+.wiz-headline {
+  padding: 11px 14px; border-radius: 10px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-family: inherit; font-size: 14px; line-height: 1.4;
+}
+.wiz-headline:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-headline.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+
+/* Wireframe-miniatuur op een formatkaart: een paar blokjes die de opbouw
+   suggereren, zodat je een tekstad van een productad onderscheidt zonder de
+   beschrijving te lezen. */
+.wiz-wire {
+  display: block; height: 54px; margin-top: 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
+  background-repeat: no-repeat;
+}
+.wiz-wire.w-product  { background-image: linear-gradient(var(--text-faint), var(--text-faint)); background-size: 34% 60%; background-position: 50% 50%; }
+.wiz-wire.w-split    { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 38% 62%, 38% 62%; background-position: 8% 50%, 92% 50%; }
+.wiz-wire.w-proof    { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 76% 14%, 60% 14%, 68% 14%; background-position: 12% 22%, 12% 50%, 12% 78%; }
+.wiz-wire.w-native   { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 80% 18%, 46% 18%; background-position: 10% 26%, 10% 68%; }
+.wiz-wire.w-editorial{ background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 84% 22%, 84% 34%; background-position: 8% 18%, 8% 76%; }
+
 /* ── Velden en keuzes ───────────────────────────────────────────────────── */
 
 .wiz-field { margin-bottom: 16px; }
@@ -341,7 +502,8 @@ body.wiz-open { overflow: hidden; }
 
 /* ── Formats ────────────────────────────────────────────────────────────── */
 
-.wiz-formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.wiz-formats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wiz-formats.alles { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); max-height: 460px; overflow-y: auto; padding-right: 4px; }
 .wiz-format {
   position: relative; display: flex; flex-direction: column; gap: 6px;
   padding: 14px 16px; border-radius: 12px; text-align: left; cursor: pointer;
@@ -479,9 +641,10 @@ body.wiz-open { overflow: hidden; }
 /* ── Rory-paneel ────────────────────────────────────────────────────────── */
 
 .wiz-rory {
-  width: 340px; flex-shrink: 0; display: flex; flex-direction: column;
-  border-left: 1px solid var(--hairline); background: var(--glass);
-  padding: 20px; overflow-y: auto;
+  width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  background: var(--glass); padding: 18px;
+  max-height: 720px; overflow-y: auto;
 }
 .wiz-rory-head { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
 .wiz-rory-avatar {
@@ -576,7 +739,9 @@ body.wiz-open { overflow: hidden; }
   .wiz-overlay { padding: 0; }
   .wiz-shell { border-radius: 0; border: none; }
   .wiz-main { flex-direction: column; }
-  .wiz-rory { width: auto; border-left: none; border-top: 1px solid var(--hairline); max-height: 44vh; }
+  .wiz-inline { flex-direction: column; }
+  .wiz-rory { width: auto; max-height: 40vh; }
+  .wiz-body.wiz-tweekolom { grid-template-columns: 1fr; gap: 16px; }
   .wiz-head, .wiz-body, .wiz-footer { padding-left: 18px; padding-right: 18px; }
   .wiz-two { grid-template-columns: 1fr; }
   .wiz-bp-row { grid-template-columns: 1fr; gap: 4px; }

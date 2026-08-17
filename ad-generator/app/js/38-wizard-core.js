@@ -234,20 +234,40 @@ function wizFirstIncomplete() {
 
 /* ── Openen, sluiten, navigeren ─────────────────────────────────────────── */
 
+/* De wizard staat in de pagina, niet in een overlay.
+ *
+ * Dat is geen smaakverschil. In een overlay verdwijnt de zijbalk en daarmee
+ * het besef waar je bent: je zit dan in een venster over de console heen in
+ * plaats van in een scherm ván de console. Zo staat het ook in het ontwerp --
+ * de zwarte zijbalk blijft gewoon staan.
+ *
+ * Openen betekent hier dus: de ingang en het oude formulier opzij, het
+ * wizardpaneel ervoor in de plaats. */
 function wizOpen() {
   wizState.open = true;
-  var ov = document.getElementById('wiz-overlay');
-  if (ov) ov.style.display = 'flex';
-  document.body.classList.add('wiz-open');
+  wizToonInline();
   wizRender();
 }
 
 function wizClose() {
   wizState.open = false;
-  var ov = document.getElementById('wiz-overlay');
-  if (ov) ov.style.display = 'none';
-  document.body.classList.remove('wiz-open');
+  wizToonInline();
   wizSave();
+}
+
+/* Wat er zichtbaar is in de generatorkolom hangt af van twee dingen: draait de
+   wizard, en zitten we wel in scratch-modus. Kopieer ad en Itereren delen dit
+   scherm en hebben het oude formulier nodig. */
+function wizToonInline() {
+  var paneel = document.getElementById('wiz-inline');
+  var ingang = document.getElementById('wiz-launch');
+  var schakel = document.getElementById('classic-toggle');
+  var scratch = (!state.generatorMode || state.generatorMode === 'scratch');
+  var aan = wizState.open && scratch;
+  if (paneel) paneel.style.display = aan ? '' : 'none';
+  if (ingang) ingang.style.display = (scratch && !wizState.open) ? '' : 'none';
+  if (schakel) schakel.style.display = (scratch && !wizState.open) ? '' : 'none';
+  wizSyncClassic();
 }
 
 function wizGo(stepKey) {
@@ -313,6 +333,9 @@ function wizEsc(t) {
   return (typeof escapeHtml === 'function') ? escapeHtml(t == null ? '' : String(t)) : String(t == null ? '' : t);
 }
 
+/* De stappenbalk. Genummerde bolletjes met hun naam ernaast, precies zoals in
+   het ontwerp. De nummers zijn hier geen versiering: dit ís een volgorde, en
+   welk nummer je hebt gehad zegt hoever je bent. */
 function wizRenderProgress() {
   var el = document.getElementById('wiz-progress');
   if (!el) return;
@@ -331,24 +354,83 @@ function wizRenderProgress() {
   }).join('');
 }
 
+/* De adviesregel onder de stappenbalk: één zin over wat Rory op deze stap doet
+   of gedaan heeft. In het ontwerp is dit de enige plek waar hij het woord
+   neemt vóór je iets ziet; de onderbouwing staat rechts in de kolom. */
+function wizRenderRoryBalk() {
+  var el = document.getElementById('wiz-rorybalk');
+  if (!el) return;
+  var k = wizState.current;
+  var adv = wizState.advice[k] || {};
+  var tekst = '';
+  if (wizState.busy) tekst = WIZ_BEZIG[k] || 'Rory is working on this step.';
+  else if (adv.error) tekst = adv.error;
+  else if (adv.why) tekst = adv.why;
+  else tekst = WIZ_OPENING[k] || '';
+  el.innerHTML = tekst
+    ? '<span class="wiz-rorybalk-punt' + (wizState.busy ? ' bezig' : '') + '"></span>' +
+      '<span>' + wizEsc(tekst) + '</span>'
+    : '';
+  el.style.display = tekst ? '' : 'none';
+}
+
+/* Wat er staat terwijl Rory kijkt, per stap. Een spinner zonder woorden laat
+   de gebruiker raden waar hij op wacht. */
+var WIZ_BEZIG = {
+  product:  'Rory is analyzing your product and placement to build the best foundation.',
+  audience: 'Rory is weighing the personas against this product and funnel stage.',
+  strategy: 'Rory is building the strategic foundation from the research.',
+  format:   'Rory is narrowing 42 formats down to the ones that carry this angle.',
+  visual:   'Rory is turning the strategy into a picture.',
+  copy:     'Rory is writing the copy that fits the strategy and visual.',
+  review:   'Rory is writing out what the ad will look like.',
+  concepts: 'Rory is working out three concepts that keep the same strategy.'
+};
+
+/* En wat er staat vóór hij iets gezegd heeft. */
+var WIZ_OPENING = {
+  product:  'Select the product and where the ad will appear.',
+  audience: 'Based on your product and funnel stage, Rory picks the audience.',
+  strategy: 'Rory creates the strategic foundation for this audience.',
+  format:   'Rory picks the formats that fit your strategy and audience best.',
+  visual:   'Rory recommends a visual direction for the selected format.',
+  copy:     'Rory writes the copy that fits the strategy and visual.',
+  review:   'Review the complete blueprint before generating.',
+  concepts: 'Choose your favourite concept direction.',
+  generate: 'Generate and fine-tune your final static ad.'
+};
+
+/* Een stap levert twee kolommen: de beslissingen links, en rechts de
+   tegenhanger die laat zien waar ze op rusten -- de productkaart, de andere
+   persona's, "Why this works", de preview. Een renderer mag ook één string
+   teruggeven; dan vult die de volle breedte. */
 function wizRender() {
   if (!wizState.open) return;
   wizRenderProgress();
   var s = wizStep(wizState.current);
   var head = document.getElementById('wiz-head');
   if (head && s) {
-    head.innerHTML = '<div class="wiz-kicker">Step ' + s.num + ' of ' + WIZ_STEPS.length + '</div>' +
-      '<h2 class="wiz-title">' + wizEsc(s.title) + '</h2>' +
+    head.innerHTML = '<h2 class="wiz-title">' + wizEsc(s.title) + '</h2>' +
       '<p class="wiz-sub">' + wizEsc(s.sub) + '</p>' +
       (wizState.stale[wizState.current]
         ? '<div class="wiz-stale-note">An earlier decision changed after this step was filled in. ' +
           'Your own choices are kept. <button type="button" class="wiz-linkbtn" onclick="wizRefreshStep()">Ask Rory to reconsider</button></div>'
         : '');
   }
+  wizRenderRoryBalk();
+
   var body = document.getElementById('wiz-body');
   if (body) {
     var fn = window['wizRender_' + wizState.current];
-    body.innerHTML = (typeof fn === 'function') ? fn() : '<div class="wiz-empty">This step is not available yet.</div>';
+    var uit = (typeof fn === 'function') ? fn() : '<div class="wiz-empty">This step is not available yet.</div>';
+    if (uit && typeof uit === 'object') {
+      body.className = 'wiz-body wiz-tweekolom';
+      body.innerHTML = '<div class="wiz-links">' + (uit.links || '') + '</div>' +
+                       '<div class="wiz-rechts">' + (uit.rechts || '') + '</div>';
+    } else {
+      body.className = 'wiz-body';
+      body.innerHTML = uit || '';
+    }
     var after = window['wizAfter_' + wizState.current];
     if (typeof after === 'function') { try { after(); } catch (e) { console.error(e); } }
   }
@@ -427,29 +509,32 @@ function wizRenderFooter() {
 /* De romp wordt één keer in de DOM gezet, buiten de bestaande generator-markup
    om. Zo raakt het oude formulier niets kwijt en blijven Kopieer ad, Itereren
    en de Transformer draaien op precies dezelfde elementen als hiervoor. */
+/* Het paneel komt in de generatorkolom te staan, vlak boven het klassieke
+   formulier. Niet in body: dan zou het buiten de kolom vallen en zou de
+   zijbalk er weer overheen liggen. */
 function wizMount() {
-  if (document.getElementById('wiz-overlay')) return;
-  var ov = document.createElement('div');
-  ov.id = 'wiz-overlay';
-  ov.className = 'wiz-overlay';
-  ov.style.display = 'none';
-  ov.innerHTML =
-    '<div class="wiz-shell" role="dialog" aria-label="Static ad wizard">' +
+  if (document.getElementById('wiz-inline')) return;
+  var anker = document.getElementById('classic-toggle') || document.getElementById('classic-form');
+  if (!anker || !anker.parentNode) return;
+
+  var el = document.createElement('div');
+  el.id = 'wiz-inline';
+  el.className = 'wiz-inline scratch-only';
+  el.style.display = 'none';
+  el.innerHTML =
+    '<div class="wiz-paneel">' +
     '  <div class="wiz-topbar">' +
-    '    <div class="wiz-brand">Static ad wizard</div>' +
+    '    <div class="wiz-brand">Static Ad Generator</div>' +
     '    <div class="wiz-progress" id="wiz-progress"></div>' +
-    '    <button type="button" class="wiz-close" onclick="wizClose()" aria-label="Close">✕</button>' +
+    '    <button type="button" class="wiz-close" onclick="wizClose()" aria-label="Close the wizard">✕</button>' +
     '  </div>' +
-    '  <div class="wiz-main">' +
-    '    <div class="wiz-stage">' +
-    '      <div class="wiz-head" id="wiz-head"></div>' +
-    '      <div class="wiz-body" id="wiz-body"></div>' +
-    '      <div class="wiz-footer" id="wiz-footer"></div>' +
-    '    </div>' +
-    '    <aside class="wiz-rory" id="wiz-rory"></aside>' +
-    '  </div>' +
-    '</div>';
-  document.body.appendChild(ov);
+    '  <div class="wiz-rorybalk" id="wiz-rorybalk"></div>' +
+    '  <div class="wiz-head" id="wiz-head"></div>' +
+    '  <div class="wiz-body" id="wiz-body"></div>' +
+    '  <div class="wiz-footer" id="wiz-footer"></div>' +
+    '</div>' +
+    '<aside class="wiz-rory" id="wiz-rory"></aside>';
+  anker.parentNode.insertBefore(el, anker);
 }
 
 /* ── Het klassieke formulier ────────────────────────────────────────────────
@@ -466,7 +551,9 @@ function wizSyncClassic() {
   var wrap = document.getElementById('classic-form');
   if (!wrap) return;
   var scratch = (!state.generatorMode || state.generatorMode === 'scratch');
-  var open = scratch ? wizClassicOpen : true;
+  /* Draait de wizard, dan is het oude formulier eronder alleen ruis: dezelfde
+     beslissingen, twee keer, met een kans dat ze uit elkaar lopen. */
+  var open = scratch ? (wizClassicOpen && !wizState.open) : true;
   wrap.classList.toggle('collapsed', !open);
   var lbl = document.getElementById('classic-toggle-label');
   if (lbl) lbl.textContent = open ? 'Hide the classic form' : 'Use the classic form instead';
@@ -492,13 +579,13 @@ function wizBoot() {
     var origineel = window.setMode;
     var omhulsel = function () {
       var r = origineel.apply(this, arguments);
-      wizSyncClassic();
+      wizToonInline();
       return r;
     };
     omhulsel.__wizWrapped = true;
     window.setMode = omhulsel;
   }
-  wizSyncClassic();
+  wizToonInline();
 }
 
 if (document.readyState !== 'loading') wizBoot();

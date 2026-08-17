@@ -1,27 +1,28 @@
 /* Static Ad Wizard — stap 1 tot en met 6.
  *
- * De vorm van dit scherm is één beslissing, en die is het waard om op te
- * schrijven omdat de eerste versie hem miste.
+ * De vorm volgt het ontwerp: elke stap heeft twee kolommen.
  *
- *   EEN STAP IS EEN ZIN, GEEN FORMULIER.
+ *   LINKS WAT JE BESLIST, RECHTS WAAR DIE BESLISSING OP RUST.
  *
- * De eerste versie zette per stap alle keuzevelden naast elkaar met een knop
- * "vraag Rory". Dat is een control panel in negen delen: de gebruiker moet nog
- * steeds alles zelf invullen, alleen verdeeld over meer schermen. De opdracht
- * was het omgekeerde -- Rory beslist, legt uit, en de gebruiker corrigeert.
+ * Links staan de keuzes als gelabelde velden, tegels en kaarten. Rechts staat
+ * hun tegenhanger: de productkaart met de USP's, de andere persona's, "Why
+ * this works", een beeldvoorbeeld, de ad-preview. Dat is niet decoratie maar
+ * de reden dat een keuze te beoordelen is -- een persona kiezen zonder het
+ * onderzoek ernaast is gokken met een dropdown.
  *
- * Dus opent elke stap met wat Rory gekozen heeft, geschreven als gewone zin:
+ * Hiervoor stonden hier twee andere vormen, en het is nuttig te weten waarom
+ * ze het niet werden:
  *
- *     We advertise Groom Guard to cold traffic, in a 1:1 feed placement.
+ *   1. Alle velden naast elkaar met een knop "vraag Rory". Dat is een control
+ *      panel in negen delen: je vult nog steeds alles zelf in, alleen verdeeld
+ *      over meer schermen.
+ *   2. Eén zin met de beslissingen als klikbare woorden. Rustig om te lezen,
+ *      maar er is geen plek voor het bewijs ernaast, en bij acht visuele
+ *      keuzes wordt een zin een opsomming.
  *
- * De vetgedrukte woorden zijn de beslissingen. Klik erop en de keuzes klappen
- * open, precies daar. Wie niets wil veranderen leest één regel en gaat door.
- * Wie alles wil zien klikt "Change this" en krijgt het volledige paneel.
- *
- * Wat dat oplevert tegenover de vorige versie:
- *   - geen lege velden meer; er staat altijd al een antwoord
- *   - stap 5 toont vijf hoofdkeuzes in plaats van tien blokken tegelijk
- *   - de copy staat er als copy, op ware grootte, niet als invoervakken
+ * Wat uit beide is blijven staan: Rory kijkt uit zichzelf (38-wizard-core.js),
+ * er staat nooit een leeg veld waar een voorstel kan staan, en wat de
+ * gebruiker zelf zet overleeft een advies.
  *
  * Interface-tekst is Engels. Wat uit productdata, persona's, onderzoek of de
  * advertentiecopy zelf komt tonen we onvertaald -- dat is bronmateriaal.
@@ -29,8 +30,9 @@
 
 /* ── De zin ─────────────────────────────────────────────────────────────────
  *
- * Een zin is een lijst stukken: gewone tekst, of een beslissing. Een
- * beslissing rendert als klikbaar woord dat zijn eigen keuzelijst opent. */
+ * Nog in gebruik op de plekken waar één regel genoeg is (stap 8). Een zin is
+ * een lijst stukken: gewone tekst, of een beslissing die als klikbaar woord
+ * zijn eigen keuzelijst opent. */
 
 function wizZin(stepKey, delen) {
   var h = '<p class="wiz-zin">' + delen.map(function (d) {
@@ -172,18 +174,21 @@ function wizTakeAlternative(stepKey, i) {
 
 /* ── Optielijsten ───────────────────────────────────────────────────────── */
 
+/* `vorm` tekent het miniatuurtje in de tegel: een vierkant, een staande of een
+   liggende verhouding. `kort` is het label op de funneltegel -- TOF/MOF/BOF
+   zoals in het ontwerp, met de betekenis eronder als hint elders. */
 var WIZ_PLACEMENTS = [
-  { value: 'feed11', label: 'Feed 1:1', hint: 'Square, safe everywhere' },
-  { value: 'feed45', label: 'Feed 4:5', hint: 'More vertical space in feed' },
-  { value: 'stories', label: 'Stories 9:16', hint: 'Full screen, short dwell' },
-  { value: 'reels', label: 'Reels 9:16', hint: 'Full screen, heavy bottom UI' }
+  { value: 'feed11', label: 'Feed 1:1', vorm: 'vk', hint: 'Square, safe everywhere' },
+  { value: 'stories', label: 'Story 9:16', vorm: 'st', hint: 'Full screen, short dwell' },
+  { value: 'feed45', label: 'Feed 4:5', vorm: 'lg', hint: 'More vertical space in feed' },
+  { value: 'reels', label: 'Reels 9:16', vorm: 'st', hint: 'Full screen, heavy bottom UI' }
 ];
 
 var WIZ_FUNNELS = [
-  { value: 'tof', label: 'Cold reach', hint: 'They do not know the brand yet' },
-  { value: 'mof', label: 'Consideration', hint: 'They are weighing options' },
-  { value: 'bof', label: 'Conversion', hint: 'Ready to buy, needs a push' },
-  { value: 'retargeting', label: 'Retargeting', hint: 'Visited the site, did not buy' }
+  { value: 'tof', kort: 'TOF', label: 'Cold reach', hint: 'They do not know the brand yet' },
+  { value: 'mof', kort: 'MOF', label: 'Consideration', hint: 'They are weighing options' },
+  { value: 'bof', kort: 'BOF', label: 'Conversion', hint: 'Ready to buy, needs a push' },
+  { value: 'retargeting', kort: 'Retarget', label: 'Retargeting', hint: 'Visited the site, did not buy' }
 ];
 
 var WIZ_AWARENESS = [
@@ -199,6 +204,46 @@ function wizOptLabel(opts, waarde) {
   return o ? o.label : '';
 }
 
+/* ── Bouwstenen uit het ontwerp ─────────────────────────────────────────── */
+
+/* Een gelabeld veld met een keuzelijst erin. In het ontwerp is dit de
+   basisvorm van elke beslissing: label erboven, waarde eronder. */
+function wizSelect(stepKey, field, label, opts, leeg) {
+  var v = (wizState.data[stepKey] || {})[field] || '';
+  var tip = ((wizState.advice[stepKey] || {}).recommendation || {})[field];
+  var id = 'wizs-' + stepKey + '-' + field;
+  return '<div class="wiz-veld">' +
+    '<label for="' + id + '">' + wizEsc(label) +
+      (tip && tip === v ? '<span class="wiz-tag rory">Rory</span>' : '') + '</label>' +
+    '<select id="' + id + '" onchange="wizPick(\'' + stepKey + '\',\'' + field + '\',this.value)">' +
+    (leeg ? '<option value=""' + (v ? '' : ' selected') + '>' + wizEsc(leeg) + '</option>' : '') +
+    opts.map(function (o) {
+      return '<option value="' + wizEsc(o.value) + '"' + (String(o.value) === String(v) ? ' selected' : '') + '>' +
+        wizEsc(o.label) + '</option>';
+    }).join('') + '</select></div>';
+}
+
+/* Een rij tegels, zoals de plaatsing en de funnelfase in het ontwerp. */
+function wizTegels(stepKey, field, opts) {
+  var v = (wizState.data[stepKey] || {})[field];
+  var tip = ((wizState.advice[stepKey] || {}).recommendation || {})[field];
+  return '<div class="wiz-tegels">' + opts.map(function (o) {
+    var aan = String(v) === String(o.value);
+    return '<button type="button" class="wiz-tegel' + (aan ? ' on' : '') +
+      (String(tip) === String(o.value) ? ' rec' : '') + '" ' +
+      'onclick="wizPick(\'' + stepKey + '\',\'' + field + '\',\'' + wizEsc(o.value) + '\')">' +
+      (o.vorm ? '<span class="wiz-tegel-vorm ' + o.vorm + '"></span>' : '') +
+      '<span class="wiz-tegel-label">' + wizEsc(o.label) + '</span>' +
+      '</button>';
+  }).join('') + '</div>';
+}
+
+/* De paneeltitel boven een blok in de rechterkolom. */
+function wizPaneel(titel, inhoud, extra) {
+  return '<div class="wiz-zijpaneel' + (extra ? ' ' + extra : '') + '">' +
+    (titel ? '<div class="wiz-zijpaneel-t">' + wizEsc(titel) + '</div>' : '') + inhoud + '</div>';
+}
+
 /* ── Stap 1: Product en plaatsing ───────────────────────────────────────── */
 
 function wizRender_product() {
@@ -207,50 +252,44 @@ function wizRender_product() {
     return '<div class="wiz-empty">No products yet. Add one in the Products tab first — the wizard builds everything on that data.</div>';
   }
   var p = wizProduct();
-  var h = '';
 
-  if (!p) {
-    h += '<div class="wiz-block"><div class="wiz-block-t">Which product?</div>' +
-      '<div class="wiz-choices cols-2">' + prods.map(function (x) {
-        return '<button type="button" class="wiz-choice" onclick="wizPickProduct(\'' + wizEsc(x.id) + '\')">' +
-          '<span class="wiz-choice-label">' + wizEsc(x.name) + '</span>' +
-          (x.category ? '<span class="wiz-choice-hint">' + wizEsc(x.category) + '</span>' : '') +
-          '</button>';
-      }).join('') + '</div></div>';
-    return h;
-  }
+  var links = wizSelect('product', 'productId', 'Select product',
+    prods.map(function (x) { return { value: x.id, label: x.name + (x.category ? ' (' + x.category + ')' : '') }; }),
+    'Choose a product…');
 
-  if (wizState.busy && !wizState.advice.product) {
-    h += wizDenkt('Rory is reading the product data, the USPs and what already ran.');
-  }
+  links += '<div class="wiz-veld"><label>Placement</label>' +
+    wizTegels('product', 'placement', WIZ_PLACEMENTS.map(function (o) {
+      return { value: o.value, label: o.label, vorm: o.vorm };
+    })) + '</div>';
 
-  h += wizZin('product', [
-    'We advertise ',
-    { field: 'productId', titel: 'Product', label: function () { return p.name; },
-      opts: prods.map(function (x) { return { value: x.id, label: x.name, hint: x.category || '' }; }) },
-    ' to ',
-    { field: 'funnel', titel: 'Campaign goal', leeg: 'which audience',
-      label: function (v) { return wizOptLabel(WIZ_FUNNELS, v); }, opts: WIZ_FUNNELS },
-    ', as a ',
-    { field: 'placement', titel: 'Placement', leeg: 'placement',
-      label: function (v) { return wizOptLabel(WIZ_PLACEMENTS, v); }, opts: WIZ_PLACEMENTS },
-    ' ad.'
-  ]);
+  links += '<div class="wiz-veld"><label>Funnel stage</label>' +
+    wizTegels('product', 'funnel', WIZ_FUNNELS.map(function (o) {
+      return { value: o.value, label: o.kort };
+    })) + '</div>';
 
-  var usps = (p.usps || []).filter(Boolean);
-  h += wizUitklap('product',
-    '<div class="wiz-readout"><div class="wiz-readout-t">' + wizEsc(p.name) +
-      (p.category ? ' · ' + wizEsc(p.category) : '') + '</div>' +
+  /* Rechts de productkaart: beeld, naam, categorie en de USP's met vinkjes.
+     Dat is niet decoratie -- het is precies de data waar Rory zijn advies op
+     bouwt, en die hoort zichtbaar te zijn op het moment dat je kiest. */
+  var rechts = '';
+  if (p) {
+    var usps = (p.usps || []).filter(Boolean);
+    var refs = (typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
+    var beeld = refs && refs.product && refs.product[0];
+    rechts = wizPaneel(null,
+      (beeld ? '<div class="wiz-prodbeeld"><img src="' + beeld + '" alt=""></div>' : '') +
+      '<div class="wiz-prodnaam">' + wizEsc(p.name) + '</div>' +
+      (p.category ? '<div class="wiz-prodcat">' + wizEsc(p.category) + '</div>' : '') +
       (usps.length
-        ? '<ul class="wiz-readout-list">' + usps.map(function (u) { return '<li>' + wizEsc(u) + '</li>'; }).join('') + '</ul>'
+        ? '<ul class="wiz-usps">' + usps.slice(0, 5).map(function (u) {
+            return '<li>' + wizEsc(u) + '</li>'; }).join('') + '</ul>'
         : '<div class="wiz-readout-none">No USPs recorded for this product.</div>') +
-      (p.price ? '<div class="wiz-readout-none">Price point: ' + wizEsc(p.price) + '</div>' : '') +
-      '</div>' +
-    '<div class="wiz-actions">' + wizHerzie('product') + '</div>',
-    'See the product data');
+      (p.price ? '<div class="wiz-prodprijs">' + wizEsc(p.price) + '</div>' : ''),
+      'productkaart');
+  } else {
+    rechts = '<div class="wiz-leegzij">Pick a product and its data appears here.</div>';
+  }
 
-  h += wizAlternatives('product');
-  return h;
+  return { links: links, rechts: rechts };
 }
 
 function wizPickProduct(id) {
@@ -273,29 +312,52 @@ function wizRender_audience() {
   var passend = alle.filter(function (x) { return !p || !x.category || x.category === p.category; });
   var lijst = passend.length ? passend : alle;
   var pers = wizPersona();
-  var h = '';
 
   if (!lijst.length) {
     return '<div class="wiz-empty">No personas available. Add customer research in the Personas tab — without it Rory has nothing to build the angle on.</div>';
   }
 
-  if (wizState.busy && !wizState.advice.audience) {
-    h += wizDenkt('Rory is weighing the personas against this product and goal.');
+  /* De aanbevolen persona groot, de rest als lijst ernaast. Dat is de kern van
+     deze stap in het ontwerp: één voorstel dat je kunt lezen, en de anderen
+     binnen handbereik zonder dat ze om aandacht vechten. */
+  var tip = ((wizState.advice.audience || {}).recommendation || {}).personaId;
+  var hoofd = pers || lijst.filter(function (x) { return x.id === tip; })[0] || null;
+
+  var links = '';
+  if (hoofd) {
+    var isTip = (hoofd.id === tip);
+    links += '<div class="wiz-veld"><label>Recommended persona</label>' +
+      '<button type="button" class="wiz-personakaart' + (pers && pers.id === hoofd.id ? ' on' : '') + '" ' +
+      'onclick="wizPick(\'audience\',\'personaId\',\'' + wizEsc(hoofd.id) + '\')">' +
+      (isTip ? '<span class="wiz-choice-rec">Recommended</span>' : '') +
+      '<span class="wiz-personakaart-naam">' + wizEsc(hoofd.name) + '</span>' +
+      '<span class="wiz-personakaart-desc">' + wizEsc(hoofd.description || '') + '</span>' +
+      '</button></div>';
   }
 
-  h += wizZin('audience', [
-    'This ad speaks to ',
-    { field: 'personaId', titel: 'Persona', leeg: 'which persona',
-      label: function () { return pers ? pers.name : ''; },
-      opts: lijst.map(function (x) { return { value: x.id, label: x.name, hint: (x.description || '').slice(0, 70) }; }) },
-    ', who is ',
-    { field: 'awareness', titel: 'Awareness level', leeg: 'at which stage',
-      label: function (v) { return (wizOptLabel(WIZ_AWARENESS, v) || '').toLowerCase(); }, opts: WIZ_AWARENESS },
-    '.'
-  ]);
+  links += '<div class="wiz-veld"><label>Awareness level</label>' +
+    '<div class="wiz-pillen">' + WIZ_AWARENESS.map(function (o) {
+      var aan = (wizState.data.audience.awareness === o.value);
+      var rec = (((wizState.advice.audience || {}).recommendation || {}).awareness === o.value);
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+        'onclick="wizPick(\'audience\',\'awareness\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
+    }).join('') + '</div></div>';
 
-  /* Het onderzoek waar het advies op rust. Dit is geen decoratie: de opdracht
-     vraagt dat zichtbaar is welke informatie Rory gebruikt. */
+  var anderen = lijst.filter(function (x) { return !hoofd || x.id !== hoofd.id; });
+  var rechts = wizPaneel('Other personas',
+    anderen.length
+      ? '<div class="wiz-personalijst">' + anderen.map(function (x) {
+          return '<button type="button" class="wiz-personarij' +
+            (pers && pers.id === x.id ? ' on' : '') + '" ' +
+            'onclick="wizPick(\'audience\',\'personaId\',\'' + wizEsc(x.id) + '\')">' +
+            '<span class="wiz-personarij-naam">' + wizEsc(x.name) + '</span>' +
+            '<span class="wiz-personarij-desc">' + wizEsc((x.description || '').split(',')[0]) + '</span>' +
+            '</button>';
+        }).join('') + '</div>'
+      : '<div class="wiz-readout-none">No other personas for this category.</div>');
+
+  /* Het onderzoek waar het advies op rust. De opdracht vraagt expliciet dat
+     zichtbaar is welke informatie Rory gebruikt. */
   if (pers) {
     var blok = function (titel, arr) {
       var v = (arr || []).filter(Boolean);
@@ -304,17 +366,16 @@ function wizRender_audience() {
         v.slice(0, 4).map(function (x) { return '<li>' + wizEsc(x) + '</li>'; }).join('') + '</ul></div>';
     };
     var kolommen = blok('Pains', pers.pains) + blok('Desires', pers.desires) + blok('Objections', pers.objections);
-    if (kolommen) {
-      h += wizUitklap('audience',
-        '<div class="wiz-research">' + kolommen + '</div>' +
-        wizField('audience', 'market', 'Market', 'only when this campaign runs somewhere specific') +
-        '<div class="wiz-actions">' + wizHerzie('audience') + '</div>',
-        'See the customer research');
-    }
+    if (kolommen) rechts += wizPaneel('Customer research', '<div class="wiz-research">' + kolommen + '</div>');
   }
 
-  h += wizAlternatives('audience');
-  return h;
+  links += wizUitklap('audience',
+    wizField('audience', 'market', 'Market', 'only when this campaign runs somewhere specific') +
+    '<div class="wiz-actions">' + wizHerzie('audience') + '</div>',
+    'More options');
+  links += wizAlternatives('audience');
+
+  return { links: links, rechts: rechts };
 }
 
 function wizAfter_audience() {
@@ -325,9 +386,18 @@ function wizAfter_audience() {
 
 /* ── Stap 3: Creatieve strategie ────────────────────────────────────────── */
 
+/* De zes rijen van de strategie, in de volgorde uit het ontwerp. */
+var WIZ_STRATEGIE_RIJEN = [
+  { field: 'marketingAngle', label: 'Marketing angle' },
+  { field: 'messaging',      label: 'Core messaging' },
+  { field: 'desire',         label: 'Primary desire' },
+  { field: 'pain',           label: 'Primary pain point' },
+  { field: 'proof',          label: 'Proof mechanism' },
+  { field: 'objection',      label: 'Main objection' }
+];
+
 function wizRender_strategy() {
   var s = wizState.data.strategy;
-  var h = '';
 
   if (!s.marketingAngle) {
     return wizState.busy
@@ -336,35 +406,37 @@ function wizRender_strategy() {
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'strategy\')">Build it now</button></div>';
   }
 
-  /* De strategie is geen rij velden maar een stelling met bewijs eronder. Zo
-     lees je in één blik of het argument klopt, wat je van losse invoervakken
-     nooit kunt zien. */
-  h += '<div class="wiz-stelling">' +
-    '<div class="wiz-stelling-kicker">' + wizEsc(s.angleType || 'The angle') + '</div>' +
-    '<blockquote class="wiz-stelling-q">' + wizEsc(s.marketingAngle) + '</blockquote>' +
-    (s.messaging ? '<p class="wiz-stelling-sub">' + wizEsc(s.messaging) + '</p>' : '') +
-    '</div>';
+  /* Links de zes beslissingen als gelabelde rijen, direct bewerkbaar. Geen
+     uitklap meer: dit ís het formulier, en in het ontwerp staat het open. */
+  var links = WIZ_STRATEGIE_RIJEN.map(function (r) {
+    return wizField('strategy', r.field, r.label, null, r.field === 'marketingAngle' || r.field === 'messaging');
+  }).join('');
 
-  var kaart = function (label, waarde) {
-    if (!waarde) return '';
-    return '<div class="wiz-mini"><span class="wiz-mini-k">' + wizEsc(label) + '</span>' +
-      '<span class="wiz-mini-v">' + wizEsc(waarde) + '</span></div>';
-  };
-  var minis = kaart('Desire', s.desire) + kaart('Pain', s.pain) +
-              kaart('Proof', s.proof) + kaart('Objection', s.objection);
-  if (minis) h += '<div class="wiz-minis">' + minis + '</div>';
+  var adv = wizState.advice.strategy || {};
+  var aantalAlt = (adv.alternatives || []).length;
+  links += '<div class="wiz-actions">' +
+    (aantalAlt
+      ? '<button type="button" class="wiz-btn ghost small" onclick="wizToggleUitklap(\'strategy\')">' +
+        (wizState.unfolded.strategy ? 'Hide alternatives' : 'Show alternative strategies (' + aantalAlt + ')') + '</button>'
+      : '') +
+    wizHerzie('strategy', 'Have Rory build a different angle') + '</div>';
+  if (wizState.unfolded.strategy) links += wizAlternatives('strategy');
 
-  h += wizUitklap('strategy',
-    wizField('strategy', 'angleType', 'Marketing angle type', 'the family this argument belongs to') +
-    wizField('strategy', 'marketingAngle', 'Marketing angle', 'the argument in one sentence', true) +
-    wizField('strategy', 'messaging', 'Core messaging', 'what the viewer should walk away with', true) +
-    '<div class="wiz-two">' + wizField('strategy', 'desire', 'Primary desire') + wizField('strategy', 'pain', 'Primary pain point') + '</div>' +
-    '<div class="wiz-two">' + wizField('strategy', 'proof', 'Proof mechanism') + wizField('strategy', 'objection', 'Main objection') + '</div>' +
-    '<div class="wiz-actions">' + wizHerzie('strategy', 'Have Rory build a different angle') + '</div>',
-    'Edit the strategy');
+  /* Rechts waarom dit werkt. Dat is de kolom uit het ontwerp, en het is het
+     enige wat een strategie toetsbaar maakt: zonder redenering is het een
+     mening met een vakje eromheen. */
+  var rechts = '';
+  if (adv.why) {
+    rechts += wizPaneel('Why this works', '<p class="wiz-waarom">' + wizEsc(adv.why) + '</p>');
+  }
+  if (adv.evidence && adv.evidence.length) {
+    rechts += wizPaneel('What Rory used',
+      '<ul class="wiz-bronnen">' + adv.evidence.map(function (e) {
+        return '<li>' + wizEsc(e) + '</li>'; }).join('') + '</ul>');
+  }
+  if (!rechts) rechts = '<div class="wiz-leegzij">Rory has not explained this yet.</div>';
 
-  h += wizAlternatives('strategy');
-  return h;
+  return { links: links, rechts: rechts };
 }
 
 /* ── Stap 4: Format ─────────────────────────────────────────────────────── */
@@ -380,14 +452,6 @@ function wizRender_format() {
 
   if (!sel && wizState.busy) return wizDenkt('Rory is narrowing 42 formats down to the ones that carry this angle.');
 
-  if (f) {
-    h += '<p class="wiz-zin">This becomes a <button type="button" class="wiz-woord" onclick="wizToggleAllFormats()">' +
-      wizEsc(f.name) + '</button> ad.</p>';
-    h += '<div class="wiz-formatkaart">' +
-      '<div class="wiz-format-tags">' + (f.tags || []).map(function (t) { return '<em>' + wizEsc(t) + '</em>'; }).join('') + '</div>' +
-      '<p class="wiz-format-desc">' + wizEsc(f.desc) + '</p></div>';
-  }
-
   var aanbevolen = [rec.formatId].concat(rec.runnersUp || []).filter(Boolean);
   var tonen = alles ? AD_FORMATS : AD_FORMATS.filter(function (x) { return aanbevolen.indexOf(x.id) !== -1; });
   if (!alles && sel && !tonen.some(function (x) { return x.id === sel; })) {
@@ -395,25 +459,37 @@ function wizRender_format() {
     if (eigen) tonen = tonen.concat([eigen]);
   }
 
-  if (tonen.length && (alles || !f || aanbevolen.length > 1)) {
-    h += '<div class="wiz-block"><div class="wiz-block-t">' +
-      (alles ? 'All 42 formats' : 'Rory\'s shortlist') + '</div>' +
-      '<div class="wiz-formats">' + tonen.map(function (x) {
-        var aan = (x.id === sel), tip = (x.id === rec.formatId);
-        return '<button type="button" class="wiz-format' + (aan ? ' on' : '') + (tip ? ' rec' : '') + '" ' +
-          'onclick="wizPick(\'format\',\'formatId\',\'' + wizEsc(x.id) + '\')">' +
-          (tip ? '<span class="wiz-choice-rec">Rory</span>' : '') +
-          '<span class="wiz-format-name">' + wizEsc(x.name) + '</span>' +
-          '<span class="wiz-format-desc">' + wizEsc(x.desc) + '</span>' +
-          '</button>';
-      }).join('') + '</div></div>';
-  }
+  /* Drie kaarten naast elkaar met een miniatuur van de opbouw, zoals in het
+     ontwerp. Het wireframe is geen plaatje maar een paar blokjes die de
+     verhouding van het format tonen -- genoeg om te zien of het een tekstad,
+     een productad of een vergelijking is. */
+  h += '<div class="wiz-formats' + (alles ? ' alles' : '') + '">' + tonen.map(function (x) {
+    var aan = (x.id === sel), tip = (x.id === rec.formatId);
+    return '<button type="button" class="wiz-format' + (aan ? ' on' : '') + (tip ? ' rec' : '') + '" ' +
+      'onclick="wizPick(\'format\',\'formatId\',\'' + wizEsc(x.id) + '\')">' +
+      (tip ? '<span class="wiz-choice-rec">Recommended</span>' : '') +
+      '<span class="wiz-format-name">' + wizEsc(x.name) + '</span>' +
+      '<span class="wiz-format-desc">' + wizEsc(x.desc) + '</span>' +
+      '<span class="wiz-wire ' + wizWireVorm(x) + '"></span>' +
+      '</button>';
+  }).join('') + '</div>';
 
   h += '<div class="wiz-actions">' +
     '<button type="button" class="wiz-btn ghost small" onclick="wizToggleAllFormats()">' +
-    (alles ? 'Back to the shortlist' : 'View all 42 formats') + '</button>' +
+    (alles ? 'Back to the shortlist' : 'View all formats (' + AD_FORMATS.length + ')') + '</button>' +
     wizHerzie('format') + '</div>';
   return h;
+}
+
+/* Welke miniatuur bij een format hoort. Afgeleid van de categorie, zodat een
+   nieuw format vanzelf een passend blokje krijgt in plaats van een lege plek. */
+function wizWireVorm(f) {
+  if (!f) return 'w-product';
+  if (f.cat === 'B') return 'w-proof';
+  if (f.cat === 'C') return 'w-split';
+  if (f.cat === 'D') return 'w-native';
+  if (f.cat === 'E') return 'w-editorial';
+  return 'w-product';
 }
 
 function wizToggleAllFormats() { wizState.showAllFormats = !wizState.showAllFormats; wizRender(); }
@@ -518,31 +594,37 @@ function wizRender_visual() {
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'visual\')">Propose one</button></div>';
   }
 
-  var g = function (naam) { return WIZ_VISUAL.filter(function (x) { return x.field === naam; })[0]; };
-  var h = wizZin('visual', [
-    'A ', wizVisueelDeel(g('composition')),
-    ' in a ', wizVisueelDeel(g('scene')),
-    ', ', wizVisueelDeel(g('humanPresence')),
-    ', shot ', wizVisueelDeel(g('framing')),
-    ', in a ', wizVisueelDeel(g('mood')), ' mood.'
-  ]);
+  /* Acht keuzes in twee kolommen, zoals in het ontwerp: elk een label met een
+     keuzelijst eronder. Geen uitklap meer -- op deze stap is juist het
+     overzicht de bedoeling, want de combinatie bepaalt het beeld. */
+  var links = '<div class="wiz-tweeveld">' +
+    WIZ_VISUAL.filter(function (x) { return x.field !== 'referenceUsage'; }).map(function (g) {
+      return wizSelect('visual', g.field, g.title, g.opts, 'Choose…');
+    }).join('') + '</div>';
 
-  var rest = WIZ_VISUAL.filter(function (x) { return !x.hoofd; });
-  h += wizUitklap('visual',
-    rest.map(function (x) {
-      return '<div class="wiz-block"><div class="wiz-block-t">' + wizEsc(x.title) + '</div>' +
-        wizChoices('visual', x.field, x.opts, 3) + '</div>';
-    }).join('') +
+  links += wizUitklap('visual',
+    wizSelect('visual', 'referenceUsage', 'Reference image usage',
+      (WIZ_VISUAL.filter(function (x) { return x.field === 'referenceUsage'; })[0] || {}).opts || []) +
     '<div class="wiz-actions">' + wizHerzie('visual') + '</div>',
-    'Refine five more details');
+    'More options');
 
+  /* Rechts een indruk van het beeld. Zolang er nog geen generatie is, is dat
+     de sterkste referentiefoto van het product -- eerlijk gelabeld, want het
+     is een voorbeeld en niet de advertentie. */
   var p = wizProduct();
+  var refs = (p && typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
+  var voorbeeld = refs && ((refs.usage && refs.usage[0]) || (refs.lifestyle && refs.lifestyle[0]) || (refs.product && refs.product[0]));
+  var rechts = voorbeeld
+    ? wizPaneel(null, '<div class="wiz-vizvoorbeeld"><img src="' + voorbeeld + '" alt=""></div>' +
+        '<div class="wiz-vizvoorbeeld-bij">This is a reference photo, not the ad. The generated visual follows the direction on the left.</div>')
+    : '<div class="wiz-leegzij">No reference photos on file for this product.</div>';
+
   var bd = (p && typeof refBreakdown === 'function') ? refBreakdown(p.references) : null;
   if (bd && bd.usage > 0) {
-    h += '<div class="wiz-note">' + bd.usage + ' usage photo' + (bd.usage > 1 ? 's are' : ' is') +
+    rechts += '<div class="wiz-note">' + bd.usage + ' usage photo' + (bd.usage > 1 ? 's are' : ' is') +
       ' on file. The generator follows them for how the product is held and applied, whatever is chosen here.</div>';
   }
-  return h;
+  return { links: links, rechts: rechts };
 }
 
 /* ── Stap 6: Copy ───────────────────────────────────────────────────────── */
@@ -556,28 +638,64 @@ function wizRender_copy() {
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'copy\')">Write it</button></div>';
   }
 
-  /* De copy staat er zoals hij op de advertentie komt, niet als invoervakken.
-     Een headline beoordeel je op formaat en ritme, en dat zie je niet in een
-     veld van één regel. Bewust niet vertaald: dit is advertentiecopy. */
-  var h = '<div class="wiz-copyblad">' +
-    '<div class="wiz-copy-headline">' + wizEsc(c.headline) + '</div>' +
-    (c.supporting ? '<div class="wiz-copy-sub">' + wizEsc(c.supporting) + '</div>' : '') +
-    (c.body ? '<div class="wiz-copy-body">' + wizEsc(c.body) + '</div>' : '') +
-    (c.proof ? '<div class="wiz-copy-proof">' + wizEsc(c.proof) + '</div>' : '') +
-    (c.cta ? '<div class="wiz-copy-cta">' + wizEsc(c.cta) + '</div>' : '') +
-    '</div>';
+  /* Links de headline-opties als keuze, plus de losse regels. Rechts de ad
+     zoals hij eruit komt te zien: op ware grootte en in de goede verhouding,
+     want een headline beoordeel je op ritme en lengte en dat zie je niet in
+     een invoerveld van één regel. Bewust niet vertaald: dit is
+     advertentiecopy. */
+  var opties = wizHeadlineOpties();
+  var links = '';
+  if (opties.length > 1) {
+    links += '<div class="wiz-veld"><label>Headline options</label>' +
+      '<div class="wiz-headlines">' + opties.map(function (t, i) {
+        var aan = (t === c.headline);
+        return '<button type="button" class="wiz-headline' + (aan ? ' on' : '') + '" ' +
+          'data-h="' + wizEsc(t) + '" ' +
+          'onclick="wizPick(\'copy\',\'headline\',this.getAttribute(\'data-h\'))">' +
+          wizEsc(t) + '</button>';
+      }).join('') + '</div></div>';
+  } else {
+    links += wizField('copy', 'headline', 'Headline', 'the one line that has to land', true);
+  }
+  links += wizField('copy', 'supporting', 'Support line');
+  links += wizField('copy', 'cta', 'CTA');
 
-  h += wizUitklap('copy',
+  links += wizUitklap('copy',
     wizField('copy', 'headline', 'Headline', 'the one line that has to land', true) +
-    wizField('copy', 'supporting', 'Supporting line') +
     wizField('copy', 'proof', 'Proof copy', 'the claim that makes it believable') +
     wizField('copy', 'body', 'Body copy', 'only when the format carries it', 3) +
-    wizField('copy', 'cta', 'Call to action') +
     '<div class="wiz-actions">' + wizHerzie('copy', 'Have Rory write it differently') + '</div>',
-    'Edit the copy');
+    'More options');
 
-  h += wizAlternatives('copy');
-  return h;
+  var p = wizProduct();
+  var refs = (p && typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
+  var beeld = refs && ((refs.usage && refs.usage[0]) || (refs.lifestyle && refs.lifestyle[0]) || (refs.product && refs.product[0]));
+  var rechts = wizPaneel('Preview',
+    '<div class="wiz-adpreview">' +
+      (beeld ? '<div class="wiz-adpreview-beeld"><img src="' + beeld + '" alt=""></div>' : '') +
+      '<div class="wiz-adpreview-tekst">' +
+        '<div class="wiz-copy-headline">' + wizEsc(c.headline) + '</div>' +
+        (c.supporting ? '<div class="wiz-copy-sub">' + wizEsc(c.supporting) + '</div>' : '') +
+        (c.proof ? '<div class="wiz-copy-proof">' + wizEsc(c.proof) + '</div>' : '') +
+        (c.cta ? '<div class="wiz-copy-cta">' + wizEsc(c.cta) + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="wiz-vizvoorbeeld-bij">Layout impression. The generator decides the final composition.</div>');
+
+  return { links: links, rechts: rechts };
+}
+
+/* De headlines waaruit je kunt kiezen: de huidige plus wat Rory als
+   alternatief aandroeg. Zonder dubbelen, want twee keer dezelfde regel als
+   "keuze" aanbieden is geen keuze. */
+function wizHeadlineOpties() {
+  var c = wizState.data.copy;
+  var uit = c.headline ? [c.headline] : [];
+  ((wizState.advice.copy || {}).alternatives || []).forEach(function (a) {
+    var t = a && a.values && a.values.headline;
+    if (t && uit.indexOf(t) === -1) uit.push(t);
+  });
+  return uit;
 }
 
 window.wizRender_product = wizRender_product; window.wizRender_audience = wizRender_audience;
@@ -592,3 +710,6 @@ window.WIZ_AWARENESS = WIZ_AWARENESS; window.WIZ_FUNNELS = WIZ_FUNNELS; window.W
 window.wizOpenVeld = wizOpenVeld; window.wizToggleUitklap = wizToggleUitklap;
 window.wizZin = wizZin; window.wizDenkt = wizDenkt; window.wizUitklap = wizUitklap;
 window.wizOptLabel = wizOptLabel; window.wizChoices = wizChoices; window.wizField = wizField;
+window.wizSelect = wizSelect; window.wizTegels = wizTegels; window.wizPaneel = wizPaneel;
+window.wizWireVorm = wizWireVorm; window.wizHeadlineOpties = wizHeadlineOpties;
+window.WIZ_STRATEGIE_RIJEN = WIZ_STRATEGIE_RIJEN;
