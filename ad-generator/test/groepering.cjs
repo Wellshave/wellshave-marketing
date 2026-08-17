@@ -115,6 +115,12 @@ function meetInPagina() {
   await page.waitForTimeout(2500);
   await page.click('#main-tab-btn-generator');
   await page.waitForTimeout(900);
+  /* De stapkoppen van het klassieke formulier staan sinds de wizard achter de
+     uitklap "gebruik het klassieke formulier". Ze gelden nog steeds: een kop
+     hoort bij wat eronder staat, ook als je hem zelf openklapt. Dus klappen we
+     hem open, anders meet regel 6c.3 hier nul koppen en bewijst hij niets. */
+  await page.evaluate(() => { if (!wizClassicOpen) toggleClassicForm(); });
+  await page.waitForTimeout(400);
   const m = await page.evaluate(meetInPagina);
 
   const max = a => a.length ? Math.max(...a) : null;

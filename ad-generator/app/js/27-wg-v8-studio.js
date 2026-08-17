@@ -42,16 +42,27 @@
   kids.forEach(function (node) {
     if (node.classList && (node.classList.contains('field') || node.id === 'bundle-field')) accBasis.body.appendChild(node);
   });
-  var order = ['.mode-tabs', '#brain-dump-card', '.iw-launch', '#source-ad-section'];
+  /* Bovenaan het werkblad staat de weg die je moet nemen: de moduskeuze en dan
+     de wizard. De oude route -- brain dump, interview en de losse
+     formulier-secties -- gaat het klassieke formulier in. Die stond hier eerst
+     bovenaan en de wizard viel door naar de onderkant, twee schermen lager;
+     dan is "vanaf nul" in de praktijk nog steeds de oude weg. En wat het
+     klassieke formulier in gaat wordt door het inklappen ook echt verborgen --
+     dat werkte niet zolang deze secties er hier uit gehesen werden. */
+  var klassiek = document.getElementById('classic-form') || center;
+  var order = ['.mode-switcher', '#wiz-launch', '#source-ad-section'];
   order.forEach(function (sel) { var n = gen.querySelector(sel); if (n) center.appendChild(n); });
+  ['#brain-dump-card', '.iw-launch'].forEach(function (sel) {
+    var n = gen.querySelector(sel); if (n) klassiek.appendChild(n);
+  });
   function sectionTitle(sec) { var t = sec.querySelector('.form-section-title'); return t ? t.textContent : ''; }
   Array.prototype.slice.call(gen.querySelectorAll('.form-section')).forEach(function (sec) {
-    if (accDoel.body.contains(sec) || center.contains(sec)) return;
+    if (accDoel.body.contains(sec) || klassiek.contains(sec) || center.contains(sec)) return;
     var t = sectionTitle(sec);
     if (/doelgroep/i.test(t)) { accDoel.body.appendChild(sec); return; }
-    if (/format/i.test(t)) center.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 2</b><span>Kies het format</span><small>de creatieve opzet, 42 mogelijkheden</small>'));
-    if (/invalshoek/i.test(t)) center.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 3</b><span>Scherp de invalshoek aan</span><small>archetype en concept-richting, of laat Rory het invullen</small>'));
-    center.appendChild(sec);
+    if (/format/i.test(t)) klassiek.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 2</b><span>Kies het format</span><small>de creatieve opzet, 42 mogelijkheden</small>'));
+    if (/invalshoek/i.test(t)) klassiek.appendChild(el('div', 'ws8-step scratch-only', '<b>Stap 3</b><span>Scherp de invalshoek aan</span><small>archetype en concept-richting, of laat Rory het invullen</small>'));
+    klassiek.appendChild(sec);
   });
   /* Restanten in .form-grid (copy-opties, iterate-blokken) in bronvolgorde mee */
   Array.prototype.slice.call(formGrid.children).forEach(function (node) { center.appendChild(node); });

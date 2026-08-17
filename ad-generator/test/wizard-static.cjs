@@ -672,6 +672,34 @@ const VULLEN = `
     uit.komtTerugNaSluiten = !dicht();
     return uit;
   });
+  /* Dat #wiz-launch bestáát zei niets: hij stond twee schermen onder de brain
+     dump, dus in Vanaf nul kreeg je nog steeds de oude werkwijze te zien. Wat
+     telt is wat je als eerste tegenkomt, niet wat er ergens in de DOM staat. */
+  const eersteIndruk = await page.evaluate(() => {
+    wizClose();
+    switchMainTab('generator');
+    setMode('scratch');
+    /* Een eerder blok klapt het klassieke formulier met de hand open en laat
+       het zo staan. Wij meten wat een verse bezoeker ziet, dus zetten we het
+       terug op de begintoestand. */
+    wizClassicOpen = false; wizSyncClassic();
+    var naam = function (e) { return e.id || e.className.split(' ')[0]; };
+    /* Het werkblad is de middenkolom: de studio-opbouw leegt .form-grid en
+       verdeelt alles over drie kolommen. Meten in .form-grid zou nul opleveren
+       en dus nooit iets aantonen. */
+    var werkblad = document.querySelector('.ws8-center') || document.querySelector('.form-grid');
+    return [].slice.call(werkblad.children)
+      .filter(function (e) { return e.offsetParent !== null; })
+      .map(naam)
+      /* de kolomkop "Werkblad" is een opschrift, geen blok waar je iets doet */
+      .filter(function (n) { return n !== 'ws8-zone-lbl'; });
+  });
+  /* Het hele werkblad, niet alleen het eerste blok: de oude route was vier
+     blokken lang en duwde de wizard eronder. Wie hier iets aan toevoegt moet
+     dat bewust doen. */
+  check('in vanaf nul is het werkblad de wizard, meer niet',
+        eersteIndruk, ['wiz-launch', 'classic-toggle', 'generate-row']);
+
   check('vanaf nul staat het oude formulier ingeklapt', oud.scratchIngeklapt, true);
   check('en staat de wizard-ingang er', oud.launchZichtbaar, true);
   check('in Kopieer ad staat het oude formulier open', oud.copyOpen, true);
