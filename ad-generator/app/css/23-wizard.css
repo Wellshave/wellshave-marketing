@@ -1086,3 +1086,38 @@
 @media (max-width: 900px) {
   .wiz-bd-rij { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* ── Rory's aannames bij de start ─────────────────────────────────────────
+   Bleker dan het gesprek: het is wat hij dacht, niet wat er besloten is. */
+.iw2-aannames {
+  margin-bottom: 16px; padding: 12px 14px; border-radius: 12px;
+  border: 1px dashed var(--gold-line); background: var(--glass-1);
+}
+.iw2-aannames-k {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 8px;
+}
+.iw2-aanname { padding: 5px 0; border-top: 1px solid var(--hairline); }
+.iw2-aanname:first-of-type { border-top: 0; }
+.iw2-aanname-c { display: block; font-size: 13px; color: var(--text); line-height: 1.5; }
+.iw2-aanname-b { display: block; font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.iw2-gaten { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.iw2-gaten-k {
+  display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 4px;
+}
+.iw2-gat { display: block; font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+.iw2-aannames-v { margin-top: 9px; font-size: 12.5px; color: var(--text-soft); font-style: italic; }
+
+/* Herkomst en reden in de blueprint. */
+.iw2-bp-rij { grid-template-columns: 140px 1fr auto; align-items: baseline; }
+.iw2-bp-bron {
+  font-style: normal; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint); padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--hairline);
+}
+.iw2-bp-bron.user { color: var(--gold); border-color: var(--gold-line); }
+.iw2-bp-reden {
+  grid-column: 2 / -1; text-decoration: none; display: block;
+  font-size: 12px; color: var(--text-faint); line-height: 1.45; margin-top: 2px;
+}

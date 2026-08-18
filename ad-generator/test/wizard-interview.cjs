@@ -611,15 +611,21 @@ const OPZET = `
        zelf onderscheppen: wat Rory terugstuurt is niet te testen, wat we hem
        meegeven wel -- en daar zat het probleem. */
     window.__WG_TEAMSERVER = true;
-    iw2Start(); iw2Kies('angle');
+    /* Onderscheppen voordat het gesprek begint: bij de start doet Rory zijn
+       openingsanalyse, en die aanroep is een andere dan deze. We bewaren ze
+       allemaal en pakken de laatste, want dat is het antwoord dat we sturen. */
     var echt = window.wizCall;
-    var meegegeven = null;
+    var alle = [];
     window.wizCall = function (sys) {
-      meegegeven = sys;
+      alle.push(sys);
       return new Promise(function () {});   /* blijft open; we willen alleen de opdracht */
     };
+    iw2Start(); iw2.busy = false; iw2Kies('angle'); iw2.busy = false;
     document.getElementById('iw2-in').value = 'Promise result.';
     iw2Antwoord();
+    /* Pas nu lezen: de laatste aanroep is het antwoord dat we sturen, niet de
+       openingsanalyse die bij de start vertrok. */
+    var meegegeven = alle[alle.length - 1];
     window.wizCall = echt;
     iw2.busy = false;
     return {
@@ -743,11 +749,12 @@ const OPZET = `
   const slot = await page.evaluate(opzet => {
     eval(opzet);
     window.__WG_TEAMSERVER = true;
-    iw2Start(); iw2Kies('angle');
     var echt = window.wizCall;
-    var sys = null;
-    window.wizCall = function (s) { sys = s; return new Promise(function () {}); };
+    var alle = [];
+    window.wizCall = function (s) { alle.push(s); return new Promise(function () {}); };
+    iw2Start(); iw2.busy = false; iw2Kies('angle'); iw2.busy = false;
     iw2Afronden();
+    var sys = alle[alle.length - 1];
     window.wizCall = echt;
     iw2.busy = false;
 
@@ -836,6 +843,213 @@ const OPZET = `
         richtingen.geenVergelijkingBijProbleem, true);
   check('wel bij productbewust', richtingen.vergelijkingBijProduct, true);
   check('zonder bewustzijnsniveau krijg je een andere lijst', richtingen.zonderNiveauAnders, true);
+
+  /* ── Geen keuze zonder context ───────────────────────────────────────── */
+  console.log('\n  je weet waarom je zou kiezen wat je kiest');
+
+  const context = await page.evaluate(opzet => {
+    eval(opzet);
+    wizSet('product', 'funnel', 'tof', 'user');
+    iw2Start(); iw2Kies('angle');
+    var zonder = [], geteld = 0;
+    IW2_VRAGEN.forEach(function (v) {
+      iw2Opties(v).forEach(function (o) {
+        geteld++;
+        if (!o.sub || String(o.sub).trim().length < 20) zonder.push(v.key + '/' + o.key);
+      });
+    });
+    /* En de context zegt iets over WANNEER je het neemt, niet alleen wat het is. */
+    var visueel = IW2_VRAGEN.filter(function (v) { return v.key === 'visual'; })[0];
+    var clinical = iw2Opties(visueel).filter(function (o) { return o.key === 'clinical'; })[0];
+    return { zonder: zonder, geteld: geteld,
+             clinical: clinical ? clinical.sub : '',
+             opScherm: (function () {
+               var d = document.createElement('div');
+               d.innerHTML = iw2Render().links;
+               return d.querySelectorAll('.iw2-optie-s').length;
+             })() };
+  }, OPZET);
+  /* Premium of Clinical zonder uitleg is geen keuze maar gokken, en dat was
+     precies de klacht: je krijgt vijf woorden en geen grond om te kiezen. */
+  check('elke optie zegt wat het is', context.zonder, []);
+  check('en het gaat om echte aantallen', context.geteld > 30, true);
+  check('de context zegt ook wanneer je hem neemt',
+        /sophistication 3 or 4|when there is something to prove/.test(context.clinical), true);
+  check('en die regels staan ook echt op het scherm', context.opScherm > 0, true);
+
+  /* ── Rory vraagt door ────────────────────────────────────────────────── */
+  console.log('\n  er wordt iets teruggevraagd');
+
+  const diep = await page.evaluate(opzet => {
+    eval(opzet);
+    window.__WG_TEAMSERVER = true;
+    var echt = window.wizCall;
+    var opdrachten = [];
+    /* Rory vindt dat doorvragen zin heeft en stelt een vraag terug. */
+    window.wizCall = function (sys) {
+      opdrachten.push(sys);
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        dig: true, question: 'Which competitor is he comparing you with right now?',
+        why: 'It decides whether we lead with the mechanism or with the price.',
+        options: [{ label: 'The supermarket brand', sub: 'Then price is the lever' },
+                  { label: 'A premium rival', sub: 'Then the mechanism is' }]
+      }) }] });
+    };
+    iw2Start(); iw2.busy = false;
+    iw2Kies('angle'); iw2.busy = false;
+    var voorVraag = iw2.chat.length;
+    var vraagNu = iw2Vraag().key;
+    iw2Kies('safety');
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echt;
+        var laatste = iw2.chat[iw2.chat.length - 1];
+        klaar({
+          /* Hij blijft op dezelfde vraag staan: de doorvraag is geen stap. */
+          zelfdeVraag: iw2Vraag().key === vraagNu,
+          gesteld: laatste ? laatste.tekst : '',
+          vanRory: laatste ? laatste.wie : '',
+          /* Met snelle antwoorden op ZIJN vraag, niet op de oude. */
+          eigenOpties: iw2Opties(iw2Vraag()).map(function (o) { return o.label; }),
+          /* De opdracht vraagt om terughoudendheid: alleen als het iets verandert. */
+          alleenAlsHetUitmaakt: opdrachten.some(function (o) {
+            return /change what you recommend/.test(o.replace(/\s+/g, ' ')); }),
+          nietTeTellen: opdrachten.some(function (o) { return /Not "tell me more"/.test(o); }),
+          gedieptOp: Object.keys(iw2.gediept)
+        });
+      }, 60);
+    });
+  }, OPZET);
+  check('Rory stelt een vraag terug', /Which competitor/.test(diep.gesteld), true);
+  check('en dat is hij, niet jij', diep.vanRory, 'rory');
+  check('je blijft op dezelfde vraag staan', diep.zelfdeVraag, true);
+  check('met snelle antwoorden op zijn vraag',
+        diep.eigenOpties.indexOf('The supermarket brand') > -1, true);
+  check('de opdracht vraagt alleen door als het de aanbeveling verandert',
+        diep.alleenAlsHetUitmaakt, true);
+  check('en verbiedt "vertel eens meer"', diep.nietTeTellen, true);
+  check('en hij onthoudt waarop hij al gediept heeft', diep.gedieptOp, ['theme']);
+
+  const rem = await page.evaluate(opzet => {
+    eval(opzet);
+    window.__WG_TEAMSERVER = true;
+    iw2Start();
+    /* Dezelfde vraag twee keer diepen mag niet, en na vier keer stopt het. */
+    var v = IW2_VRAGEN.filter(function (x) { return x.key === 'theme'; })[0];
+    var eerste = iw2MagDiepen(v);
+    iw2.gediept.theme = true;
+    var tweede = iw2MagDiepen(v);
+    iw2.gediept = { a: 1, b: 1, c: 1, d: 1 };
+    var naVier = iw2MagDiepen(v);
+    /* En op een vraag waar het waarom niets verandert, nooit. */
+    iw2.gediept = {};
+    var visueel = IW2_VRAGEN.filter(function (x) { return x.key === 'visual'; })[0];
+    var opVisueel = iw2MagDiepen(visueel);
+    window.__WG_TEAMSERVER = false;
+    return { eerste: eerste, tweede: tweede, naVier: naVier, opVisueel: opVisueel,
+             plafond: IW2_MAX_DIEP };
+  }, OPZET);
+  check('op een dragende vraag mag hij doorvragen', rem.eerste, true);
+  check('maar geen tweede keer op dezelfde', rem.tweede, false);
+  check('en niet meer na het plafond', rem.naVier, false);
+  check('dat plafond is vier', rem.plafond, 4);
+  check('op een smaakvraag vraagt hij niet door', rem.opVisueel, false);
+
+  /* ── De aannames op tafel ────────────────────────────────────────────── */
+  console.log('\n  wat Rory al denkt voordat je iets zegt');
+
+  const aannames = await page.evaluate(opzet => {
+    eval(opzet);
+    window.__WG_TEAMSERVER = true;
+    iw2.busy = false;
+    var echt = window.wizCall;
+    var sys = null;
+    window.wizCall = function (s) {
+      sys = s;
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        assumptions: [{ claim: 'Hij vergelijkt je met de supermarkt, niet met een merk.',
+                        from: 'de bezwaren in het klantonderzoek' }],
+        gaps: ['Ik zie niet wat er de afgelopen maand gedraaid heeft.'],
+        question: 'Klopt het dat prijs het echte bezwaar is?',
+        options: [{ label: 'Ja', sub: 'Dan is prijs de hefboom' }]
+      }) }] });
+    };
+    iw2Start();
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echt;
+        window.__WG_TEAMSERVER = false;
+        var d = document.createElement('div');
+        d.innerHTML = iw2Render().links;
+        klaar({
+          opdrachtVraagtAannames: /put your assumptions on the table/.test(sys || ''),
+          vraagtBron: /what you are reading that from/.test(sys || ''),
+          vraagtGaten: /Say plainly where you have nothing/.test(sys || ''),
+          claimOpScherm: (d.querySelector('.iw2-aanname-c') || {}).textContent || '',
+          bronOpScherm: (d.querySelector('.iw2-aanname-b') || {}).textContent || '',
+          gatOpScherm: (d.querySelector('.iw2-gat') || {}).textContent || '',
+          uitnodiging: /Pull one of these apart/.test(d.textContent),
+          zijnVraagInGesprek: iw2.chat.some(function (r) {
+            return /Klopt het dat prijs/.test(r.tekst); })
+        });
+      }, 60);
+    });
+  }, OPZET);
+  check('de opdracht vraagt hem zijn aannames op tafel te leggen',
+        aannames.opdrachtVraagtAannames, true);
+  check('met waar hij ze vandaan haalt', aannames.vraagtBron, true);
+  /* De nuttigste regel van de vijf: waar hij niets heeft, zegt hij dat. Daar
+     zit precies wat de marketeer wel weet en de data niet. */
+  check('en waar hij niets heeft moet hij dat zeggen', aannames.vraagtGaten, true);
+  check('zijn aanname staat op het scherm',
+        /vergelijkt je met de supermarkt/.test(aannames.claimOpScherm), true);
+  check('met de bron erbij', /klantonderzoek/.test(aannames.bronOpScherm), true);
+  check('en wat hij niet kan zien', /afgelopen maand/.test(aannames.gatOpScherm), true);
+  check('met de uitnodiging om hem onderuit te halen', aannames.uitnodiging, true);
+  check('en zijn openingsvraag staat in het gesprek', aannames.zijnVraagInGesprek, true);
+
+  /* ── Waar komt dit vandaan ───────────────────────────────────────────── */
+  console.log('\n  je kunt teruglezen hoe je hier gekomen bent');
+
+  const herkomst = await page.evaluate(opzet => {
+    eval(opzet);
+    wizSet('product', 'funnel', 'tof', 'user');
+    iw2Start(); iw2Kies('angle');
+    iw2Kies('safety');          /* jouw keuze, met zijn gevolg als reden */
+    iw2.klaar = true;
+    var d = document.createElement('div');
+    d.innerHTML = iw2RenderBlueprint();
+    var rijen = [].slice.call(d.querySelectorAll('.iw2-bp-rij')).map(function (r) {
+      return {
+        label: r.querySelector('span').textContent,
+        bron: (r.querySelector('.iw2-bp-bron') || {}).textContent || '',
+        reden: (r.querySelector('.iw2-bp-reden') || {}).textContent || ''
+      };
+    });
+    var hoek = rijen.filter(function (r) { return r.label === 'Angle'; })[0];
+
+    /* En een veld dat Rory invulde draagt zijn reden. */
+    wizSet('strategy', 'mechanism', 'Een kam die met de huid meebuigt', 'rory');
+    iw2.redenen['strategy.mechanism'] = 'Op dit stadium gelooft de markt geen kale claim meer.';
+    var d2 = document.createElement('div');
+    d2.innerHTML = iw2RenderBlueprint();
+    var mech = [].slice.call(d2.querySelectorAll('.iw2-bp-rij')).filter(function (r) {
+      return r.querySelector('span').textContent === 'Mechanism'; })[0];
+
+    return {
+      hoekBron: hoek ? hoek.bron : '', hoekReden: hoek ? hoek.reden : '',
+      mechBron: mech ? (mech.querySelector('.iw2-bp-bron') || {}).textContent : '',
+      mechReden: mech ? (mech.querySelector('.iw2-bp-reden') || {}).textContent : '',
+      legeZonderBron: [].slice.call(d.querySelectorAll('.iw2-bp-rij.leeg'))
+        .every(function (r) { return !r.querySelector('.iw2-bp-bron'); })
+    };
+  }, OPZET);
+  check('bij jouw keuze staat dat jij het was', herkomst.hoekBron, 'you');
+  check('met de reden erbij', /fear of getting it wrong/.test(herkomst.hoekReden), true);
+  check('bij Rory\'s keuze staat zijn naam', herkomst.mechBron, 'Rory');
+  check('en zijn reden', /geen kale claim meer/.test(herkomst.mechReden), true);
+  /* Een leeg veld heeft geen eigenaar: daar is nog niets besloten. */
+  check('een leeg veld draagt geen herkomst', herkomst.legeZonderBron, true);
 
   /* ── Wat de blueprint moet laten zien ────────────────────────────────── */
   console.log('\n  de blueprint laat de redenering zien, niet de instellingen');

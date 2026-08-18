@@ -48,8 +48,29 @@ var iw2 = {
   /* Antwoorden die Rory zelf voorstelde bij zijn laatste vervolgvraag. Zolang
      die er staan vervangen ze de vaste lijst -- zijn vraag is veranderd, dus de
      snelle antwoorden horen mee te veranderen. */
-  dynOpties: null
+  dynOpties: null,
+  /* Waarom een veld staat zoals het staat, per pad. Gevuld door de keuze zelf,
+     door een doorvraag en door de sluitaanroep. Dit is het antwoord op "ik heb
+     alles ingevuld en ik weet niet hoe we hier gekomen zijn". */
+  redenen: {},
+  /* Op welke vragen Rory al een keer doorgevraagd heeft. Eenmaal per vraag, en
+     hoogstens IW2_MAX_DIEP keer in het hele gesprek: doorvragen is de bedoeling,
+     een verhoor niet. */
+  gediept: {},
+  /* Zijn openingsanalyse: wat hij aanneemt voordat je iets gezegd hebt, en
+     waarop. Zonder dit begint het gesprek bij nul terwijl de console een
+     productbestand, klantonderzoek en een advertentiehistorie heeft. */
+  aannames: null
 };
+
+/* Hoe vaak Rory in een gesprek mag doorvragen. Vier: genoeg om ergens te komen,
+   te weinig om een examen te worden. */
+var IW2_MAX_DIEP = 4;
+
+/* Op welke vragen doorvragen zin heeft. Niet op alle: bij een format of een
+   visuele stijl is jouw antwoord het antwoord, maar bij de dragende besluiten
+   verandert het waarom wel degelijk wat er daarna gebeurt. */
+var IW2_DIEPVRAGEN = ['theme', 'persona', 'sofist', 'goal'];
 
 function iw2Tijd() {
   var d = new Date();
@@ -89,18 +110,23 @@ var IW2_VRAGEN = [
     vraag: 'To get started, what is the main goal for this ad?',
     opts: [
       { key: 'reach', label: 'Reach new customers',
+        sub: 'Cold reach. The biggest audience and the most indirect message: they do not know you, so the ad has to earn the look before it sells anything.',
         zet: [['strategy', 'goal', 'Reach new customers'], ['product', 'funnel', 'tof']],
         gevolg: 'Perfect. We will focus on a message that attracts people who do not know the brand yet.' },
       { key: 'sales', label: 'Drive sales of a specific product',
+        sub: 'Conversion. Aimed at people close to buying, so proof and the objection matter more than attention.',
         zet: [['strategy', 'goal', 'Drive sales of a specific product'], ['product', 'funnel', 'bof']],
         gevolg: 'Clear. We aim at people who are close to buying and need a reason to do it now.' },
       { key: 'offer', label: 'Promote an offer or discount',
+        sub: 'The deal carries the ad. Works on people who already trust you, and teaches everyone else to wait for the next discount.',
         zet: [['strategy', 'goal', 'Promote an offer or discount'], ['product', 'funnel', 'bof']],
         gevolg: 'Right. The offer carries the ad, so the product has to be recognisable in one look.' },
       { key: 'angle', label: 'Test a new angle',
+        sub: 'A deliberate experiment. Only worth running if it says something your current ads do not.',
         zet: [['strategy', 'goal', 'Test a new angle'], ['product', 'funnel', 'mof']],
         gevolg: 'Good. A test is only worth running if it says something the current ads do not.' },
       { key: 'rory', label: 'Let Rory decide', rory: true,
+        sub: 'He reads the product data and what already ran, and picks the goal that fits.',
         gevolg: 'I will set the goal from the product data and what already ran.' }
     ]
   },
@@ -114,7 +140,7 @@ var IW2_VRAGEN = [
     vraag: 'One more thing before the format, and it decides what we are even allowed to claim: how tired is this market of hearing this claim?',
     vraagUitleg: 'Write your bare product claim, search it in the Ads Library, count who else makes it. Then stay one stage ahead of them.',
     opts: [
-      { key: 's1', label: 'Nobody else says this', sub: 'A virgin claim',
+      { key: 's1', label: 'Nobody else says this', sub: 'A virgin claim: you are first, so a plain statement is enough and anything cleverer only costs you.',
         zet: [['audience', 'sophistication', 's1']],
         gevolg: 'Then state it plainly. A direct claim is enough, and complicating it would only cost you.' },
       { key: 's2', label: 'A few say it', sub: 'Same claim, we go bigger',
@@ -130,6 +156,7 @@ var IW2_VRAGEN = [
         zet: [['audience', 'sophistication', 's5']],
         gevolg: 'Then we stop selling the product and sell who they are. We open it like an ad for someone who does not know the problem yet.' },
       { key: 'rory', label: 'Let Rory judge the market', rory: true,
+        sub: 'He reads what already ran and sets the stage one step ahead of the category.',
         gevolg: 'I will read what already ran and set the stage one step ahead of the category.' }
     ]
   },
@@ -143,21 +170,27 @@ var IW2_VRAGEN = [
     vraag: 'Let us define how the ad should look and feel. Which visual style would you prefer?',
     opts: [
       { key: 'premium', label: 'Premium', aanbevolen: true,
+        sub: 'Controlled light, deep tones, nothing cheap in frame. Take it when the price has to feel earned, or when the market is tired of claims and only identity is left.',
         zet: [['visual', 'mood', 'premium']],
         gevolg: 'Premium builds trust and positions the product as the safe choice.' },
       { key: 'ugc', label: 'Raw UGC',
+        sub: 'Looks like a photo someone took, not like an ad. Take it for a cold audience that scrolls past anything that announces itself as advertising.',
         zet: [['visual', 'mood', 'raw-ugc']],
         gevolg: 'Raw does not look like an ad, which is exactly why it survives the scroll.' },
       { key: 'minimal', label: 'Minimal',
+        sub: 'One object, one line, empty space. Take it when the single thing left in frame is strong enough to carry the whole ad. If it is not, this is the weakest of the five.',
         zet: [['visual', 'mood', 'minimal']],
         gevolg: 'Minimal only works if the one thing left in frame is strong enough to carry the ad.' },
       { key: 'editorial', label: 'Editorial',
+        sub: 'Composed like a magazine page: a person, a headline, a caption. Take it when you borrow authority, and only when the claim deserves it.',
         zet: [['visual', 'mood', 'editorial']],
         gevolg: 'Editorial borrows the authority of a magazine page. The claim has to deserve it.' },
       { key: 'clinical', label: 'Clinical',
+        sub: 'Flat light, close on the mechanism, labels and numbers. Take it when there is something to prove — a market at sophistication 3 or 4 that stopped believing bare claims.',
         zet: [['visual', 'mood', 'clinical']],
         gevolg: 'Clinical reads as evidence. Only worth it when there is a mechanism to show.' },
       { key: 'rory', label: 'Let Rory decide', rory: true,
+        sub: 'He matches the style to the brand, the market stage and what this audience already trusts.',
         gevolg: 'I will match the style to the brand and to what the audience already trusts.' }
     ]
   },
@@ -166,15 +199,19 @@ var IW2_VRAGEN = [
     vraag: 'Should we include a person in the ad? This helps set the right scene and framing.',
     opts: [
       { key: 'model', label: 'Yes, use a model',
+        sub: 'Someone the buyer can place himself next to. It makes the message relatable, and it costs you if the casting is off: a stranger who is too polished reads as an ad.',
         zet: [['visual', 'humanPresence', 'male-model']],
         gevolg: 'A person in a real environment makes the message relatable.' },
       { key: 'hands', label: 'Hands only',
+        sub: 'Use without a face. It shows the product working and asks nobody to identify with a stranger — the safe middle when the product is the proof.',
         zet: [['visual', 'humanPresence', 'hands']],
         gevolg: 'Hands show use without asking the viewer to identify with a stranger.' },
       { key: 'none', label: 'No person',
+        sub: 'Product and claim only. Take it when the mechanism or the number is the whole idea and a person would just share out the attention.',
         zet: [['visual', 'humanPresence', 'none']],
         gevolg: 'No person keeps all attention on the product and the claim.' },
       { key: 'rory', label: 'Let Rory decide', rory: true,
+        sub: 'He decides from the format and the reference photos we actually have.',
         gevolg: 'I will decide from the format and the reference photos we have.' }
     ]
   },
@@ -199,45 +236,66 @@ var IW2_VRAGEN = [
  * andersom. En je kunt altijd zelf antwoorden met iets wat er niet bij staat.
  */
 var IW2_THEMES = [
-  { key: 'safety',      label: 'Safety & Confidence',    fasen: ['tof', 'mof', 'bof', 'retargeting'],
+  { key: 'safety',      label: 'Safety & Confidence',    sub: 'Lead with what could go wrong and how you prevent it. Take it when the fear of getting it wrong is bigger than the wish to get it right.',
+    fasen: ['tof', 'mof', 'bof', 'retargeting'],
     gevolg: 'Leading with safety works when the fear of getting it wrong is bigger than the wish to get it right.' },
-  { key: 'convenience', label: 'Convenience & Simplicity', fasen: ['tof', 'mof'],
+  { key: 'convenience', label: 'Convenience & Simplicity', sub: 'Sell the time and hassle back, not the product. Needs a concrete before and after, or it is a vague claim.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Convenience sells the time back, not the product. That needs a concrete before and after.' },
-  { key: 'performance', label: 'Performance & Quality',  fasen: ['mof', 'bof'],
+  { key: 'performance', label: 'Performance & Quality',  sub: 'It simply works better. Needs proof inside the ad, otherwise it is a claim like all the others.',
+    fasen: ['mof', 'bof'],
     gevolg: 'Performance needs proof in the ad itself, otherwise it is a claim like every other claim.' },
-  { key: 'premium',     label: 'Premium & Upgrade',      fasen: ['mof', 'bof'],
+  { key: 'premium',     label: 'Premium & Upgrade',
+    sub: 'A promise about the buyer rather than the product. The visual has to carry it, or it reads as an expensive nothing.',
+    fasen: ['mof', 'bof'],
     gevolg: 'Premium is a promise about the buyer, not about the product. The visual has to carry it.' },
-  { key: 'result',      label: 'The result, not the tool', fasen: ['tof', 'mof'],
+  { key: 'result',      label: 'The result, not the tool', sub: 'Sell the outcome, not the tool. Works when the outcome is visible; when it is not, this goes vague fast.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Selling the outcome works when the outcome is visible. If it is not, this becomes a vague claim.' },
-  { key: 'identity',    label: 'Identity & Belonging',   fasen: ['tof', 'mof'],
+  { key: 'identity',    label: 'Identity & Belonging',   sub: 'Speak to a tribe on purpose. Fewer people, far more recognition among those few.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Identity narrows the audience on purpose: fewer people, far more recognition.' },
-  { key: 'value',       label: 'Price & Value',          fasen: ['bof', 'retargeting'],
+  { key: 'value',       label: 'Price & Value',          sub: 'Price and what you get for it. Only an angle when the comparison is concrete: cheap on its own is not a reason.',
+    fasen: ['bof', 'retargeting'],
     gevolg: 'Price is only an angle if the comparison is concrete. Cheap on its own is not a reason.' },
-  { key: 'health',      label: 'Health & Skin Care',     fasen: ['tof', 'mof'],
+  { key: 'health',      label: 'Health & Skin Care',     sub: 'Reframe grooming as care and maintenance. Needs a mechanism, or it is a mood.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Care reframes the product as maintenance rather than grooming. That needs a mechanism.' },
-  { key: 'contrarian',  label: 'Against the category',   fasen: ['tof'],
+  { key: 'contrarian',  label: 'Against the category',   sub: 'Say the opposite of the category. Buys attention, and then you have to make it stand up.',
+    fasen: ['tof'],
     gevolg: 'Saying the opposite of the category buys attention, and then you have to make it stand up.' },
-  { key: 'time',        label: 'Time and effort saved',  fasen: ['tof', 'mof', 'bof'],
+  { key: 'time',        label: 'Time and effort saved',  sub: 'How much time it gives back. Lands when you name the minutes; "faster" is not a number.',
+    fasen: ['tof', 'mof', 'bof'],
     gevolg: 'Time saved lands when you name the minutes. "Faster" is not a number.' },
-  { key: 'mechanism',   label: 'The mechanism explained', fasen: ['mof', 'bof'],
+  { key: 'mechanism',   label: 'The mechanism explained', sub: 'Explain how it works. The strongest move in a market that stopped believing claims.',
+    fasen: ['mof', 'bof'],
     gevolg: 'Explaining how it works turns a claim into a reason. It needs one thing to show, not three.' },
-  { key: 'comparison',  label: 'Versus the alternative', fasen: ['mof', 'bof', 'retargeting'],
+  { key: 'comparison',  label: 'Versus the alternative', sub: 'You against the thing they use now. Only persuades if you compare against what they actually use.',
+    fasen: ['mof', 'bof', 'retargeting'],
     gevolg: 'A comparison only persuades if the thing you compare against is the one they actually use.' },
-  { key: 'objection',   label: 'Kill the main objection', fasen: ['bof', 'retargeting'],
+  { key: 'objection',   label: 'Kill the main objection', sub: 'Name the doubt out loud and answer it in the same frame. Beats pretending it is not there.',
+    fasen: ['bof', 'retargeting'],
     gevolg: 'Naming the doubt out loud beats ignoring it, as long as the answer is in the same frame.' },
-  { key: 'risk',        label: 'Risk reversal',          fasen: ['bof', 'retargeting'],
+  { key: 'risk',        label: 'Risk reversal',          sub: 'Take the risk off the buyer: guarantee, trial, no-questions return. Works when risk is the real blocker, not price.',
+    fasen: ['bof', 'retargeting'],
     gevolg: 'Taking the risk off the buyer works when the risk is the real blocker, not the price.' },
-  { key: 'social',      label: 'Social proof',           fasen: ['mof', 'bof', 'retargeting'],
+  { key: 'social',      label: 'Social proof',           sub: 'Other buyers do the talking. Needs a name, a number or a face; anonymous praise reads as marketing.',
+    fasen: ['mof', 'bof', 'retargeting'],
     gevolg: 'Proof needs a name, a number or a face. Anonymous praise reads as marketing.' },
-  { key: 'authority',   label: 'Expert authority',       fasen: ['tof', 'mof', 'bof'],
+  { key: 'authority',   label: 'Expert authority',       sub: 'Someone credible says it. Fast to borrow, and it collapses the moment the expert looks staged.',
+    fasen: ['tof', 'mof', 'bof'],
     gevolg: 'Borrowed authority is fast, and it collapses the moment the expert looks staged.' },
-  { key: 'ritual',      label: 'The daily ritual',       fasen: ['tof', 'mof'],
+  { key: 'ritual',      label: 'The daily ritual',       sub: 'The place it takes in their day. Sells repeat use, and needs a moment you can picture.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Selling the routine sells repeat use. It needs a moment in the day you can picture.' },
-  { key: 'mistake',     label: 'The mistake they make',  fasen: ['tof', 'mof'],
+  { key: 'mistake',     label: 'The mistake they make',  sub: 'They are doing it wrong and do not know it. Buys attention and spends goodwill, so be right.',
+    fasen: ['tof', 'mof'],
     gevolg: 'Telling someone they are doing it wrong buys attention and spends goodwill. Be right.' },
-  { key: 'occasion',    label: 'A specific occasion',    fasen: ['tof', 'bof', 'retargeting'],
+  { key: 'occasion',    label: 'A specific occasion',    sub: 'A specific moment creates a deadline the product itself does not have.',
+    fasen: ['tof', 'bof', 'retargeting'],
     gevolg: 'An occasion creates a deadline the product itself does not have.' },
-  { key: 'gift',        label: 'As a gift',              fasen: ['tof', 'bof'],
+  { key: 'gift',        label: 'As a gift',              sub: 'Written for the giver, not the user. That changes who you are talking to entirely.',
+    fasen: ['tof', 'bof'],
     gevolg: 'Gifting changes the buyer: you are writing for the giver, not the user.' }
 ];
 
@@ -381,17 +439,27 @@ function iw2Opties(v) {
   }
   if (v.opties === 'themes') return iw2Selectie(IW2_THEMES, ['strategy', 'theme'])
     .concat([{ key: 'rory', label: 'Let Rory choose based on research', rory: true,
+               sub: 'He reads the customer research and picks the entry point with the least resistance.',
                gevolg: 'I will read the customer research and pick the entry point with the least resistance.' }]);
   if (v.opties === 'copyrichtingen') return iw2Selectie(IW2_COPY, ['copy', 'direction'])
     .concat([{ key: 'rory', label: 'Let Rory write the headline', rory: true,
+               sub: 'He picks the direction from the awareness level and writes the line itself.',
                gevolg: 'I will pick the direction from the awareness level and write it out.' }]);
   if (v.opties === 'personas') {
     var lijst = (state.personas || []).slice(0, 6).map(function (p) {
-      return { key: p.id, label: p.name, sub: p.role || p.summary_nl || '',
+      /* Wie dit is in een regel: rol als die er staat, anders de omschrijving,
+         anders de scherpste pijn. Een naam alleen zegt niets tegen wie de
+         persona-bibliotheek niet uit zijn hoofd kent. */
+      var wie = p.role || p.description || p.summary_nl || '';
+      if ((p.pains || []).length) {
+        wie = (wie ? wie + ' — ' : '') + 'biggest pain: ' + p.pains.filter(Boolean)[0];
+      }
+      return { key: p.id, label: p.name, sub: wie,
                zet: [['audience', 'personaId', p.id]],
                gevolg: 'Good. Everything after this is written for ' + p.name + '.' };
     });
     lijst.push({ key: 'rory', label: 'Let Rory choose based on research', rory: true,
+                 sub: 'He reads the research and picks the persona with the sharpest fit.',
                  gevolg: 'I will read the research and pick the persona with the sharpest fit.' });
     return lijst;
   }
@@ -400,12 +468,15 @@ function iw2Opties(v) {
     var f = (typeof AD_FORMATS !== 'undefined' ? AD_FORMATS : []);
     var keuze = f.filter(function (x) { return iw2FormatKern().indexOf(x.id) > -1; });
     var uit = keuze.map(function (x) {
-      return { key: x.id, label: x.name, sub: (x.tags || []).slice(0, 3).join(' · '),
+      /* De beschrijving is de context; de tags waren een rij losse woorden
+         waar je niets aan hebt op het moment dat je moet kiezen. */
+      return { key: x.id, label: x.name, sub: x.desc || (x.tags || []).slice(0, 3).join(' · '),
                aanbevolen: x.id === aanbevolen,
                zet: [['format', 'formatId', x.id]],
                gevolg: x.desc };
     });
     uit.push({ key: 'rory', label: 'Let Rory pick from all formats', rory: true,
+               sub: 'He chooses from all 42 formats, not just this shortlist.',
                gevolg: 'I will choose from all formats, not just the shortlist.' });
     return uit;
   }
@@ -458,9 +529,64 @@ function iw2Start() {
   iw2.klaar = false;
   iw2.samenvatting = '';
   iw2.dynOpties = null;
+  iw2.redenen = {};
+  iw2.gediept = {};
+  iw2.aannames = null;
+  /* Ook de bezig-vlag. Bleef die van een mislukte aanroep staan, dan zou het
+     volgende gesprek nooit op gang komen: elke aanroep begint met "if (busy)
+     return", en dan lijkt het scherm stuk zonder dat er iets stuk is. */
+  iw2.busy = false;
   iw2Zeg('rory', IW2_VRAGEN[0].vraag);
   wizToonInline();
   wizRender();
+  iw2Aannames();
+}
+
+/* ── Wat Rory al denkt voordat je iets zegt ────────────────────────────────
+ *
+ * Een gesprek dat begint met "waar wil je beginnen?" doet alsof er niets
+ * bekend is, terwijl de console een productbestand, klantonderzoek en een
+ * advertentiehistorie heeft. Dat is niet bescheiden maar lui: het legt het werk
+ * bij de mens dat de data al kan doen.
+ *
+ * Dus begint hij met zijn aannames op tafel, elk met waar hij hem vandaan
+ * haalt, en met de uitnodiging er een onderuit te halen. Waar hij niets heeft
+ * zegt hij dat -- dat is de nuttigste regel van de vijf, want daar zit precies
+ * wat jij wel weet en het systeem niet. */
+function iw2Aannames() {
+  if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) return;
+  if (iw2.busy) return;
+  iw2.busy = true;
+  wizRender();
+
+  var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
+  var sys = WIZ_RORY_SYSTEM + '\n\nYou are opening an interview about a new static ad. ' +
+    'Before the first question, put your assumptions on the table: what you already believe ' +
+    'about this product, this market and this buyer, and what you are reading that from. ' +
+    'Three or four, no more. Diagnose before you prescribe: the point is to be corrected ' +
+    'early, not to look prepared.\n' +
+    'Say plainly where you have nothing. A gap you name is worth more than an assumption you ' +
+    'dress up, because that gap is exactly where the marketer knows something the data does not.\n' +
+    'Then ask ONE opening question that would change your recommendation most.\n' +
+    'Answer with strict JSON: {"assumptions":[{"claim":"one sentence","from":"what you read it ' +
+    'from, or \'nothing — I am guessing\'"}],"gaps":["what you cannot see from here"],' +
+    '"question":"the one question","options":[{"label":"short answer","sub":"what it implies"}]}';
+
+  wizCall(sys, [{ role: 'user', content: ctx.text }], 1200)
+    .then(function (data) {
+      var o = wizParseJson(wizTextOf(data));
+      if (!o || !(o.assumptions || []).length) return;
+      iw2.aannames = { lijst: o.assumptions, gaten: o.gaten || o.gaps || [] };
+      /* Zijn openingsvraag komt in het gesprek te staan, met zijn eigen snelle
+         antwoorden. De vaste startvraag blijft: die bepaalt de route. */
+      if (o.question) {
+        iw2Zeg('rory', o.question);
+        var vs = iw2VerwerkVoorstellen(IW2_VRAGEN[0], o.options || []);
+        if (vs) iw2.dynOpties = vs;
+      }
+    })
+    .catch(function () { /* geen aannames is jammer, geen reden om het gesprek te blokkeren */ })
+    .finally(function () { iw2.busy = false; wizRender(); });
 }
 
 /* Terug in het gesprek waar je was. Dit is niet hetzelfde als opnieuw
@@ -548,7 +674,82 @@ function iw2Kies(optieKey) {
   }
   if (opt.gevolg) iw2Zeg('rory', opt.gevolg);
 
+  /* De reden bij het besluit vastleggen. Bij een eigen keuze is dat wat de
+     optie zelf zegt; koos je de uitweg, dan komt de reden straks van Rory. */
+  if (opt.zet && opt.gevolg) {
+    opt.zet.forEach(function (z) { iw2.redenen[z[0] + '.' + z[1]] = opt.gevolg; });
+  }
+
+  /* En dan de vraag die dit gesprek van een formulier onderscheidt: heeft dit
+     antwoord iets opengelaten dat zijn advies zou veranderen? Zo ja, dan vraagt
+     hij door voordat we verder lopen. */
+  if (iw2MagDiepen(v)) { iw2Diep(v, opt.label); return; }
+
   iw2Volgende();
+}
+
+/* ── Doorvragen ────────────────────────────────────────────────────────────
+ *
+ * Het verschil tussen een interview en een keuzelijst met tekstballonnen is dat
+ * er iets teruggevraagd wordt. Maar niet alles is het waard: een vraag stellen
+ * waarvan het antwoord niets verandert is de vermoeiendste vorm van
+ * beleefdheid, en de vorige versie van dit scherm was er vol mee.
+ *
+ * Dus drie grenzen, en die zijn allemaal een rem op hetzelfde:
+ *
+ *   1. Alleen op de dragende vragen (IW2_DIEPVRAGEN). Bij een visuele stijl is
+ *      jouw antwoord het antwoord; bij de hoek, de persona, het stadium en het
+ *      doel zit er een waarom achter dat alles erna stuurt.
+ *   2. Een keer per vraag.
+ *   3. Hoogstens vier keer in het gesprek.
+ *
+ * En de belangrijkste: Rory mag zelf zeggen dat het niet nodig is. Vindt hij
+ * het antwoord duidelijk genoeg, dan lopen we door zonder vraag. */
+function iw2MagDiepen(v) {
+  if (!v || IW2_DIEPVRAGEN.indexOf(v.key) === -1) return false;
+  if (iw2.gediept[v.key]) return false;
+  if (Object.keys(iw2.gediept).length >= IW2_MAX_DIEP) return false;
+  if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) return false;
+  return true;
+}
+
+function iw2Diep(v, antwoord) {
+  iw2.gediept[v.key] = true;
+  if (iw2.busy) { iw2Volgende(); return; }
+  iw2.busy = true;
+  wizRender();
+
+  var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
+  var sys = WIZ_RORY_SYSTEM + '\n\nYou are mid-interview. The marketer just answered ' +
+    '"' + antwoord + '" to: "' + v.vraag + '".\n' +
+    'Decide one thing: would knowing more about WHY they said that change what you ' +
+    'recommend? Not whether it would be interesting — whether it would change the work.\n' +
+    'If it would not, say so and we move on. Most answers do not need a follow-up, and a ' +
+    'question whose answer changes nothing is the most tiring kind of politeness.\n' +
+    'If it would, ask exactly one question, and make it one only someone who read the ' +
+    'product data and the customer research could ask. Not "tell me more" — something with ' +
+    'the market, the buyer or the product in it. Where the data disagrees with their answer, ' +
+    'say so plainly and ask about that.\n' +
+    'Answer with strict JSON: {"dig":true|false,"question":"the one question, or empty",' +
+    '"why":"one line: what it would change","options":[{"label":"short answer","sub":"what it implies"}]}';
+
+  wizCall(sys, [{ role: 'user', content: ctx.text }], 700)
+    .then(function (data) {
+      var o = wizParseJson(wizTextOf(data));
+      if (o && o.dig && o.question) {
+        iw2Zeg('rory', o.question);
+        var vs = iw2VerwerkVoorstellen(v, o.options || []);
+        if (vs) iw2.dynOpties = vs;
+        /* Blijven staan: dit is nu de vraag. Antwoorden loopt via iw2Antwoord,
+           dat de volgende stap zet zodra Rory hem opgelost noemt. */
+        iw2.busy = false;
+        wizRender();
+        return;
+      }
+      iw2.busy = false;
+      iw2Volgende();
+    })
+    .catch(function () { iw2.busy = false; iw2Volgende(); })
 }
 
 function iw2Volgende() {
@@ -591,7 +792,9 @@ function iw2Afronden() {
     'Answer with strict JSON: {"marketingAngle":"one sentence","messaging":"one sentence",' +
     '"desire":"what this customer actually wants, in their words, one short line",' +
     '"headline":"the headline itself","cta":"the call to action, a few words",' +
-    '"fill":{"field":"value"},"summary":"two or three sentences ' +
+    '"fill":{"field":"value"},' +
+    '"reasons":{"vak.veld":"why this value and not another, one line"},' +
+    '"summary":"two or three sentences ' +
     'explaining what this creative does and why"}. ' +
     'Fill every one of these still-open fields, using the exact field name as the key ' +
     'and, where a list of values is given, one value from that list verbatim: ' +
@@ -609,6 +812,12 @@ function iw2Afronden() {
       if (o.headline) wizSet('copy', 'headline', o.headline, 'rory');
       if (o.cta && !wizState.data.copy.cta) wizSet('copy', 'cta', o.cta, 'rory');
       iw2VulAan(o.fill || {});
+      /* Zijn redenen vastleggen bij het veld. Wat hij invulde zonder dat jij
+         het koos, hoort te zeggen waarom -- anders staat er een besluit zonder
+         eigenaar in de blueprint. */
+      Object.keys(o.reasons || {}).forEach(function (pad) {
+        if (!iw2.redenen[pad]) iw2.redenen[pad] = o.reasons[pad];
+      });
       iw2.samenvatting = o.summary || '';
       /* De stappen die het gesprek gevuld heeft staan af: je hoeft ze niet nog
          een keer langs te lopen om verder te mogen. */
@@ -866,7 +1075,10 @@ function iw2Kop() {
 }
 
 function iw2Render() {
-  var links = '<div class="iw2-chat" id="iw2-chat">' + iw2.chat.map(function (r) {
+  /* Zijn aannames staan boven het gesprek: het is wat hij dacht voordat jij
+     iets zei, en dat hoort niet halverwege ergens op te duiken. */
+  var links = iw2RenderAannames();
+  links += '<div class="iw2-chat" id="iw2-chat">' + iw2.chat.map(function (r) {
     if (r.wie === 'user') {
       return '<div class="iw2-jij"><div class="iw2-bubbel">' + wizEsc(r.tekst) +
         '</div><div class="iw2-meta">You · ' + wizEsc(r.tijd) + ' ✓</div></div>';
@@ -913,23 +1125,43 @@ function iw2Render() {
  * headline. De richting is een keuze onderweg; wat er straks op de static
  * staat is de headline zelf. */
 var IW2_RIJEN = [
-  { label: 'Product', lees: function (d) { var p = wizProduct(); return p ? p.name : ''; } },
-  { label: 'Goal', lees: function (d) { return d.strategy.goal; } },
-  { label: 'Funnel', lees: function (d) { return d.product.funnel ? wizLabel('funnel', d.product.funnel) : ''; } },
-  { label: 'Audience', lees: function (d) { var p = wizPersona(); return p ? p.name : ''; } },
-  { label: 'Awareness', lees: function (d) { return d.audience.awareness ? wizLabel('awareness', d.audience.awareness) : ''; } },
-  { label: 'Sophistication', lees: function (d) { return d.audience.sophistication ? wizSofistLabel(d.audience.sophistication) : ''; } },
-  { label: 'Desire', lees: function (d) { return d.strategy.desire; } },
-  { label: 'Angle', lees: function (d) { return d.strategy.theme; } },
-  { label: 'Marketing angle', lees: function (d) { return d.strategy.marketingAngle; } },
-  { label: 'Different how', lees: function (d) { return d.strategy.differentiation ? wizDiffLabel(d.strategy.differentiation) : ''; } },
-  { label: 'Mechanism', lees: function (d) { return d.strategy.mechanism; } },
-  { label: 'Format', lees: function (d) { var f = wizFormat(); return f ? f.name : ''; } },
-  { label: 'Visual style', lees: function (d) { return d.visual.mood ? wizVisualLabel('mood', d.visual.mood) : ''; } },
-  { label: 'Human', lees: function (d) { return d.visual.humanPresence ? wizVisualLabel('humanPresence', d.visual.humanPresence) : ''; } },
-  { label: 'Headline', lees: function (d) { return d.copy.headline; } },
-  { label: 'CTA', lees: function (d) { return d.copy.cta; } }
+  { label: 'Product', pad: 'product.productId', lees: function (d) { var p = wizProduct(); return p ? p.name : ''; } },
+  { label: 'Goal', pad: 'strategy.goal', lees: function (d) { return d.strategy.goal; } },
+  { label: 'Funnel', pad: 'product.funnel', lees: function (d) { return d.product.funnel ? wizLabel('funnel', d.product.funnel) : ''; } },
+  { label: 'Audience', pad: 'audience.personaId', lees: function (d) { var p = wizPersona(); return p ? p.name : ''; } },
+  { label: 'Awareness', pad: 'audience.awareness', lees: function (d) { return d.audience.awareness ? wizLabel('awareness', d.audience.awareness) : ''; } },
+  { label: 'Sophistication', pad: 'audience.sophistication', lees: function (d) { return d.audience.sophistication ? wizSofistLabel(d.audience.sophistication) : ''; } },
+  { label: 'Desire', pad: 'strategy.desire', lees: function (d) { return d.strategy.desire; } },
+  { label: 'Angle', pad: 'strategy.theme', lees: function (d) { return d.strategy.theme; } },
+  { label: 'Marketing angle', pad: 'strategy.marketingAngle', lees: function (d) { return d.strategy.marketingAngle; } },
+  { label: 'Different how', pad: 'strategy.differentiation', lees: function (d) { return d.strategy.differentiation ? wizDiffLabel(d.strategy.differentiation) : ''; } },
+  { label: 'Mechanism', pad: 'strategy.mechanism', lees: function (d) { return d.strategy.mechanism; } },
+  { label: 'Format', pad: 'format.formatId', lees: function (d) { var f = wizFormat(); return f ? f.name : ''; } },
+  { label: 'Visual style', pad: 'visual.mood', lees: function (d) { return d.visual.mood ? wizVisualLabel('mood', d.visual.mood) : ''; } },
+  { label: 'Human', pad: 'visual.humanPresence', lees: function (d) { return d.visual.humanPresence ? wizVisualLabel('humanPresence', d.visual.humanPresence) : ''; } },
+  { label: 'Headline', pad: 'copy.headline', lees: function (d) { return d.copy.headline; } },
+  { label: 'CTA', pad: 'copy.cta', lees: function (d) { return d.copy.cta; } }
 ];
+
+/* Zijn openingsanalyse boven het gesprek. Niet als losse kaart ergens rechts:
+   het is het eerste wat hij zegt, dus het staat waar hij praat. */
+function iw2RenderAannames() {
+  var a = iw2.aannames;
+  if (!a || !(a.lijst || []).length) return '';
+  return '<div class="iw2-aannames">' +
+    '<div class="iw2-aannames-k">What I am assuming before you say anything</div>' +
+    (a.lijst || []).map(function (x) {
+      return '<div class="iw2-aanname"><span class="iw2-aanname-c">' + wizEsc(x.claim || '') + '</span>' +
+        '<span class="iw2-aanname-b">' + wizEsc(x.from || '') + '</span></div>';
+    }).join('') +
+    ((a.gaten || []).length
+      ? '<div class="iw2-gaten"><span class="iw2-gaten-k">What I cannot see from here</span>' +
+        (a.gaten || []).map(function (g) { return '<span class="iw2-gat">' + wizEsc(g) + '</span>'; }).join('') +
+        '</div>'
+      : '') +
+    '<div class="iw2-aannames-v">Pull one of these apart if it is wrong — that is worth more to me than the answers.</div>' +
+    '</div>';
+}
 
 function iw2RenderBegrepen() {
   var d = wizState.data;
@@ -949,10 +1181,21 @@ function iw2RenderBlueprint() {
     /* Een lege regel weglaten maakt de blueprint mooier en onbruikbaar: dan zie
        je niet dat het format ontbreekt, je ziet alleen geen format. Een streepje
        is een gat dat je kunt aanwijzen. */
+    /* Per regel: wat er staat, wie het koos, en waarom. Die laatste twee zijn
+       waar het gesprek op stukliep -- je liep tien vragen langs, en aan het eind
+       stond er een blueprint waarvan je niet meer wist welk deel jouw besluit
+       was en welk deel Rory had ingevuld, laat staan waarom. */
     IW2_RIJEN.map(function (r) {
       var w = r.lees(d) || '';
-      return '<div class="iw2-bp-rij' + (w ? '' : ' leeg') + '"><span>' + wizEsc(r.label) +
-        '</span><b>' + (w ? wizEsc(w) : '—') + '</b></div>';
+      var bron = r.pad ? wizState.source[r.pad] : null;
+      var reden = r.pad ? iw2.redenen[r.pad] : null;
+      return '<div class="iw2-bp-rij' + (w ? '' : ' leeg') + '">' +
+        '<span>' + wizEsc(r.label) + '</span>' +
+        '<b>' + (w ? wizEsc(w) : '—') + '</b>' +
+        (w && bron ? '<i class="iw2-bp-bron ' + wizEsc(bron) + '">' +
+          (bron === 'user' ? 'you' : 'Rory') + '</i>' : '') +
+        (w && reden ? '<u class="iw2-bp-reden">' + wizEsc(reden) + '</u>' : '') +
+        '</div>';
     }).join('') + '</div>';
 
   if (iw2.busy) {
@@ -1040,6 +1283,8 @@ window.iw2RenderVoet = iw2RenderVoet; window.iw2Antwoord = iw2Antwoord;
 window.iw2Losvraag = iw2Losvraag; window.iw2Vastleggen = iw2Vastleggen;
 window.iw2Genereer = iw2Genereer; window.iw2NaarWizard = iw2NaarWizard;
 window.iw2Doorpraten = iw2Doorpraten; window.iw2Vragen = iw2Vragen;
+window.iw2Aannames = iw2Aannames; window.iw2RenderAannames = iw2RenderAannames;
+window.iw2Diep = iw2Diep; window.iw2MagDiepen = iw2MagDiepen;
 window.iw2Vraag = iw2Vraag; window.iw2Opties = iw2Opties; window.IW2_VRAGEN = IW2_VRAGEN;
 window.IW2_RIJEN = IW2_RIJEN; window.iw2Afronden = iw2Afronden;
 window.iw2OpenVelden = iw2OpenVelden; window.iw2OpenTekst = iw2OpenTekst;
