@@ -235,6 +235,59 @@ const check = (label, echt, verwacht) => {
     /worker kapte af na ongeveer honderd seconden|verbinding met de worker kapte af na ongeveer honderd seconden/
       .test(meldingDirect || ''), true);
 
+  console.log('\n  een overload wordt uitgezeten, niet doorgegeven');
+  /* Anthropic geeft bij drukte een 529 met "Overloaded". Dat duurt meestal
+     tientallen seconden -- twee snelle pogingen zaten dat nooit uit, en dan
+     stond er "Concepts failed: Overloaded" op een generatie die gewoon even
+     later gelukt was. Drie dingen horen waar te zijn: hij probeert vaker met
+     oplopend wachten, hij zégt dat hij wacht, en als het echt niet lukt legt
+     de melding uit dat opnieuw drukken volstaat. */
+  const overload = await proxyPage.evaluate(async () => {
+    const echt = window.fetch;
+    const echteToast = window.toast;
+    let pogingen = 0;
+    const wachttijden = [];
+    const meldingen = [];
+    const echteSetTimeout = window.setTimeout;
+    window.setTimeout = (fn, ms) => { wachttijden.push(ms); return echteSetTimeout(fn, 1); };
+    window.toast = (m) => meldingen.push(String(m));
+    window.fetch = async () => {
+      pogingen++;
+      if (pogingen < 3) return { ok: false, status: 529, json: async () => ({ error: { message: 'Overloaded' } }) };
+      return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'gelukt' }] }) };
+    };
+    /* delayMs op 40 zodat de test niet echt seconden zit te wachten; de
+       verdubbeling (40, 80) is wat hier getest wordt, niet de absolute duur.
+       Het filter eronder houdt alleen die herkenbare waarden over, zodat een
+       toevallige timer van de app zelf de meting niet vervuilt. */
+    const data = await fetchJsonWithRetry(location.origin + '/anthropic',
+      { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 4, 40);
+
+    // En nu een overload die nooit overgaat: wat zegt de eindmelding?
+    window.fetch = async () => ({ ok: false, status: 529, json: async () => ({ error: { message: 'Overloaded' } }) });
+    let eind = null;
+    try {
+      await fetchJsonWithRetry(location.origin + '/anthropic',
+        { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 1, 5);
+    } catch (e) { eind = e.message; }
+
+    window.fetch = echt; window.toast = echteToast; window.setTimeout = echteSetTimeout;
+    return { pogingen, wachttijden, meldingen, tekst: (data.content || [{}])[0].text, eind };
+  });
+  check('na twee keer 529 komt de derde poging er gewoon door', overload.tekst, 'gelukt');
+  check('en het wachten verdubbelt per poging',
+    overload.wachttijden.filter(ms => ms === 40 || ms === 80).slice(0, 2), [40, 80]);
+  check('tijdens het wachten staat er een melding, geen bevroren scherm',
+    overload.meldingen.filter(m => /busy|retrying/i.test(m)).length >= 2, true);
+  check('een overload die aanhoudt legt uit dat opnieuw drukken volstaat',
+    /overloaded right now[\s\S]*press the button again/i.test(overload.eind || ''), true);
+  /* De tests hierboven geven het aantal pogingen expliciet mee; de console
+     zelf leunt op de standaard. Die hoort op vier te staan (3+6+12+24 s zit
+     een gewone overload uit) -- terug naar twee en het oude gedrag is stil
+     terug. */
+  const proxyBron = fs.readFileSync(path.join(APP, 'js', '04-instellingen-en-proxy.js'), 'utf8');
+  check('de standaard is vier herkansingen', /maxRetries = 4/.test(proxyBron), true);
+
   console.log('\n  de lijst hier en de lijst in de worker lopen gelijk');
   const workerBron = fs.readFileSync(
     path.join(__dirname, '..', '..', 'platform', 'worker', 'marketing-os.worker.js'), 'utf8');

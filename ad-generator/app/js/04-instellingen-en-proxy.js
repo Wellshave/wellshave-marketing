@@ -155,7 +155,7 @@ function _naarDeWorker(url) {
   }
 }
 
-async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) {
+async function fetchJsonWithRetry(url, options, maxRetries = 4, delayMs = 3000) {
   /* [MARKETING-ADS] de worker vereist een team-login (Supabase-token van een
      goedgekeurd lid). Zet/overschrijf de Authorization-header voor alle calls
      naar de worker — ook beeld-calls (de OpenAI-key staat server-side). */
@@ -247,14 +247,25 @@ async function fetchJsonWithRetry(url, options, maxRetries = 2, delayMs = 3000) 
                         lower.includes('temporarily unavailable') ||
                         lower.includes('rate limit');
 
+      /* Een overload bij Anthropic duurt meestal tientallen seconden, geen
+         drie. Twee pogingen met drie seconden ertussen gaf dus vrijwel altijd
+         alsnog "Overloaded" in beeld, terwijl gewoon even wachten genoeg was.
+         Daarom: oplopend wachten (3, 6, 12, 24 seconden), en zeggen dát er
+         gewacht wordt — anders lijkt de console bevroren. */
       if (retryable && attempt < maxRetries) {
-        console.warn(`[retry ${attempt + 1}/${maxRetries}] HTTP ${response.status}: ${msg}`);
+        const wacht = delayMs * Math.pow(2, attempt);
+        console.warn(`[retry ${attempt + 1}/${maxRetries}] HTTP ${response.status}: ${msg} — nieuwe poging over ${Math.round(wacht / 1000)}s`);
+        if (typeof toast === 'function' && lower.includes('overload')) {
+          toast('The AI is busy right now — retrying in ' + Math.round(wacht / 1000) + 's (attempt ' + (attempt + 2) + ' of ' + (maxRetries + 1) + ')');
+        }
         lastErr = new Error(msg);
-        await new Promise(r => setTimeout(r, delayMs));
+        await new Promise(r => setTimeout(r, wacht));
         continue;
       }
 
-      const err = new Error(msg);
+      const err = new Error(lower.includes('overload')
+        ? 'The AI is overloaded right now. This clears by itself — wait a minute and press the button again.'
+        : msg);
       err.status = response.status;
       err.data = data;
       throw err;
