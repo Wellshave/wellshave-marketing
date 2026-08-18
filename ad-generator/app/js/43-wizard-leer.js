@@ -240,6 +240,42 @@ function wizZetGevalideerd(vak, veld, waarde, bron) {
   return true;
 }
 
+/* ── De zelfcontrole vooraf ─────────────────────────────────────────────────
+ *
+ * De scorekaart vond fouten in concepten die uit een volledig interview kwamen.
+ * Dat is de verkeerde volgorde: als we weten waarop straks beoordeeld wordt,
+ * dan hoort dat in de opdracht te staan en niet pas in het rapport erna.
+ *
+ * Dus krijgt de conceptopdracht de acht eigenschappen mee als voorwaarde, met
+ * de twee die het vaakst sneuvelen expliciet: gebouwd om op deze ene ad te
+ * sluiten (probleem, waarom het ertoe doet, hoe het werkt, bewijs, CTA) en
+ * bewijs dat je ZIET. Plus de opdracht om het eigen werk na te lopen voordat
+ * het ingeleverd wordt.
+ *
+ * Dat maakt de scorekaart niet overbodig -- een tweede paar ogen vindt altijd
+ * iets -- maar het scheelt het verschil tussen een rapport met vijf gele
+ * driehoekjes en een met een enkele. */
+function wizZelfcontrole() {
+  var t = '\n## VOORDAT JE DIT INLEVERT\n' +
+    'This gets scored against the eight traits of ads that spend before it runs. Meet them ' +
+    'now rather than being told afterwards:\n';
+  WIZ_TRAITS.forEach(function (tr, i) {
+    t += (i + 1) + '. ' + tr.label + ' — ' + tr.vraag + '\n';
+  });
+  t += '\nTwo of these fail most often, so treat them as conditions rather than ambitions:\n' +
+    '- BUILT TO CLOSE ON THIS AD ALONE. Assume it is the only ad they will ever see. The ' +
+    'problem, why it matters, how it works, the proof and the call to action are all present ' +
+    'on the one image. A headline plus a button is not an ad, it is a poster for one.\n' +
+    '- PROOF YOU CAN SEE. A pretty close-up of metal proves nothing. Name what is visible in ' +
+    'frame that a sceptic could check: the mechanism doing its work, a before and after, a ' +
+    'rating with its number, a guarantee with its term.\n' +
+    '\nThen read your own concept back as if you were the buyer scrolling past it, and repair ' +
+    'whatever you would have scrolled past. Do that before you answer, not after.\n';
+  return t;
+}
+
+window.wizZelfcontrole = wizZelfcontrole;
+
 /* ── De scorekaart ──────────────────────────────────────────────────────────
  *
  * De pre-launch controle op het gekozen concept. Twee lagen, bewust
@@ -256,7 +292,7 @@ function wizZetGevalideerd(vak, veld, waarde, bron) {
  * geen $4M aan spend nodig hebt om ze te zien, en die het model anders
  * beleefd zou wegschrijven. */
 
-var wizScore = { bezig: false, uitslag: null, voorConcept: null };
+var wizScore = { bezig: false, uitslag: null, voorConcept: null, toegepast: null, nick: null };
 
 function wizScorekaartBrief() {
   var d = wizState.data;
@@ -334,6 +370,18 @@ function wizRenderScorekaart() {
   var gaten = wizUitlijning((wizState.data.concepts.list || [])[wizState.data.concepts.selected]);
   var h = '';
 
+  /* Wat de vorige ronde veranderd heeft, blijft even staan: anders zie je de
+     knop iets doen en weet je niet wat. */
+  if (wizScore.toegepast) {
+    h += '<div class="wiz-score-gedaan"><div class="wiz-score-kop">Applied</div><ul>' +
+      (wizScore.toegepast.veranderd || []).map(function (v) {
+        return '<li>' + wizEsc(v) + '</li>'; }).join('') + '</ul>' +
+      (wizScore.toegepast.beeldVerouderd
+        ? '<div class="wiz-score-oud">The picture still shows the previous version. ' +
+          'Generate it again when you are happy with the words.</div>'
+        : '') + '</div>';
+  }
+
   if (gaten.length) {
     h += '<div class="wiz-score-hard"><div class="wiz-score-kop">Before you spend a generation</div>' +
       '<ul>' + gaten.map(function (g) {
@@ -372,12 +420,213 @@ function wizRenderScorekaart() {
       }).join('') + '</div>';
   }
 
-  h += '<div class="wiz-actions"><button type="button" class="wiz-btn ghost small" ' +
-    'onclick="wizScorekaart()">Score again</button></div>';
+  h += '<div class="wiz-actions">' +
+    ((u.fixes || []).length
+      ? '<button type="button" class="wiz-btn primary" onclick="wizFixesToepassen()">' +
+        'Apply these ' + (u.fixes || []).length + ' fixes</button>'
+      : '') +
+    '<button type="button" class="wiz-btn ghost small" onclick="wizScorekaart()">Score again</button>' +
+    '</div>';
   return h + '</div>';
 }
 
 window.wizToegestaan = wizToegestaan;
 window.wizZetGevalideerd = wizZetGevalideerd;
+/* ── De fixes toepassen ─────────────────────────────────────────────────────
+ *
+ * Een scorekaart die zegt wat er mis is en je het zelf laat overtypen is een
+ * rapport, geen gereedschap. Rory heeft de voor-en-na al geschreven; dan hoort
+ * er een knop te zitten die ze doorvoert.
+ *
+ * Wat hij aanraakt: het gekozen concept en de copy-velden. Niet de strategie --
+ * persona, awareness, sophistication en de hoek zijn besluiten die jij genomen
+ * hebt, en die herschrijft een fix-knop niet. Verandert er iets aan de
+ * uitvoering, dan is het beeld verouderd, en dat zeggen we in plaats van het
+ * stilletjes te laten staan. */
+function wizFixesToepassen() {
+  if (wizScore.bezig || !wizScore.uitslag) return;
+  if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) {
+    if (typeof toast === 'function') toast('Fill in your Anthropic API key first', true);
+    return;
+  }
+  var sel = wizState.data.concepts.selected;
+  if (sel == null) return;
+
+  wizScore.bezig = true;
+  wizRender();
+
+  var u = wizScore.uitslag;
+  var d = wizState.data;
+  var c = (d.concepts.list || [])[sel] || {};
+  var opdracht = 'Rewrite this static so the weak points below are gone. Not a new idea: the ' +
+    'same concept, repaired.\n\n' +
+    'THE CONCEPT AS IT STANDS\n' +
+    'Headline: ' + (c.headline_nl || d.copy.headline || '') + '\n' +
+    (c.visual_nl ? 'Visual: ' + c.visual_nl + '\n' : '') +
+    (d.copy.supporting ? 'Supporting line: ' + d.copy.supporting + '\n' : '') +
+    (d.copy.cta ? 'CTA: ' + d.copy.cta + '\n' : '') + '\n' +
+    'THE VERDICT\n' + (u.verdict || '') + '\n\n' +
+    'WHAT IS WEAK OR BROKEN\n' +
+    (u.traits || []).filter(function (t) { return t.score !== 'strong'; })
+      .map(function (t) {
+        var tr = WIZ_TRAITS.filter(function (x) { return x.key === t.key; })[0];
+        return '- ' + (tr ? tr.label : t.key) + ': ' + (t.why || '');
+      }).join('\n') + '\n\n' +
+    'THE FIXES YOU ALREADY WROTE (carry them out, do not restate them)\n' +
+    (u.fixes || []).map(function (f) {
+      return '- was: ' + (f.before || '') + '\n  becomes: ' + (f.after || '');
+    }).join('\n') + '\n\n' +
+    'Keep the persona, the awareness stage, the sophistication stage, the angle and the core ' +
+    'promise exactly as they are. Those are decided. What you change is the execution: the ' +
+    'words on the image and what the picture has to show.\n' +
+    'Answer with strict JSON: {"headline_nl":"","visual_nl":"what the picture shows, with the ' +
+    'proof visible","supporting_nl":"","cta_nl":"","removed":"what you left off and why",' +
+    '"changed":["one line per thing you actually changed"]}';
+
+  var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
+  wizCall(WIZ_RORY_SYSTEM, [{ role: 'user', content: ctx.text + '\n\n' + opdracht }], 1600)
+    .then(function (data) {
+      var o = wizParseJson(wizTextOf(data));
+      if (!o || !o.headline_nl) throw new Error('nothing came back');
+
+      var lijst = wizState.data.concepts.list || [];
+      var vernieuwd = JSON.parse(JSON.stringify(lijst[sel] || {}));
+      vernieuwd.headline_nl = o.headline_nl;
+      if (o.visual_nl) vernieuwd.visual_nl = o.visual_nl;
+      lijst[sel] = vernieuwd;
+      /* Ook in de variatielijst waar de beeldgenerator uit leest, anders maakt
+         hij straks nog het oude beeld. */
+      if (state.lastGenerated && state.lastGenerated.variations) {
+        state.lastGenerated.variations[sel] = vernieuwd;
+      }
+
+      wizSet('copy', 'headline', o.headline_nl, 'rory');
+      if (o.supporting_nl) wizSet('copy', 'supporting', o.supporting_nl, 'rory');
+      if (o.cta_nl) wizSet('copy', 'cta', o.cta_nl, 'rory');
+      if (o.removed) wizSet('copy', 'removed', o.removed, 'rory');
+
+      /* Het beeld dat er staat hoort bij de vorige versie. Dat zeggen we, en we
+         gooien het niet weg: vergelijken is het halve werk. */
+      wizScore.toegepast = { veranderd: o.changed || [], beeldVerouderd: !!(state.generatedImages || {})[sel] };
+      wizScore.uitslag = null;
+      wizSave();
+      if (typeof toast === 'function') toast('Fixes applied to this concept');
+    })
+    .catch(function (err) {
+      if (typeof toast === 'function') toast('Could not apply the fixes: ' + err.message, true);
+    })
+    .finally(function () { wizScore.bezig = false; wizRender(); });
+}
+
+window.wizFixesToepassen = wizFixesToepassen;
 window.wizScore = wizScore; window.wizScorekaart = wizScorekaart;
 window.wizRenderScorekaart = wizRenderScorekaart; window.wizScorekaartBrief = wizScorekaartBrief;
+
+/* ── Nick over een beeld dat er al staat ────────────────────────────────────
+ *
+ * De scorekaart oordeelt over het idee. Dit oordeelt over de foto, en dat is
+ * een andere vraag: een concept kan kloppen terwijl het beeld het niet waar
+ * maakt -- de claim staat er, maar je ziet hem niet.
+ *
+ * Daarom een aparte lens, en bewust die van de media-inkoper: hij kijkt of dit
+ * beeld in een feed opvalt en of het bewijs zichtbaar is, niet of het mooi is.
+ * Wat eruit komt is geen advies maar een nieuwe beeldopdracht, die meteen als
+ * bewerking op dezelfde variatie gaat. Advies dat je zelf moet overtypen is de
+ * helft van het werk.
+ */
+function wizNickHerprompt(i) {
+  if (wizState.busy) return;
+  var st = (state.generatedImages || {})[i];
+  if (!st || !st.versions || !st.versions.length) {
+    if (typeof toast === 'function') toast('Generate this picture first', true);
+    return;
+  }
+  if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) {
+    if (typeof toast === 'function') toast('Fill in your Anthropic API key first', true);
+    return;
+  }
+  var v = (state.lastGenerated && state.lastGenerated.variations[i]) || {};
+  var d = wizState.data;
+
+  wizState.busy = true;
+  wizRender();
+
+  var sys = 'You are Nick Theriot, a direct-response media buyer who spends roughly $4M a month ' +
+    'on Meta. You are looking at ONE static that has already been rendered, and the only ' +
+    'question you answer is whether this picture will take spend.\n' +
+    'It is almost never the media buying, it is the creative, and the customer sees the ad, not ' +
+    'the ad account. So judge the picture: is the visual hook something this person has not seen ' +
+    'a hundred times, is the proof VISIBLE rather than claimed, does it look unlike the feed ' +
+    'around it, and is it boring?\n' +
+    'Being different is the whole game: next to this sit the competitor ads, and if everyone ' +
+    'shows the same thing the buyer picks at random.\n' +
+    'Exaggerate in the framing, the scale and the specificity, never in a claim about what the ' +
+    'product does. Do not copy a direct competitor; borrow structures from other niches.\n' +
+    'Answer with strict JSON: {"verdict":"one line: will this picture take spend, and the single ' +
+    'biggest reason","weak":["what is wrong with the picture, one line each"],' +
+    '"prompt":"the rewritten image instruction, in the language of the current one, concrete ' +
+    'about what is in frame and where the proof is visible"}';
+
+  var opdracht = 'THE PICTURE AS BRIEFED\n' + (v.visual_nl || d.review.visualDescription || '') + '\n\n' +
+    'THE WORDS ON IT\n' + (v.headline_nl || d.copy.headline || '') + '\n' +
+    (v.cta_nl || d.copy.cta ? 'CTA: ' + (v.cta_nl || d.copy.cta) + '\n' : '') + '\n' +
+    'THE DECISIONS BEHIND IT\n' +
+    (d.audience.awareness ? 'Awareness: ' + wizLabel('awareness', d.audience.awareness) + '\n' : '') +
+    (d.audience.sophistication ? 'Sophistication: ' + wizSofistLabel(d.audience.sophistication) + '\n' : '') +
+    (d.strategy.differentiation ? 'Differentiation lever: ' + wizDiffLabel(d.strategy.differentiation) + '\n' : '') +
+    (d.strategy.mechanism ? 'Mechanism: ' + d.strategy.mechanism + '\n' : '') +
+    (d.strategy.proof ? 'Proof available: ' + d.strategy.proof + '\n' : '');
+
+  wizCall(sys, [{ role: 'user', content: opdracht }], 1200)
+    .then(function (data) {
+      var o = wizParseJson(wizTextOf(data));
+      if (!o || !o.prompt) throw new Error('no rewritten prompt came back');
+      wizScore.nick = { voor: i, verdict: o.verdict || '', zwak: o.weak || [], prompt: o.prompt };
+      wizSave();
+    })
+    .catch(function (err) {
+      if (typeof toast === 'function') toast('Nick could not look at it: ' + err.message, true);
+    })
+    .finally(function () { wizState.busy = false; wizRender(); });
+}
+
+/* Zijn herschreven opdracht uitvoeren. Als bewerking op dezelfde variatie, dus
+   de vorige versie blijft staan om naast te leggen. */
+function wizNickUitvoeren() {
+  var n = wizScore.nick;
+  if (!n || n.voor == null) return;
+  if (!state.pendingEdits || typeof state.pendingEdits !== 'object') state.pendingEdits = {};
+  state.pendingEdits[n.voor] = [{ type: 'adjust', text: n.prompt }];
+  wizScore.nick = null;
+  if (typeof applyCombinedEdits === 'function') {
+    applyCombinedEdits(n.voor);
+    if (typeof wizBeeldBezig !== 'undefined') { wizBeeldBezig[n.voor] = true; wizWachtOpBeeld(n.voor); }
+  } else if (typeof toast === 'function') {
+    toast('The edit panel is not available', true);
+  }
+  wizRender();
+}
+
+function wizNickWeg() { wizScore.nick = null; wizRender(); }
+
+/* Zijn oordeel onder de drie variaties. Alleen bij de variatie waar het over
+   gaat: een oordeel over take 1 onder take 3 is een oordeel over niets. */
+function wizRenderNick(i) {
+  var n = wizScore.nick;
+  if (!n || n.voor !== i) return '';
+  return '<div class="wiz-nick">' +
+    '<div class="wiz-nick-k">Nick on this picture</div>' +
+    '<div class="wiz-nick-v">' + wizEsc(n.verdict) + '</div>' +
+    ((n.zwak || []).length
+      ? '<ul class="wiz-nick-z">' + (n.zwak || []).map(function (z) {
+          return '<li>' + wizEsc(z) + '</li>'; }).join('') + '</ul>'
+      : '') +
+    '<div class="wiz-nick-p">' + wizEsc(n.prompt) + '</div>' +
+    '<div class="wiz-actions">' +
+    '<button type="button" class="wiz-btn primary small" onclick="wizNickUitvoeren()">Redraw it this way</button>' +
+    '<button type="button" class="wiz-btn ghost small" onclick="wizNickWeg()">Keep what I have</button>' +
+    '</div></div>';
+}
+
+window.wizNickHerprompt = wizNickHerprompt; window.wizNickUitvoeren = wizNickUitvoeren;
+window.wizNickWeg = wizNickWeg; window.wizRenderNick = wizRenderNick;

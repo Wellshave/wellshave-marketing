@@ -96,7 +96,11 @@ function wizBlankData() {
                 marketingAngle: '', messaging: '', desire: '', ultimateDesire: '', timing: '',
                 pain: '', proof: '', objection: '' },
     format:   { formatId: '' },
-    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product' },
+    /* basisFoto: de foto waar de ad OP gebouwd wordt, in plaats van een beeld dat
+       helemaal uit niets ontstaat. Dat is wat een founder-ad nodig heeft: de
+       foto van de oprichter is het uitgangspunt, en het product komt nog steeds
+       exact uit de referentiefoto's. Null betekent: bouw vanaf nul. */
+    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product', basisFoto: null },
     /* removed: wat er bewust niet op de static staat. Een regel die verplicht
        is omdat weglaten anders nooit gebeurt: elke toevoeging voelt gratis en
        is het niet -- ze delen samen de halve seconde aandacht. */

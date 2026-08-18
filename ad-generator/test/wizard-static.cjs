@@ -1160,6 +1160,10 @@ const VULLEN = `
     wizState.data.generate.takes = null;
     state.generatedImages = {};
     wizState.busy = false;
+    /* Ook de bezig-vlaggen van de beeldgenerator: een eerder blok in deze
+       pagina kan er een hebben laten staan, en dan meet je die in plaats van
+       wat deze test bedoelt. */
+    Object.keys(wizBeeldBezig).forEach(function (k) { delete wizBeeldBezig[k]; });
 
     var d = document.createElement('div');
     d.innerHTML = wizRender_generate();
@@ -1220,6 +1224,281 @@ const VULLEN = `
   check('met beeld en een keuze verschijnt het verfijnen', eind.metBeeld.verfijnen, true);
   check('en de lege melding is weg bij die kaart', eind.metBeeld.geenLegeMelding, 2);
   check('de andere manier van varieren staat er als regel', eind.metBeeld.andereManier, true);
+
+  /* ── Bouwen op een bestaande foto ────────────────────────────────────── */
+  console.log('\n  een founder-ad begint bij een foto, niet bij het product');
+
+  const basis = await page.evaluate(vullen => {
+    eval(vullen);
+    wizState.data.visual.basisFoto = null;
+    state.basePhotos = {};
+
+    /* Zonder keuze verandert er niets: de wizard bouwt vanaf nul, zoals altijd. */
+    var briefZonder = wizBuildBrief(3);
+    wizZetBasisFotos([0, 1, 2]);
+    var zonder = Object.keys(state.basePhotos).length;
+
+    /* De foto's die de console al heeft, staan er als keuze. */
+    var beschikbaar = wizBeschikbareFotos();
+
+    /* Een foto kiezen. */
+    wizState.data.visual.basisFoto = {
+      b64: 'AAA', mimeType: 'image/png', naam: 'founder in de werkplaats', bron: 'upload'
+    };
+    wizZetBasisFotos([0, 1, 2]);
+    var briefMet = wizBuildBrief(3);
+    var d = document.createElement('div');
+    d.innerHTML = wizRenderBasisFoto();
+
+    /* En het voorbeeld op stap 5 toont die foto, niet een willekeurige productshot. */
+    wizState.current = 'visual';
+    var vis = wizRender_visual();
+    var rechts = document.createElement('div');
+    rechts.innerHTML = (vis && vis.rechts) || '';
+    var voorbeeldSrc = (rechts.querySelector('.wiz-vizvoorbeeld img') || {}).getAttribute
+      ? rechts.querySelector('.wiz-vizvoorbeeld img').getAttribute('src') : '';
+
+    return {
+      zonder: zonder,
+      briefZonderVermelding: /gebouwd OP een bestaande foto/.test(briefZonder),
+      beschikbaar: beschikbaar.length > 0,
+      soorten: beschikbaar.map(function (f) { return f.soort; }).filter(function (v, i, a) { return a.indexOf(v) === i; }),
+      /* De pijplijn krijgt hem voor elke variatie. */
+      klaargezet: Object.keys(state.basePhotos).length,
+      eerste: (state.basePhotos[0] || {}).b64,
+      /* En de opdracht weet ervan, anders beschrijft hij een andere scene. */
+      briefMetVermelding: /gebouwd OP een bestaande foto/.test(briefMet),
+      briefNoemtNaam: briefMet.indexOf('founder in de werkplaats') > -1,
+      briefVerbiedtAnderePersoon: /Verzin geen andere scene en geen andere persoon/.test(briefMet),
+      opScherm: /built on this photo/.test(d.textContent),
+      voorbeeldIsDeBasis: /^data:image\/png;base64,AAA/.test(voorbeeldSrc),
+      /* Weghalen zet alles terug. */
+      naWissen: (function () {
+        wizWisBasisFoto();
+        wizZetBasisFotos([0, 1, 2]);
+        return Object.keys(state.basePhotos).length;
+      })()
+    };
+  }, VULLEN);
+  check('zonder keuze bouwt de wizard vanaf nul', basis.zonder, 0);
+  check('en de opdracht zegt daar niets over', basis.briefZonderVermelding, false);
+  check('de foto\'s die de console al heeft staan er als keuze', basis.beschikbaar, true);
+  check('met hun soort erbij', basis.soorten.length > 0, true);
+  /* De pijplijn kende basePhotos al; wat ontbrak was een manier om er in de
+     wizard een te kiezen. */
+  check('een gekozen foto gaat naar elke variatie', basis.klaargezet, 3);
+  check('en het is die foto', basis.eerste, 'AAA');
+  check('de opdracht weet dat er op een foto gebouwd wordt', basis.briefMetVermelding, true);
+  check('en noemt welke', basis.briefNoemtNaam, true);
+  /* Anders beschrijft hij een verzonnen mens naast de echte. */
+  check('met het verbod om er een andere persoon bij te verzinnen',
+        basis.briefVerbiedtAnderePersoon, true);
+  check('het scherm zegt wat er met die foto gebeurt', basis.opScherm, true);
+  check('en het voorbeeld toont die foto, niet een productshot', basis.voorbeeldIsDeBasis, true);
+  check('weghalen zet de generatie terug op vanaf nul', basis.naWissen, 0);
+
+  /* ── Wat straks beoordeeld wordt, staat vooraf in de opdracht ────────── */
+  console.log('\n  de acht eigenschappen staan in de opdracht, niet pas in het rapport');
+
+  const vooraf = await page.evaluate(vullen => {
+    eval(vullen);
+    wizSet('audience', 'awareness', 'product', 'user');
+    wizSet('audience', 'sophistication', 's4', 'user');
+    var concept = wizBuildBrief(3);
+    wizState.data.concepts.list = [{ headline_nl: 'x', visual_nl: 'y' }];
+    state.lastGenerated = { variations: wizState.data.concepts.list, metadata: {} };
+    wizState.data.concepts.selected = 0;
+    var takes = wizBuildTakeBrief();
+    var kaart = wizScorekaartBrief();
+    return {
+      /* Dezelfde acht als waarop de scorekaart straks oordeelt. */
+      alleAchtInConcept: WIZ_TRAITS.every(function (t) { return concept.indexOf(t.label) > -1; }),
+      alleAchtInTakes: WIZ_TRAITS.every(function (t) { return takes.indexOf(t.label) > -1; }),
+      zelfdeAlsScorekaart: WIZ_TRAITS.every(function (t) { return kaart.indexOf(t.label) > -1; }),
+      /* En de twee die het vaakst sneuvelden, als voorwaarde. */
+      sluitAlleen: /BUILT TO CLOSE ON THIS AD ALONE/.test(concept),
+      bewijsZichtbaar: /A pretty close-up of metal proves nothing/.test(concept),
+      leestTerug: /read your own concept back as if you were the buyer/.test(concept)
+    };
+  }, VULLEN);
+  check('de conceptopdracht draagt alle acht eigenschappen', vooraf.alleAchtInConcept, true);
+  check('de variaties ook', vooraf.alleAchtInTakes, true);
+  check('en het zijn dezelfde acht als waarop de scorekaart oordeelt',
+        vooraf.zelfdeAlsScorekaart, true);
+  /* Precies de twee die in de praktijk rood en geel kleurden. */
+  check('sluiten op deze ene ad staat er als voorwaarde', vooraf.sluitAlleen, true);
+  check('en zichtbaar bewijs ook', vooraf.bewijsZichtbaar, true);
+  check('met de opdracht het eigen werk eerst terug te lezen', vooraf.leestTerug, true);
+
+  /* ── Van oordeel naar daad ───────────────────────────────────────────── */
+  console.log('\n  de scorekaart is gereedschap, geen rapport');
+
+  const fixes = await page.evaluate(vullen => {
+    eval(vullen);
+    var vars = [{ headline_nl: 'Geen sneetjes. Ook daar niet.', visual_nl: 'macro van de kop' }];
+    wizState.data.concepts.list = vars.slice();
+    state.lastGenerated = { variations: vars, metadata: {} };
+    wizState.data.concepts.selected = 0;
+    state.generatedImages = { 0: { versions: [{ b64: 'AAA', mime: 'image/png' }], currentIndex: 0 } };
+    wizScore.uitslag = {
+      verdict: 'Juiste hoek, onafgemaakte uitvoering.', spend: false,
+      traits: [{ key: 'close', score: 'broken', why: 'Geen bewijs, geen mechanisme in beeld.' },
+               { key: 'tam', score: 'strong', why: 'Brede angst.' }],
+      fixes: [{ before: 'Macro met strijklicht', after: 'Macro waarin het haar gepakt wordt en de huid niet' }]
+    };
+    /* De uitslag hoort bij dit concept: zonder dat toont het scherm terecht
+       alleen de knop om alsnog te scoren. */
+    wizScore.voorConcept = 0;
+    wizScore.toegepast = null;
+    wizScore.bezig = false;
+    wizState.busy = false;
+
+    var d = document.createElement('div');
+    d.innerHTML = wizRenderScorekaart();
+    var knop = /wizFixesToepassen\(\)/.test(d.innerHTML);
+
+    /* De knop uitvoeren, met Rory's antwoord onderschept. */
+    window.__WG_TEAMSERVER = true;
+    var echt = window.wizCall;
+    var opdracht = null;
+    window.wizCall = function (sys, msgs) {
+      opdracht = msgs[0].content;
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        headline_nl: 'Het haar wordt gepakt. Je huid niet.',
+        visual_nl: 'Macro op strakke huid met een doorgesneden haar erboven, huid ongeschonden',
+        supporting_nl: 'Keramische afgeronde snijkant, achter de folie',
+        cta_nl: 'Bestel de Flex Guard',
+        removed: 'De garantiebadge, die vecht met de claim',
+        changed: ['Headline benoemt het mechanisme', 'Beeld toont het bewijs']
+      }) }] });
+    };
+    wizFixesToepassen();
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echt; window.__WG_TEAMSERVER = false;
+        var d2 = document.createElement('div');
+        d2.innerHTML = wizRenderScorekaart();
+        klaar({
+          knop: knop,
+          /* De opdracht draagt het oordeel en de fixes letterlijk mee. */
+          draagtVerdict: /Juiste hoek, onafgemaakte uitvoering/.test(opdracht || ''),
+          draagtZwak: /Geen bewijs, geen mechanisme in beeld/.test(opdracht || ''),
+          draagtSterkeNiet: !/Brede angst/.test(opdracht || ''),
+          draagtFix: /Macro waarin het haar gepakt wordt/.test(opdracht || ''),
+          /* En de strategie blijft met rust. */
+          strategieMetRust: /Keep the persona, the awareness stage/.test(opdracht || ''),
+          /* Wat er nu in het concept staat. */
+          conceptKop: (wizState.data.concepts.list[0] || {}).headline_nl,
+          variatieKop: (state.lastGenerated.variations[0] || {}).headline_nl,
+          copyKop: wizState.data.copy.headline,
+          cta: wizState.data.copy.cta,
+          weggelaten: wizState.data.copy.removed,
+          /* De oude scorekaart is weg: hij ging over de vorige versie. */
+          oudeUitslagWeg: wizScore.uitslag === null,
+          gedaanOpScherm: /Headline benoemt het mechanisme/.test(d2.textContent),
+          beeldVerouderd: /still shows the previous version/.test(d2.textContent)
+        });
+      }, 80);
+    });
+  }, VULLEN);
+  check('bij fixes staat er een knop om ze door te voeren', fixes.knop, true);
+  check('de opdracht draagt het oordeel mee', fixes.draagtVerdict, true);
+  check('en wat er zwak of kapot was', fixes.draagtZwak, true);
+  /* Wat sterk was hoeft niet gerepareerd te worden, en meesturen zou hem
+     uitnodigen daar ook aan te zitten. */
+  check('maar niet wat al sterk was', fixes.draagtSterkeNiet, true);
+  check('en de fix die Rory zelf schreef', fixes.draagtFix, true);
+  check('de strategie blijft expliciet met rust', fixes.strategieMetRust, true);
+  check('de headline van het concept is vervangen',
+        fixes.conceptKop, 'Het haar wordt gepakt. Je huid niet.');
+  /* Ook in de lijst waar de beeldgenerator uit leest, anders maakt hij het
+     oude beeld opnieuw. */
+  check('ook in de variatielijst', fixes.variatieKop, 'Het haar wordt gepakt. Je huid niet.');
+  check('en in het copy-veld', fixes.copyKop, 'Het haar wordt gepakt. Je huid niet.');
+  check('de call to action komt mee', fixes.cta, 'Bestel de Flex Guard');
+  check('en de weglaatregel ook', fixes.weggelaten, 'De garantiebadge, die vecht met de claim');
+  check('de oude score is weg, die ging over de vorige versie', fixes.oudeUitslagWeg, true);
+  check('je ziet wat er veranderd is', fixes.gedaanOpScherm, true);
+  check('en dat het beeld nog van de vorige versie is', fixes.beeldVerouderd, true);
+
+  /* ── Nick kijkt naar het beeld ───────────────────────────────────────── */
+  console.log('\n  een tweede lens op de foto zelf');
+
+  const nick = await page.evaluate(vullen => {
+    eval(vullen);
+    var vars = [{ headline_nl: 'Geen sneetjes.', visual_nl: 'macro op donker steen', cta_nl: 'Bestel' }];
+    wizState.data.concepts.list = vars.slice();
+    state.lastGenerated = { variations: vars, metadata: {} };
+    wizState.data.concepts.selected = 0;
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizSet('strategy', 'differentiation', 'mechanism', 'user');
+    wizState.busy = false;
+    wizScore.nick = null;
+    state.generatedImages = {};
+
+    /* Zonder beeld vraagt hij niets: er is niets om naar te kijken. */
+    var gezegd = [];
+    var echtToast = window.toast;
+    window.toast = function (t) { gezegd.push(String(t)); };
+    wizNickHerprompt(0);
+    var zonderBeeld = gezegd.join(' | ');
+    window.toast = echtToast;
+
+    state.generatedImages = { 0: { versions: [{ b64: 'AAA' }], currentIndex: 0 } };
+    window.__WG_TEAMSERVER = true;
+    var echt = window.wizCall;
+    var sys = null;
+    window.wizCall = function (s) {
+      sys = s;
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        verdict: 'Mooi, maar het bewijst niets.',
+        weak: ['Het mechanisme is niet te zien'],
+        prompt: 'Macro waarin het haar gepakt wordt en de huid ongeschonden blijft'
+      }) }] });
+    };
+    wizNickHerprompt(0);
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echt; window.__WG_TEAMSERVER = false;
+        var d = document.createElement('div');
+        d.innerHTML = wizRenderNick(0);
+        var bijAndere = wizRenderNick(1);
+
+        /* Uitvoeren zet zijn opdracht klaar als bewerking op dezelfde variatie. */
+        var echtEdit = window.applyCombinedEdits;
+        var geraakt = null;
+        window.applyCombinedEdits = function (i) { geraakt = i; };
+        wizNickUitvoeren();
+        window.applyCombinedEdits = echtEdit;
+
+        klaar({
+          zonderBeeld: zonderBeeld,
+          /* Zijn lens, niet die van Rory: het gaat over spenden en over de foto. */
+          isNick: /Nick Theriot/.test(sys || '') && /take spend/.test(sys || ''),
+          overDeFoto: /judge the picture/.test(sys || ''),
+          geenValseClaims: /never in a claim about what the/.test(sys || ''),
+          verdictOpScherm: /bewijst niets/.test(d.textContent),
+          zwakOpScherm: /mechanisme is niet te zien/.test(d.textContent),
+          promptOpScherm: /haar gepakt wordt/.test(d.textContent),
+          alleenBijZijnEigen: bijAndere,
+          bewerktDezelfde: geraakt,
+          klaarNa: wizScore.nick
+        });
+      }, 80);
+    });
+  }, VULLEN);
+  check('zonder beeld valt er niets te beoordelen', /Generate this picture first/.test(nick.zonderBeeld), true);
+  check('het is Nicks lens en die gaat over spenden', nick.isNick, true);
+  check('en over de foto, niet over het idee', nick.overDeFoto, true);
+  /* Overdrijven mag in de framing, nooit in de claim. */
+  check('met de grens aan overdrijven erbij', nick.geenValseClaims, true);
+  check('zijn oordeel staat op het scherm', nick.verdictOpScherm, true);
+  check('met wat er zwak aan is', nick.zwakOpScherm, true);
+  check('en de herschreven beeldopdracht', nick.promptOpScherm, true);
+  /* Een oordeel over take 1 onder take 3 is een oordeel over niets. */
+  check('en dat staat alleen bij de variatie waar het over gaat', nick.alleenBijZijnEigen, '');
+  check('uitvoeren bewerkt diezelfde variatie', nick.bewerktDezelfde, 0);
+  check('en daarna is zijn kaart weg', nick.klaarNa, null);
 
   /* ── De brain dump op stap 1 ─────────────────────────────────────────── */
   console.log('\n  in een keer opschrijven wat je in je hoofd hebt');

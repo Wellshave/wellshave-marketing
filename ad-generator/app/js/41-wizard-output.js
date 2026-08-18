@@ -238,6 +238,7 @@ function wizBuildBrief(aantal) {
   if (d.strategy.objection) t += 'Weg te nemen bezwaar: ' + d.strategy.objection + '\n';
 
   if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
+  if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
   if (f) t += '\nFORMAT-MODE: ' + ((typeof AD_FORMAT_DIRECTIVE !== 'undefined' && AD_FORMAT_DIRECTIVE[f.id]) || (f.name + ' — ' + f.desc)) + '\n';
 
   t += '\n## VISUELE RICHTING (HARDE DRIVER voor image_prompt_en)\n';
@@ -246,6 +247,16 @@ function wizBuildBrief(aantal) {
     if (v) t += '- ' + g.title + ': ' + wizVisualLabel(g.field, v) + '\n';
   });
   if (d.review.visualDescription) t += 'In gewone taal: ' + d.review.visualDescription + '\n';
+  if (d.visual.basisFoto) {
+    /* De beeldpijplijn stuurt deze foto als eerste beeld mee. De tekst moet dat
+       weten, anders beschrijft hij een scene die met de foto niets te maken
+       heeft en vecht de opdracht met zijn eigen uitgangspunt. */
+    t += 'LET OP: dit beeld wordt gebouwd OP een bestaande foto die als eerste referentie ' +
+         'meegestuurd wordt (' + (d.visual.basisFoto.naam || 'basisfoto') + '). Compositie, licht, ' +
+         'omgeving en de persoon daarin blijven staan. Beschrijf wat er MET die foto gebeurt: ' +
+         'waar het product komt, waar de tekst staat, wat er weg moet. Verzin geen andere scene ' +
+         'en geen andere persoon.\n';
+  }
   t += 'Deze visuele richting is door de gebruiker goedgekeurd en gaat VOOR op de standaardlook van het format. ' +
     'Wijk er niet van af voor de afwisseling.\n';
 
@@ -357,14 +368,36 @@ function wizAfter_concepts() { wizToonBewaardeBeelden(); }
    renderGeneratedImage is de functie die dit al goed doet, inclusief de
    versieknoppen en de safe-zone-overlay. Die roepen we dus aan in plaats van er
    een tweede, slechtere versie van te onderhouden. */
+/* In de wizard tonen we het beeld en verder niets.
+ *
+ * renderGeneratedImage tekent de volledige kaart van het klassieke scherm: de
+ * donkergrijze blokken met Bewerken, Ook in ander formaat, Download PNG en
+ * Genereer opnieuw vanaf nul. Naast elkaar in drie kolommen is dat vier keer
+ * zoveel tekst als beeld, in een grijstint die je moet ontcijferen -- en het
+ * dubbelt met de verfijnacties die de wizard er zelf onder zet.
+ *
+ * Dus hier alleen de foto. Wat je ermee doet staat eronder, een keer, voor de
+ * variatie die je gekozen hebt. */
+function wizToonBeeld(i) {
+  var vak = document.getElementById('gen-image-' + i);
+  if (!vak) return false;
+  var st = (state.generatedImages || {})[i];
+  if (!st || !st.versions || !st.versions.length) return false;
+  var v = st.versions[st.currentIndex] || st.versions[0];
+  if (!v || !v.b64) return false;
+  vak.innerHTML = '<img class="wiz-beeld" alt="" src="data:' + (v.mime || 'image/png') +
+    ';base64,' + v.b64 + '">' +
+    (st.versions.length > 1
+      ? '<span class="wiz-beeld-v">version ' + (st.currentIndex + 1) + ' of ' + st.versions.length + '</span>'
+      : '');
+  return true;
+}
+
 function wizToonBewaardeBeelden() {
   var beelden = (typeof state !== 'undefined' && state.generatedImages) ? state.generatedImages : {};
   Object.keys(beelden).forEach(function (i) {
     if (!document.getElementById('gen-image-' + i)) return;
-    var st = beelden[i];
-    if (st && st.versions && st.versions.length && typeof renderGeneratedImage === 'function') {
-      renderGeneratedImage(i);
-    }
+    wizToonBeeld(i);
   });
 }
 
@@ -394,6 +427,12 @@ function wizGenerateConcepts() {
       wizState.data.concepts.list = vars.slice();
       state.lastGenerated = { variations: vars, metadata: wizMetadata() };
       state.generatedImages = {};
+      /* De foto waar de ad op gebouwd wordt, klaarzetten voor elk concept.
+         Zonder deze regel kies je in stap 5 een founder-foto en tekent de
+         generator er alsnog een verzonnen mens bij. */
+      if (typeof wizZetBasisFotos === 'function') {
+        wizZetBasisFotos(vars.map(function (x, i) { return i; }));
+      }
       wizSave();
     })
     .catch(function (err) {
@@ -414,10 +453,33 @@ function wizPickConcept(i) {
   wizRender();
 }
 
+/* Welke beelden op dit moment gemaakt worden. Zonder dit stond er een grijs
+   vlak met "geen beeld" terwijl de generator gewoon bezig was, en dan denk je
+   dat er niets gebeurt -- precies de klacht. */
+var wizBeeldBezig = {};
+
 function wizPreview(i) {
   if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
   if (typeof generateImage !== 'function') return;
+  wizBeeldBezig[i] = true;
+  wizRender();
   generateImage(i);
+  wizWachtOpBeeld(i);
+}
+
+/* De beeldgenerator meldt zichzelf niet af, dus kijken we of het beeld er is.
+   Elke seconde, en na twee minuten geven we het op en zeggen dat ook: eeuwig
+   "bezig" tonen is net zo misleidend als niets tonen. */
+function wizWachtOpBeeld(i, pogingen) {
+  var n = pogingen || 0;
+  if (!wizBeeldBezig[i]) return;
+  var klaar = !!((state.generatedImages || {})[i] || {}).versions;
+  if (klaar || n > 120) {
+    delete wizBeeldBezig[i];
+    wizRender();
+    return;
+  }
+  setTimeout(function () { wizWachtOpBeeld(i, n + 1); }, 1000);
 }
 
 function wizPreviewAll() {
@@ -584,6 +646,7 @@ function wizBuildTakeBrief() {
        'headlines. If two takes would look alike, change one of them.\n\n';
 
   if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
+  if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
 
   t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
   t += 'Return exactly 3 variations in the JSON shape you always use.\n';
@@ -616,6 +679,7 @@ function wizGenerateTakes() {
       /* De gereserveerde plekken vullen met de echte uitwerkingen. */
       idx.forEach(function (plek, n) { state.lastGenerated.variations[plek] = vars[n]; });
       state.generatedImages = {};
+      if (typeof wizZetBasisFotos === 'function') wizZetBasisFotos(idx);
       wizSave();
       wizState.busy = false;
       /* Tekenen voordat de beelden komen: generateImage schrijft in
@@ -711,15 +775,23 @@ function wizRender_generate() {
       '<div class="wiz-final-preview" id="gen-image-' + i + '">' +
         (heeft ? '' :
           '<span class="wiz-take-leeg">' +
-          (wizState.busy ? 'Working…' : 'No image yet') + '</span>') +
+          (wizBeeldBezig[i] ? 'Drawing this one…' : (wizState.busy ? 'Working…' : 'No image yet')) +
+          '</span>') +
       '</div>' +
-      (heeft ? '' : '<button type="button" class="wiz-linkbtn wiz-take-opnieuwbeeld" ' +
+      (heeft || wizBeeldBezig[i] ? '' :
+        '<button type="button" class="wiz-linkbtn wiz-take-opnieuwbeeld" ' +
         'onclick="wizPreview(' + i + ')">Generate this picture</button>') +
       (v.headline_nl ? '<div class="wiz-take-h">' + wizEsc(v.headline_nl) + '</div>' : '') +
       (v.cta_nl ? '<div class="wiz-take-cta">' + wizEsc(v.cta_nl) + '</div>' : '') +
       (v.visual_nl ? '<div class="wiz-take-v">' + wizEsc(v.visual_nl) + '</div>' : '') +
       '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
       'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
+      /* De tweede lens, en alleen op een beeld dat bestaat: Nick oordeelt over
+         de foto, niet over het idee. */
+      (heeft ? '<button type="button" class="wiz-linkbtn wiz-take-nick" ' +
+        'onclick="wizNickHerprompt(' + i + ')"' + (wizState.busy ? ' disabled' : '') + '>' +
+        (wizState.busy ? 'Nick is looking…' : 'Ask Nick if this picture will spend') + '</button>' : '') +
+      (typeof wizRenderNick === 'function' ? wizRenderNick(i) : '') +
       '</div>';
   }).join('') + '</div>';
 
@@ -867,6 +939,7 @@ window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBrie
 window.wizToonBewaardeBeelden = wizToonBewaardeBeelden; window.WIZ_CONCEPT_COUNT = WIZ_CONCEPT_COUNT;
 window.wizNaarEindbeeld = wizNaarEindbeeld;
 window.wizGenerateTakes = wizGenerateTakes; window.wizPickTake = wizPickTake;
+window.wizToonBeeld = wizToonBeeld; window.wizBeeldBezig = wizBeeldBezig;
 window.wizAnderePass = wizAnderePass; window.wizZetPass = wizZetPass; window.wizPass = wizPass; window.WIZ_PASSES = WIZ_PASSES;
 window.wizHuidigeTake = wizHuidigeTake; window.wizTakeIndexen = wizTakeIndexen;
 window.WIZ_TAKE_COUNT = WIZ_TAKE_COUNT;

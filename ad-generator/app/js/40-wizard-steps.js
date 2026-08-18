@@ -690,6 +690,7 @@ function wizRender_visual() {
   links += wizUitklap('visual',
     wizSelect('visual', 'referenceUsage', 'Reference image usage',
       (WIZ_VISUAL.filter(function (x) { return x.field === 'referenceUsage'; })[0] || {}).opts || []) +
+    ((typeof wizRenderBasisFoto === 'function') ? wizRenderBasisFoto() : '') +
     '<div class="wiz-actions">' + wizHerzie('visual') + '</div>',
     'More options');
 
@@ -699,10 +700,20 @@ function wizRender_visual() {
   var p = wizProduct();
   var refs = (p && typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
   var voorbeeld = refs && ((refs.usage && refs.usage[0]) || (refs.lifestyle && refs.lifestyle[0]) || (refs.product && refs.product[0]));
-  var rechts = voorbeeld
-    ? wizPaneel(null, '<div class="wiz-vizvoorbeeld"><img src="' + voorbeeld + '" alt=""></div>' +
-        '<div class="wiz-vizvoorbeeld-bij">This is a reference photo, not the ad. The generated visual follows the direction on the left.</div>')
-    : '<div class="wiz-leegzij">No reference photos on file for this product.</div>';
+  /* Is er een basisfoto gekozen, dan is DAT wat je straks terugziet, en dan
+     hoort er geen willekeurige productfoto te staan die iets anders belooft. */
+  var basis = (typeof wizBasisFotoSrc === 'function') ? wizBasisFotoSrc() : '';
+  var rechts;
+  if (basis) {
+    rechts = wizPaneel(null, '<div class="wiz-vizvoorbeeld"><img src="' + wizEsc(basis) + '" alt=""></div>' +
+      '<div class="wiz-vizvoorbeeld-bij">The ad gets built on this photo. Its composition, light and ' +
+      'the person in it stay; the product comes from the reference shots.</div>');
+  } else if (voorbeeld) {
+    rechts = wizPaneel(null, '<div class="wiz-vizvoorbeeld"><img src="' + voorbeeld + '" alt=""></div>' +
+      '<div class="wiz-vizvoorbeeld-bij">This is a reference photo, not the ad. The generated visual follows the direction on the left.</div>');
+  } else {
+    rechts = '<div class="wiz-leegzij">No reference photos on file for this product.</div>';
+  }
 
   var bd = (p && typeof refBreakdown === 'function') ? refBreakdown(p.references) : null;
   if (bd && bd.usage > 0) {

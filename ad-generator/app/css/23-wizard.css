@@ -1131,3 +1131,55 @@
 }
 .wiz-take-of { color: var(--text-faint); font-size: 12.5px; margin: 0 8px; }
 .wiz-take-opnieuw { display: flex; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+
+/* Het beeld in de wizard: de foto en verder niets. */
+.wiz-beeld { display: block; width: 100%; height: auto; border-radius: 10px; }
+.wiz-beeld-v { display: block; margin-top: 4px; font-size: 11px; color: var(--text-faint); }
+
+/* Nick over een beeld dat er al staat. */
+.wiz-take-nick { display: block; margin-top: 8px; font-size: 12px; }
+.wiz-nick {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--hairline); background: var(--glass-1);
+}
+.wiz-nick-k {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 5px;
+}
+.wiz-nick-v { font-size: 13px; color: var(--text); line-height: 1.5; }
+.wiz-nick-z { margin: 6px 0 0; padding-left: 16px; }
+.wiz-nick-z li { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+.wiz-nick-p {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--glass-2);
+  font-size: 12.5px; color: var(--text); line-height: 1.5;
+}
+/* Wat de fix-knop veranderd heeft. */
+.wiz-score-gedaan {
+  margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+  border-left: 3px solid var(--gold); background: var(--glass-2);
+}
+.wiz-score-gedaan ul { margin: 4px 0 0; padding-left: 18px; }
+.wiz-score-gedaan li { font-size: 13px; color: var(--text); margin: 3px 0; }
+.wiz-score-oud { margin-top: 6px; font-size: 12.5px; color: var(--text-faint); }
+
+/* De foto waar de ad op gebouwd wordt. */
+.wiz-basis-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.55; margin: 4px 0 10px; }
+.wiz-basis-raster {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px;
+}
+.wiz-basis-tegel {
+  position: relative; padding: 0; border: 1px solid var(--hairline); border-radius: 10px;
+  overflow: hidden; background: transparent; cursor: pointer;
+}
+.wiz-basis-tegel:hover { border-color: var(--gold); }
+.wiz-basis-tegel img { display: block; width: 100%; height: 84px; object-fit: cover; }
+.wiz-basis-soort {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px;
+  font-size: 10px; color: var(--text); background: rgba(0,0,0,.55);
+}
+.wiz-basis-upload { margin-top: 8px; }
+.wiz-basis-gekozen { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wiz-basis-beeld { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; }
+.wiz-basis-info { flex: 1 1 160px; }
+.wiz-basis-naam { font-size: 13px; color: var(--text); }
+.wiz-basis-status { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
