@@ -122,14 +122,17 @@ var IW2_VRAGEN = [
         zet: [['visual', 'mood', 'premium']],
         gevolg: 'Premium builds trust and positions the product as the safe choice.' },
       { key: 'ugc', label: 'Raw UGC',
-        zet: [['visual', 'mood', 'ugc']],
+        zet: [['visual', 'mood', 'raw-ugc']],
         gevolg: 'Raw does not look like an ad, which is exactly why it survives the scroll.' },
       { key: 'minimal', label: 'Minimal',
         zet: [['visual', 'mood', 'minimal']],
         gevolg: 'Minimal only works if the one thing left in frame is strong enough to carry the ad.' },
-      { key: 'bold', label: 'Bold & Vibrant',
-        zet: [['visual', 'mood', 'bold']],
-        gevolg: 'Bold buys attention. It has to survive being seen next to a calm feed.' },
+      { key: 'editorial', label: 'Editorial',
+        zet: [['visual', 'mood', 'editorial']],
+        gevolg: 'Editorial borrows the authority of a magazine page. The claim has to deserve it.' },
+      { key: 'clinical', label: 'Clinical',
+        zet: [['visual', 'mood', 'clinical']],
+        gevolg: 'Clinical reads as evidence. Only worth it when there is a mechanism to show.' },
       { key: 'rory', label: 'Let Rory decide', rory: true,
         gevolg: 'I will match the style to the brand and to what the audience already trusts.' }
     ]
@@ -139,7 +142,7 @@ var IW2_VRAGEN = [
     vraag: 'Should we include a person in the ad? This helps set the right scene and framing.',
     opts: [
       { key: 'model', label: 'Yes, use a model',
-        zet: [['visual', 'humanPresence', 'model']],
+        zet: [['visual', 'humanPresence', 'male-model']],
         gevolg: 'A person in a real environment makes the message relatable.' },
       { key: 'hands', label: 'Hands only',
         zet: [['visual', 'humanPresence', 'hands']],
@@ -191,7 +194,27 @@ var IW2_THEMES = [
   { key: 'contrarian',  label: 'Against the category',   fasen: ['tof'],
     gevolg: 'Saying the opposite of the category buys attention, and then you have to make it stand up.' },
   { key: 'time',        label: 'Time and effort saved',  fasen: ['tof', 'mof', 'bof'],
-    gevolg: 'Time saved lands when you name the minutes. "Faster" is not a number.' }
+    gevolg: 'Time saved lands when you name the minutes. "Faster" is not a number.' },
+  { key: 'mechanism',   label: 'The mechanism explained', fasen: ['mof', 'bof'],
+    gevolg: 'Explaining how it works turns a claim into a reason. It needs one thing to show, not three.' },
+  { key: 'comparison',  label: 'Versus the alternative', fasen: ['mof', 'bof', 'retargeting'],
+    gevolg: 'A comparison only persuades if the thing you compare against is the one they actually use.' },
+  { key: 'objection',   label: 'Kill the main objection', fasen: ['bof', 'retargeting'],
+    gevolg: 'Naming the doubt out loud beats ignoring it, as long as the answer is in the same frame.' },
+  { key: 'risk',        label: 'Risk reversal',          fasen: ['bof', 'retargeting'],
+    gevolg: 'Taking the risk off the buyer works when the risk is the real blocker, not the price.' },
+  { key: 'social',      label: 'Social proof',           fasen: ['mof', 'bof', 'retargeting'],
+    gevolg: 'Proof needs a name, a number or a face. Anonymous praise reads as marketing.' },
+  { key: 'authority',   label: 'Expert authority',       fasen: ['tof', 'mof', 'bof'],
+    gevolg: 'Borrowed authority is fast, and it collapses the moment the expert looks staged.' },
+  { key: 'ritual',      label: 'The daily ritual',       fasen: ['tof', 'mof'],
+    gevolg: 'Selling the routine sells repeat use. It needs a moment in the day you can picture.' },
+  { key: 'mistake',     label: 'The mistake they make',  fasen: ['tof', 'mof'],
+    gevolg: 'Telling someone they are doing it wrong buys attention and spends goodwill. Be right.' },
+  { key: 'occasion',    label: 'A specific occasion',    fasen: ['tof', 'bof', 'retargeting'],
+    gevolg: 'An occasion creates a deadline the product itself does not have.' },
+  { key: 'gift',        label: 'As a gift',              fasen: ['tof', 'bof'],
+    gevolg: 'Gifting changes the buyer: you are writing for the giver, not the user.' }
 ];
 
 var IW2_COPY = [
@@ -230,13 +253,15 @@ var IW2_COPY = [
     gevolg: 'Identity headlines speak to fewer people and are read far more closely by those few.' }
 ];
 
-/* Zes uit de lijst die bij deze funnelfase horen, plus de uitweg. Staat er nog
-   geen funnelfase, dan de eerste zes -- dat is beter dan niets tonen. */
+/* Acht uit de lijst die bij deze funnelfase horen, plus de uitweg. Staat er nog
+   geen funnelfase, dan de eerste acht -- dat is beter dan niets tonen.
+   Acht en niet alles: een lijst van twintig lees je niet meer, je scrollt hem.
+   Wat er niet bij staat vraag je gewoon door te typen. */
 function iw2Selectie(catalogus, veld, hoeveel) {
   var fase = wizState.data.product.funnel;
   var passend = catalogus.filter(function (o) { return !fase || o.fasen.indexOf(fase) > -1; });
   if (passend.length < 3) passend = catalogus;
-  return passend.slice(0, hoeveel || 6).map(function (o) {
+  return passend.slice(0, hoeveel || 8).map(function (o) {
     return { key: o.key, label: o.label, sub: o.sub, gevolg: o.gevolg,
              zet: [[veld[0], veld[1], o.label]] };
   });
@@ -491,7 +516,9 @@ function iw2Afronden() {
     'The decisions already made are in the context. Write the parts a picklist cannot deliver, ' +
     'and fill in only what is still missing. Be concrete, no marketing adjectives. ' +
     'Answer with strict JSON: {"marketingAngle":"one sentence","messaging":"one sentence",' +
-    '"headline":"the headline itself","fill":{"field":"value"},"summary":"two or three sentences ' +
+    '"desire":"what this customer actually wants, in their words, one short line",' +
+    '"headline":"the headline itself","cta":"the call to action, a few words",' +
+    '"fill":{"field":"value"},"summary":"two or three sentences ' +
     'explaining what this creative does and why"}. ' +
     'Fill every one of these still-open fields, using the exact field name as the key ' +
     'and, where a list of values is given, one value from that list verbatim: ' +
@@ -502,7 +529,12 @@ function iw2Afronden() {
       var o = wizParseJson(wizTextOf(data));
       if (o.marketingAngle) wizSet('strategy', 'marketingAngle', o.marketingAngle, 'rory');
       if (o.messaging) wizSet('strategy', 'messaging', o.messaging, 'rory');
+      /* Het verlangen staat in de blueprint, dus het moet er ook echt in komen:
+         zonder dit veld leest de hoek als een bewering zonder iemand die hem
+         wil horen. */
+      if (o.desire && !wizState.data.strategy.desire) wizSet('strategy', 'desire', o.desire, 'rory');
       if (o.headline) wizSet('copy', 'headline', o.headline, 'rory');
+      if (o.cta && !wizState.data.copy.cta) wizSet('copy', 'cta', o.cta, 'rory');
       iw2VulAan(o.fill || {});
       iw2.samenvatting = o.summary || '';
       /* De stappen die het gesprek gevuld heeft staan af: je hoeft ze niet nog
@@ -806,16 +838,33 @@ function iw2Render() {
 /* "What I understand so far": de blueprint die tijdens het gesprek volloopt. Dit
    is het antwoord op "waar zijn we eigenlijk", zonder dat je het gesprek terug
    hoeft te lezen. */
+/* Wat er in de blueprint hoort te staan. De volgorde is de redenering: voor
+ * wie, wat die wil, wat we daarover beweren, en pas dan hoe het eruitziet.
+ *
+ * Twee dingen stonden er eerder niet in en hadden dat wel moeten doen. Het
+ * bewustzijnsniveau bepaalt wat je uberhaupt mag beweren -- dezelfde headline
+ * is sterk bij iemand die het probleem kent en onbegrijpelijk bij iemand die
+ * het niet kent -- en het verlangen is waar de hele hoek op rust. Zonder die
+ * twee leest de blueprint als een lijst instellingen in plaats van als een
+ * redenering die je kunt controleren.
+ *
+ * En de copyregel toonde de richting ('Curiosity-driven') in plaats van de
+ * headline. De richting is een keuze onderweg; wat er straks op de static
+ * staat is de headline zelf. */
 var IW2_RIJEN = [
   { label: 'Product', lees: function (d) { var p = wizProduct(); return p ? p.name : ''; } },
   { label: 'Goal', lees: function (d) { return d.strategy.goal; } },
   { label: 'Funnel', lees: function (d) { return d.product.funnel ? wizLabel('funnel', d.product.funnel) : ''; } },
   { label: 'Audience', lees: function (d) { var p = wizPersona(); return p ? p.name : ''; } },
+  { label: 'Awareness', lees: function (d) { return d.audience.awareness ? wizLabel('awareness', d.audience.awareness) : ''; } },
+  { label: 'Desire', lees: function (d) { return d.strategy.desire; } },
   { label: 'Angle', lees: function (d) { return d.strategy.theme; } },
+  { label: 'Marketing angle', lees: function (d) { return d.strategy.marketingAngle; } },
   { label: 'Format', lees: function (d) { var f = wizFormat(); return f ? f.name : ''; } },
   { label: 'Visual style', lees: function (d) { return d.visual.mood ? wizVisualLabel('mood', d.visual.mood) : ''; } },
   { label: 'Human', lees: function (d) { return d.visual.humanPresence ? wizVisualLabel('humanPresence', d.visual.humanPresence) : ''; } },
-  { label: 'Copy', lees: function (d) { return d.copy.direction; } }
+  { label: 'Headline', lees: function (d) { return d.copy.headline; } },
+  { label: 'CTA', lees: function (d) { return d.copy.cta; } }
 ];
 
 function iw2RenderBegrepen() {
@@ -833,10 +882,13 @@ function iw2RenderBlueprint() {
   var d = wizState.data;
   var uit = '<div class="iw2-blueprint">' +
     '<div class="iw2-bp-kop">Creative Blueprint</div>' +
+    /* Een lege regel weglaten maakt de blueprint mooier en onbruikbaar: dan zie
+       je niet dat het format ontbreekt, je ziet alleen geen format. Een streepje
+       is een gat dat je kunt aanwijzen. */
     IW2_RIJEN.map(function (r) {
       var w = r.lees(d) || '';
-      if (!w) return '';
-      return '<div class="iw2-bp-rij"><span>' + wizEsc(r.label) + '</span><b>' + wizEsc(w) + '</b></div>';
+      return '<div class="iw2-bp-rij' + (w ? '' : ' leeg') + '"><span>' + wizEsc(r.label) +
+        '</span><b>' + (w ? wizEsc(w) : '—') + '</b></div>';
     }).join('') + '</div>';
 
   if (iw2.busy) {

@@ -933,6 +933,8 @@
 }
 .iw2-bp-rij span { color: var(--text-faint); }
 .iw2-bp-rij b { color: var(--text); font-weight: 500; }
+/* Een gat mag te zien zijn, maar hoeft de blueprint niet te domineren. */
+.iw2-bp-rij.leeg b { color: var(--text-faint); font-weight: 400; }
 .iw2-samenvatting { margin-top: 14px; font-size: 13.5px; line-height: 1.6; color: var(--text-soft); }
 .iw2-slot { margin-top: 18px; font-size: 14px; color: var(--text); }
 .iw2-slotknoppen { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }

@@ -115,7 +115,7 @@ const OPZET = `
   check('Exit heet nu Exit interview', start.exit, 'Exit interview');
   check('de ingang is weg -- je bent er al', start.ingang, false);
   check('de eerste vraag heeft twee antwoorden', start.opties, 2);
-  check('en het begrepen-paneel staat er met negen regels', start.rijen, 9);
+  check('en het begrepen-paneel staat er met dertien regels', start.rijen, 13);
   check('en je kunt altijd zelf typen', start.typeveld, true);
 
   /* ── De startvraag bepaalt de route ───────────────────────────────────── */
@@ -588,11 +588,14 @@ const OPZET = `
              hoekTof: hoekTof, hoekBof: hoekBof,
              getoond: hoekTof.length };
   }, OPZET);
-  check('de catalogus met hoeken is ruim', lijsten.catalogusHoeken >= 8, true);
+  check('de catalogus met hoeken is ruim', lijsten.catalogusHoeken >= 18, true);
   check('en die met headline-richtingen ook', lijsten.catalogusCopy >= 8, true);
-  /* Wel ruim, niet uitgestald: een lijst van elf knoppen onder een vraag is
-     weer een catalogus in plaats van een gesprek. */
-  check('maar er staan er hooguit zeven op het scherm', lijsten.getoond <= 7, true);
+  /* Wel ruim, niet uitgestald: twintig knoppen onder een vraag lees je niet
+     meer, en dan is het weer een catalogus in plaats van een gesprek. Acht
+     richtingen plus de uitweg. */
+  check('er staan er acht op het scherm, plus de uitweg', lijsten.getoond, 9);
+  check('en dat is minder dan de halve catalogus',
+        lijsten.getoond < lijsten.catalogusHoeken / 2, true);
   check('koud en warm publiek zien niet dezelfde richtingen',
         JSON.stringify(lijsten.hoekTof) !== JSON.stringify(lijsten.hoekBof), true);
 
@@ -728,6 +731,108 @@ const OPZET = `
     return wizBlokkerendeStap('audience');
   }, OPZET);
   check('is er niets open, dan blokkeert er niets', geenBlok, null);
+
+  /* ── De sluitaanroep vraagt om wat de blueprint toont ────────────────── */
+  console.log('\n  Rory levert de velden die de blueprint laat zien');
+
+  const slot = await page.evaluate(opzet => {
+    eval(opzet);
+    window.__WG_TEAMSERVER = true;
+    iw2Start(); iw2Kies('angle');
+    var echt = window.wizCall;
+    var sys = null;
+    window.wizCall = function (s) { sys = s; return new Promise(function () {}); };
+    iw2Afronden();
+    window.wizCall = echt;
+    iw2.busy = false;
+
+    return {
+      vraagtVerlangen: /"desire"/.test(sys || ''),
+      vraagtCta: /"cta"/.test(sys || '')
+    };
+  }, OPZET);
+  /* Zonder deze twee blijft de blueprint een lijst instellingen: het verlangen
+     is waar de hoek op rust, en de call to action is een verplicht veld. */
+  check('de opdracht vraagt om het verlangen van de klant', slot.vraagtVerlangen, true);
+  check('en om de call to action', slot.vraagtCta, true);
+
+  /* ── Wat de blueprint moet laten zien ────────────────────────────────── */
+  console.log('\n  de blueprint laat de redenering zien, niet de instellingen');
+
+  const bp = await page.evaluate(opzet => {
+    eval(opzet);
+    wizSet('product', 'funnel', 'bof', 'user');
+    wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
+    wizSet('audience', 'awareness', 'solution', 'user');
+    wizSet('strategy', 'desire', 'Clean lines without cutting himself', 'user');
+    wizSet('strategy', 'theme', 'Performance & Quality', 'user');
+    wizSet('strategy', 'marketingAngle', 'A guard that flexes with the skin', 'user');
+    wizSet('format', 'formatId', (AD_FORMATS[0] || {}).id, 'user');
+    wizSet('visual', 'mood', 'raw-ugc', 'user');
+    wizSet('visual', 'humanPresence', 'male-model', 'user');
+    wizSet('copy', 'direction', 'Curiosity-driven', 'user');
+    wizSet('copy', 'headline', 'The guard that bends where you do', 'user');
+    wizSet('copy', 'cta', 'See the bodygroomer', 'user');
+    iw2.klaar = true;
+    var html = iw2RenderBlueprint();
+    var d = document.createElement('div'); d.innerHTML = html;
+    var paren = [].slice.call(d.querySelectorAll('.iw2-bp-rij')).map(function (r) {
+      return [r.querySelector('span').textContent, r.querySelector('b').textContent];
+    });
+    var vind = function (l) { var r = paren.filter(function (x) { return x[0] === l; })[0]; return r ? r[1] : null; };
+
+    /* En met een gat erin: het format eruit gehaald. */
+    wizSet('format', 'formatId', '', 'user');
+    var d2 = document.createElement('div'); d2.innerHTML = iw2RenderBlueprint();
+    var formatRij = [].slice.call(d2.querySelectorAll('.iw2-bp-rij')).filter(function (r) {
+      return r.querySelector('span').textContent === 'Format';
+    })[0];
+
+    return {
+      labels: paren.map(function (x) { return x[0]; }),
+      awareness: vind('Awareness'), desire: vind('Desire'), format: vind('Format'),
+      visual: vind('Visual style'), human: vind('Human'),
+      headline: vind('Headline'), cta: vind('CTA'),
+      richtingAlsRegel: paren.some(function (x) { return x[1] === 'Curiosity-driven'; }),
+      gatZichtbaar: !!formatRij, gatTekst: formatRij ? formatRij.querySelector('b').textContent : ''
+    };
+  }, OPZET);
+  /* De vier dingen die er niet in stonden. */
+  check('het bewustzijnsniveau staat erin', bp.awareness, 'solution aware');
+  check('het verlangen van de klant staat erin', bp.desire, 'Clean lines without cutting himself');
+  check('het format staat erin', typeof bp.format === 'string' && bp.format.length > 1, true);
+  /* De copyregel toont de headline, niet de richting waarlangs hij geschreven is. */
+  check('de copyregel toont de headline zelf', bp.headline, 'The guard that bends where you do');
+  check('en de call to action', bp.cta, 'See the bodygroomer');
+  check('de headline-richting staat er niet meer als losse regel', bp.richtingAlsRegel, false);
+  /* Waarden die de wizard kent, dus met hun eigen naam. */
+  check('de visuele stijl leest als een naam, niet als een sleutel', bp.visual, 'Raw UGC');
+  check('en de mens ook', bp.human, 'Male model');
+  /* Een ontbrekend veld is een gat dat je kunt aanwijzen. */
+  check('een leeg veld verdwijnt niet maar toont een streepje', bp.gatZichtbaar, true);
+  check('met een streepje erin', bp.gatTekst, '—');
+
+  /* ── De keuzes zetten waarden die de wizard kent ─────────────────────── */
+  console.log('\n  het gesprek schrijft geen onbekende waarden');
+
+  const waarden = await page.evaluate(opzet => {
+    eval(opzet);
+    var geldig = function (veld) {
+      var g = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
+      return g.opts.map(function (o) { return o.value; });
+    };
+    var fout = [];
+    IW2_VRAGEN.forEach(function (v) {
+      (v.opts || []).forEach(function (o) {
+        (o.zet || []).forEach(function (z) {
+          if (z[0] !== 'visual') return;
+          if (geldig(z[1]).indexOf(z[2]) === -1) fout.push(v.key + '/' + o.key + ': ' + z[2]);
+        });
+      });
+    });
+    return fout;
+  }, OPZET);
+  check('elke visuele keuze zet een waarde die de wizard kent', waarden, []);
 
   /* ── Leesbaarheid van de zwevende knop ───────────────────────────────── */
   console.log('\n  de knop is leesbaar tegen zijn eigen achtergrond');
