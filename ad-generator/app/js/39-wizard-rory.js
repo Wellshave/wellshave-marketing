@@ -350,16 +350,34 @@ function wizRenderRory() {
            '<button type="button" class="wiz-btn small" onclick="wizAnswerQuestion()">Answer this</button>' +
            '<button type="button" class="wiz-btn small ghost" onclick="wizDismissQuestion()">Skip</button></div>';
     }
+  } else if (typeof wizVoorwaardenGehaald === 'function' && !wizVoorwaardenGehaald(stap)) {
+    /* Niets om op te staan, en dat zeggen we in plaats van iets te tonen dat
+       eruitziet als een oordeel. Een strateeg die een richting geeft voordat
+       hij weet waarover het gaat, is geen strateeg maar een generator van
+       zinnen -- en dat is precies wat dit scherm niet mag zijn. */
+    var ontbreekt = (typeof WIZ_ONDERWERP !== 'undefined' && WIZ_ONDERWERP[stap] &&
+                     !(wizState.data[stap] || {})[WIZ_ONDERWERP[stap]])
+      ? 'Pick a product first. Without it I would be giving you an opinion about something that does not exist yet.'
+      : 'The earlier steps are not settled yet, so anything I said here would be a guess.';
+    h += '<div class="wiz-rory-idle">' + wizEsc(ontbreekt) +
+      ' You can still ask me anything below.</div>';
   } else {
     h += '<div class="wiz-rory-idle">Rory has not looked at this step yet.</div>';
   }
 
-  h += '<div class="wiz-rory-actions">' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'why\')">Why do you recommend this?</button>' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'alternatives\')">Show alternatives</button>' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'decide\')">You decide</button>' +
-       '</div>';
+  /* "Why do you recommend this?" zonder aanbeveling is een knop die om een
+     verklaring vraagt voor iets wat niet gezegd is. Die verschijnt dus pas als
+     er een aanbeveling ligt. */
+  if (adv && !adv.error) {
+    h += '<div class="wiz-rory-actions">' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'why\')">Why do you recommend this?</button>' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'alternatives\')">Show alternatives</button>' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'decide\')">You decide</button>' +
+         '</div>';
+  }
 
+  var st = wizStep(stap);
+  h += '<div class="wiz-chat-kop">Sparring — ' + wizEsc(st ? st.label : '') + '</div>';
   h += '<div class="wiz-chat" id="wiz-chat">' + wizChatHtml() + '</div>';
   h += '<div class="wiz-chat-input">' +
        '<textarea id="wiz-chat-in" placeholder="Ask Rory, or tell him what you are trying to achieve…" ' +
@@ -372,9 +390,23 @@ function wizRenderRory() {
   if (c) c.scrollTop = c.scrollHeight;
 }
 
+/* Het gesprek van de stap waar je staat. */
+function wizChatVan(stap) {
+  var k = stap || wizState.current;
+  if (!wizState.chat || Array.isArray(wizState.chat)) wizState.chat = {};
+  if (!wizState.chat[k]) wizState.chat[k] = [];
+  return wizState.chat[k];
+}
+
 function wizChatHtml() {
-  if (!wizState.chat.length) return '<div class="wiz-chat-empty">Ask anything about this step. Rory keeps the whole wizard in mind.</div>';
-  return wizState.chat.map(function (m) {
+  var rijen = wizChatVan();
+  if (!rijen.length) {
+    var s = wizStep(wizState.current);
+    return '<div class="wiz-chat-empty">Spar with Rory about ' +
+      wizEsc(s ? s.label.toLowerCase() : 'this step') +
+      '. He keeps the whole wizard in mind, and this thread stays with this step.</div>';
+  }
+  return rijen.map(function (m) {
     return '<div class="wiz-msg ' + (m.role === 'assistant' ? 'rory' : 'user') + '">' +
       (m.role === 'assistant' ? '<span class="wiz-msg-who">Rory</span>' : '') +
       wizEsc(m.content) + '</div>';
@@ -386,7 +418,7 @@ function wizDismissQuestion() { wizState.asked[wizState.current] = true; wizSave
 function wizAnswerQuestion() {
   var adv = wizState.advice[wizState.current] || {};
   if (adv.question) {
-    wizState.chat.push({ role: 'assistant', content: adv.question });
+    wizChatVan().push({ role: 'assistant', content: adv.question });
     wizState.asked[wizState.current] = true;
     wizSave(); wizRenderRory();
     var el = document.getElementById('wiz-chat-in');
@@ -415,13 +447,13 @@ function wizChatSend(vast) {
   var tekst = vast || (el ? el.value.trim() : '');
   if (!tekst || wizState.busy) return;
   if (el && !vast) el.value = '';
-  wizState.chat.push({ role: 'user', content: tekst });
+  wizChatVan().push({ role: 'user', content: tekst });
   wizState.busy = true;
   wizRenderRory();
 
   var stap = wizState.current;
   var ctx = wizContext();
-  var geschiedenis = wizState.chat.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; })
+  var geschiedenis = wizChatVan().filter(function (m) { return m.role === 'user' || m.role === 'assistant'; })
     .slice(-10).map(function (m) { return { role: m.role, content: m.content }; });
   geschiedenis[geschiedenis.length - 1] = {
     role: 'user',
@@ -438,13 +470,13 @@ function wizChatSend(vast) {
       var obj;
       try { obj = wizParseJson(wizTextOf(data)); }
       catch (e) { obj = { reply: wizTextOf(data) || 'No answer came back.', apply: null }; }
-      wizState.chat.push({ role: 'assistant', content: obj.reply || '(no message)' });
+      wizChatVan().push({ role: 'assistant', content: obj.reply || '(no message)' });
       if (obj.apply && typeof obj.apply === 'object') {
         wizApplyAdvice(stap, obj.apply, true);
       }
     })
     .catch(function (err) {
-      wizState.chat.push({ role: 'assistant', content: 'I could not reach the server (' + err.message + '). Try again in a moment.' });
+      wizChatVan().push({ role: 'assistant', content: 'I could not reach the server (' + err.message + '). Try again in a moment.' });
     })
     .finally(function () {
       wizState.busy = false;
@@ -454,7 +486,7 @@ function wizChatSend(vast) {
 }
 
 window.wizAdvise = wizAdvise; window.wizApplyAdvice = wizApplyAdvice;
-window.wizRefreshStep = wizRefreshStep; window.wizRenderRory = wizRenderRory;
+window.wizRefreshStep = wizRefreshStep; window.wizChatVan = wizChatVan; window.wizRenderRory = wizRenderRory;
 window.wizChatSend = wizChatSend; window.wizChatQuick = wizChatQuick;
 window.wizAnswerQuestion = wizAnswerQuestion; window.wizDismissQuestion = wizDismissQuestion;
 window.wizContext = wizContext; window.wizProduct = wizProduct; window.wizPersona = wizPersona;

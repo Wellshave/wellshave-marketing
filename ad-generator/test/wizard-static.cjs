@@ -321,8 +321,16 @@ const VULLEN = `
     wizOpen();
     var zonderSleutel = gevraagd.slice();
 
-    /* met sleutel wel, en meteen bij het openen van stap 1 */
+    /* Met sleutel, maar zonder gekozen product: nog steeds niets. Een richting
+       geven over een product dat je nog niet gekozen hebt leest als kennis en
+       is het niet. */
     document.getElementById('anthropic-key').value = 'sk-ant-test';
+    wizState.advised = {};
+    wizRender();
+    var zonderProduct = gevraagd.slice();
+
+    /* Zodra het onderwerp er is, begint hij vanzelf. */
+    wizSet('product', 'productId', (state.products[0] || {}).id || 'p1', 'user');
     wizState.advised = {};
     wizRender();
     var metSleutel = gevraagd.slice();
@@ -333,10 +341,11 @@ const VULLEN = `
     var naDrieRenders = gevraagd.length;
 
     window.wizAdvise = echt;
-    return { zonderSleutel, metSleutel, naDrieRenders };
+    return { zonderSleutel, zonderProduct, metSleutel, naDrieRenders };
   });
   check('zonder API-sleutel vraagt hij niets', vanzelf.zonderSleutel, []);
-  check('met sleutel begint hij vanzelf aan stap 1', vanzelf.metSleutel, ['product']);
+  check('met sleutel maar zonder product nog steeds niet', vanzelf.zonderProduct, []);
+  check('zodra er een product staat begint hij vanzelf', vanzelf.metSleutel, ['product']);
   check('en hij begint niet bij elke hertekening opnieuw', vanzelf.naDrieRenders, 1);
 
   const wachten = await page.evaluate(() => {
@@ -1224,6 +1233,83 @@ const VULLEN = `
   check('met beeld en een keuze verschijnt het verfijnen', eind.metBeeld.verfijnen, true);
   check('en de lege melding is weg bij die kaart', eind.metBeeld.geenLegeMelding, 2);
   check('de andere manier van varieren staat er als regel', eind.metBeeld.andereManier, true);
+
+  /* ── Geen oordeel over niets ─────────────────────────────────────────── */
+  console.log('\n  zonder onderwerp geen richting');
+
+  const leegPaneel = await page.evaluate(vullen => {
+    eval(vullen);
+    wizReset(true);
+    wizState.busy = false;
+    wizOpen();
+    wizGo('product');
+    /* Zonder product: geen advies, en het paneel zegt waarom. */
+    var zonder = {
+      mag: wizVoorwaardenGehaald('product'),
+      tekst: (document.getElementById('wiz-rory') || {}).textContent || '',
+      /* En de knoppen die om uitleg vragen bij een aanbeveling staan er niet:
+         "waarom raad je dit aan" zonder aanbeveling vraagt om een verklaring
+         voor iets wat niet gezegd is. */
+      chips: document.querySelectorAll('#wiz-rory .wiz-chip').length,
+      /* Maar sparren kan wel. */
+      invoer: !!document.getElementById('wiz-chat-in')
+    };
+
+    wizSet('product', 'productId', (state.products[0] || {}).id || 'p1', 'user');
+    wizRender();
+    var met = { mag: wizVoorwaardenGehaald('product') };
+
+    return { zonder: zonder, met: met };
+  }, VULLEN);
+  check('zonder product mag Rory niets adviseren', leegPaneel.zonder.mag, false);
+  check('en het paneel zegt waarom in plaats van een richting te tonen',
+        /Pick a product first/.test(leegPaneel.zonder.tekst), true);
+  check('geen "waarom raad je dit aan" zonder aanbeveling', leegPaneel.zonder.chips, 0);
+  check('sparren kan wel gewoon', leegPaneel.zonder.invoer, true);
+  check('met een product mag hij weer', leegPaneel.met.mag, true);
+
+  /* ── Elk gesprek hoort bij zijn stap ─────────────────────────────────── */
+  console.log('\n  sparren doe je per stap');
+
+  const gesprek = await page.evaluate(vullen => {
+    eval(vullen);
+    wizOpen();
+    wizGo('product');
+    wizChatVan('product').push({ role: 'user', content: 'Hoort dit bij stap een?' });
+    wizGo('audience');
+    var opAudience = (document.getElementById('wiz-rory') || {}).textContent || '';
+    wizChatVan('audience').push({ role: 'user', content: 'En dit bij stap twee?' });
+    wizGo('product');
+    var opProduct = (document.getElementById('wiz-rory') || {}).textContent || '';
+
+    /* Oude opslag had een platte lijst voor de hele wizard. Die hoort bij het
+       laden onder een stap te belanden en niet weggegooid te worden: het is
+       werk van iemand. */
+    localStorage.setItem(STORAGE_PREFIX + 'wizard_static_v1', JSON.stringify({
+      current: 'product', data: wizState.data, source: {}, done: {}, stale: {},
+      advice: {}, chat: [{ role: 'user', content: 'uit de oude opslag' }],
+      asked: {}, advised: {}, unfolded: {}
+    }));
+    wizLoad();
+    var gemigreerd = (wizChatVan('product') || []).map(function (m) { return m.content; });
+
+    return {
+      lengtes: { product: (wizState.chat.product || []).length,
+                 audience: (wizState.chat.audience || []).length },
+      opAudienceZonderStapEen: opAudience.indexOf('Hoort dit bij stap een?') === -1,
+      opAudienceMetKop: /Sparring — Audience/.test(opAudience),
+      opProductWelStapEen: opProduct.indexOf('Hoort dit bij stap een?') > -1,
+      opProductZonderStapTwee: opProduct.indexOf('En dit bij stap twee?') === -1,
+      platteLijstOverleeft: gemigreerd.indexOf('uit de oude opslag') > -1
+    };
+  }, VULLEN);
+  /* Sparren over de hoek is een ander gesprek dan sparren over het format; door
+     elkaar maakt allebei onleesbaar. */
+  check('stap 2 toont het gesprek van stap 1 niet', gesprek.opAudienceZonderStapEen, true);
+  check('met de stap in de kop', gesprek.opAudienceMetKop, true);
+  check('en terug op stap 1 staat het er weer', gesprek.opProductWelStapEen, true);
+  check('zonder dat van stap 2 erdoorheen', gesprek.opProductZonderStapTwee, true);
+  check('een plat gesprek uit oude opslag raakt niet zoek', gesprek.platteLijstOverleeft, true);
 
   /* ── Bouwen op een bestaande foto ────────────────────────────────────── */
   console.log('\n  een founder-ad begint bij een foto, niet bij het product');

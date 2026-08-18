@@ -125,7 +125,10 @@ var wizState = {
   stale: {},
   /* Rory's motivatie en gebruikte bronnen per stap. */
   advice: {},
-  chat: [],
+  /* Per stap een eigen gesprek: sparren over de hoek is een ander gesprek dan
+     sparren over het format, en ze door elkaar laten lopen maakt allebei
+     onleesbaar. */
+  chat: {},
   busy: false,
   /* Vragen die Rory uit zichzelf gesteld heeft, per stap. */
   asked: {},
@@ -144,7 +147,7 @@ function wizSave() {
     localStorage.setItem(STORAGE_PREFIX + WIZ_STORE_KEY, JSON.stringify({
       current: wizState.current, data: wizState.data, source: wizState.source,
       done: wizState.done, stale: wizState.stale, advice: wizState.advice,
-      chat: wizState.chat.slice(-40), asked: wizState.asked,
+      chat: wizState.chat, asked: wizState.asked,
       advised: wizState.advised, unfolded: wizState.unfolded,
       /* Het gesprek hoort ook een refresh te overleven: het is werk. */
       interview: (typeof iw2 !== 'undefined')
@@ -174,7 +177,12 @@ function wizLoad() {
     wizState.done = saved.done || {};
     wizState.stale = saved.stale || {};
     wizState.advice = saved.advice || {};
-    wizState.chat = saved.chat || [];
+    /* Het gesprek is per stap. Oude opslag had er een lijst staan voor de
+       hele wizard; die zetten we onder de stap waar hij vandaan kwam, zodat
+       niemand zijn gesprek kwijtraakt bij het bijwerken. */
+    wizState.chat = Array.isArray(saved.chat)
+      ? (saved.chat.length ? { product: saved.chat.slice(-40) } : {})
+      : (saved.chat || {});
     wizState.asked = saved.asked || {};
     wizState.advised = saved.advised || {};
     wizState.unfolded = saved.unfolded || {};
@@ -423,7 +431,7 @@ function wizReset(stil) {
   if (!stil && !confirm('Start over? This clears every decision in this wizard.')) return;
   wizState.data = wizBlankData();
   wizState.source = {}; wizState.done = {}; wizState.stale = {};
-  wizState.advice = {}; wizState.chat = []; wizState.asked = {};
+  wizState.advice = {}; wizState.chat = {}; wizState.asked = {};
   wizState.advised = {}; wizState.unfolded = {};
   wizState.current = 'product';
   wizSave();
@@ -659,7 +667,15 @@ function wizSleutelAanwezig() {
 /* Heeft Rory genoeg om op te staan? Elke stap leest van zijn voorgangers; is
    die nog leeg, dan zou hij gaan gissen en dat is precies wat een leeg veld
    beter maakt dan een verzonnen veld. */
+/* Sommige stappen hebben geen voorganger en toch een onderwerp. Stap 1 is de
+   enige: zonder gekozen product is er niets om over te adviseren, en dan is een
+   aanbeveling over de funnelfase een mening over een product dat nog niet
+   bestaat. Dat leest als kennis en is het niet. */
+var WIZ_ONDERWERP = { product: 'productId' };
+
 function wizVoorwaardenGehaald(stepKey) {
+  var eigen = WIZ_ONDERWERP[stepKey];
+  if (eigen && !(wizState.data[stepKey] || {})[eigen]) return false;
   var deps = WIZ_DEPENDS[stepKey] || [];
   return deps.every(function (d) { return wizStepComplete(d); });
 }
@@ -807,7 +823,7 @@ window.wizDependentsOf = wizDependentsOf; window.wizSourceOf = wizSourceOf;
 window.wizEsc = wizEsc; window.WIZ_STEPS = WIZ_STEPS; window.wizSave = wizSave;
 window.wizFirstIncomplete = wizFirstIncomplete; window.wizHasContent = wizHasContent;
 window.wizMissingMessage = wizMissingMessage; window.toggleClassicForm = toggleClassicForm;
-window.wizBlokkerendeStap = wizBlokkerendeStap;
+window.wizBlokkerendeStap = wizBlokkerendeStap; window.WIZ_ONDERWERP = WIZ_ONDERWERP;
 window.iw2Ingang = iw2Ingang; window.wizIngangBij = wizIngangBij;
 window.wizRenderInterview = wizRenderInterview;
 window.wizSyncClassic = wizSyncClassic; window.wizRenderProgress = wizRenderProgress;
