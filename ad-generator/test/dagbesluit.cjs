@@ -191,8 +191,14 @@ const check = (label, echt, verwacht) => {
   const niets = await teken({ data: [] });
   check('nul rijen geeft geen leeg scherm',
     niets.leegKop, 'Er is nog niets gemeten in dit account.');
+  /* Waar hier ooit "Atlas haalt elke ochtend de cijfers op" stond, staat nu de
+     meting zelf: die agent is weg, het meten niet. Wat de regel bewaakt is niet
+     de naam maar de belofte -- een leeg scherm zegt wat er moet gebeuren
+     voordat het gevuld raakt, en waar je ondertussen wel wat aan hebt. */
   check('met wat er moet gebeuren voordat er wel iets staat',
-    /Atlas haalt elke ochtend de cijfers bij Meta op/.test(niets.leegTekst), true);
+    /cijfers komen binnen via de meting bij Meta/.test(niets.leegTekst), true);
+  check('en waar je ondertussen wel wat aan hebt',
+    /de tabel hieronder wat je hebt/.test(niets.leegTekst), true);
   check('en de vraag blijft er ook dan staan',
     /Welke advertentie zet ik vandaag uit/.test(niets.tekstTotaal), true);
 

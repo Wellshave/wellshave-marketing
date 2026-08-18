@@ -199,6 +199,47 @@ window.WIZ_TRAITS = WIZ_TRAITS; window.WIZ_STATIC_CHECK = WIZ_STATIC_CHECK;
 window.wizLeerBrief = wizLeerBrief; window.wizUitlijning = wizUitlijning;
 window.wizLeerAwareness = wizLeerAwareness; window.wizLeerSofist = wizLeerSofist;
 
+/* ── Welke waarden een veld aankan ──────────────────────────────────────── */
+
+/* Zonder deze lijst mag een model iets terugsturen wat de wizard niet kent --
+   'moody bathroom' waar 'bathroom' hoort -- en dan is het veld formeel gevuld
+   maar staat er niets dat de generator leest. Het staat hier en niet bij een
+   van de twee ingangen, omdat het gesprek en de brain dump allebei dezelfde
+   velden vullen en dus dezelfde grens nodig hebben. */
+function wizToegestaan(vak, veld) {
+  function w(lijst) { return (lijst || []).map(function (o) { return o.value; }); }
+  if (vak === 'product' && veld === 'placement' && typeof WIZ_PLACEMENTS !== 'undefined') return w(WIZ_PLACEMENTS);
+  if (vak === 'product' && veld === 'funnel' && typeof WIZ_FUNNELS !== 'undefined') return w(WIZ_FUNNELS);
+  if (vak === 'audience' && veld === 'awareness' && typeof WIZ_AWARENESS !== 'undefined') return w(WIZ_AWARENESS);
+  if (vak === 'audience' && veld === 'sophistication' && typeof WIZ_SOPHISTICATION !== 'undefined') return w(WIZ_SOPHISTICATION);
+  if (vak === 'strategy' && veld === 'differentiation' && typeof WIZ_DIFFERENTIATION !== 'undefined') return w(WIZ_DIFFERENTIATION);
+  if (vak === 'visual' && typeof WIZ_VISUAL !== 'undefined') {
+    var r = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
+    if (r) return w(r.opts);
+  }
+  if (vak === 'format' && veld === 'formatId' && typeof AD_FORMATS !== 'undefined') {
+    return AD_FORMATS.map(function (x) { return x.id; });
+  }
+  return null;
+}
+
+/* Zetten met de grens erbij. Een waarde die niet in de lijst staat wordt
+   geweigerd in plaats van opgeslagen: leeg is zichtbaar, een onbekende waarde
+   ziet eruit als een besluit en is het niet. Geeft terug of het gelukt is. */
+function wizZetGevalideerd(vak, veld, waarde, bron) {
+  if (waarde === '' || waarde == null) return false;
+  var lijst = wizToegestaan(vak, veld);
+  if (lijst && lijst.length && lijst.indexOf(waarde) === -1) {
+    var raak = lijst.filter(function (v) {
+      return String(v).toLowerCase() === String(waarde).toLowerCase();
+    })[0];
+    if (!raak) return false;
+    waarde = raak;
+  }
+  wizSet(vak, veld, waarde, bron || 'rory');
+  return true;
+}
+
 /* ── De scorekaart ──────────────────────────────────────────────────────────
  *
  * De pre-launch controle op het gekozen concept. Twee lagen, bewust
@@ -336,5 +377,7 @@ function wizRenderScorekaart() {
   return h + '</div>';
 }
 
+window.wizToegestaan = wizToegestaan;
+window.wizZetGevalideerd = wizZetGevalideerd;
 window.wizScore = wizScore; window.wizScorekaart = wizScorekaart;
 window.wizRenderScorekaart = wizRenderScorekaart; window.wizScorekaartBrief = wizScorekaartBrief;

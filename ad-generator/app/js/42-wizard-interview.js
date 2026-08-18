@@ -623,22 +623,10 @@ function iw2Afronden() {
     .finally(function () { iw2.busy = false; wizRender(); });
 }
 
-/* Welke waarden een veld aankan. Zonder deze lijst mag Rory iets terugsturen
-   wat de wizard niet kent -- 'moody bathroom' waar 'bathroom' hoort -- en dan
-   is het veld formeel gevuld maar staat er niets dat de generator leest. */
+/* De toegestane waarden staan in de leer (43-wizard-leer.js): het gesprek en
+   de brain dump vullen dezelfde velden en delen dus dezelfde grens. */
 function iw2Toegestaan(vak, veld) {
-  function w(lijst) { return (lijst || []).map(function (o) { return o.value; }); }
-  if (vak === 'product' && veld === 'placement' && typeof WIZ_PLACEMENTS !== 'undefined') return w(WIZ_PLACEMENTS);
-  if (vak === 'product' && veld === 'funnel' && typeof WIZ_FUNNELS !== 'undefined') return w(WIZ_FUNNELS);
-  if (vak === 'audience' && veld === 'awareness' && typeof WIZ_AWARENESS !== 'undefined') return w(WIZ_AWARENESS);
-  if (vak === 'visual' && typeof WIZ_VISUAL !== 'undefined') {
-    var r = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
-    if (r) return w(r.opts);
-  }
-  if (vak === 'format' && veld === 'formatId' && typeof AD_FORMATS !== 'undefined') {
-    return AD_FORMATS.map(function (x) { return x.id; });
-  }
-  return null;
+  return (typeof wizToegestaan === 'function') ? wizToegestaan(vak, veld) : null;
 }
 
 /* Elk verplicht veld dat nog leeg staat, uit dezelfde tabel als de poort van de

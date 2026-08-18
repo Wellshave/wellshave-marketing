@@ -1091,6 +1091,167 @@ const VULLEN = `
     });
     return [...new Set(mist)];
   });
+  /* ── De brain dump op stap 1 ─────────────────────────────────────────── */
+  console.log('\n  in een keer opschrijven wat je in je hoofd hebt');
+
+  const bdScherm = await page.evaluate(vullen => {
+    eval(vullen);
+    wizReset(true);
+    wizOpen();
+    wizGo('product');
+    var paneel = document.getElementById('wiz-paneel') || document.querySelector('.wiz-paneel');
+    var bd = document.querySelector('.wiz-bd');
+    var veld = document.getElementById('wiz-bd-in');
+    /* Hij hoort bovenaan te staan: onder de productkeuze is hij verstopt. */
+    var keuze = document.querySelector('.wiz-veld');
+    var boven = !!(bd && keuze &&
+      (bd.compareDocumentPosition(keuze) & Node.DOCUMENT_POSITION_FOLLOWING));
+
+    /* En alleen op stap 1: halverwege de stappen alsnog alles laten overschrijven
+       zou de besluiten wissen die je net genomen hebt. Stap 1 moet dan wel af
+       zijn, anders houdt de poort je hier en bewijst de test niets. */
+    wizSet('product', 'productId', (state.products[0] || {}).id || 'p1', 'user');
+    wizSet('product', 'placement', 'feed11', 'user');
+    wizSet('product', 'funnel', 'tof', 'user');
+    wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizGo('audience');
+    var opStap2 = !!document.querySelector('.wiz-bd');
+
+    return { erIsEen: !!bd, typeveld: !!veld, boven: boven, opStap2: opStap2,
+             echtOpStap2: wizState.current, heeftPaneel: !!paneel };
+  }, VULLEN);
+  check('de brain dump staat op stap 1', bdScherm.erIsEen, true);
+  check('met een veld om in te typen', bdScherm.typeveld, true);
+  check('en hij staat boven de productkeuze, niet eronder', bdScherm.boven, true);
+  check('we staan echt op stap 2', bdScherm.echtOpStap2, 'audience');
+  check('en daar staat hij er niet', bdScherm.opStap2, false);
+
+  const bdOpdracht = await page.evaluate(vullen => {
+    eval(vullen);
+    wizBd.tekst = 'Voor de WK, jonge vaders die niet te lang in de douche willen, premium gevoel';
+    var b = wizBdBrief();
+    return {
+      letterlijk: b.indexOf('Voor de WK, jonge vaders') > -1,
+      /* De leer hangt eraan, anders bedenkt hij een ad zonder de twee assen. */
+      leer: /DE LEER/.test(b),
+      /* En de toegestane waarden, anders komt er iets terug wat de wizard niet kent. */
+      waarden: /audience\.sophistication: s1/.test(b) && /product\.funnel: tof/.test(b),
+      producten: /PRODUCTS \(use the exact id\)/.test(b),
+      /* De regel die dit eerlijk houdt. */
+      nietsVerzinnen: /Do not fill a field the text gives you no ground for/.test(b),
+      vraagtWaarom: /"why"/.test(b),
+      vraagtOpen: /"open"/.test(b),
+      vraagtConflicten: /"conflicts"/.test(b),
+      tijdEerst: /Time context first/.test(b)
+    };
+  }, VULLEN);
+  check('de opdracht draagt je tekst letterlijk mee', bdOpdracht.letterlijk, true);
+  check('met de leer eraan', bdOpdracht.leer, true);
+  check('en de toegestane waarden erbij', bdOpdracht.waarden, true);
+  check('en de productlijst', bdOpdracht.producten, true);
+  check('hij mag niets invullen waar de tekst geen grond voor geeft', bdOpdracht.nietsVerzinnen, true);
+  check('elk besluit moet een reden meekrijgen', bdOpdracht.vraagtWaarom, true);
+  check('en wat hij openliet moet hij melden', bdOpdracht.vraagtOpen, true);
+  check('net als tegenstrijdige signalen', bdOpdracht.vraagtConflicten, true);
+  check('de tijd-context komt eerst', bdOpdracht.tijdEerst, true);
+
+  const bdToepassen = await page.evaluate(vullen => {
+    eval(vullen);
+    wizReset(true);
+    var pers = (state.personas || [])[0] || { id: 'x' };
+    var u = wizBdToepassen({
+      decisions: [
+        { field: 'product.funnel', value: 'tof', why: 'De WK is een moment, geen doelgroep.' },
+        { field: 'audience.awareness', value: 'problem', why: 'Ze voelen het, ze kennen ons niet.' },
+        { field: 'audience.sophistication', value: 's3', why: 'Iedereen claimt glad en huidvriendelijk.' },
+        { field: 'audience.personaId', value: pers.id, why: 'Jonge vaders staan in de library.' },
+        { field: 'strategy.differentiation', value: 'mechanism', why: 'Het enige onbezette pad hier.' },
+        /* Een waarde die het veld niet kent, en een veld dat niet bestaat. */
+        { field: 'visual.mood', value: 'moody candlelit bathroom', why: 'sfeer' },
+        { field: 'strategy.vibe', value: 'stoer', why: 'bestaat niet' }
+      ],
+      open: [{ field: 'strategy.proof', why: 'Ik weet niet wat dit product kan tonen.' }],
+      conflicts: [{ what: 'premium plus 70% korting', resolution: 'kies premium, laat de korting weg' }],
+      summary: 'Een mechanisme-ad voor jonge vaders rond de WK.'
+    });
+    return {
+      funnel: wizState.data.product.funnel,
+      awareness: wizState.data.audience.awareness,
+      sofist: wizState.data.audience.sophistication,
+      persona: wizState.data.audience.personaId === pers.id,
+      diff: wizState.data.strategy.differentiation,
+      /* De onbekende waarde is NIET opgeslagen. */
+      mood: wizState.data.visual.mood,
+      gezet: u.gezet.length,
+      /* De reden hoort mee te reizen van de aanroep naar het scherm. Zonder
+         deze regel kan hij onderweg weggegooid worden en merkt niemand het:
+         het scherm toont dan een lege kolom die eruitziet als "geen reden". */
+      redenen: u.gezet.map(function (b) { return b.waarom; }).filter(Boolean).length,
+      eersteReden: (u.gezet[0] || {}).waarom,
+      geweigerd: u.geweigerd.map(function (g) { return g.veld; }).sort(),
+      open: u.open.map(function (o) { return o.veld; }),
+      conflicten: u.conflicten.length,
+      /* De stappen die hierdoor compleet zijn, staan af. */
+      audienceAf: !!wizState.done.audience,
+      /* En de bron is Rory, niet de gebruiker: dit is een voorstel. */
+      bron: wizState.source['audience.awareness']
+    };
+  }, VULLEN);
+  check('de funnelfase komt binnen', bdToepassen.funnel, 'tof');
+  check('het bewustzijnsniveau ook', bdToepassen.awareness, 'problem');
+  check('en het sophistication-stadium', bdToepassen.sofist, 's3');
+  check('de persona wordt op id gezet', bdToepassen.persona, true);
+  check('en de manier van anders-zijn', bdToepassen.diff, 'mechanism');
+  check('een waarde die het veld niet kent wordt niet opgeslagen', bdToepassen.mood, '');
+  check('en staat bij de geweigerde, met het onbekende veld',
+        bdToepassen.geweigerd, ['strategy.vibe', 'visual.mood']);
+  check('vijf besluiten landden', bdToepassen.gezet, 5);
+  check('en alle vijf dragen hun reden mee', bdToepassen.redenen, 5);
+  check('woordelijk zoals Rory hem gaf', bdToepassen.eersteReden,
+        'De WK is een moment, geen doelgroep.');
+  check('wat hij openliet staat er apart bij', bdToepassen.open, ['strategy.proof']);
+  check('en het conflict ook', bdToepassen.conflicten, 1);
+  check('de stap die hierdoor af is, staat af', bdToepassen.audienceAf, true);
+  check('alles komt binnen als voorstel van Rory, niet als jouw keuze',
+        bdToepassen.bron, 'rory');
+
+  const bdUitslag = await page.evaluate(vullen => {
+    eval(vullen);
+    wizBd.uitslag = {
+      gezet: [{ veld: 'audience.sophistication', waarde: 's3', waarom: 'Iedereen claimt het al.' }],
+      geweigerd: [{ veld: 'visual.mood', reden: 'value "moody" is not one this field accepts' }],
+      open: [{ veld: 'strategy.proof', waarom: 'Ik weet niet wat dit kan tonen.' }],
+      conflicten: [{ what: 'premium plus korting', resolution: 'kies premium' }],
+      samenvatting: 'Een mechanisme-ad.'
+    };
+    var d = document.createElement('div');
+    d.innerHTML = wizRenderBrainDump();
+    var rij = d.querySelector('.wiz-bd-rij');
+    return {
+      leesbaarStadium: rij ? rij.querySelector('.wiz-bd-waarde').textContent : '',
+      redenErnaast: rij ? rij.querySelector('.wiz-bd-waarom').textContent : '',
+      conflictBoven: !!d.querySelector('.wiz-bd-conflict'),
+      openBlok: (d.querySelector('.wiz-bd-open') || {}).textContent || '',
+      geweigerdZichtbaar: (d.querySelector('.wiz-bd-geweigerd') || {}).textContent || '',
+      naarBlueprint: d.innerHTML.indexOf('wizBdNaarBlueprint()') > -1
+    };
+  }, VULLEN);
+  /* Een stadium heet 's3' in de data en dat zegt niemand iets op het scherm. */
+  check('het stadium leest als een naam, niet als een sleutel',
+        /Stage 3/.test(bdUitslag.leesbaarStadium), true);
+  check('de reden staat naast het besluit, niet in een voetnoot',
+        /Iedereen claimt het al/.test(bdUitslag.redenErnaast), true);
+  check('een conflict staat er als conflict', bdUitslag.conflictBoven, true);
+  check('wat hij openliet staat er met de reden',
+        /Ik weet niet wat dit kan tonen/.test(bdUitslag.openBlok), true);
+  /* Geweigerd is iets anders dan opengelaten: het eerste is een fout, het
+     tweede een oordeel, en dat verschil hoort zichtbaar te zijn. */
+  check('een geweigerde waarde is apart zichtbaar',
+        /not one this field accepts/.test(bdUitslag.geweigerdZichtbaar), true);
+  check('en je kunt door naar de blueprint', bdUitslag.naarBlueprint, true);
+
   /* ── De leer: awareness x sophistication ─────────────────────────────── */
   console.log('\n  de twee assen sturen de opdracht');
 

@@ -1043,3 +1043,46 @@
 .wiz-passknop.on { border-color: var(--gold); background: var(--glass-2); }
 .wiz-passknop-l { font-size: 13px; color: var(--text); }
 .wiz-passknop-s { font-size: 12px; color: var(--text-faint); line-height: 1.4; }
+
+/* ── De brain dump op stap 1 ──────────────────────────────────────────────
+   De snelste van de drie wegen, dus hij staat bovenaan en ziet er uit als een
+   ingang en niet als een extra veld. */
+.wiz-bd {
+  margin-bottom: 20px; padding: 16px; border-radius: 14px;
+  border: 1px solid var(--gold-line); background: var(--glass-2);
+}
+.wiz-bd-kop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wiz-bd-t {
+  font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold);
+}
+.wiz-bd-hint { margin-top: 8px; font-size: 13px; line-height: 1.55; color: var(--text-soft); }
+.wiz-bd-uitleg { margin: 10px 0 0; padding-left: 20px; }
+.wiz-bd-uitleg li { margin: 6px 0; font-size: 12.5px; line-height: 1.5; color: var(--text-soft); }
+.wiz-bd-uitleg strong { color: var(--text); }
+.wiz-bd-in {
+  width: 100%; margin-top: 12px; padding: 11px 12px; border-radius: 10px;
+  border: 1px solid var(--hairline); background: var(--glass-1);
+  color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.55; resize: vertical;
+}
+.wiz-bd-sam { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+.wiz-bd-conflict {
+  margin-top: 10px; padding: 9px 11px; border-radius: 10px;
+  border-left: 3px solid #c2503a; background: var(--glass-1); font-size: 13px; color: var(--text);
+}
+.wiz-bd-conflict em { color: var(--text-soft); font-style: italic; }
+.wiz-bd-lijst { margin-top: 12px; }
+.wiz-bd-rij {
+  display: grid; grid-template-columns: 150px 170px 1fr; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 12.5px;
+}
+.wiz-bd-veld { color: var(--text-faint); }
+.wiz-bd-waarde { color: var(--text); }
+.wiz-bd-waarom { color: var(--text-soft); line-height: 1.5; }
+.wiz-bd-open { margin-top: 14px; }
+.wiz-bd-open-k {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint);
+}
+.wiz-bd-geweigerd { margin-top: 10px; font-size: 12px; color: #c2503a; }
+@media (max-width: 900px) {
+  .wiz-bd-rij { grid-template-columns: 1fr; gap: 2px; }
+}

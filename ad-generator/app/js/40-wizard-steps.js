@@ -303,7 +303,13 @@ function wizRender_product() {
   }
   var p = wizProduct();
 
-  var links = wizSelect('product', 'productId', 'Select product',
+  /* De brain dump staat boven de keuzes en niet eronder. Hij is de snelste van
+     de drie wegen naar dezelfde blueprint, en wie hem onder het formulier zet
+     heeft hem verstopt: dan vul je eerst drie velden in en zie je daarna pas
+     dat het in een keer had gekund. */
+  var links = (typeof wizRenderBrainDump === 'function') ? wizRenderBrainDump() : '';
+
+  links += wizSelect('product', 'productId', 'Select product',
     prods.map(function (x) { return { value: x.id, label: x.name + (x.category ? ' (' + x.category + ')' : '') }; }),
     'Choose a product…');
 
