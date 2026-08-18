@@ -1091,6 +1091,136 @@ const VULLEN = `
     });
     return [...new Set(mist)];
   });
+  /* ── Drie concepten blijven drie concepten ───────────────────────────── */
+  console.log('\n  het reserveren van takes vervuilt de conceptenlijst niet');
+
+  const zes = await page.evaluate(vullen => {
+    eval(vullen);
+    /* Precies de toestand uit de melding: drie concepten uitgewerkt, er een
+       gekozen, en dan naar stap 9 waar plekken voor de takes gereserveerd
+       worden. De conceptenlijst hoort daar niets van te merken. */
+    var vars = [
+      { headline_nl: 'Geen sneetjes. Ook daar niet.', visual_nl: 'macro' },
+      { headline_nl: '7000 RPM. Nul sneetjes.', visual_nl: 'hero' },
+      { headline_nl: 'Het blad dat je huid niet pakt.', visual_nl: 'standaard' }
+    ];
+    /* Via de echte weg: wizGenerateConcepts zet beide lijsten, en de fout zat
+       precies in het feit dat het er een was. De lijst hier zelf neerzetten zou
+       de regel die stukging niet eens aanraken. */
+    window.__WG_TEAMSERVER = true;
+    var echtCall = window.wizCall, echtPrev = window.wizPreview;
+    window.wizPreview = function () {};
+    window.wizCall = function () {
+      return Promise.resolve({ content: [{ type: 'text',
+        text: JSON.stringify({ variations: vars }) }] });
+    };
+    wizState.busy = false;
+    wizGenerateConcepts();
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        window.wizCall = echtCall; window.wizPreview = echtPrev;
+        window.__WG_TEAMSERVER = false;
+        wizState.data.concepts.selected = 0;
+        wizState.data.generate.takes = null;
+
+        var voor = wizState.data.concepts.list.length;
+        var idx = wizTakeIndexen();
+        var na = wizState.data.concepts.list.length;
+
+        /* En op het scherm ook: drie kaarten, niet zes. */
+        wizState.current = 'concepts';
+        var d = document.createElement('div');
+        d.innerHTML = wizRender_concepts();
+        klaar({ voor: voor, na: na, gereserveerd: idx.length,
+                kaarten: d.querySelectorAll('.wiz-concept').length,
+                koppen: [].slice.call(d.querySelectorAll('.wiz-concept-h')).map(function (e) { return e.textContent; }),
+                variaties: state.lastGenerated.variations.length });
+      }, 80);
+    });
+  }, VULLEN);
+  check('er waren drie concepten', zes.voor, 3);
+  check('er worden drie plekken gereserveerd', zes.gereserveerd, 3);
+  check('en het blijven drie concepten', zes.na, 3);
+  check('op het scherm staan er ook drie', zes.kaarten, 3);
+  /* Het waren drie kopieen van het gekozen concept die erbij kwamen: dat is
+     hoe je het herkent als het terugkomt. */
+  check('en niet drie keer dezelfde kop',
+        zes.koppen.filter(function (k) { return k === 'Geen sneetjes. Ook daar niet.'; }).length, 1);
+  check('de plekken staan wel achter de variatielijst', zes.variaties, 6);
+
+  /* ── Het einde is één vraag ──────────────────────────────────────────── */
+  console.log('\n  stap 9: één knop, drie kaarten, kiezen');
+
+  const eind = await page.evaluate(vullen => {
+    eval(vullen);
+    var vars = [{ headline_nl: 'Geen sneetjes.', visual_nl: 'macro' }];
+    wizState.data.concepts.list = vars.slice();
+    state.lastGenerated = { variations: vars, metadata: {} };
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.takes = null;
+    state.generatedImages = {};
+    wizState.busy = false;
+
+    var d = document.createElement('div');
+    d.innerHTML = wizRender_generate();
+    var start = {
+      knoppen: d.querySelectorAll('button').length,
+      tekst: d.textContent.replace(/\s+/g, ' ').trim(),
+      /* Geen keuzeblokken meer bovenaan: die stonden er voordat je iets had. */
+      passblokken: d.querySelectorAll('.wiz-passknop').length,
+      verfijnen: d.querySelectorAll('.wiz-tweakknop').length
+    };
+
+    /* Met drie variaties, zonder beeld. */
+    wizTakeIndexen();
+    var takes = wizState.data.generate.takes;
+    state.lastGenerated.variations[takes[0]] = { headline_nl: 'A', cta_nl: 'Bestel nu', visual_nl: 'macro' };
+    state.lastGenerated.variations[takes[1]] = { headline_nl: 'B', cta_nl: 'Bekijk hem', visual_nl: 'scene' };
+    state.lastGenerated.variations[takes[2]] = { headline_nl: 'C', cta_nl: 'Probeer 100 dagen', visual_nl: 'labels' };
+    var d2 = document.createElement('div');
+    d2.innerHTML = wizRender_generate();
+    var zonderBeeld = {
+      kaarten: d2.querySelectorAll('.wiz-take').length,
+      zegtWaarom: [].slice.call(d2.querySelectorAll('.wiz-take-leeg')).map(function (e) { return e.textContent; }),
+      perKaartOpnieuw: d2.querySelectorAll('.wiz-take-opnieuwbeeld').length,
+      ctas: [].slice.call(d2.querySelectorAll('.wiz-take-cta')).map(function (e) { return e.textContent; }),
+      /* Verfijnen kan nog niet: er is niets om te verfijnen. */
+      verfijnen: d2.querySelectorAll('.wiz-tweakknop').length
+    };
+
+    /* Met beeld en een gekozen variatie. */
+    state.generatedImages[takes[0]] = { versions: ['x'], currentIndex: 0 };
+    wizState.data.generate.selectedTake = takes[0];
+    var d3 = document.createElement('div');
+    d3.innerHTML = wizRender_generate();
+    var metBeeld = {
+      verfijnen: d3.querySelectorAll('.wiz-tweakknop').length > 0,
+      geenLegeMelding: d3.querySelectorAll('.wiz-take-leeg').length,
+      andereManier: /vary only the picture|vary the headline as well/.test(d3.textContent)
+    };
+    return { start: start, zonderBeeld: zonderBeeld, metBeeld: metBeeld };
+  }, VULLEN);
+  /* Voor je begint is er één knop en verder niets: geen passkeuze, geen
+     verfijnrij, geen uitleg waarom je nog niet kunt verfijnen. */
+  check('voor je begint staat er één knop', eind.start.knoppen, 1);
+  check('en die zegt wat hij doet', /Generate 3 variations/.test(eind.start.tekst), true);
+  check('geen keuzeblokken voor de pass', eind.start.passblokken, 0);
+  check('en geen verfijnknoppen zonder beeld', eind.start.verfijnen, 0);
+
+  check('daarna staan er drie variaties', eind.zonderBeeld.kaarten, 3);
+  /* Een grijs vlak zonder woorden liet je raden of je moest wachten. */
+  check('een kaart zonder beeld zegt dat ook',
+        eind.zonderBeeld.zegtWaarom, ['No image yet', 'No image yet', 'No image yet']);
+  check('met een knop om dat beeld alsnog te maken', eind.zonderBeeld.perKaartOpnieuw, 3);
+  /* De call to action mag meeveranderen met de headline. */
+  check('en elke variatie draagt zijn eigen call to action',
+        eind.zonderBeeld.ctas, ['Bestel nu', 'Bekijk hem', 'Probeer 100 dagen']);
+  check('verfijnen kan nog steeds niet', eind.zonderBeeld.verfijnen, 0);
+
+  check('met beeld en een keuze verschijnt het verfijnen', eind.metBeeld.verfijnen, true);
+  check('en de lege melding is weg bij die kaart', eind.metBeeld.geenLegeMelding, 2);
+  check('de andere manier van varieren staat er als regel', eind.metBeeld.andereManier, true);
+
   /* ── De brain dump op stap 1 ─────────────────────────────────────────── */
   console.log('\n  in een keer opschrijven wat je in je hoofd hebt');
 

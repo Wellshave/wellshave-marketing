@@ -387,7 +387,11 @@ function wizGenerateConcepts() {
       var parsed = wizParseJson(wizTextOf(data));
       var vars = parsed.variations || [];
       if (!vars.length) throw new Error('no variations came back');
-      wizState.data.concepts.list = vars;
+      /* Een eigen kopie, geen gedeelde array. Stap 9 reserveert straks drie
+         plekken achter deze lijst voor de takes, en met een gedeelde array
+         groeide de conceptenlijst mee: dan stonden er zes kaarten op stap 8,
+         waarvan drie een kopie van het gekozen concept zonder beeld. */
+      wizState.data.concepts.list = vars.slice();
       state.lastGenerated = { variations: vars, metadata: wizMetadata() };
       state.generatedImages = {};
       wizSave();
@@ -573,7 +577,9 @@ function wizBuildTakeBrief() {
        'extreme macro of the area or the mechanism the claim is about, no person; ' +
        'take 3 the product itself with callouts, icons or labels pointing at what ' +
        'matters.\n' +
-       '3. The vibe: three takes that could not be mistaken for each other in a feed.\n\n' +
+       '3. The call to action, when the wording genuinely follows from the headline. ' +
+       'Same offer and same destination, different words on the button.\n' +
+       '4. The vibe: three takes that could not be mistaken for each other in a feed.\n\n' +
        'Three macro shots of the same product head is a failure, even with different ' +
        'headlines. If two takes would look alike, change one of them.\n\n';
 
@@ -654,6 +660,17 @@ var WIZ_TWEAKS = [
     instructie: 'Generate this same concept again from scratch.' }
 ];
 
+/* Stap 9 doet één ding: van het gekozen concept drie variaties maken, met beeld,
+ * en jou er één laten kiezen.
+ *
+ * Deze stap was te ingewikkeld geworden. Er stonden twee grote keuzeblokken
+ * voor de pass, een knop om takes uit te werken, een knop om ze opnieuw uit te
+ * werken, een rij verfijnacties en een uitleg waarom je nog niets kon
+ * verfijnen -- terwijl je hier maar één vraag hebt: welke van de drie loopt er?
+ *
+ * Dus: één knop, drie kaarten, kiezen. De verfijnacties komen pas als er een
+ * gekozen is, en de tweede manier van varieren staat als één regel onder de
+ * drie in plaats van als blok erboven. */
 function wizRender_generate() {
   var sel = wizState.data.concepts.selected;
   if (sel == null) {
@@ -664,83 +681,87 @@ function wizRender_generate() {
   var beelden = (state && state.generatedImages) || {};
   var takes = wizState.data.generate.takes || [];
   var gekozen = wizHuidigeTake();
-  var heeftBeeld = takes.some(function (i) { return !!beelden[i]; });
 
-  /* Links de drie takes naast elkaar, zodat je ze vergelijkt in plaats van
-     achter elkaar te bekijken. Rechts de gerichte acties, onder elkaar zoals
-     in het ontwerp -- ze veranderen elk één ding en laten de rest staan, en ze
-     werken op de take die je gekozen hebt. */
-  var links = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
+  var h = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
     (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>';
 
-  /* Welke pass je draait staat boven de knop en niet erachter: het bepaalt wat
-     je straks geleerd hebt, en dat is geen instelling maar een besluit. */
-  var passKeuze = '<div class="wiz-pass">' + WIZ_PASSES.map(function (pa) {
-    var aan = (wizPass() === pa.key);
-    return '<button type="button" class="wiz-passknop' + (aan ? ' on' : '') + '" ' +
-      'onclick="wizZetPass(\'' + pa.key + '\')">' +
-      '<span class="wiz-passknop-l">' + wizEsc(pa.label) + '</span>' +
-      '<span class="wiz-passknop-s">' + wizEsc(pa.sub) + '</span></button>';
-  }).join('') + '</div>';
-
+  /* Nog niets: één knop en één zin over wat er gebeurt. */
   if (!takes.length) {
-    links += passKeuze + '<div class="wiz-final-preview">' +
-      '<button type="button" class="wiz-btn primary" onclick="wizGenerateTakes()">' +
-      'Work out ' + WIZ_TAKE_COUNT + ' takes of this concept</button>' +
-      '<div class="wiz-take-uitleg">' + wizEsc(
-        wizPass() === 'visueel'
-          ? 'Same persona, same angle, same promise, and the same headline in all three. ' +
-            'Only the picture changes, so a winner tells you it was the picture.'
-          : 'Same persona, same angle, same promise. Three different headlines and three ' +
-            'different visual treatments. More spread per generation, less certainty about ' +
-            'what won.') + '</div></div>';
-  } else {
-    links += '<div class="wiz-takes">' + takes.map(function (i, n) {
-      var aan = (i === gekozen);
-      /* De headline en de uitwerking van déze take erbij. Drie beelden zonder
-         woorden zijn drie plaatjes; met de headline en de scene erbij zie je
-         waarin ze verschillen -- en dat is waar je tussen kiest. */
-      var v = (state.lastGenerated && state.lastGenerated.variations[i]) || {};
-      return '<div class="wiz-take' + (aan ? ' on' : '') + '">' +
-        '<div class="wiz-take-kop">Take ' + (n + 1) +
-        (v.hook_label_nl ? '<span class="wiz-take-hook">' + wizEsc(v.hook_label_nl) + '</span>' : '') +
-        '</div>' +
-        '<div class="wiz-final-preview" id="gen-image-' + i + '"></div>' +
-        (v.headline_nl ? '<div class="wiz-take-h">' + wizEsc(v.headline_nl) + '</div>' : '') +
-        (v.visual_nl ? '<div class="wiz-take-v">' + wizEsc(v.visual_nl) + '</div>' : '') +
-        '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
-        'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
-        '</div>';
-    }).join('') + '</div>' +
-    '<div class="wiz-take-opnieuw">' + passKeuze +
-    '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()">Work out three new takes</button>' +
-    '</div>';
+    return h + '<div class="wiz-final-start">' +
+      '<button type="button" class="wiz-btn primary" onclick="wizGenerateTakes()"' +
+      (wizState.busy ? ' disabled' : '') + '>' +
+      (wizState.busy ? 'Working out three variations…' : 'Generate ' + WIZ_TAKE_COUNT + ' variations') +
+      '</button>' +
+      '<div class="wiz-take-uitleg">Same persona, same angle, same promise. Three different ' +
+      'headlines, three different pictures, and a call to action that follows the headline. ' +
+      'You pick the one that runs.</div></div>';
   }
 
-  var onder;
-  if (!heeftBeeld) {
-    onder = '<div class="wiz-leegzij">Generate the takes first. The refine actions appear once there is an image to change.</div>';
-  } else {
+  /* De drie naast elkaar. Elke kaart zegt in welke toestand hij is: er is een
+     beeld, hij wordt gemaakt, of hij is er niet gekomen. Een grijs vlak zonder
+     woorden liet je raden of je moest wachten of iets stuk was. */
+  h += '<div class="wiz-takes">' + takes.map(function (i, n) {
+    var aan = (i === gekozen);
+    var v = (state.lastGenerated && state.lastGenerated.variations[i]) || {};
+    var heeft = !!beelden[i];
+    return '<div class="wiz-take' + (aan ? ' on' : '') + '">' +
+      '<div class="wiz-take-kop">Variation ' + (n + 1) +
+      (v.hook_label_nl ? '<span class="wiz-take-hook">' + wizEsc(v.hook_label_nl) + '</span>' : '') +
+      '</div>' +
+      '<div class="wiz-final-preview" id="gen-image-' + i + '">' +
+        (heeft ? '' :
+          '<span class="wiz-take-leeg">' +
+          (wizState.busy ? 'Working…' : 'No image yet') + '</span>') +
+      '</div>' +
+      (heeft ? '' : '<button type="button" class="wiz-linkbtn wiz-take-opnieuwbeeld" ' +
+        'onclick="wizPreview(' + i + ')">Generate this picture</button>') +
+      (v.headline_nl ? '<div class="wiz-take-h">' + wizEsc(v.headline_nl) + '</div>' : '') +
+      (v.cta_nl ? '<div class="wiz-take-cta">' + wizEsc(v.cta_nl) + '</div>' : '') +
+      (v.visual_nl ? '<div class="wiz-take-v">' + wizEsc(v.visual_nl) + '</div>' : '') +
+      '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
+      'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
+      '</div>';
+  }).join('') + '</div>';
+
+  /* Opnieuw, en de andere manier van varieren -- als regels, niet als blokken.
+     Ze zijn allebei een uitzondering op wat je hier normaal doet. */
+  h += '<div class="wiz-take-opnieuw">' +
+    '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()"' +
+    (wizState.busy ? ' disabled' : '') + '>Work out three new variations</button>' +
+    '<span class="wiz-take-of">or</span>' +
+    '<button type="button" class="wiz-linkbtn" onclick="wizAnderePass()">' +
+    (wizPass() === 'visueel'
+      ? 'vary the headline as well, not just the picture'
+      : 'keep the headline identical and vary only the picture') +
+    '</button></div>';
+
+  /* Verfijnen kan pas als er iets te verfijnen valt, en gaat over de gekozen
+     variatie. Staat er niets gekozen of niets in beeld, dan staat deze hele
+     rij er niet: knoppen die niets doen zijn erger dan geen knoppen. */
+  if (gekozen != null && beelden[gekozen]) {
     var groepen = [];
     WIZ_TWEAKS.forEach(function (t) { if (groepen.indexOf(t.groep) === -1) groepen.push(t.groep); });
-    onder = wizPaneel('Refine the chosen take',
+    h += '<div class="wiz-refine">' + wizPaneel('Refine the chosen variation',
       '<div class="wiz-refine-rij">' + groepen.map(function (g) {
         return '<div class="wiz-tweakgroep"><span class="wiz-tweakgroep-t">' + wizEsc(g) + '</span>' +
           '<div class="wiz-tweaklijst">' + WIZ_TWEAKS.filter(function (t) { return t.groep === g; }).map(function (t) {
-            var aan = (wizState.tweakOpen === t.key);
-            return '<button type="button" class="wiz-tweakknop' + (aan ? ' on' : '') + '" ' +
+            var aanT = (wizState.tweakOpen === t.key);
+            return '<button type="button" class="wiz-tweakknop' + (aanT ? ' on' : '') + '" ' +
               'onclick="wizOpenTweak(\'' + t.key + '\')">' + wizEsc(t.label) + '</button>';
           }).join('') + '</div></div>';
       }).join('') + '</div>' +
       wizTweakPaneel() +
-      '<div class="wiz-tweak-note">Each action changes that one element of the chosen take and leaves the rest of the ad alone.</div>');
+      '<div class="wiz-tweak-note">Each action changes that one element and leaves the rest alone.</div>') +
+      '</div>';
   }
 
-  /* Eén kolom op deze stap, geen twee. Naast Rory's kolom is het paneel te smal
-     voor drie takes én een actiekolom ernaast: dan worden de beelden zo klein
-     dat vergelijken -- het hele punt van drie takes -- niet meer gaat. Boven de
-     beelden, eronder wat je ermee doet. */
-  return links + '<div class="wiz-refine">' + onder + '</div>';
+  return h;
+}
+
+/* Wisselen tussen de twee manieren van varieren. Eén regel in plaats van twee
+   keuzeblokken: het is een uitzondering, geen kruispunt. */
+function wizAnderePass() {
+  wizZetPass(wizPass() === 'visueel' ? 'hoek' : 'visueel');
 }
 
 /* De hoofdknop op stap 8. Doorlopen naar het eindbeeld kan alleen met een
@@ -846,6 +867,6 @@ window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBrie
 window.wizToonBewaardeBeelden = wizToonBewaardeBeelden; window.WIZ_CONCEPT_COUNT = WIZ_CONCEPT_COUNT;
 window.wizNaarEindbeeld = wizNaarEindbeeld;
 window.wizGenerateTakes = wizGenerateTakes; window.wizPickTake = wizPickTake;
-window.wizZetPass = wizZetPass; window.wizPass = wizPass; window.WIZ_PASSES = WIZ_PASSES;
+window.wizAnderePass = wizAnderePass; window.wizZetPass = wizZetPass; window.wizPass = wizPass; window.WIZ_PASSES = WIZ_PASSES;
 window.wizHuidigeTake = wizHuidigeTake; window.wizTakeIndexen = wizTakeIndexen;
 window.WIZ_TAKE_COUNT = WIZ_TAKE_COUNT;
