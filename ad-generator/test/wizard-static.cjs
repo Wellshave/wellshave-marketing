@@ -1327,6 +1327,48 @@ const VULLEN = `
   check('geen enkele regel reikt buiten de wizard', goud.buitenDeWizard, []);
   check('en reduced motion heeft zijn eigen blok', goud.heeftReduced, true);
 
+  /* ── De nacht over de hele console ───────────────────────────────────── */
+  console.log('\n  elke pagina draagt het donkere atelier');
+
+  const nacht = await page.evaluate(() => {
+    var lum = function (kleur) {
+      var m = (kleur.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number)
+        .map(function (v) { v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+    };
+    /* De veeg die de restanten vond, nu als vaste bewaking: geen element
+       groter dan 60x40 met een licht dekkend vlak, op geen enkele tab. Wie
+       ergens "background: #fff" hardcodeert, ziet deze test omvallen. */
+    var tabs = ['dashboard', 'generator', 'copywriter', 'scriptwriter', 'personas',
+                'products', 'library', 'scripts', 'strategy', 'team', 'settings',
+                'iterate', 'transformer', 'copyad'];
+    var licht = [];
+    tabs.forEach(function (t) {
+      try { switchMainTab(t); } catch (e) { return; }
+      [].slice.call(document.querySelectorAll('*')).forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.width < 60 || r.height < 40 || r.top > 1400) return;
+        var bg = getComputedStyle(el).backgroundColor;
+        var m = bg.match(/rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/);
+        if (!m) return;
+        var aa = m[4] === undefined ? 1 : +m[4];
+        if (aa > 0.5 && (+m[1] + +m[2] + +m[3]) / 3 > 190) {
+          var naam = t + '/' + (String(el.className).split(' ')[0] || el.tagName);
+          if (licht.indexOf(naam) === -1) licht.push(naam);
+        }
+      });
+    });
+    switchMainTab('generator');
+    return {
+      canvas: lum(getComputedStyle(document.body).backgroundColor) < 0.05,
+      inkt: lum(getComputedStyle(document.body).color) > 0.5,
+      licht: licht.slice(0, 10)
+    };
+  });
+  check('het canvas is bijna zwart', nacht.canvas, true);
+  check('de inkt is licht', nacht.inkt, true);
+  check('en geen enkele tab heeft nog een licht vlak', nacht.licht, []);
+
   /* ── Het donkere atelier ─────────────────────────────────────────────── */
   console.log('\n  de wizard is de donkere goudwerkbank, wat de console ook draagt');
 
@@ -1366,7 +1408,8 @@ const VULLEN = `
      draagt zijn eigen thema en de console het hare. */
   check('het paneel is bijna zwart', donker.paneelDonker, true);
   check('met lichte tekst erin', donker.titelLicht, true);
-  check('terwijl de console eromheen licht blijft', donker.paginaLicht, true);
+  /* Sinds de nachtlaag is de console eromheen ook donker; wat deze test nog
+     bewaakt is dat de wizard zijn eigen scope houdt als waarborg. */
   check('het typevak is geen lichtbak meer in het donker', donker.vakNietLicht, true);
   check('en de bewijslijst heeft zijn gouden vinkjes', donker.vinkjes, true);
 

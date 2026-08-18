@@ -1,0 +1,256 @@
+/* ============================================================
+   ATELIER CONSOLE — "NACHT"
+
+   De hele console in het donkere goudatelier van de Static Ad
+   Generator: elke pagina, elk menu, elke pop-up, elke dropdown.
+
+   Hoe dit werkt, en waarom het maar één bestand is: de
+   Daylight-skin (08) definieert een eigen tokenvocabulaire
+   (--paper, --surface, --ink, --amber, --line, schaduwen) en
+   vrijwel elk onderdeel van de console is op die tokens
+   gebouwd. Dit bestand laadt als laatste en hermapt dat
+   vocabulaire naar donker; daarmee draait de hele console om
+   zonder dat er één componentregel herschreven hoeft te worden.
+
+   Wat overblijft zijn de plekken waar Daylight en de lagen erop
+   een kleur hard hebben gecodeerd ("background: #fff
+   !important"). Die staan hieronder stuk voor stuk geteld en
+   gecounterd, met dezelfde kracht als het origineel. Nieuwe
+   witte vlekken horen dus niet stilletjes te ontstaan: wie een
+   kleur hardcodeert in plaats van een token te gebruiken, ziet
+   hem hier terugkomen.
+
+   De wizard heeft zijn eigen scope in 24-wizard-goud.css met
+   dezelfde waarden; die blijft staan als waarborg, zodat de
+   generator donker blijft óók als iemand deze laag ooit
+   uitschakelt.
+   ============================================================ */
+
+:root,
+body.brand-wellshave,
+body.brand-wellshine {
+  /* Canvas & vlakken: bijna-zwart met warmte, drie lagen. */
+  --paper:        #080706;
+  --surface:      #12100c;
+  --surface-2:    #171410;
+  --surface-3:    #1e1a14;
+  --charcoal:     #0d0c0a;
+  --charcoal-2:   #171512;
+
+  /* Inkt op donker. */
+  --ink:          #f6efe1;
+  --ink-soft:     #bdb19c;
+  --ink-faint:    #83786a;
+
+  /* Lijnen. */
+  --line:         rgba(255, 246, 228, 0.08);
+  --line-strong:  rgba(255, 246, 228, 0.14);
+
+  /* Amber wordt het atelier-goud. */
+  --amber:        #e8ba5a;
+  --amber-hi:     #ffd98a;
+  /* Dekkend, geen rgba: een doorschijnende wash is op elke ondergrond een
+     andere kleur, en dan is contrast niet meer te beloven -- de contrasttests
+     van strategie en dagbesluit rekenen er terecht hard op. */
+  --amber-wash:   #2b2312;
+  --amber-deep:   #e0b254;
+
+  /* De oude tokens, terug naar donker. */
+  --bg:           #080706;
+  --bg-elevated:  #0d0b09;
+  --glass:        rgba(24, 21, 16, 0.72);
+  --glass-2:      rgba(32, 27, 20, 0.62);
+  --glass-hover:  rgba(42, 35, 25, 0.7);
+  --hairline:        rgba(255, 246, 228, 0.07);
+  --hairline-strong: rgba(255, 246, 228, 0.13);
+  --text:         #f6efe1;
+  --text-soft:    #bdb19c;
+  --text-faint:   #83786a;
+  --gold-rgb:     232, 186, 90;
+  --gold:         #e8ba5a;
+  --gold-bright:  #ffd98a;
+  --gold-deep:    #9a7428;
+  --gold-glow:    rgba(232, 186, 90, 0.20);
+  --gold-haze:    rgba(232, 186, 90, 0.07);
+  --gold-line:        rgba(232, 186, 90, 0.26);
+  --gold-line-strong: rgba(232, 186, 90, 0.55);
+
+  /* Schaduwen dragen op donker meer gewicht en minder spreiding. */
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow-glass: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow-lift:  0 20px 54px rgba(0, 0, 0, 0.55);
+
+  /* Tokens van de relief-laag (09) die zij zelf licht definieert. */
+  --lv-inset:     #171410;
+  --line-3:       rgba(255, 246, 228, 0.14);
+}
+
+/* Wellshine houdt zijn koelere champagne, maar dan op nacht. */
+body.brand-wellshine {
+  --amber:      #e4c48f;
+  --amber-hi:   #f4dfb4;
+  --amber-wash: #2a2418;
+  --amber-deep: #d8b782;
+  --gold-rgb:   224, 186, 130;
+  --gold:       #e0ba82;
+  --gold-bright:#f4dfb4;
+  --paper:      #090807;
+}
+
+/* ---------- CANVAS ---------- */
+html { background: var(--paper); }
+html, body,
+body.brand-wellshave,
+body.brand-wellshine {
+  background-color: var(--paper) !important;
+  color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 65% 42% at 50% 0%,  rgba(232, 186, 90, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 105%, rgba(232, 186, 90, 0.05) 0%, transparent 58%) !important;
+  background-attachment: fixed !important;
+}
+body.brand-wellshine, html:has(body.brand-wellshine) {
+  background-image:
+    radial-gradient(ellipse 65% 42% at 50% 0%,  rgba(224, 186, 130, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 105%, rgba(224, 186, 130, 0.05) 0%, transparent 58%) !important;
+}
+::selection { background: rgba(232, 186, 90, 0.35); color: #1a1408; }
+::-webkit-scrollbar-thumb { background: rgba(255, 246, 228, 0.16); border: 3px solid transparent; background-clip: padding-box; border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 246, 228, 0.28); background-clip: padding-box; }
+
+/* ---------- DE HARDGECODEERDE WITTE VLAKKEN ----------
+   Elk blok hieronder countert één plek waar een laag eronder een lichte kleur
+   hard heeft gezet in plaats van een token te gebruiken. */
+
+/* 08: de vensterbalk was melkglas-wit. */
+.console-titlebar {
+  background: rgba(13, 11, 9, 0.78) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+/* 08: statuschips en knoppen in de topbalk. */
+.ws-topbar-meta .status-line { background: var(--surface-2); border-color: var(--line); }
+.ws-topbar-meta .status-clickable:hover { background: var(--surface-3); }
+.ws-hamburger { background: var(--surface-2) !important; color: var(--ink) !important; border-color: var(--line) !important; }
+.ws-icon-btn { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+
+/* 08: dashboardkaarten met een licht goudverloop. */
+.dash-act.primary {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.16) 0%, var(--surface) 62%) !important;
+  border-color: rgba(232, 186, 90, 0.4) !important;
+}
+.dash-stat.accent {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.14), var(--surface-2)) !important;
+  border-color: rgba(232, 186, 90, 0.35) !important;
+}
+
+/* 08: de standaardknop was wit. */
+.btn { background: var(--surface-2) !important; color: var(--ink) !important; }
+.btn:hover { background: var(--surface-3) !important; }
+
+/* 08: focus op een formulier sprong naar wit. */
+input:focus, select:focus, textarea:focus {
+  background: rgba(232, 186, 90, 0.06) !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(232, 186, 90, 0.16) !important;
+}
+
+/* 08: chips en tabs. */
+.radio-pill, .fmt-chip, .tf-preset-chip, .px-tab {
+  background: var(--surface-2) !important;
+  color: var(--ink-soft) !important;
+}
+
+/* 08: het lege resultatenvak. */
+#main-tab-generator > #results:empty { background: var(--surface) !important; }
+
+/* 09: de uitgelichte dashboardstat. */
+.dash-stats .dash-stat:nth-child(3) {
+  background: linear-gradient(160deg, rgba(232, 186, 90, 0.12) 0%, var(--surface-2) 100%) !important;
+}
+
+/* 10: het lichte cockpitpaneel. */
+.ws7-light { background: var(--surface); border-color: var(--line); }
+
+/* 11: de studiokolommen van het klassieke formulier. */
+.ws8-left .ws8-acc, .ws8-left .settings-panel,
+.ws8-card, .ws8-center .brain-dump-card, .ws8-center .form-section,
+.ws8-center #source-ad-section, .ws8-center .iw-launch,
+.ws8-insp-card {
+  background: var(--surface); border-color: var(--line);
+}
+
+/* 12: het inzichtenframe. */
+.ws9-frame { background: var(--surface); border-color: var(--line); }
+
+/* 15: de variatiekaarten en hun bewerkvelden. */
+.variation-card { background: var(--surface) !important; border-color: var(--line) !important; }
+.variation-card.rv-editing .var-row .inline-edit-input,
+.variation-card.rv-editing .var-row .inline-edit-textarea,
+.variation-card.rv-editing .rv-block[data-f="cta"] .inline-edit-input {
+  background: var(--surface-3) !important; color: var(--ink) !important;
+  border-color: var(--line-strong) !important;
+}
+.rv-edit-btn { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink-soft); }
+
+/* 08: de lichte waas achter de topbalk wordt een donkere. */
+.ws-topbar::before {
+  background: linear-gradient(180deg, rgba(8, 7, 6, 0.94) 0%, rgba(8, 7, 6, 0.72) 62%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* 10: de cockpitpanelen. Het amberpaneel blijft HET accent van het dashboard,
+   maar als gouden gloed op donker in plaats van een gele daglichtkaart. */
+.ws7-amber {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.28) 0%, rgba(232, 186, 90, 0.14) 55%, var(--surface) 130%);
+  color: var(--ink);
+  border: 1px solid rgba(232, 186, 90, 0.45);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), 0 0 30px rgba(232, 186, 90, 0.08);
+}
+.ws7-amber .ws7-next-s, .ws7-amber .ws7-kicker { color: var(--ink-soft); }
+.ws7-inset { background: var(--surface-3); border-color: var(--line); }
+.ws7-tile { background-color: var(--surface-3); }
+.ws7-tile.ph { background: var(--surface-2); border-color: var(--line-strong); }
+.ws7-next:hover { box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5), 0 0 34px rgba(232, 186, 90, 0.12); }
+
+/* De volledige veeg over alle veertien tabs vond nog vijf lichte vlakken.
+   Gevonden met een meting (elk element > 60x40 met een lichte berekende
+   achtergrond), niet met de hand -- wat hier niet staat, was er niet. */
+
+/* index.html (inline): de Fable-spardrawer. */
+.wgp-drawer {
+  background: #100e0b !important;
+  border-left: 1px solid rgba(232, 186, 90, 0.25) !important;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.6) !important;
+  color: var(--ink);
+}
+
+/* 04-px: de feitencellen op de personakaart. */
+.px-attr { background: var(--surface-2); }
+.px-attr-k { color: var(--ink-faint); }
+.px-attr-v { color: var(--gold); }
+.px-attr-grid { background: var(--line); border-color: var(--line); }
+
+/* 01-basis: de fotozones van Copywriter en Ad transformer, en de
+   bron-ad-dropzone van Itereren. */
+/* 09 zet de dropzones op --lv-inset met !important; die token hermappen we
+   hier, en de counter zelf krijgt gelijke kracht. */
+.tf-photo-zone, .source-ad-dropzone, .ref-dropzone, #ref-dropzone-product {
+  background: var(--surface-2) !important;
+  border-color: var(--line-strong) !important;
+}
+
+/* 11: de zwevende kop van de studio. */
+.ws8-header {
+  background: rgba(13, 11, 9, 0.88);
+  border-color: var(--line);
+}
+.ws8-acc-head:hover { background: var(--surface-3); }
+
+/* 08/lib: de lege-bibliotheekkaart en verwante lege staten die op tokens
+   leunden die nu donker zijn, houden hun opbouw; alleen expliciet licht wit
+   moet om. */
+.lib-empty, .empty-state { background: var(--surface); border-color: var(--line); }
+
+/* 12: de checklistvakjes op Itereren -- gevonden door de bewakingstest, niet
+   door de handmatige veeg. Precies waarvoor die test bestaat. */
+.ws9-check { background: var(--surface-2); }
