@@ -191,6 +191,56 @@ var WIZ_FUNNELS = [
   { value: 'retargeting', kort: 'Retarget', label: 'Retargeting', hint: 'Visited the site, did not buy' }
 ];
 
+/* Market sophistication: hoeveel claims deze markt al gehoord heeft. Awareness
+ * bepaalt hoe direct je mag praten, sophistication bepaalt wat voor claim er
+ * uberhaupt nog geloofd wordt. Uit Schwartz, Breakthrough Advertising.
+ *
+ * De regel bij het kiezen is niet "zo hoog mogelijk" maar precies een stap
+ * voor op de concurrentie: schrijf je kale productclaim op, zoek hem in de Ads
+ * Library, tel hoeveel concurrenten hem maken. Druk bezet, dan een stap
+ * verder; leeg, dan is een directe claim genoeg. Achterlopen klinkt als
+ * iedereen, te ver vooruit is nodeloos ingewikkeld.
+ *
+ * Stadium 5 gedraagt zich als 'unaware': in beide gevallen verkoop je in de
+ * hook niet het product maar de reden om te blijven kijken. */
+var WIZ_SOPHISTICATION = [
+  { value: 's1', label: 'Stage 1 — direct claim', hint: 'Virgin market, you are first. State it plainly.' },
+  { value: 's2', label: 'Stage 2 — bigger claim', hint: 'Same claim, escalated and more specific.' },
+  { value: 's3', label: 'Stage 3 — new mechanism', hint: 'Bare claims are dead. Name the how.' },
+  { value: 's4', label: 'Stage 4 — better mechanism', hint: 'Everyone has a mechanism. Yours is superior.' },
+  { value: 's5', label: 'Stage 5 — identity', hint: 'Fully sceptical market. Sell who they are, not the product.' }
+];
+
+/* De vijf manieren om anders te zijn. Elke hoek noemt er een: zonder dat is
+   'anders' een compliment achteraf in plaats van een besluit vooraf. */
+var WIZ_DIFFERENTIATION = [
+  { value: 'mechanism', label: 'New mechanism', hint: 'A new how, and the superiority it produces. The strongest.' },
+  { value: 'exaggeration', label: 'Exaggerated execution', hint: 'Bigger in specificity, scale and spectacle. Never a bigger claim.' },
+  { value: 'avatar', label: 'Different avatar', hint: 'Same product, new tribe. The cheapest and most reliable.' },
+  { value: 'desire', label: 'Different desire', hint: 'Same product, a different outcome sold.' },
+  { value: 'style', label: 'Different creative style', hint: 'Early to a format. Real, and perishable.' }
+];
+
+/* Wat het gekozen stadium betekent voor de ad, in een regel. Twee stadia zijn
+   het vermelden waard omdat ze tegen de intuitie in gaan: bij 5 verkoop je in
+   de hook niet het product, precies als bij een publiek dat het probleem nog
+   niet kent. */
+function wizSofistHint() {
+  var a = wizState.data.audience.awareness, sf = wizState.data.audience.sophistication;
+  if (!sf) return 'Write your bare product claim, search it in the Ads Library, count the competitors making it. Crowded means one stage further.';
+  var per = {
+    s1: 'A direct claim is enough here. Do not complicate it.',
+    s2: 'Same claim as the others, escalated: specific numbers, bigger scale.',
+    s3: 'Bare claims are spent. Lead with the mechanism, the how.',
+    s4: 'Everyone has a mechanism now. Yours has to be visibly better than theirs.',
+    s5: 'Stop selling the product. Sell who they are. Open like an unaware ad: the reason to keep looking, not the product.'
+  }[sf] || '';
+  if (sf === 's5' && a && a !== 'unaware') {
+    per += ' Note the tension with the awareness stage: at 5 the opening behaves unaware whatever they already know.';
+  }
+  return per;
+}
+
 var WIZ_AWARENESS = [
   { value: 'unaware', label: 'Unaware', hint: 'Does not know the problem yet' },
   { value: 'problem', label: 'Problem aware', hint: 'Feels the pain, knows no solution' },
@@ -343,6 +393,19 @@ function wizRender_audience() {
         'onclick="wizPick(\'audience\',\'awareness\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
     }).join('') + '</div></div>';
 
+  /* Awareness en sophistication staan onder elkaar en niet verstopt achter
+     "More options": ze bepalen samen wat de ad mag beweren, en een van de twee
+     invullen is erger dan geen van beide -- dan denk je dat je het gedaan hebt. */
+  links += '<div class="wiz-veld"><label>Market sophistication</label>' +
+    '<div class="wiz-pillen">' + WIZ_SOPHISTICATION.map(function (o) {
+      var aan = (wizState.data.audience.sophistication === o.value);
+      var rec = (((wizState.advice.audience || {}).recommendation || {}).sophistication === o.value);
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+        'title="' + wizEsc(o.hint) + '" ' +
+        'onclick="wizPick(\'audience\',\'sophistication\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="wiz-hint">' + wizEsc(wizSofistHint()) + '</div></div>';
+
   var anderen = lijst.filter(function (x) { return !hoofd || x.id !== hoofd.id; });
   var rechts = wizPaneel('Other personas',
     anderen.length
@@ -390,7 +453,10 @@ function wizAfter_audience() {
 var WIZ_STRATEGIE_RIJEN = [
   { field: 'marketingAngle', label: 'Marketing angle' },
   { field: 'messaging',      label: 'Core messaging' },
+  { field: 'mechanism',      label: 'Mechanism' },
   { field: 'desire',         label: 'Primary desire' },
+  { field: 'ultimateDesire', label: 'Ultimate desire' },
+  { field: 'timing',         label: 'Why now' },
   { field: 'pain',           label: 'Primary pain point' },
   { field: 'proof',          label: 'Proof mechanism' },
   { field: 'objection',      label: 'Main objection' }
@@ -411,6 +477,19 @@ function wizRender_strategy() {
   var links = WIZ_STRATEGIE_RIJEN.map(function (r) {
     return wizField('strategy', r.field, r.label, null, r.field === 'marketingAngle' || r.field === 'messaging');
   }).join('');
+
+  /* Welke van de vijf manieren van anders-zijn deze hoek gebruikt. Dit staat
+     bewust naast de hoek zelf en niet eronder verstopt: als je hem niet kunt
+     aanwijzen, is het concept niet af. Naast je ad staan de ads van de
+     concurrent, en zegt iedereen hetzelfde, dan kiest de klant willekeurig. */
+  links += '<div class="wiz-veld"><label>What makes this different</label>' +
+    '<div class="wiz-pillen">' + WIZ_DIFFERENTIATION.map(function (o) {
+      var aan = (s.differentiation === o.value);
+      var rec = (((wizState.advice.strategy || {}).recommendation || {}).differentiation === o.value);
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+        'title="' + wizEsc(o.hint) + '" ' +
+        'onclick="wizPick(\'strategy\',\'differentiation\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
+    }).join('') + '</div></div>';
 
   var adv = wizState.advice.strategy || {};
   var aantalAlt = (adv.alternatives || []).length;
@@ -706,7 +785,8 @@ window.wizPick = wizPick; window.wizPickProduct = wizPickProduct;
 window.wizFieldSave = wizFieldSave; window.wizAskFor = wizAskFor;
 window.wizToggleAllFormats = wizToggleAllFormats; window.wizTakeAlternative = wizTakeAlternative;
 window.wizVisualOptionsText = wizVisualOptionsText; window.WIZ_VISUAL = WIZ_VISUAL;
-window.WIZ_AWARENESS = WIZ_AWARENESS; window.WIZ_FUNNELS = WIZ_FUNNELS; window.WIZ_PLACEMENTS = WIZ_PLACEMENTS;
+window.WIZ_AWARENESS = WIZ_AWARENESS; window.WIZ_SOPHISTICATION = WIZ_SOPHISTICATION;
+window.WIZ_DIFFERENTIATION = WIZ_DIFFERENTIATION; window.wizSofistHint = wizSofistHint; window.WIZ_FUNNELS = WIZ_FUNNELS; window.WIZ_PLACEMENTS = WIZ_PLACEMENTS;
 window.wizOpenVeld = wizOpenVeld; window.wizToggleUitklap = wizToggleUitklap;
 window.wizZin = wizZin; window.wizDenkt = wizDenkt; window.wizUitklap = wizUitklap;
 window.wizOptLabel = wizOptLabel; window.wizChoices = wizChoices; window.wizField = wizField;

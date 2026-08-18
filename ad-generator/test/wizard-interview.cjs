@@ -115,7 +115,7 @@ const OPZET = `
   check('Exit heet nu Exit interview', start.exit, 'Exit interview');
   check('de ingang is weg -- je bent er al', start.ingang, false);
   check('de eerste vraag heeft twee antwoorden', start.opties, 2);
-  check('en het begrepen-paneel staat er met dertien regels', start.rijen, 13);
+  check('en het begrepen-paneel staat er met zestien regels', start.rijen, 16);
   check('en je kunt altijd zelf typen', start.typeveld, true);
 
   /* ── De startvraag bepaalt de route ───────────────────────────────────── */
@@ -183,6 +183,7 @@ const OPZET = `
     iw2Kies('angle');
     iw2Kies('safety');     /* hoek eerst, want dat is deze route */
     iw2Kies('reach');      /* doel: nieuwe klanten */
+    iw2Kies('s3');         /* sophistication: iedereen zegt het al */
     var naDoel = { goal: wizState.data.strategy.goal, funnel: wizState.data.product.funnel };
     iw2Kies(iw2Opties(iw2Vraag())[0].key); /* format */
     iw2Kies('premium');    /* visueel */
@@ -207,7 +208,7 @@ const OPZET = `
   check('het format wordt gezet', velden.formatGezet, true);
   check('de visuele stijl ook', velden.mood, 'premium');
   check('de menselijke aanwezigheid ook', velden.mens, 'hands');
-  check('en de copy-richting', velden.richting, 'Pain-focused');
+  check('en de copy-richting', velden.richting, 'Problem named');
   check('met de gebruiker als bron', velden.bron, 'user');
   check('en daarna staat de blueprint klaar', velden.klaar, true);
 
@@ -237,9 +238,9 @@ const OPZET = `
   const blueprint = await page.evaluate(opzet => {
     eval(opzet);
     iw2Start(); iw2Kies('angle');
-    ['safety', 'reach'].forEach(function (k) { iw2Kies(k); });
+    ['safety', 'reach', 's3'].forEach(function (k) { iw2Kies(k); });
     iw2Kies(iw2Opties(iw2Vraag())[0].key);
-    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });
+    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });   /* pain = Problem named */
     return { rijen: document.querySelectorAll('.iw2-bp-rij').length,
              knoppen: [].slice.call(document.querySelectorAll('.iw2-slotknoppen .wiz-btn'))
                .map(function (b) { return b.textContent.trim(); }),
@@ -256,9 +257,9 @@ const OPZET = `
   const naarWizard = await page.evaluate(opzet => {
     eval(opzet);
     iw2Start(); iw2Kies('angle');
-    ['safety', 'reach'].forEach(function (k) { iw2Kies(k); });
+    ['safety', 'reach', 's3'].forEach(function (k) { iw2Kies(k); });
     iw2Kies(iw2Opties(iw2Vraag())[0].key);
-    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });
+    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });   /* pain = Problem named */
     wizState.done.review = true;   /* de poort van stap 7 */
     iw2NaarWizard('review');
     var ing = document.getElementById('iw2-ingang');
@@ -290,9 +291,9 @@ const OPZET = `
   const concepten = await page.evaluate(opzet => {
     eval(opzet);
     iw2Start(); iw2Kies('angle');
-    ['safety', 'reach'].forEach(function (k) { iw2Kies(k); });
+    ['safety', 'reach', 's3'].forEach(function (k) { iw2Kies(k); });
     iw2Kies(iw2Opties(iw2Vraag())[0].key);
-    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });
+    ['premium', 'hands', 'pain'].forEach(function (k) { iw2Kies(k); });   /* pain = Problem named */
     /* Zonder sleutel doet wizGenerateConcepts niets, dus vervangen we hem even
        om te zien of hij überhaupt aangeroepen wordt. Landen op stap 8 zonder
        dat er iets uitgewerkt wordt is een leeg scherm met een belofte. */
@@ -310,7 +311,9 @@ const OPZET = `
     /* Dezelfde handeling met alles ingevuld. */
     wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
     wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
     wizSet('strategy', 'angleType', 'risk reversal', 'user');
+    wizSet('strategy', 'differentiation', 'mechanism', 'user');
     wizSet('strategy', 'marketingAngle', 'a', 'user');
     wizSet('strategy', 'messaging', 'b', 'user');
     wizSet('format', 'formatId', (AD_FORMATS[0] || {}).id, 'user');
@@ -701,7 +704,9 @@ const OPZET = `
     wizSet('product', 'funnel', 'tof', 'user');
     wizSet('audience', 'personaId', (state.personas[0] || {}).id || 'x', 'user');
     wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
     wizSet('strategy', 'angleType', 'risk reversal', 'user');
+    wizSet('strategy', 'differentiation', 'mechanism', 'user');
     wizSet('strategy', 'marketingAngle', 'a', 'user');
     wizSet('strategy', 'messaging', 'b', 'user');
     wizSet('format', 'formatId', (AD_FORMATS[0] || {}).id, 'user');
@@ -755,6 +760,82 @@ const OPZET = `
      is waar de hoek op rust, en de call to action is een verplicht veld. */
   check('de opdracht vraagt om het verlangen van de klant', slot.vraagtVerlangen, true);
   check('en om de call to action', slot.vraagtCta, true);
+
+  /* ── Sophistication is een vraag met gevolgen ────────────────────────── */
+  console.log('\n  hoe uitgekeken is de markt');
+
+  const sofist = await page.evaluate(opzet => {
+    eval(opzet);
+    iw2Start(); iw2Kies('angle');
+    var inRoute = iw2Vragen().map(function (v) { return v.key; });
+    /* Hij komt vóór het format: eerst weten wat je mag beweren, dan pas hoe je
+       het laat zien. */
+    var voorFormat = inRoute.indexOf('sofist') < inRoute.indexOf('format');
+
+    iw2Kies('safety'); iw2Kies('reach');
+    var vraagNu = iw2Vraag().key;
+    var opties = iw2Opties(iw2Vraag()).map(function (o) { return o.key; });
+    iw2Kies('s3');
+    var gezet = wizState.data.audience.sophistication;
+
+    /* En de uitweg zet niets, zodat Rory het aan het eind doet. */
+    eval(opzet);
+    iw2Start(); iw2Kies('angle'); iw2Kies('safety'); iw2Kies('reach');
+    iw2Kies('rory');
+    var naUitweg = wizState.data.audience.sophistication;
+
+    return { voorFormat, vraagNu, opties: opties.length, gezet, naUitweg,
+             inRoute: inRoute.indexOf('sofist') > -1 };
+  }, OPZET);
+  check('de vraag zit in de route', sofist.inRoute, true);
+  check('en komt voor het format', sofist.voorFormat, true);
+  check('je krijgt de vijf stadia plus de uitweg', sofist.opties, 6);
+  check('een keuze zet het stadium', sofist.gezet, 's3');
+  check('en de uitweg laat het leeg voor Rory', sofist.naUitweg, '');
+
+  /* ── De richtingen volgen het bewustzijnsniveau ──────────────────────── */
+  console.log('\n  wat je mag zeggen hangt af van wat hij al weet');
+
+  const richtingen = await page.evaluate(opzet => {
+    eval(opzet);
+    /* De funnelfase blijft HETZELFDE en alleen het bewustzijnsniveau
+       verschuift. Anders doet de funnelfilter het werk en bewijst deze test
+       niets over awareness -- precies de fout die deze test eerst maakte. */
+    wizSet('product', 'funnel', 'mof', 'user');
+    iw2Start(); iw2Kies('angle');
+    var v = IW2_VRAGEN.filter(function (x) { return x.key === 'copy'; })[0];
+
+    wizSet('audience', 'awareness', 'problem', 'user');
+    var probleem = iw2Opties(v).map(function (o) { return o.key; });
+    wizSet('audience', 'awareness', 'product', 'user');
+    var productBewust = iw2Opties(v).map(function (o) { return o.key; });
+
+    /* En met dezelfde fase, zonder bewustzijnsniveau: dan valt de scherpere
+       filter weg en zie je de bredere lijst. */
+    wizSet('audience', 'awareness', '', 'user');
+    var zonder = iw2Opties(v).map(function (o) { return o.key; });
+
+    return {
+      catalogus: IW2_COPY.length,
+      /* Een diagnose is voor wie de pijn voelt, niet voor wie het merk al kent. */
+      diagnoseBijProbleem: probleem.indexOf('diagnosis') > -1,
+      geenDiagnoseBijProduct: productBewust.indexOf('diagnosis') === -1,
+      /* En een vergelijking met de alternatieven is precies andersom. */
+      geenVergelijkingBijProbleem: probleem.indexOf('compare') === -1,
+      vergelijkingBijProduct: productBewust.indexOf('compare') > -1,
+      zelfdeFase: true,
+      zonderNiveauAnders: JSON.stringify(zonder) !== JSON.stringify(probleem)
+    };
+  }, OPZET);
+  check('de catalogus draagt de patronen die nu geld opnemen', richtingen.catalogus >= 18, true);
+  /* Zelfde funnelfase, ander bewustzijnsniveau: alleen awareness kan dit
+     verschil veroorzaken. */
+  check('wie de pijn voelt krijgt de diagnose aangeboden', richtingen.diagnoseBijProbleem, true);
+  check('wie het merk al kent niet meer', richtingen.geenDiagnoseBijProduct, true);
+  check('en de vergelijking precies andersom: niet bij probleembewust',
+        richtingen.geenVergelijkingBijProbleem, true);
+  check('wel bij productbewust', richtingen.vergelijkingBijProduct, true);
+  check('zonder bewustzijnsniveau krijg je een andere lijst', richtingen.zonderNiveauAnders, true);
 
   /* ── Wat de blueprint moet laten zien ────────────────────────────────── */
   console.log('\n  de blueprint laat de redenering zien, niet de instellingen');

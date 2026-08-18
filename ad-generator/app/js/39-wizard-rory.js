@@ -120,6 +120,13 @@ function wizContext() {
   if (d.product.funnel) c += '\n# CAMPAIGN GOAL\n' + d.product.funnel + '\n';
   if (d.product.placement) c += 'Placement: ' + d.product.placement + '\n';
   if (d.audience.awareness) c += 'Awareness level: ' + d.audience.awareness + '\n';
+  /* De twee assen horen altijd samen in de context. Awareness zonder
+     sophistication levert een boodschap die op het goede moment het verkeerde
+     soort claim maakt. */
+  if (d.audience.sophistication) {
+    c += 'Market sophistication: ' + d.audience.sophistication +
+      ' (' + (typeof wizSofistLabel === 'function' ? wizSofistLabel(d.audience.sophistication) : '') + ')\n';
+  }
   if (d.audience.market) c += 'Market: ' + d.audience.market + '\n';
 
   if (d.strategy.marketingAngle) {
@@ -127,7 +134,11 @@ function wizContext() {
     c += 'Angle type: ' + d.strategy.angleType + '\n';
     c += 'Marketing angle: ' + d.strategy.marketingAngle + '\n';
     c += 'Core messaging: ' + d.strategy.messaging + '\n';
+    if (d.strategy.differentiation) c += 'Differentiation lever: ' + d.strategy.differentiation + '\n';
+    if (d.strategy.mechanism) c += 'Mechanism: ' + d.strategy.mechanism + '\n';
     if (d.strategy.desire) c += 'Primary desire: ' + d.strategy.desire + '\n';
+    if (d.strategy.ultimateDesire) c += 'Ultimate desire: ' + d.strategy.ultimateDesire + '\n';
+    if (d.strategy.timing) c += 'Why now: ' + d.strategy.timing + '\n';
     if (d.strategy.pain) c += 'Primary pain: ' + d.strategy.pain + '\n';
     if (d.strategy.proof) c += 'Proof mechanism: ' + d.strategy.proof + '\n';
     if (d.strategy.objection) c += 'Main objection: ' + d.strategy.objection + '\n';
@@ -201,12 +212,12 @@ var WIZ_ADVICE_SPEC = {
     opdracht: 'Read the product and recommend the campaign goal and the placement that fit it best. Also summarise in one or two sentences what is most relevant about this product for an advertiser — the thing a strategist would notice first.'
   },
   audience: {
-    velden: '"personaId":"exact id from the persona list","awareness":"unaware|problem|solution|product|most","market":"short label or empty"',
-    opdracht: 'Recommend the single strongest persona for this product and campaign goal, using the customer research. Then set the awareness level that persona actually enters at. Never invent a persona that is not in the list.'
+    velden: '"personaId":"exact id from the persona list","awareness":"unaware|problem|solution|product|most","sophistication":"s1|s2|s3|s4|s5","market":"short label or empty"',
+    opdracht: 'Recommend the single strongest persona for this product and campaign goal, using the customer research. Then set the awareness level that persona actually enters at, and the sophistication stage of the niche: how many times has this market heard this claim already? Write the bare product claim in your head, ask how many competitors are making it, and stay exactly one stage ahead of them. Never behind (you sound like everyone) and never needlessly complex (if a direct claim still works, use it). Also sanity-check the audience size: a call-out aimed at a few hundred people cannot spend, whatever else it does. Never invent a persona that is not in the list.'
   },
   strategy: {
-    velden: '"angleType":"short angle-type label","marketingAngle":"the argument in one sentence","messaging":"the core message in one sentence","desire":"","pain":"","proof":"","objection":""',
-    opdracht: 'Build the strategic foundation. The angle must be specific to this persona and product, grounded in a real pain or desire from the research — not a generic category claim. The proof mechanism must be something this product can actually show.'
+    velden: '"angleType":"short angle-type label","differentiation":"mechanism|exaggeration|avatar|desire|style","mechanism":"the how, one line, empty if there is genuinely none","marketingAngle":"the argument in one sentence","messaging":"the core message in one sentence","desire":"the functional outcome","ultimateDesire":"what that outcome really buys them","timing":"why this desire is intense right now, or empty","pain":"","proof":"","objection":""',
+    opdracht: 'Build the strategic foundation. The angle must be specific to this persona and product, grounded in a real pain or desire from the research — not a generic category claim. Name which of the five ways of being different this angle uses: a new mechanism, exaggerated execution, a different avatar, a different desire, or a different creative style. From sophistication stage 3 the mechanism is not optional: a market that stopped believing bare claims needs a how. The proof mechanism must be something this product can actually show. Desire has two levels: the functional outcome and what that outcome really buys them. And say why this desire is intense right now if it is — season, weather, occasion — because a desire at its trough makes an identical ad underperform and get blamed for it.'
   },
   format: {
     velden: '"formatId":"exact id from the format list","runnersUp":["id","id"]',
@@ -217,8 +228,8 @@ var WIZ_ADVICE_SPEC = {
     opdracht: 'Recommend the visual direction. Use only values from the option lists given below. If usage photos exist, the product usage must match them.'
   },
   copy: {
-    velden: '"headline":"","supporting":"","body":"","proof":"","cta":""',
-    opdracht: 'Write the copy in the language of the brand and its customer research (Dutch for Wellshave), carrying the approved angle. The headline picks up a real pain or desire from the persona. Leave "body" empty if the format does not carry body copy.'
+    velden: '"headline":"","supporting":"","body":"","proof":"","cta":"","removed":"what you deliberately left off the image, and why, one line"',
+    opdracht: 'Write the copy in the language of the brand and its customer research (Dutch for Wellshave), carrying the approved angle. The headline picks up a real pain or desire from the persona. Keep the main headline short — nobody reads a long one on an image — and split a longer message into the supporting line. Specific beats superlative: a precise number is the cheapest proof available. Leave "body" empty if the format does not carry body copy. Always fill "removed": naming what you left off makes addition a decision rather than a reflex.'
   }
 };
 
@@ -231,6 +242,11 @@ var WIZ_RORY_SYSTEM =
   '- Only ask a question when the answer would genuinely change your recommendation. If the existing data is sufficient, ask nothing and set "question" to null. A wizard that asks something at every step is a questionnaire, and that is exactly what this replaced.\n' +
   '- Challenge a weak or conflicting choice in words. Never silently override something the user locked.\n' +
   '- Ground the recommendation in the supplied research. If you have no evidence for something, say so instead of inventing it. An empty field is better than a made-up one.\n' +
+  '- Awareness decides how directly you may speak; sophistication decides what kind of claim is still believed. Name both before you recommend anything, and keep copy and image on the same two stages.\n' +
+  '- One idea per static. The failure mode is addition, never subtraction: if an element does not serve the one idea, it is not neutral.\n' +
+  '- Proof has to be visible, not claimed. A static cannot argue, so it demonstrates.\n' +
+  '- Say what makes this different from the ads this person is already scrolling past. If you cannot answer that, the direction is not ready.\n' +
+  '- Generate from the mechanism and check against what currently works, never the reverse: working from what already works produces the category average.\n' +
   '- Write every word you address to the user in English. Do NOT translate advertisement copy, customer research, product content or anything the user typed — quote those in their original language.\n' +
   '\nAlways answer with strict JSON, no markdown fences:\n' +
   '{"recommendation":{...},"why":"why this direction, max 45 words","evidence":["what you leaned on","..."],' +

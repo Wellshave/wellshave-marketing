@@ -999,3 +999,47 @@
 }
 .wiz-take-h { font-size: 13.5px; color: var(--text); line-height: 1.4; }
 .wiz-take-v { font-size: 12px; color: var(--text-faint); line-height: 1.5; }
+
+/* ── De scorekaart ────────────────────────────────────────────────────────
+   De harde controles staan boven het oordeel: wat te tellen is gaat voor wat
+   een mening is. */
+.wiz-score-hard {
+  margin-top: 16px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--gold-line); background: var(--glass-2); font-size: 13px;
+}
+.wiz-score-hard.ok { color: var(--text-soft); border-color: var(--hairline); }
+.wiz-score-hard ul { margin: 6px 0 0; padding-left: 18px; }
+.wiz-score-hard li { margin: 4px 0; color: var(--text); }
+.wiz-score-kop {
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px;
+}
+.wiz-score { margin-top: 14px; }
+.wiz-score-verdict {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  padding: 10px 12px; border-radius: 10px; background: var(--glass-2);
+  border-left: 3px solid var(--gold);
+}
+.wiz-score-verdict.nee { border-left-color: #c2503a; }
+.wiz-score-rijen { margin-top: 10px; }
+.wiz-score-rij {
+  display: grid; grid-template-columns: 24px 190px 1fr; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 13px;
+}
+.wiz-score-l { color: var(--text); }
+.wiz-score-w { color: var(--text-soft); }
+.wiz-score-fixes { margin-top: 14px; }
+.wiz-score-fix { margin: 8px 0; font-size: 13px; }
+.wiz-score-voor { color: var(--text-faint); text-decoration: line-through; }
+.wiz-score-na { color: var(--text); }
+
+/* Welke pass je draait: twee knoppen die zeggen wat je straks weet. */
+.wiz-pass { display: flex; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; }
+.wiz-passknop {
+  flex: 1 1 220px; text-align: left; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.wiz-passknop.on { border-color: var(--gold); background: var(--glass-2); }
+.wiz-passknop-l { font-size: 13px; color: var(--text); }
+.wiz-passknop-s { font-size: 12px; color: var(--text-faint); line-height: 1.4; }

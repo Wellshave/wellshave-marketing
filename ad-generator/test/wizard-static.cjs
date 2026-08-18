@@ -64,7 +64,9 @@ const VULLEN = `
   wizSet('product','funnel','tof','user');
   wizSet('audience','personaId', pers ? pers.id : 'x1','user');
   wizSet('audience','awareness','problem','user');
+  wizSet('audience','sophistication','s3','user');
   wizSet('strategy','angleType','Problem-Solution','rory');
+  wizSet('strategy','differentiation','mechanism','rory');
   wizSet('strategy','marketingAngle','Scheren hoeft niet te schuren.','rory');
   wizSet('strategy','messaging','Een mesje dat de huid met rust laat.','rory');
   wizSet('format','formatId','before-after','user');
@@ -359,6 +361,7 @@ const VULLEN = `
     wizSet('product', 'placement', 'feed11', 'user');
     wizSet('audience', 'personaId', 'x1', 'user');
     wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
     wizState.advised = {};
     wizRender();
     var metVolledigeVoorganger = gevraagd.filter(k => k === 'strategy').length;
@@ -1088,6 +1091,168 @@ const VULLEN = `
     });
     return [...new Set(mist)];
   });
+  /* ── De leer: awareness x sophistication ─────────────────────────────── */
+  console.log('\n  de twee assen sturen de opdracht');
+
+  const leer = await page.evaluate(vullen => {
+    eval(vullen);
+    /* Wat de brief zegt bij een publiek dat het probleem nog niet kent in een
+       markt die alles al gehoord heeft. Op allebei die punten geldt hetzelfde:
+       het product is niet de opening. */
+    wizSet('audience', 'awareness', 'unaware', 'user');
+    wizSet('audience', 'sophistication', 's5', 'user');
+    var koud = wizBuildBrief(3);
+
+    wizSet('audience', 'awareness', 'most', 'user');
+    wizSet('audience', 'sophistication', 's1', 'user');
+    var warm = wizBuildBrief(3);
+
+    return {
+      koudNietProduct: /Do not lead with the product/.test(koud),
+      koudIdentiteit: /Sell the identity/.test(koud),
+      warmAanbieding: /The offer is the creative/.test(koud) === false && /The offer is the creative/.test(warm),
+      warmDirect: /State the claim plainly/.test(warm),
+      /* De wetten staan in beide, want die gelden altijd. */
+      eenIdee: /ONE idea, half a second/.test(koud) && /ONE idea, half a second/.test(warm),
+      bewijsZichtbaar: /Proof must be VISIBLE/.test(warm),
+      uitlijning: /same awareness AND sophistication|BOTH of those stages/.test(koud),
+      vanuitMechanisme: /Generate from the mechanism/.test(warm)
+    };
+  }, VULLEN);
+  check('een onwetend publiek krijgt niet het product als opening', leer.koudNietProduct, true);
+  check('en een uitgekeken markt krijgt identiteit', leer.koudIdentiteit, true);
+  check('een koopklaar publiek krijgt juist de aanbieding', leer.warmAanbieding, true);
+  check('en een lege markt een directe claim', leer.warmDirect, true);
+  check('de wet van het ene idee staat er altijd in', leer.eenIdee, true);
+  check('en dat bewijs zichtbaar moet zijn', leer.bewijsZichtbaar, true);
+  check('de uitlijningscontrole staat in de opdracht', leer.uitlijning, true);
+  check('en de volgorde: eerst mechanisme, dan toetsen', leer.vanuitMechanisme, true);
+
+  /* ── De harde controles vóór een generatie ───────────────────────────── */
+  console.log('\n  wat je zonder model al kunt zien');
+
+  const hard = await page.evaluate(vullen => {
+    eval(vullen);
+    var sleutels = function () { return wizUitlijning().map(function (g) { return g.key; }); };
+
+    /* Alles ingevuld behalve de dingen die de leer eist. */
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizSet('strategy', 'proof', 'Trustpilot 4.6 op 915 reviews', 'user');
+    wizSet('strategy', 'differentiation', 'mechanism', 'user');
+    wizSet('copy', 'removed', 'De garantiebadge, want die vecht met de claim', 'user');
+    wizSet('strategy', 'mechanism', 'Een flexibele kam die met de huid meebuigt', 'user');
+    var metMechanisme = sleutels();
+    wizSet('strategy', 'mechanism', '', 'user');
+    var zonderMechanisme = sleutels();
+    wizSet('strategy', 'mechanism', 'Een flexibele kam die met de huid meebuigt', 'user');
+
+    /* Een markt op stadium 1 vraagt geen mechanisme: daar is een kale claim
+       genoeg, en erom vragen zou nodeloos ingewikkeld zijn. */
+    wizSet('audience', 'sophistication', 's1', 'user');
+    wizSet('strategy', 'mechanism', '', 'user');
+    var stadium1 = sleutels();
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizSet('strategy', 'mechanism', 'Een flexibele kam', 'user');
+
+    /* De weglaatregel en het bewijs. */
+    wizSet('copy', 'removed', '', 'user');
+    var zonderWeglaten = sleutels();
+    wizSet('copy', 'removed', 'De garantiebadge', 'user');
+    wizSet('strategy', 'proof', '', 'user');
+    wizSet('copy', 'proof', '', 'user');
+    var zonderBewijs = sleutels();
+    wizSet('strategy', 'proof', 'Trustpilot 4.6', 'user');
+
+    /* Een headline van tachtig tekens leest niemand op een beeld. */
+    var lang = wizUitlijning({ headline_nl: 'Een headline die zo lang is dat niemand hem op een beeld nog leest, want dat doet niemand' })
+      .map(function (g) { return g.key; });
+
+    /* Bij unaware mag het product niet in de headline staan. */
+    wizSet('audience', 'awareness', 'unaware', 'user');
+    var p = wizProduct();
+    var metProduct = wizUitlijning({ headline_nl: 'De ' + (p ? p.name : 'x') + ' is er' })
+      .map(function (g) { return g.key; });
+    var zonderProduct = wizUitlijning({ headline_nl: 'Waarom scheren zo vaak misgaat' })
+      .map(function (g) { return g.key; });
+
+    return { metMechanisme, zonderMechanisme, stadium1, zonderWeglaten, zonderBewijs,
+             lang, metProduct, zonderProduct };
+  }, VULLEN);
+  check('met alles ingevuld blijft er niets te melden', hard.metMechanisme, []);
+  check('stadium 3 zonder mechanisme is een kale claim in een markt die die niet gelooft',
+        hard.zonderMechanisme, ['mechanism']);
+  check('op stadium 1 wordt geen mechanisme geeist', hard.stadium1.indexOf('mechanism'), -1);
+  check('niets weggelaten wordt opgemerkt', hard.zonderWeglaten, ['removed']);
+  check('geen bewijs wordt opgemerkt', hard.zonderBewijs, ['proof']);
+  check('een te lange headline wordt gemeten', hard.lang.indexOf('headline') > -1, true);
+  check('bij een onwetend publiek is het product in de kop een fout',
+        hard.metProduct.indexOf('opening') > -1, true);
+  check('en zonder productnaam niet', hard.zonderProduct.indexOf('opening'), -1);
+
+  /* ── De twee passes ──────────────────────────────────────────────────── */
+  console.log('\n  visuele pass en hoekpass isoleren iets anders');
+
+  const passes = await page.evaluate(vullen => {
+    eval(vullen);
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizSet('copy', 'headline', 'De kam die met je huid meebuigt', 'user');
+    wizState.data.concepts.list = [{ headline_nl: 'De kam die met je huid meebuigt', visual_nl: 'macro' }];
+    wizState.data.concepts.selected = 0;
+
+    wizZetPass('visueel');
+    var v = wizBuildTakeBrief();
+    wizZetPass('hoek');
+    var h = wizBuildTakeBrief();
+
+    return {
+      visueelHoudtWoordenVast: /IDENTICAL in all three — the headline/.test(v),
+      visueelNoemtDeHeadline: v.indexOf('De kam die met je huid meebuigt') > -1,
+      visueelVraagtGeenNieuweKop: /The headline: same promise, different wording/.test(v) === false,
+      hoekVraagtWelNieuweKoppen: /The headline: same promise, different wording/.test(h),
+      hoekHoudtBeloftevast: /The promise the ad makes is the same in all three/.test(h),
+      beideDeLeer: /DE LEER/.test(v) && /DE LEER/.test(h),
+      standaard: (function () { wizReset(true); return wizPass(); })()
+    };
+  }, VULLEN);
+  check('de visuele pass zet de woorden vast', passes.visueelHoudtWoordenVast, true);
+  check('en schrijft de goedgekeurde headline letterlijk in de opdracht',
+        passes.visueelNoemtDeHeadline, true);
+  check('en vraagt juist niet om drie andere koppen', passes.visueelVraagtGeenNieuweKop, true);
+  check('de hoekpass vraagt daar wel om', passes.hoekVraagtWelNieuweKoppen, true);
+  check('maar houdt de belofte vast', passes.hoekHoudtBeloftevast, true);
+  check('beide passes dragen de leer mee', passes.beideDeLeer, true);
+  check('en de hoekpass is wat je standaard draait', passes.standaard, 'hoek');
+
+  /* ── De scorekaart ───────────────────────────────────────────────────── */
+  console.log('\n  de acht eigenschappen worden echt gevraagd');
+
+  const score = await page.evaluate(vullen => {
+    eval(vullen);
+    wizSet('audience', 'awareness', 'problem', 'user');
+    wizSet('audience', 'sophistication', 's3', 'user');
+    wizSet('strategy', 'differentiation', 'mechanism', 'user');
+    wizSet('strategy', 'mechanism', 'Een flexibele kam', 'user');
+    wizState.data.concepts.list = [{ headline_nl: 'Kort', visual_nl: 'macro' }];
+    wizState.data.concepts.selected = 0;
+    var b = wizScorekaartBrief();
+    return {
+      alleAcht: WIZ_TRAITS.every(function (t) { return b.indexOf(t.label) > -1; }),
+      aantal: WIZ_TRAITS.length,
+      vraagtOordeel: /"verdict"/.test(b) && /"spend":true\|false/.test(b),
+      vraagtFixes: /"before"/.test(b) && /"after"/.test(b),
+      geenLegePraat: /vague praise helps nobody/.test(b),
+      draagtDeAssen: /Sophistication: /.test(b) && /Awareness: /.test(b)
+    };
+  }, VULLEN);
+  check('de scorekaart vraagt alle acht eigenschappen', score.alleAcht, true);
+  check('en het zijn er acht', score.aantal, 8);
+  check('met een oordeel of hij spendt', score.vraagtOordeel, true);
+  check('en met voor-en-na fixes', score.vraagtFixes, true);
+  check('en de opdracht verbiedt vage complimenten', score.geenLegePraat, true);
+  check('de twee assen staan in de scorekaart', score.draagtDeAssen, true);
+
   check('elke onclick in de wizard bestaat op window', losseHandlers, []);
   check('de pagina draaide zonder JavaScript-fouten', jsFouten, []);
 

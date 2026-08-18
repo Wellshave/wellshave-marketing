@@ -80,17 +80,30 @@ function wizDependentsOf(key) {
 function wizBlankData() {
   return {
     product:  { productId: '', placement: 'feed11', funnel: '' },
-    audience: { personaId: '', awareness: '', market: '' },
+    /* Awareness zegt hoe direct je mag praten; sophistication zegt welk soort
+       claim de markt nog gelooft. Ze horen bij elkaar en ze staan er allebei,
+       want een boodschap voor een beginner boven een beeld voor een kenner is
+       de meest voorkomende manier waarop een verder nette ad omvalt. */
+    audience: { personaId: '', awareness: '', sophistication: '', market: '' },
     /* goal en theme komen uit het interview en zijn echte velden, geen
        samenvatting: straks wil je kunnen zien welk doel en welke hoek het
        best liepen. */
-    strategy: { angleType: '', goal: '', theme: '', marketingAngle: '', messaging: '', desire: '', pain: '', proof: '', objection: '' },
+    /* differentiation: welke van de vijf manieren van anders-zijn deze hoek
+       gebruikt. Zonder dat veld is 'anders' een compliment in plaats van een
+       besluit. mechanism is het hoe -- vanaf sophistication 3 is dat het enige
+       wat een uitgekeken markt nog gelooft. */
+    strategy: { angleType: '', goal: '', theme: '', differentiation: '', mechanism: '',
+                marketingAngle: '', messaging: '', desire: '', ultimateDesire: '', timing: '',
+                pain: '', proof: '', objection: '' },
     format:   { formatId: '' },
     visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product' },
-    copy:     { direction: '', headline: '', supporting: '', body: '', proof: '', cta: '' },
+    /* removed: wat er bewust niet op de static staat. Een regel die verplicht
+       is omdat weglaten anders nooit gebeurt: elke toevoeging voelt gratis en
+       is het niet -- ze delen samen de halve seconde aandacht. */
+    copy:     { direction: '', headline: '', supporting: '', body: '', proof: '', cta: '', removed: '' },
     review:   { visualDescription: '' },
     concepts: { list: [], selected: null },
-    generate: { varIndex: null, takes: null, selectedTake: null }
+    generate: { varIndex: null, takes: null, selectedTake: null, pass: 'hoek' }
   };
 }
 
@@ -211,8 +224,8 @@ function wizHasContent(stepKey) {
 
 var WIZ_REQUIRED = {
   product:  ['productId', 'placement', 'funnel'],
-  audience: ['personaId', 'awareness'],
-  strategy: ['angleType', 'marketingAngle', 'messaging'],
+  audience: ['personaId', 'awareness', 'sophistication'],
+  strategy: ['angleType', 'marketingAngle', 'messaging', 'differentiation'],
   format:   ['formatId'],
   visual:   ['composition', 'humanPresence', 'scene', 'mood'],
   copy:     ['headline', 'cta'],
@@ -382,8 +395,9 @@ function wizBack() {
 
 var WIZ_FIELD_LABELS = {
   productId: 'a product', placement: 'a placement', funnel: 'a campaign goal',
-  personaId: 'a persona', awareness: 'an awareness level',
+  personaId: 'a persona', awareness: 'an awareness level', sophistication: 'a sophistication stage',
   angleType: 'an angle type', marketingAngle: 'a marketing angle', messaging: 'core messaging',
+  differentiation: 'what makes this different', mechanism: 'a mechanism',
   formatId: 'a format',
   composition: 'a composition', humanPresence: 'human presence', scene: 'a scene', mood: 'a mood',
   headline: 'a headline', cta: 'a call to action'

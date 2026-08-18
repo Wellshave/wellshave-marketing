@@ -37,6 +37,18 @@ function wizLabel(soort, waarde) {
   return (m && m[waarde]) || waarde || '';
 }
 
+function wizSofistLabel(v) {
+  var o = (typeof WIZ_SOPHISTICATION !== 'undefined' ? WIZ_SOPHISTICATION : [])
+    .filter(function (x) { return x.value === v; })[0];
+  return o ? o.label : (v || '');
+}
+
+function wizDiffLabel(v) {
+  var o = (typeof WIZ_DIFFERENTIATION !== 'undefined' ? WIZ_DIFFERENTIATION : [])
+    .filter(function (x) { return x.value === v; })[0];
+  return o ? o.label : (v || '');
+}
+
 function wizVisualLabel(field, value) {
   var g = (typeof WIZ_VISUAL !== 'undefined')
     ? WIZ_VISUAL.filter(function (x) { return x.field === field; })[0] : null;
@@ -214,13 +226,18 @@ function wizBuildBrief(aantal) {
 
   t += '\n## GOEDGEKEURDE STRATEGIE (VASTGEZET, GELDT VOOR ELKE VARIATIE)\n';
   if (d.strategy.angleType) t += 'Angle-type: ' + d.strategy.angleType + '\n';
+  if (d.strategy.differentiation) t += 'Manier van anders-zijn: ' + wizDiffLabel(d.strategy.differentiation) + '\n';
+  if (d.strategy.mechanism) t += 'Mechanisme (het hoe): ' + d.strategy.mechanism + '\n';
   t += 'Marketing-angle: ' + d.strategy.marketingAngle + '\n';
   t += 'Kernboodschap: ' + d.strategy.messaging + '\n';
   if (d.strategy.desire) t += 'Primaire wens: ' + d.strategy.desire + '\n';
+  if (d.strategy.ultimateDesire) t += 'Uiteindelijke wens: ' + d.strategy.ultimateDesire + '\n';
+  if (d.strategy.timing) t += 'Waarom nu: ' + d.strategy.timing + '\n';
   if (d.strategy.pain) t += 'Primaire pijn: ' + d.strategy.pain + '\n';
   if (d.strategy.proof) t += 'Bewijsmechanisme: ' + d.strategy.proof + '\n';
   if (d.strategy.objection) t += 'Weg te nemen bezwaar: ' + d.strategy.objection + '\n';
 
+  if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
   if (f) t += '\nFORMAT-MODE: ' + ((typeof AD_FORMAT_DIRECTIVE !== 'undefined' && AD_FORMAT_DIRECTIVE[f.id]) || (f.name + ' — ' + f.desc)) + '\n';
 
   t += '\n## VISUELE RICHTING (HARDE DRIVER voor image_prompt_en)\n';
@@ -306,6 +323,13 @@ function wizRender_concepts() {
         (c.reasoning_nl ? '<span class="wiz-concept-why"><em>Rory</em>' + wizEsc(c.reasoning_nl) + '</span>' : '') +
       '</span></button>';
   }).join('') + '</div>';
+
+  /* De scorekaart hoort hier en niet na het genereren: dit is het laatste
+     moment waarop een oordeel nog gratis is. Na stap 9 heb je het beeld al
+     betaald en beoordeel je iets wat je toch al gemaakt hebt. */
+  if (sel != null && typeof wizRenderScorekaart === 'function') {
+    h += wizRenderScorekaart();
+  }
 
   /* Beeld kost geld, dus dit blijft een bewuste klik met het aantal erbij. */
   h += '<div class="wiz-actions">' +
@@ -458,6 +482,39 @@ function wizPickTake(i) {
  * ging dezelfde prompt drie keer naar het beeldmodel. Dan krijg je drie keer
  * dezelfde foto met een andere ruis erover, en dan valt er niets te kiezen.
  */
+/* De twee passes.
+ *
+ * Hier zijn de twee skills het oneens, en dat is geen fout in een van beide:
+ * ze isoleren een andere variabele.
+ *
+ *   VISUEEL — een idee, EEN headline, drie behandelingen. Alleen het beeld
+ *   verschilt. Dit is de zuivere visuele-hooktest: wint er een, dan weet je
+ *   dat het aan het beeld lag, want de woorden stonden vast.
+ *
+ *   HOEK — drie uitwerkingen die dezelfde belofte op een andere manier
+ *   brengen: andere headline, andere manier van communiceren, ander beeld.
+ *   Meer spreiding per generatie, maar wint er een, dan weet je niet waardoor.
+ *
+ * Drie kleurstellingen van hetzelfde idee is geen test, dat is een moodboard.
+ * Varieer het idee of varieer het beeld, en weet welke van de twee je doet --
+ * daarom staat het op het scherm en niet in de code verstopt. */
+var WIZ_PASSES = [
+  { key: 'visueel', label: 'Visual pass',
+    sub: 'One headline, three treatments. Isolates the picture.' },
+  { key: 'hoek', label: 'Angle pass',
+    sub: 'Same promise, three ways of saying and showing it. More spread, less isolation.' }
+];
+
+function wizPass() {
+  return wizState.data.generate.pass || 'hoek';
+}
+
+function wizZetPass(key) {
+  wizState.data.generate.pass = key;
+  wizSave();
+  wizRender();
+}
+
 function wizBuildTakeBrief() {
   var d = wizState.data, p = wizProduct(), pers = wizPersona(), f = wizFormat();
   var c = (d.concepts.list || [])[d.concepts.selected] || {};
@@ -479,6 +536,32 @@ function wizBuildTakeBrief() {
   t += '\nThe promise the ad makes is the same in all three. Do not add claims that ' +
        'are not in this brief.\n\n';
 
+  if (wizPass() === 'visueel') {
+    /* De zuivere visuele-hooktest: de woorden staan vast, dus wint er een, dan
+       weet je waardoor. Dit is de pass waar de media-inkoper op staat. */
+    t += 'IDENTICAL in all three — the headline and every word on the image:\n' +
+         '- Headline: ' + (c.headline_nl || d.copy.headline || '') + '\n' +
+         (d.copy.supporting ? '- Supporting line: ' + d.copy.supporting + '\n' : '') +
+         (d.copy.cta ? '- CTA: ' + d.copy.cta + '\n' : '') +
+         'Do not rewrite them, not even slightly. This is a test of the picture, and the ' +
+         'words are the control.\n\n' +
+         'MUST DIFFER between the three: the picture, and only the picture.\n' +
+         '1. A different composition and a different subject in frame.\n' +
+         '2. A different place for the proof to be visible.\n' +
+         '3. A different setting, light and distance.\n' +
+         'Default spread: take 1 a credible person holding or using the product, looking at ' +
+         'camera, editorial framing; take 2 an extreme macro of the area or the mechanism ' +
+         'the claim is about, no person; take 3 the product itself with callouts or labels ' +
+         'pointing at what matters.\n' +
+         'Three colourways of the same shot is not a test, it is a mood board. If two takes ' +
+         'would look alike in a feed, change one of them.\n\n';
+    if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
+    t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
+    t += 'Return exactly 3 variations in the JSON shape you always use, with the same ' +
+         'headline text in all three.\n';
+    return t;
+  }
+
   t += 'MUST DIFFER between the three, and clearly so:\n' +
        '1. The headline: same promise, different wording AND a different way of ' +
        'communicating it. Default spread, adapt to the format but keep them apart: ' +
@@ -494,7 +577,9 @@ function wizBuildTakeBrief() {
        'Three macro shots of the same product head is a failure, even with different ' +
        'headlines. If two takes would look alike, change one of them.\n\n';
 
-  t += 'Placement: ' + wizLabel('placement', d.product.placement) + '.\n';
+  if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
+
+  t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
   t += 'Return exactly 3 variations in the JSON shape you always use.\n';
   return t;
 }
@@ -588,13 +673,27 @@ function wizRender_generate() {
   var links = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
     (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>';
 
+  /* Welke pass je draait staat boven de knop en niet erachter: het bepaalt wat
+     je straks geleerd hebt, en dat is geen instelling maar een besluit. */
+  var passKeuze = '<div class="wiz-pass">' + WIZ_PASSES.map(function (pa) {
+    var aan = (wizPass() === pa.key);
+    return '<button type="button" class="wiz-passknop' + (aan ? ' on' : '') + '" ' +
+      'onclick="wizZetPass(\'' + pa.key + '\')">' +
+      '<span class="wiz-passknop-l">' + wizEsc(pa.label) + '</span>' +
+      '<span class="wiz-passknop-s">' + wizEsc(pa.sub) + '</span></button>';
+  }).join('') + '</div>';
+
   if (!takes.length) {
-    links += '<div class="wiz-final-preview">' +
+    links += passKeuze + '<div class="wiz-final-preview">' +
       '<button type="button" class="wiz-btn primary" onclick="wizGenerateTakes()">' +
       'Work out ' + WIZ_TAKE_COUNT + ' takes of this concept</button>' +
-      '<div class="wiz-take-uitleg">Same persona, same angle, same promise. Three ' +
-      'different headlines and three different visual treatments. You pick the one ' +
-      'that runs.</div></div>';
+      '<div class="wiz-take-uitleg">' + wizEsc(
+        wizPass() === 'visueel'
+          ? 'Same persona, same angle, same promise, and the same headline in all three. ' +
+            'Only the picture changes, so a winner tells you it was the picture.'
+          : 'Same persona, same angle, same promise. Three different headlines and three ' +
+            'different visual treatments. More spread per generation, less certainty about ' +
+            'what won.') + '</div></div>';
   } else {
     links += '<div class="wiz-takes">' + takes.map(function (i, n) {
       var aan = (i === gekozen);
@@ -613,7 +712,7 @@ function wizRender_generate() {
         'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
         '</div>';
     }).join('') + '</div>' +
-    '<div class="wiz-take-opnieuw">' +
+    '<div class="wiz-take-opnieuw">' + passKeuze +
     '<button type="button" class="wiz-linkbtn" onclick="wizGenerateTakes()">Work out three new takes</button>' +
     '</div>';
   }
@@ -742,9 +841,11 @@ window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOf
 window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata;
 window.wizBlueprintGaps = wizBlueprintGaps; window.wizVisualLabel = wizVisualLabel;
 window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;
+window.wizSofistLabel = wizSofistLabel; window.wizDiffLabel = wizDiffLabel;
 window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBriefGroep;
 window.wizToonBewaardeBeelden = wizToonBewaardeBeelden; window.WIZ_CONCEPT_COUNT = WIZ_CONCEPT_COUNT;
 window.wizNaarEindbeeld = wizNaarEindbeeld;
 window.wizGenerateTakes = wizGenerateTakes; window.wizPickTake = wizPickTake;
+window.wizZetPass = wizZetPass; window.wizPass = wizPass; window.WIZ_PASSES = WIZ_PASSES;
 window.wizHuidigeTake = wizHuidigeTake; window.wizTakeIndexen = wizTakeIndexen;
 window.WIZ_TAKE_COUNT = WIZ_TAKE_COUNT;

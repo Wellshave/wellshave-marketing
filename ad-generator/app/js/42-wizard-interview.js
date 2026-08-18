@@ -110,6 +110,30 @@ var IW2_VRAGEN = [
     opties: 'themes'
   },
   {
+    key: 'sofist', titel: 'Market sophistication', spoor: 'beide',
+    vraag: 'One more thing before the format, and it decides what we are even allowed to claim: how tired is this market of hearing this claim?',
+    vraagUitleg: 'Write your bare product claim, search it in the Ads Library, count who else makes it. Then stay one stage ahead of them.',
+    opts: [
+      { key: 's1', label: 'Nobody else says this', sub: 'A virgin claim',
+        zet: [['audience', 'sophistication', 's1']],
+        gevolg: 'Then state it plainly. A direct claim is enough, and complicating it would only cost you.' },
+      { key: 's2', label: 'A few say it', sub: 'Same claim, we go bigger',
+        zet: [['audience', 'sophistication', 's2']],
+        gevolg: 'Then we escalate: a specific number, a bigger scale. Same claim, sharper.' },
+      { key: 's3', label: 'Everybody says it', sub: 'Bare claims are dead here',
+        zet: [['audience', 'sophistication', 's3']],
+        gevolg: 'Then the claim is spent and we lead with the mechanism. The how is the only thing still believed.' },
+      { key: 's4', label: 'Everybody has a mechanism too', sub: 'Ours has to be better',
+        zet: [['audience', 'sophistication', 's4']],
+        gevolg: 'Then it is product against product, and the superiority has to be visible on the image.' },
+      { key: 's5', label: 'They have heard everything', sub: 'Only identity is left',
+        zet: [['audience', 'sophistication', 's5']],
+        gevolg: 'Then we stop selling the product and sell who they are. We open it like an ad for someone who does not know the problem yet.' },
+      { key: 'rory', label: 'Let Rory judge the market', rory: true,
+        gevolg: 'I will read what already ran and set the stage one step ahead of the category.' }
+    ]
+  },
+  {
     key: 'format', titel: 'Format preference', spoor: 'beide',
     vraag: 'Now let us choose the format that will communicate this angle best.',
     opties: 'formats'
@@ -217,40 +241,80 @@ var IW2_THEMES = [
     gevolg: 'Gifting changes the buyer: you are writing for the giver, not the user.' }
 ];
 
+/* De headline-richtingen. Dit is geen smaaklijst maar het veldrapport van wat
+ * er op dit moment geld opneemt, achttien vormen, elk met een ander trekpunt.
+ *
+ * Twee dingen staan er bewust bij. `bewust` zegt bij welk bewustzijnsniveau de
+ * vorm hoort -- een aanbieding zegt niets tegen wie het probleem niet kent, en
+ * een diagnose is verspild aan wie al in het karretje staat. En `gevolg` zegt
+ * wat de keuze betekent, want een lijst zonder gevolgen is een menukaart.
+ *
+ * De lijst is om aan te toetsen, niet om uit te putten: wie hier begint komt
+ * uit op het categoriegemiddelde. De hoek komt eerst, deze vorm daarna. */
 var IW2_COPY = [
-  { key: 'pain',       label: 'Pain-focused',       sub: 'Name the problem and the fear',
-    fasen: ['tof', 'mof', 'bof'],
-    gevolg: 'I will write pain-led headlines that name the fear before the product.' },
-  { key: 'benefit',    label: 'Benefit-focused',    sub: 'Lead with the main benefit',
-    fasen: ['mof', 'bof', 'retargeting'],
-    gevolg: 'Benefit-led only beats pain-led when the benefit is one nobody else claims.' },
-  { key: 'curiosity',  label: 'Curiosity-driven',   sub: 'Open a loop they want closed',
-    fasen: ['tof', 'mof'],
-    gevolg: 'Curiosity earns the click, but the ad has to pay it off or the click is wasted.' },
-  { key: 'authority',  label: 'Authority',          sub: 'An expert or a study says it',
-    fasen: ['tof', 'mof'],
-    gevolg: 'Authority borrows trust. It only holds if the source is real and named.' },
-  { key: 'proof',      label: 'Social proof',       sub: 'What other buyers say',
-    fasen: ['mof', 'bof', 'retargeting'],
-    gevolg: 'Specific proof beats loud proof: a number, a timeframe, a before-state.' },
-  { key: 'comparison', label: 'Comparison',         sub: 'Against the alternative they know',
-    fasen: ['mof', 'bof'],
-    gevolg: 'Comparison works for people already weighing options. Name what you are compared to.' },
-  { key: 'myth',       label: 'Myth-busting',       sub: 'Correct something they believe',
-    fasen: ['tof', 'mof'],
-    gevolg: 'Correcting a belief creates an aha-moment, and an opening for a new mechanism.' },
-  { key: 'number',     label: 'Number claim',       sub: 'One specific figure carries it',
-    fasen: ['tof', 'mof', 'bof'],
-    gevolg: 'A precise number stops the scroll. A round one reads as marketing.' },
-  { key: 'question',   label: 'Direct question',    sub: 'Ask what they recognise',
-    fasen: ['tof'],
+  { key: 'without',    label: 'The result without the hated thing', sub: 'The outcome, minus the friction everyone complains about',
+    fasen: ['tof', 'mof'], bewust: ['problem', 'solution'],
+    gevolg: 'Strong opener: it anchors on whatever they already resent about the usual solution.' },
+  { key: 'pain',       label: 'Problem named', sub: 'The problem, sharply and in their words',
+    fasen: ['tof', 'mof', 'bof'], bewust: ['problem'],
+    gevolg: 'I will name the fear before the product. Kindly: name the problem, never shame the buyer.' },
+  { key: 'diagnosis',  label: 'The diagnosis', sub: 'Oddly specific symptoms, then the deeper cause',
+    fasen: ['tof', 'mof'], bewust: ['unaware', 'problem'],
+    gevolg: 'He recognises himself in the list, so he believes the cause. Powerful and easy to abuse.' },
+  { key: 'failed',     label: 'The failed-solutions list', sub: 'Everything they tried that did not work',
+    fasen: ['tof', 'mof'], bewust: ['problem', 'solution'],
+    gevolg: 'It earns the right to be heard by a market that has already been disappointed.' },
+  { key: 'mechanism',  label: 'New mechanism plus superiority', sub: 'The how, and what it produces',
+    fasen: ['mof', 'bof'], bewust: ['solution', 'product'],
+    gevolg: 'The stage-3 move: a market that stopped believing claims will still listen to a how.' },
+  { key: 'mechq',      label: 'A question from the mechanism', sub: 'What if the actual cause were shut off?',
+    fasen: ['tof', 'mof'], bewust: ['unaware', 'problem', 'solution'],
+    gevolg: 'This reframes an exhausted market as a new opportunity, which is the hardest thing to do.' },
+  { key: 'speed',      label: 'Speed to result', sub: 'How fast, specifically',
+    fasen: ['mof', 'bof'], bewust: ['solution', 'product'],
+    gevolg: 'Only works with a real number. "Faster" is not a number.' },
+  { key: 'switch',     label: 'I ditched the usual thing for this', sub: 'A switch, and what happened',
+    fasen: ['tof', 'mof'], bewust: ['problem', 'solution'],
+    gevolg: 'It plants the question the reader answers himself: so what are you using now?' },
+  { key: 'current',    label: 'Call out their current solution', sub: 'What they use now, and why it fails them',
+    fasen: ['mof', 'bof'], bewust: ['solution', 'product'],
+    gevolg: 'Direct and risky: be right about what they use, or you are talking to nobody.' },
+  { key: 'question',   label: 'Problem as a question', sub: 'Why does this have to be so bad?',
+    fasen: ['tof'], bewust: ['unaware', 'problem'],
     gevolg: 'A question qualifies the right reader, as long as the answer is obviously yes.' },
-  { key: 'offer',      label: 'Offer-led',          sub: 'The deal is the message',
-    fasen: ['bof', 'retargeting'],
-    gevolg: 'Offer-led converts the ready and trains everyone else to wait for a discount.' },
-  { key: 'identity',   label: 'Identity',           sub: '"For men who…"',
-    fasen: ['tof', 'mof'],
-    gevolg: 'Identity headlines speak to fewer people and are read far more closely by those few.' }
+  { key: 'compare',    label: 'Better than the alternatives', sub: 'Yours against theirs, plainly',
+    fasen: ['mof', 'bof'], bewust: ['product'],
+    gevolg: 'The stage-4 play for when everyone sells the same thing. Name what you compare against.' },
+  { key: 'price',      label: 'Price as the USP', sub: 'The comparison stated line by line',
+    fasen: ['bof', 'retargeting'], bewust: ['product', 'most'],
+    gevolg: 'Price is an angle only when the comparison is concrete. Cheap alone is not a reason.' },
+  { key: 'justify',    label: 'Price justification', sub: '"You said it was expensive, so here is what changed"',
+    fasen: ['bof', 'retargeting'], bewust: ['product', 'most'],
+    gevolg: 'Expensive nearly always means under-justified rather than over-priced.' },
+  { key: 'proof',      label: 'Customer testimonial open', sub: 'Start in a buyer\'s own voice',
+    fasen: ['mof', 'bof', 'retargeting'], bewust: ['solution', 'product'],
+    gevolg: 'Specific proof beats loud proof: a name, a number, a before-state.' },
+  { key: 'beforeafter',label: 'Before and after', sub: 'The transformation, shown',
+    fasen: ['tof', 'mof', 'bof'], bewust: ['problem', 'solution', 'product'],
+    gevolg: 'The most literal proof there is. It lives or dies on whether the after is believable.' },
+  { key: 'easy',       label: 'It is easy with the right thing', sub: 'Not hard, if you have the right tool',
+    fasen: ['mof', 'bof'], bewust: ['solution', 'product'],
+    gevolg: 'It removes blame from the buyer, which is why it is read as friendly rather than salesy.' },
+  { key: 'goliath',    label: 'David and Goliath', sub: 'Make it sound unsolvable, then solve it',
+    fasen: ['tof', 'mof'], bewust: ['unaware', 'problem'],
+    gevolg: 'The size of the problem is what buys the attention. Do not solve it in the first line.' },
+  { key: 'news',       label: 'News-story framing', sub: 'Presented as a report, not an ad',
+    fasen: ['tof', 'mof'], bewust: ['unaware', 'problem'],
+    gevolg: 'It borrows the authority of the page it imitates. No real network branding, ever.' },
+  { key: 'identity',   label: 'Identity', sub: '"For men who…"',
+    fasen: ['tof', 'mof'], bewust: ['unaware', 'solution'],
+    gevolg: 'The stage-5 move: fewer people, read far more closely by those few.' },
+  { key: 'offer',      label: 'The offer, plainly', sub: 'The deal is the message',
+    fasen: ['bof', 'retargeting'], bewust: ['most'],
+    gevolg: 'It converts the ready and teaches everyone else to wait for a discount.' },
+  { key: 'ending',     label: 'The offer ending', sub: 'A real deadline with a real reason',
+    fasen: ['bof', 'retargeting'], bewust: ['most'],
+    gevolg: 'A deadline only works if it is true. Fake scarcity is a trust problem, not a tactic.' }
 ];
 
 /* Acht uit de lijst die bij deze funnelfase horen, plus de uitweg. Staat er nog
@@ -259,7 +323,16 @@ var IW2_COPY = [
    Wat er niet bij staat vraag je gewoon door te typen. */
 function iw2Selectie(catalogus, veld, hoeveel) {
   var fase = wizState.data.product.funnel;
+  var bewust = wizState.data.audience.awareness;
   var passend = catalogus.filter(function (o) { return !fase || o.fasen.indexOf(fase) > -1; });
+  /* Kent de lijst bewustzijnsniveaus, dan gaat die filter er nog overheen. Dat
+     is de scherpere van de twee: de funnelfase zegt wat de campagne wil, het
+     bewustzijnsniveau zegt wat deze lezer al weet, en het tweede bepaalt of een
+     zin uberhaupt te volgen is. */
+  if (bewust && catalogus.some(function (o) { return o.bewust; })) {
+    var scherper = passend.filter(function (o) { return !o.bewust || o.bewust.indexOf(bewust) > -1; });
+    if (scherper.length >= 3) passend = scherper;
+  }
   if (passend.length < 3) passend = catalogus;
   return passend.slice(0, hoeveel || 8).map(function (o) {
     return { key: o.key, label: o.label, sub: o.sub, gevolg: o.gevolg,
@@ -279,8 +352,8 @@ function iw2Selectie(catalogus, veld, hoeveel) {
  *   en dan is de persona een controle achteraf in plaats van een vertrekpunt.
  */
 var IW2_ROUTES = {
-  angle:   ['start', 'theme', 'goal', 'format', 'visual', 'human', 'copy'],
-  persona: ['start', 'persona', 'goal', 'theme', 'format', 'visual', 'human', 'copy']
+  angle:   ['start', 'theme', 'goal', 'sofist', 'format', 'visual', 'human', 'copy'],
+  persona: ['start', 'persona', 'goal', 'theme', 'sofist', 'format', 'visual', 'human', 'copy']
 };
 
 function iw2Vragen() {
@@ -857,9 +930,12 @@ var IW2_RIJEN = [
   { label: 'Funnel', lees: function (d) { return d.product.funnel ? wizLabel('funnel', d.product.funnel) : ''; } },
   { label: 'Audience', lees: function (d) { var p = wizPersona(); return p ? p.name : ''; } },
   { label: 'Awareness', lees: function (d) { return d.audience.awareness ? wizLabel('awareness', d.audience.awareness) : ''; } },
+  { label: 'Sophistication', lees: function (d) { return d.audience.sophistication ? wizSofistLabel(d.audience.sophistication) : ''; } },
   { label: 'Desire', lees: function (d) { return d.strategy.desire; } },
   { label: 'Angle', lees: function (d) { return d.strategy.theme; } },
   { label: 'Marketing angle', lees: function (d) { return d.strategy.marketingAngle; } },
+  { label: 'Different how', lees: function (d) { return d.strategy.differentiation ? wizDiffLabel(d.strategy.differentiation) : ''; } },
+  { label: 'Mechanism', lees: function (d) { return d.strategy.mechanism; } },
   { label: 'Format', lees: function (d) { var f = wizFormat(); return f ? f.name : ''; } },
   { label: 'Visual style', lees: function (d) { return d.visual.mood ? wizVisualLabel('mood', d.visual.mood) : ''; } },
   { label: 'Human', lees: function (d) { return d.visual.humanPresence ? wizVisualLabel('humanPresence', d.visual.humanPresence) : ''; } },
