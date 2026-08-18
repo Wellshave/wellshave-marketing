@@ -410,7 +410,7 @@ function wizRender_audience() {
     '<div class="wiz-pillen">' + WIZ_AWARENESS.map(function (o) {
       var aan = (wizState.data.audience.awareness === o.value);
       var rec = (((wizState.advice.audience || {}).recommendation || {}).awareness === o.value);
-      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' + (aan ? wizNetKlas('audience', 'awareness', o.value) : '') : '') + (rec ? ' rec' : '') + '" ' +
         'onclick="wizPick(\'audience\',\'awareness\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
     }).join('') + '</div></div>';
 
@@ -421,7 +421,7 @@ function wizRender_audience() {
     '<div class="wiz-pillen">' + WIZ_SOPHISTICATION.map(function (o) {
       var aan = (wizState.data.audience.sophistication === o.value);
       var rec = (((wizState.advice.audience || {}).recommendation || {}).sophistication === o.value);
-      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' + (aan ? wizNetKlas('audience', 'sophistication', o.value) : '') : '') + (rec ? ' rec' : '') + '" ' +
         'title="' + wizEsc(o.hint) + '" ' +
         'onclick="wizPick(\'audience\',\'sophistication\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
     }).join('') + '</div>' +
@@ -507,7 +507,7 @@ function wizRender_strategy() {
     '<div class="wiz-pillen">' + WIZ_DIFFERENTIATION.map(function (o) {
       var aan = (s.differentiation === o.value);
       var rec = (((wizState.advice.strategy || {}).recommendation || {}).differentiation === o.value);
-      return '<button type="button" class="wiz-pil' + (aan ? ' on' : '') + (rec ? ' rec' : '') + '" ' +
+      return '<button type="button" class="wiz-pil' + (aan ? ' on' + (aan ? wizNetKlas('strategy', 'differentiation', o.value) : '') : '') + (rec ? ' rec' : '') + '" ' +
         'title="' + wizEsc(o.hint) + '" ' +
         'onclick="wizPick(\'strategy\',\'differentiation\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
     }).join('') + '</div></div>';

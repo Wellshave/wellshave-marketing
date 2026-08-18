@@ -333,7 +333,8 @@ function wizRenderRory() {
   var h = '';
 
   h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar' +
-       (wizState.busy ? ' denkt' : '') + '">R</span>' +
+       (wizState.busy ? ' denkt' : '') + '">' +
+       '<img src="img/rory.jpg" alt="" onerror="this.remove()"><i>R</i></span>' +
        '<div><div class="wiz-rory-name">Rory</div><div class="wiz-rory-role">Creative strategist</div></div></div>';
 
   if (wizState.busy) {

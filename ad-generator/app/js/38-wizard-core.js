@@ -339,7 +339,7 @@ function wizIngangBij() {
   el.className = 'iw2-ingang' + (loopt ? ' terug' : '');
   el.innerHTML = loopt
     ? '<span class="iw2-ingang-i">✦</span><span class="iw2-ingang-t">Return to interview</span>'
-    : '<span class="iw2-ingang-i">R</span>' +
+    : '<span class="iw2-ingang-i"><img src="img/rory.jpg" alt="" onerror="this.remove()"><i>R</i></span>' +
       '<span><span class="iw2-ingang-t">Interview with Rory</span>' +
       '<span class="iw2-ingang-s">Let Rory build it with you</span></span>';
 }

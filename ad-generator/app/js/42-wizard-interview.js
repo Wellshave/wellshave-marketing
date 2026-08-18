@@ -1083,7 +1083,8 @@ function iw2Render() {
       return '<div class="iw2-jij"><div class="iw2-bubbel">' + wizEsc(r.tekst) +
         '</div><div class="iw2-meta">You · ' + wizEsc(r.tijd) + ' ✓</div></div>';
     }
-    return '<div class="iw2-rory"><div class="iw2-avatar">R</div>' +
+    return '<div class="iw2-rory"><div class="iw2-avatar">' +
+      '<img src="img/rory.jpg" alt="" onerror="this.remove()"><i>R</i></div>' +
       '<div><div class="iw2-bubbel">' + wizEsc(r.tekst) + '</div>' +
       '<div class="iw2-meta">Rory · ' + wizEsc(r.tijd) + '</div></div></div>';
   }).join('') + '</div>';

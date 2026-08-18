@@ -370,3 +370,68 @@
 @media (prefers-reduced-motion: reduce) {
   #wiz-inline .wiz-step.on .wiz-step-num { box-shadow: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAP 2 T/M 9 — dezelfde vier betekenissen op de stap-eigen kaarten
+
+   De donkere tokenscope en de gedeelde onderdelen (tegels, pillen, selects,
+   stappenbalk, Rory, knoppen) golden al voor elke stap. Wat hier bijkomt zijn
+   de kaartsoorten die maar op één stap bestaan: de conceptkaarten (8), de
+   variatiekaarten en de passkeuze (9), en de scorekaartknoppen. Geen nieuwe
+   keyframes — dezelfde primitieven, gedragen door meer elementen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wiz-concept, .wiz-take, .wiz-passknop, .wiz-tweakknop, .wiz-basis-gekozen {
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              background var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-keuze) var(--wg-ease),
+              transform var(--wg-t-snel) var(--wg-ease);
+}
+.wiz-concept:hover:not(.on), .wiz-take:hover:not(.on),
+.wiz-passknop:hover:not(.on), .wiz-tweakknop:hover:not(.on) {
+  border-color: var(--gold-line-strong);
+  box-shadow: var(--wg-gloed-zacht);
+  transform: translateY(-1px);
+}
+.wiz-concept.on, .wiz-take.on, .wiz-passknop.on {
+  border-color: var(--gold);
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(var(--gold-rgb), 0.08) 0%, transparent 70%),
+    var(--gold-haze);
+  box-shadow: var(--wg-gloed-aan);
+}
+
+/* Een beeld dat gemaakt wordt: de lichtveeg over het lege vak, dezelfde als op
+   de knop. Het vak is niet leeg, er wordt aan gewerkt, en dat hoort te zien. */
+.wiz-final-preview:has(.wiz-take-leeg) { position: relative; overflow: hidden; }
+.wiz-take .wiz-final-preview::after { content: none; }
+.wiz-take:has(.wiz-take-leeg) .wiz-final-preview::after {
+  content: '';
+  position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(var(--gold-rgb), 0.07), transparent);
+  animation: wgShimmer 1.6s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+
+/* De scorekaart: het oordeel verschijnt met gewicht, niet met een knal. */
+.wiz-score-verdict { border-left-width: 3px; }
+.wiz-score-rij { transition: background var(--wg-t-snel) var(--wg-ease); }
+.wiz-score-rij:hover { background: rgba(var(--gold-rgb), 0.04); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wiz-concept, .wiz-take, .wiz-passknop, .wiz-tweakknop { transition: none; }
+  .wiz-concept:hover:not(.on), .wiz-take:hover:not(.on),
+  .wiz-passknop:hover:not(.on), .wiz-tweakknop:hover:not(.on) { transform: none; }
+  .wiz-take:has(.wiz-take-leeg) .wiz-final-preview::after { animation: none; content: none; }
+}
+
+/* ── Rory's gezicht ───────────────────────────────────────────────────────
+   Een gegenereerd, fictief portret (img/rory.jpg). De foto vult de cirkel;
+   de letter R eronder is de fallback en verschijnt alleen als de foto er niet
+   is -- onerror haalt de img dan weg. */
+.wiz-rory-avatar, .iw2-avatar, .iw2-ingang-i { position: relative; overflow: hidden; }
+.wiz-rory-avatar img, .iw2-avatar img, .iw2-ingang-i img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 50%;
+}
+.wiz-rory-avatar i, .iw2-avatar i, .iw2-ingang-i i { font-style: normal; }
