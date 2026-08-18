@@ -3,11 +3,12 @@
  * Het templateantwoord op "toon het team" is een nette lijst met kaartjes waar
  * bij iedereen iets staat. Dat is precies wat hier niet mag, om twee redenen:
  *
- *   1. Wat een agent over zichzelf zegt is een tekst, geen meting. Als het
- *      scherm die tekst laat doorgaan voor een status, gelooft het team iets
- *      wat maanden geleden waar was. Daarom staat naast elke agent wat er
- *      werkelijk gebeurd is — aan of uit, hoe vaak gedraaid, wanneer voor het
- *      laatst — en komt dat uit de database en niet uit de alinea.
+ *   1. Wat een profiel over zichzelf zegt is een tekst, geen meting. De agents
+ *      die dat probleem hadden zijn weg; de twee specialisten die er nu staan
+ *      hebben het in een andere vorm. Daarom noemt elk profiel de velden die
+ *      het werkelijk stuurt, met het pad zoals de wizard ze kent, en zoekt de
+ *      test die paden op in het datamodel. Verdwijnt er een, dan valt deze lus
+ *      om in plaats van dat de pagina iets blijft beweren.
  *
  *   2. Wie zichzelf nog niet heeft voorgesteld moet een gat laten zien. Een
  *      opgevulde standaardzin ("geen omschrijving beschikbaar") blijft twee
@@ -39,33 +40,19 @@ function serve(root) {
   return new Promise(r => s.listen(0, () => r([s, s.address().port])));
 }
 
-/* Zes rijen die zes gevallen zijn: ikzelf zonder introductie, een collega mét,
-   een collega zonder, een agent die draait, een agent die uitstaat, en een
-   agent die nog nooit iets gedaan heeft. */
+/* Drie rijen die drie gevallen zijn: ikzelf zonder introductie, een collega
+   mét, en een collega zonder. Agentrijen staan er niet meer in: die tabel kent
+   ze sinds migratie 0051 niet. Wat er wel bij kwam zijn de twee specialisten,
+   en die komen niet uit de database -- ze zijn de werkwijze zelf, en dat is
+   precies waarom ze apart getest worden. */
 const RIJEN = [
   { soort: 'mens', id: 'test', naam: 'Dustin Gibson', rol: 'Beheerder',
-    voorstellen: null, levert: null, schrijft_in: null, staat_aan: true,
-    laatst_actief: null, keer_gedraaid: null, vaste_momenten: null, rol_titel: null },
+    voorstellen: null, rol_titel: null },
   { soort: 'mens', id: 'w1', naam: 'Willem de Groot', rol: 'Merkstrateeg',
     voorstellen: 'Ik doe de merkkant en kijk mee op alles wat naar buiten gaat.',
-    levert: null, schrijft_in: null, staat_aan: true, laatst_actief: null,
-    keer_gedraaid: null, vaste_momenten: null, rol_titel: 'Merkstrateeg' },
+    rol_titel: 'Merkstrateeg' },
   { soort: 'mens', id: 'w2', naam: 'Nieuwe Collega', rol: 'Teamlid',
-    voorstellen: null, levert: null, schrijft_in: null, staat_aan: true,
-    laatst_actief: null, keer_gedraaid: null, vaste_momenten: null, rol_titel: null },
-
-  { soort: 'agent', id: 'atlas', naam: 'Atlas', rol: 'Data-analyst',
-    voorstellen: 'Ik ben Atlas en ik ben de eerste die kijkt.',
-    levert: 'dagrapport op accountniveau', schrijft_in: 'reports, creatives',
-    staat_aan: true, laatst_actief: new Date(Date.now() - 86400000).toISOString(),
-    keer_gedraaid: 25, vaste_momenten: 3, rol_titel: null },
-  { soort: 'agent', id: 'echo', naam: 'Echo', rol: 'E-mailmarketeer',
-    voorstellen: 'Ik ben Echo en ik doe e-mail. Op dit moment sta ik uit.',
-    levert: 'flow-audit en campagneconcepten', schrijft_in: 'email_drafts',
-    staat_aan: false, laatst_actief: null, keer_gedraaid: 0, vaste_momenten: 0, rol_titel: null },
-  { soort: 'agent', id: 'sage', naam: 'Sage', rol: 'SEO-specialist',
-    voorstellen: null, levert: null, schrijft_in: null,
-    staat_aan: false, laatst_actief: null, keer_gedraaid: 0, vaste_momenten: 0, rol_titel: null }
+    voorstellen: null, rol_titel: null }
 ];
 
 let fout = 0;
@@ -135,24 +122,72 @@ const check = (naam, echt, verwacht) => {
   console.log('\n  de pagina zit in het menu');
   check('het tabblad opent', uit.zichtbaar, 'block');
   check('en de menuknop staat aan', uit.knopActief, true);
-  check('mensen en agents staan apart gegroepeerd', uit.koppen, ['Mensen', 'Agents']);
-  check('alle zes staan er', uit.kaarten.length, 6);
+  check('de mensen en de twee specialisten staan apart gegroepeerd',
+    uit.koppen, ['De twee die het vak bepalen', 'De mensen']);
+  check('drie mensen plus twee specialisten', uit.kaarten.length, 5);
 
-  console.log('\n  wat een agent zegt is niet wat hij doet');
-  const atlas = uit.kaarten.find(k => k.naam.startsWith('Atlas'));
-  check('Atlas stelt zichzelf voor in de eerste persoon',
-    /^Ik ben Atlas/.test(atlas.voorstellen || ''), true);
-  /* De feiten komen uit de database en niet uit die zin. Zonder deze regel kan
-     een tekst uit maart nog steeds zeggen dat hij elke ochtend draait. */
-  check('en de feiten ernaast komen uit het systeem', atlas.feiten,
-    ['Staat aan', '3 vaste momenten', '25 keer gedraaid', 'Laatst actief gisteren']);
+  console.log('\n  wie bepaalt hier hoe een ad eruitziet');
+  const rory = uit.kaarten.find(k => k.naam === 'Rory Sutherland');
+  const nick = uit.kaarten.find(k => k.naam === 'Nick Theriot');
+  check('Rory staat op de pagina', !!rory, true);
+  check('en Nick ook', !!nick, true);
+  /* Ze zien er niet uit als een collega met een account: dat was precies de
+     fout van de oude agentkaarten. */
+  check('ze zijn geen mens-kaart', [rory.soort, nick.soort],
+    ['team-avatar--spec', 'team-avatar--spec']);
+  check('en de sectie zegt dat ze niets uit zichzelf doen',
+    /doen niets uit zichzelf/.test(uit.alles), true);
+  check('met de volgorde erbij: eerst bedenken, dan filteren',
+    /filter draaien voordat er iets bedacht is/.test(uit.alles), true);
 
-  const echo = uit.kaarten.find(k => k.naam.startsWith('Echo'));
-  check('een agent die uitstaat zegt dat ook', echo.feiten[0], 'Staat uit');
-  check('en is als zodanig gemerkt', echo.uit, true);
-  check('met de historie erbij, want uit en nooit gedraaid is niet hetzelfde',
-    echo.feiten.indexOf('Nog niet gedraaid') > -1, true);
-  check('de sectie zegt hoeveel er uitstaan', /2 van de 3 staan uit/.test(uit.alles), true);
+  console.log('\n  wat ze doen, en waar het ophoudt');
+  const open = await page.evaluate(async () => {
+    specToggle('rory');
+    await new Promise(r => setTimeout(r, 120));
+    const kaart = [...document.querySelectorAll('.team-kaart--spec')]
+      .find(k => k.querySelector('.team-naam').textContent.trim() === 'Rory Sutherland');
+    const uit = {
+      koppen: [...kaart.querySelectorAll('.spec-h')].map(e => e.textContent),
+      grenzen: kaart.querySelectorAll('.spec-grens li').length,
+      velden: [...kaart.querySelectorAll('.spec-velden')].map(e => e.textContent),
+      ander: (kaart.querySelector('.spec-ander') || {}).textContent || '',
+      anderOpen: document.querySelectorAll('.team-kaart--open').length
+    };
+    /* Nick erbij openen: er hoort er maar een tegelijk open te staan. */
+    specToggle('nick');
+    await new Promise(r => setTimeout(r, 120));
+    uit.naTweede = [...document.querySelectorAll('.team-kaart--open')]
+      .map(k => k.querySelector('.team-naam').textContent.trim());
+    return uit;
+  });
+  check('een profiel toont werkwijze, plek in het systeem en grenzen',
+    open.koppen, ['Hoe hij werkt', 'Waar hij in dit systeem aan zit', 'Guardrails']);
+  check('en de guardrails zijn er meer dan een', open.grenzen >= 4, true);
+  check('met de verwijzing naar de ander erbij',
+    /advertentieaccount/.test(open.ander) && /Nick\./.test(open.ander), true);
+  check('er staat er een tegelijk open', open.anderOpen, 1);
+  check('en de tweede vervangt de eerste', open.naTweede, ['Nick Theriot']);
+
+  /* De regel die deze pagina eerlijk houdt. Een profiel dat beweert een veld te
+     sturen dat niet meer bestaat, is een tekst die ooit waar was -- precies wat
+     de oude agentkaarten deden. Dus wordt elk genoemd pad opgezocht in het
+     datamodel van de wizard zelf. */
+  console.log('\n  wat ze beweren te sturen, bestaat ook');
+  const paden = await page.evaluate(() => {
+    const blanco = wizBlankData();
+    const bestaat = p => {
+      const d = p.split('.');
+      return !!(blanco[d[0]] && d[1] in blanco[d[0]]);
+    };
+    const alle = [], onbekend = [];
+    TEAM_SPECIALISTEN.forEach(s => (s.stuurt || []).forEach(x => (x.velden || []).forEach(v => {
+      alle.push(v);
+      if (!bestaat(v)) onbekend.push(v);
+    })));
+    return { alle, onbekend };
+  });
+  check('elk genoemd veld bestaat echt in de wizard', paden.onbekend, []);
+  check('en het zijn er genoeg om iets te betekenen', paden.alle.length >= 8, true);
 
   console.log('\n  een gat blijft een gat');
   const ik = uit.kaarten.find(k => k.ik);
@@ -165,8 +200,6 @@ const check = (naam, echt, verwacht) => {
   check('bij een collega staat het er zonder knop',
     /Heeft zichzelf nog niet voorgesteld/.test(collega.leeg || ''), true);
   check('en er wordt niets voor hem verzonnen', collega.voorstellen, null);
-  const sage = uit.kaarten.find(k => k.naam.startsWith('Sage'));
-  check('ook een agent zonder introductie krijgt geen standaardzin', sage.voorstellen, null);
 
   console.log('\n  jezelf voorstellen');
   const na = await page.evaluate(async () => {

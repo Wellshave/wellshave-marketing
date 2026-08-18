@@ -170,7 +170,14 @@ function teamTeken() {
 
   if (_team.bewerken) h += teamFormulier(ik);
 
+  /* De twee specialisten bovenaan en de mensen eronder. Niet omdat ze
+     belangrijker zijn, maar omdat de vraag boven deze pagina "wat doet die
+     voor mij" is, en dat bij hen het meest onzichtbaar is: hun oordeel zit in
+     schermen die je gebruikt zonder dat hun naam erbij staat. */
+  if (typeof specSectie === 'function') h += specSectie();
+
   h += '<section class="team-sectie">'
+    + '<h2 class="team-h2">De mensen</h2>'
     + '<p class="team-sectie-uitleg">Wie hier staat, staat er omdat een beheerder '
     + 'het account heeft goedgekeurd. Iedereen schrijft zijn eigen introductie.</p>'
     + '<div class="team-raster">'
