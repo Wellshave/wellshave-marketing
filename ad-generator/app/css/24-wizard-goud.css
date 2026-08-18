@@ -234,3 +234,139 @@
   }
   .wiz-tegel:hover:not(.on), .wiz-pil:hover:not(.on), .iw2-ingang:hover { transform: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET DONKERE ATELIER
+
+   De console draait de Daylight-skin: alle tokens worden op :root naar licht
+   omgezet, en de wizard erfde dat braaf mee. De referentie is het omgekeerde:
+   de Static Ad Generator is één donkere goudwerkbank, wat het thema van de
+   console eromheen ook is.
+
+   Dus krijgt de wizard-subtree zijn eigen tokens. Custom properties op de
+   scope winnen voor alles eronder van :root, ongeacht laadvolgorde — dit is
+   geen gevecht met !important maar gewoon de cascade. Alles wat al op tokens
+   gebouwd is (en dat is de hele wizard) wordt hiermee in één klap donker.
+
+   De goudwaarden zijn hier die van de referentie: warmer en helderder dan het
+   merk-goud van de lichte console, omdat goud op zwart meer licht nodig heeft
+   om hetzelfde te zeggen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#wiz-inline, .wiz-inline {
+  /* Vlakken: bijna-zwart met warmte, drie duidelijke lagen. */
+  --bg:           #080706;
+  --bg-elevated:  #0d0b09;
+  --glass:        rgba(24, 21, 16, 0.72);
+  --glass-2:      rgba(32, 27, 20, 0.62);
+  --glass-hover:  rgba(42, 35, 25, 0.7);
+
+  /* Lijnen: licht op donker. */
+  --hairline:        rgba(255, 246, 228, 0.07);
+  --hairline-strong: rgba(255, 246, 228, 0.13);
+
+  /* Goud: het spectrum van de referentie. */
+  --gold-rgb:     232, 186, 90;
+  --gold:         #e8ba5a;
+  --gold-bright:  #ffd98a;
+  --gold-deep:    #9a7428;
+  --gold-glow:    rgba(232, 186, 90, 0.20);
+  --gold-haze:    rgba(232, 186, 90, 0.07);
+  --gold-line:        rgba(232, 186, 90, 0.26);
+  --gold-line-strong: rgba(232, 186, 90, 0.55);
+
+  /* Inkt op donker. */
+  --text:       #f6efe1;
+  --text-soft:  #bdb19c;
+  --text-faint: #83786a;
+
+  color: var(--text);
+}
+
+/* Het Statics-scherm zelf wordt de donkere werkvloer zolang de wizard draait:
+   het paneel op een crèmekleurige pagina is een donker venster in een lichte
+   kamer, en de referentie is de kamer zelf. */
+#main-tab-generator.wiz-volscherm {
+  background:
+    radial-gradient(65% 38% at 50% 0%, rgba(232, 186, 90, 0.06) 0%, transparent 60%),
+    #080706;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* De randen van de werkbank: goudzweem in plaats van grijs. */
+#wiz-inline .wiz-paneel { border-color: rgba(232, 186, 90, 0.16); }
+#wiz-inline .wiz-rory {
+  border-color: rgba(232, 186, 90, 0.16);
+  background:
+    radial-gradient(80% 30% at 50% 0%, rgba(232, 186, 90, 0.05) 0%, transparent 60%),
+    rgba(20, 17, 13, 0.85);
+}
+
+/* ── De adviesregel als energieregel ─────────────────────────────────────
+   In de referentie is dit de donkere balk met de sprankel en de lichtlijn. */
+#wiz-inline .wiz-rorybalk {
+  background: linear-gradient(90deg, rgba(232, 186, 90, 0.10) 0%, rgba(232, 186, 90, 0.03) 55%, transparent 100%);
+  border-bottom: 1px solid rgba(232, 186, 90, 0.14);
+  color: var(--text);
+}
+#wiz-inline .wiz-rorybalk-punt {
+  box-shadow: 0 0 8px rgba(232, 186, 90, 0.6);
+}
+
+/* ── Rory zoals in de referentie ─────────────────────────────────────────
+   Gouden ring om de avatar, gouden sectielabels, en de bewijslijst als
+   vinkjes in plaats van bolletjes. */
+#wiz-inline .wiz-rory-avatar {
+  box-shadow: 0 0 0 2px rgba(232, 186, 90, 0.35), 0 0 14px rgba(232, 186, 90, 0.25);
+}
+#wiz-inline .wiz-rory-lbl { color: var(--gold); }
+#wiz-inline .wiz-rory-ev ul { list-style: none; padding-left: 0; }
+#wiz-inline .wiz-rory-ev li {
+  position: relative; padding-left: 24px; margin-bottom: 7px;
+  color: var(--text-soft); font-size: 12px; line-height: 1.5;
+}
+#wiz-inline .wiz-rory-ev li::before {
+  content: '✓';
+  position: absolute; left: 0; top: 1px;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(232, 186, 90, 0.16); color: var(--gold);
+  font-size: 9px; font-weight: 700;
+}
+
+/* Invoer op de donkere werkbank.
+   De Daylight-skin zet !important op elk formulierveld ("background: #fff"),
+   dus zonder gelijke kracht blijft elk typevak een lichtbak in het donker.
+   Binnen deze scope, en alleen hier, kaatsen we dat terug. */
+#wiz-inline input[type="text"], #wiz-inline input[type="number"],
+#wiz-inline input[type="search"], #wiz-inline input[type="url"],
+#wiz-inline select, #wiz-inline textarea {
+  background: rgba(255, 250, 238, 0.05) !important;
+  border: 1px solid var(--hairline-strong) !important;
+  color: var(--text) !important;
+}
+#wiz-inline input::placeholder, #wiz-inline textarea::placeholder {
+  color: var(--text-faint) !important;
+}
+#wiz-inline input:focus, #wiz-inline select:focus, #wiz-inline textarea:focus {
+  background: rgba(232, 186, 90, 0.06) !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(232, 186, 90, 0.16) !important;
+}
+#wiz-inline .wiz-veld select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%),
+                    linear-gradient(135deg, var(--gold) 50%, transparent 50%) !important;
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* De stappenbalk op donker: de nummers als bolletjes uit de referentie. */
+#wiz-inline .wiz-step-num { background: rgba(255, 246, 228, 0.08); color: var(--text-soft); }
+#wiz-inline .wiz-step.on .wiz-step-num { background: var(--gold); color: #1a1408; box-shadow: 0 0 10px rgba(232, 186, 90, 0.45); }
+#wiz-inline .wiz-step.done .wiz-step-num { background: rgba(232, 186, 90, 0.18); color: var(--gold); }
+
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .wiz-step.on .wiz-step-num { box-shadow: none; }
+}

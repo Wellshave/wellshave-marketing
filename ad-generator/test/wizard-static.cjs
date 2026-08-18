@@ -1327,6 +1327,49 @@ const VULLEN = `
   check('geen enkele regel reikt buiten de wizard', goud.buitenDeWizard, []);
   check('en reduced motion heeft zijn eigen blok', goud.heeftReduced, true);
 
+  /* ── Het donkere atelier ─────────────────────────────────────────────── */
+  console.log('\n  de wizard is de donkere goudwerkbank, wat de console ook draagt');
+
+  const donker = await page.evaluate(vullen => {
+    eval(vullen);
+    wizOpen(); wizGo('product');
+    var lum = function (kleur) {
+      var m = (kleur.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number)
+        .map(function (v) { v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+    };
+    var paneel = document.querySelector('.wiz-paneel');
+    var titel = document.querySelector('.wiz-title');
+    /* De console zelf draait de lichte Daylight-skin: dat is precies de
+       situatie waarin dit eerder misging. */
+    var pagina = getComputedStyle(document.body).backgroundColor;
+    var vak = document.getElementById('wiz-bd-in');
+    var vakBg = vak ? getComputedStyle(vak).backgroundColor : '';
+    /* Een doorschijnende donkere laag telt als donker: wat telt is dat er
+       geen dekkend licht vlak meer onder het typen zit. */
+    var vakDekkendLicht = /rgb\(2\d\d, 2\d\d, 2\d\d\)/.test(vakBg) || /255, 255, 255\)$/.test(vakBg);
+    return {
+      paneelDonker: lum(getComputedStyle(paneel).backgroundColor) < 0.05,
+      titelLicht: titel ? lum(getComputedStyle(titel).color) > 0.5 : false,
+      paginaLicht: lum(pagina) > 0.5 || pagina === 'rgba(0, 0, 0, 0)',
+      vakNietLicht: !vakDekkendLicht,
+      /* En de gouden vinkbullets in Rory's bewijslijst bestaan als regel. */
+      vinkjes: [].slice.call(document.styleSheets).some(function (sh) {
+        if (!/24-wizard-goud/.test(sh.href || '')) return false;
+        return [].slice.call(sh.cssRules).some(function (r) {
+          return /wiz-rory-ev li::before/.test(r.selectorText || '') && /✓/.test(r.cssText);
+        });
+      })
+    };
+  }, VULLEN);
+  /* Het paneel is donker terwijl de pagina eromheen licht blijft: de wizard
+     draagt zijn eigen thema en de console het hare. */
+  check('het paneel is bijna zwart', donker.paneelDonker, true);
+  check('met lichte tekst erin', donker.titelLicht, true);
+  check('terwijl de console eromheen licht blijft', donker.paginaLicht, true);
+  check('het typevak is geen lichtbak meer in het donker', donker.vakNietLicht, true);
+  check('en de bewijslijst heeft zijn gouden vinkjes', donker.vinkjes, true);
+
   /* ── Geen oordeel over niets ─────────────────────────────────────────── */
   console.log('\n  zonder onderwerp geen richting');
 
