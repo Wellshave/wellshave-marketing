@@ -1,0 +1,562 @@
+/* ============================================================
+   ATELIER CONSOLE v6 — "DAYLIGHT"
+   Volledige UI/UX-herziening: warm-lichte canvas met gradient,
+   zwevende donkere zijbalk, witte kaarten, amber accent,
+   pill-navigatie, voortgangsbalken, tabellen en pop-ups.
+
+   Deze laag staat bewust als laatste in het document: hij wint
+   van alle eerdere skins zonder dat er functionaliteit verandert.
+   ============================================================ */
+
+:root,
+body.brand-wellshave,
+body.brand-wellshine {
+  /* Canvas & vlakken */
+  --paper:        #f4f1ea;
+  --surface:      #ffffff;
+  --surface-2:    #faf7f0;
+  --surface-3:    #f2eee4;
+  --charcoal:     #17171a;
+  --charcoal-2:   #232228;
+
+  /* Inkt */
+  --ink:          #16150f;
+  --ink-soft:     #6a6459;
+  --ink-faint:    #9a9488;
+
+  /* Lijnen */
+  --line:         rgba(22, 21, 15, 0.09);
+  --line-strong:  rgba(22, 21, 15, 0.16);
+
+  /* Amber accent */
+  --amber:        #f2c53d;
+  --amber-hi:     #ffdd76;
+  --amber-wash:   #fdf3d4;
+  --amber-deep:   #8a6a12;
+
+  /* Bestaande tokens omgezet naar Daylight */
+  --bg:           #f4f1ea;
+  --bg-elevated:  #ffffff;
+  --glass:        #ffffff;
+  --glass-2:      #faf7f0;
+  --glass-hover:  #f4f0e5;
+  --hairline:        rgba(22, 21, 15, 0.09);
+  --hairline-strong: rgba(22, 21, 15, 0.16);
+  --text:         #16150f;
+  --text-soft:    #6a6459;
+  --text-faint:   #9a9488;
+  --gold-rgb:     235, 182, 44;
+  --gold:         #8a6a12;
+  --gold-bright:  #6f5410;
+  --gold-deep:    #a98421;
+  --gold-glow:    rgba(235, 182, 44, 0.30);
+  --gold-haze:    rgba(235, 182, 44, 0.10);
+  --gold-line:        rgba(235, 182, 44, 0.55);
+  --gold-line-strong: rgba(235, 182, 44, 0.85);
+  --green:        #17915c;
+  --red:          #c0492f;
+
+  --blur:         none;
+  --blur-strong:  none;
+  --shadow-card:  0 1px 2px rgba(32, 27, 16, 0.05), 0 10px 26px rgba(32, 27, 16, 0.05);
+  --shadow-glass: 0 1px 2px rgba(32, 27, 16, 0.05), 0 10px 26px rgba(32, 27, 16, 0.05);
+  --shadow-lift:  0 20px 54px rgba(32, 27, 16, 0.14);
+  --radius:       14px;
+  --radius-lg:    22px;
+
+  --console-titlebar-h: 38px;
+  --ws-sidebar-w: 250px;
+  --ws-topbar-h:  76px;
+}
+
+/* ---------- CANVAS ---------- */
+html { background: var(--paper); }
+html, body,
+body.brand-wellshave,
+body.brand-wellshine {
+  background-color: var(--paper) !important;
+  color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 100% 0%,   rgba(242, 197, 61, 0.30) 0%, rgba(242, 197, 61, 0) 60%),
+    radial-gradient(ellipse 90% 70% at 88% 108%,  rgba(242, 197, 61, 0.34) 0%, rgba(242, 197, 61, 0) 58%),
+    radial-gradient(ellipse 60% 45% at 6% 4%,     rgba(255, 255, 255, 0.9)  0%, rgba(255, 255, 255, 0) 62%) !important;
+  background-attachment: fixed !important;
+}
+body { padding-left: calc(var(--ws-sidebar-w) + 16px) !important; }
+
+/* Wellshine krijgt dezelfde console met een koelere, champagne-achtige gloed,
+   zodat je in één oogopslag ziet in welk merk je werkt. */
+body.brand-wellshine {
+  --amber:      #e8c07a;
+  --amber-hi:   #f7dfae;
+  --amber-wash: #f9efe0;
+  --amber-deep: #8c6a33;
+  --gold-rgb:   224, 186, 130;
+  --paper:      #f2f0ec;
+}
+body.brand-wellshine, html:has(body.brand-wellshine) {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 100% 0%,   rgba(228, 196, 152, 0.34) 0%, rgba(228, 196, 152, 0) 60%),
+    radial-gradient(ellipse 90% 70% at 88% 108%,  rgba(214, 186, 156, 0.38) 0%, rgba(214, 186, 156, 0) 58%),
+    radial-gradient(ellipse 60% 45% at 6% 4%,     rgba(255, 255, 255, 0.9)   0%, rgba(255, 255, 255, 0) 62%) !important;
+}
+::selection { background: rgba(242, 197, 61, 0.45); color: var(--ink); }
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(22, 21, 15, 0.16); border: 3px solid transparent; background-clip: padding-box; border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(22, 21, 15, 0.3); background-clip: padding-box; }
+
+/* ---------- VENSTERBALK ---------- */
+.console-titlebar {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-bottom: 1px solid var(--line) !important;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.console-name { color: var(--ink-faint); }
+.console-dots span { width: 10px; height: 10px; }
+
+/* ---------- ZWEVENDE DONKERE ZIJBALK ---------- */
+.ws-sidebar,
+body.brand-wellshave .ws-sidebar,
+body.brand-wellshine .ws-sidebar {
+  top: calc(var(--console-titlebar-h) + 12px) !important;
+  left: 12px; bottom: 12px;
+  width: var(--ws-sidebar-w);
+  background: linear-gradient(178deg, #1c1b20 0%, #131317 62%, #17161b 100%) !important;
+  border: none !important;
+  border-radius: 24px;
+  padding: 20px 14px 16px !important;
+  box-shadow: 0 18px 46px rgba(24, 20, 10, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  scrollbar-width: thin;
+}
+.ws-sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); background-clip: padding-box; }
+.ws-logo { padding: 4px 8px 18px !important; }
+.ws-logo img, .ws-logo svg { filter: brightness(0) invert(1) opacity(0.92); max-height: 34px; }
+.ws-nav-section {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px !important; letter-spacing: 0.22em !important; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.34) !important; padding: 18px 12px 8px !important;
+}
+.ws-nav-item {
+  position: relative;
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 13.5px !important; font-weight: 500 !important;
+  padding: 9px 12px !important; border-radius: 11px !important;
+  border: 1px solid transparent !important; background: transparent !important;
+  box-shadow: none !important; gap: 12px !important;
+  transition: background .16s ease, color .16s ease;
+}
+.ws-nav-item svg { width: 16px !important; height: 16px !important; opacity: 0.7 !important; }
+.ws-nav-item:hover { background: rgba(255, 255, 255, 0.07) !important; color: #fff !important; }
+.ws-nav-item.active {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: #ffffff !important; font-weight: 600 !important;
+}
+.ws-nav-item.active svg { opacity: 1 !important; color: var(--amber); }
+.ws-nav-item.active::before {
+  content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 0 3px 3px 0; background: var(--amber);
+}
+.ws-sidebar-foot {
+  color: rgba(255, 255, 255, 0.3) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-size: 9px !important; letter-spacing: 0.14em !important;
+  margin-top: 14px !important;
+}
+
+/* ---------- TOPBAR ---------- */
+.ws-topbar,
+body.brand-wellshave .ws-topbar,
+body.brand-wellshine .ws-topbar {
+  left: calc(var(--ws-sidebar-w) + 16px) !important;
+  top: var(--console-titlebar-h) !important;
+  height: var(--ws-topbar-h);
+  background: transparent !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+  padding: 0 30px 0 22px !important;
+}
+/* Zachte waas achter de topbar: wat wegscrolt verdwijnt eronder in plaats van
+   er dwars doorheen te lopen. */
+.ws-topbar::before {
+  content: ''; position: absolute; inset: -1px 0 -18px 0; z-index: -1;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(246, 243, 236, 0.92) 0%, rgba(246, 243, 236, 0.7) 62%, rgba(246, 243, 236, 0) 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 66%, transparent 100%);
+}
+.ws-topbar-title {
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-size: 27px !important; font-weight: 600 !important;
+  letter-spacing: -0.015em !important; color: var(--ink) !important;
+}
+.ws-topbar-meta { gap: 8px !important; }
+.ws-topbar-meta .status-line {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--line);
+  border-radius: 999px; padding: 7px 13px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px !important; color: var(--ink-soft) !important;
+  box-shadow: var(--shadow-card);
+}
+.ws-topbar-meta .status-clickable:hover { border-color: var(--gold-line); background: #fff; }
+.brand-switch-btn {
+  background: var(--charcoal) !important;
+  border: 1px solid var(--charcoal) !important;
+  color: #fff !important; border-radius: 999px !important;
+  padding: 9px 16px !important; box-shadow: var(--shadow-card);
+}
+.brand-switch-btn:hover { background: var(--charcoal-2) !important; border-color: var(--charcoal-2) !important; }
+.brand-dot { background: var(--amber) !important; box-shadow: 0 0 8px rgba(242, 197, 61, 0.8) !important; }
+.brand-switch-arrow { color: rgba(255, 255, 255, 0.5) !important; }
+.ws-hamburger {
+  background: #fff !important; border: 1px solid var(--line) !important;
+  color: var(--ink) !important; border-radius: 999px !important;
+}
+.ws-nav-backdrop { background: rgba(28, 24, 14, 0.32) !important; backdrop-filter: blur(3px); }
+
+/* Vier tabbladen staan in .container, negen hangen direct onder body. Daardoor
+   liep de marge per tabblad uiteen: hier krijgen ze allemaal dezelfde goot. */
+.container { padding: 26px 30px 0 !important; }
+.container > [id^="main-tab-"] { padding: 0 0 110px; }
+body > [id^="main-tab-"] { padding: 0 30px 110px; }
+/* Restant uit de tijd dat de bibliotheek onder de generator hing */
+.library-section { margin-top: 0 !important; padding-top: 0 !important; border-top: none !important; }
+.results-header { margin-bottom: 22px; }
+.vault-section {
+  background: var(--surface) !important; border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important; box-shadow: var(--shadow-card) !important;
+  padding: 20px 22px !important;
+}
+
+/* ---------- TYPOGRAFIE ---------- */
+h1, h2, h3, h4,
+.section-title, .results-title, .brand-title,
+.form-section-title, .dash-hello, .pc-name, .px-name {
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+.form-section-title, .dash-hello {
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-weight: 600 !important; letter-spacing: -0.02em !important;
+}
+.label, .dash-sec, .dash-lbl, .ws-nav-section, .px-lb-t, .px-attr-k {
+  color: var(--ink-faint) !important;
+}
+.label { color: #8c8577 !important; }
+
+/* ---------- KAARTEN ---------- */
+.settings-panel, .modal, .brain-dump-card, .dash-card, .dash-stat, .dash-act,
+.dash-rec, .dash-strip, .library-card, .persona-card, .px-detail, .px-row,
+.result-card, .loading-card, .tile-explain, .cs-import-panel, .archetype-card,
+.mode-card, .lib-group, .warning-list, .concept-suggestions, .iw-modal,
+.px-choice, .sw-card, .slib-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+.dash-act, .dash-rec, .dash-strip, .px-row, .library-card, .persona-card {
+  transition: transform .18s ease, box-shadow .22s ease, border-color .18s ease !important;
+}
+.dash-act:hover, .dash-rec:hover, .dash-strip:hover, .library-card:hover, .persona-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--shadow-lift) !important;
+  border-color: var(--gold-line) !important;
+}
+.dash-act.primary {
+  background: linear-gradient(150deg, #fff6d8 0%, #ffffff 62%) !important;
+  border-color: rgba(242, 197, 61, 0.6) !important;
+}
+.dash-act svg { color: var(--amber-deep) !important; }
+.form-section {
+  border-top: 1px solid var(--line) !important;
+}
+
+/* Contrastpaneel — donker blok tussen de lichte kaarten */
+.panel-dark, .dash-card.dark {
+  background: linear-gradient(170deg, #1e1d22, #131317) !important;
+  border-color: transparent !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+.panel-dark .dash-sec, .dash-card.dark .dash-sec { color: rgba(255, 255, 255, 0.42) !important; }
+.panel-dark .dash-rank-name, .dash-card.dark .dash-rank-name { color: #fff !important; }
+.panel-dark .dash-rank-c, .dash-card.dark .dash-rank-c { color: rgba(255, 255, 255, 0.55) !important; }
+.panel-dark .dash-rank-bar, .dash-card.dark .dash-rank-bar { background: rgba(255, 255, 255, 0.12) !important; }
+.panel-dark .dash-empty, .dash-card.dark .dash-empty { color: rgba(255, 255, 255, 0.5) !important; }
+
+/* ---------- STATISTIEK-TEGELS ---------- */
+.dash-stats { gap: 14px !important; }
+.dash-stat { padding: 18px 20px 16px !important; }
+.dash-num {
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-weight: 600 !important; font-size: 38px !important;
+  color: var(--ink) !important; letter-spacing: -0.03em !important;
+}
+.dash-lbl {
+  font-size: 10px !important; letter-spacing: 0.14em !important;
+  color: var(--ink-faint) !important; margin-top: 6px !important;
+}
+.dash-stat.accent { background: linear-gradient(150deg, #fdf0c4, #fffdf6) !important; border-color: rgba(242, 197, 61, 0.5) !important; }
+.dash-stat-meter { margin-top: 14px; }
+.dash-stat-sub { font-size: 11px; color: var(--ink-soft); margin-top: 7px; }
+.ws-side-cta { margin-top: auto; }
+
+/* ---------- VOORTGANGSBALKEN ---------- */
+.dash-rank-bar, .ws-progress {
+  height: 6px !important; border-radius: 999px !important;
+  background: var(--surface-3) !important; overflow: hidden;
+}
+.dash-rank-bar > div, .ws-progress > span {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--amber), var(--amber-hi)) !important;
+  transition: width .5s cubic-bezier(.2,.7,.3,1);
+}
+.ws-progress-row { display: flex; align-items: center; gap: 12px; }
+.ws-progress-row .ws-progress { flex: 1; }
+.ws-progress-val { font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.dash-rank-n { color: var(--amber-deep) !important; }
+.dash-rank-name { color: var(--ink) !important; }
+.dash-rank-c { color: var(--ink-soft) !important; }
+
+/* ---------- KNOPPEN ---------- */
+.btn {
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--line-strong) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 1px 2px rgba(32, 27, 16, 0.05) !important;
+  font-weight: 600 !important;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2) !important; border-color: var(--ink-faint) !important; transform: translateY(-1px); }
+.btn-primary, .btn-generate, .btn-image, .btn-gold, .px-angle-cta, .iw-launch-cta.btn {
+  background: linear-gradient(135deg, #ffd75e, #f2c53d) !important;
+  border: 1px solid rgba(180, 138, 20, 0.35) !important;
+  color: #1a1508 !important;
+  box-shadow: 0 2px 0 rgba(180, 138, 20, 0.25), 0 10px 22px rgba(242, 197, 61, 0.35) !important;
+}
+.btn-primary:hover:not(:disabled), .btn-generate:hover:not(:disabled),
+.btn-image:hover:not(:disabled), .btn-gold:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffe28a, #ffd155) !important;
+  transform: translateY(-1px);
+}
+.btn-primary:disabled, .btn-generate:disabled { opacity: 0.45 !important; box-shadow: none !important; }
+.btn-ghost { background: transparent !important; border-color: transparent !important; color: var(--ink-soft) !important; box-shadow: none !important; }
+.btn-ghost:hover { background: rgba(22, 21, 15, 0.05) !important; color: var(--ink) !important; }
+.btn-danger:hover { background: rgba(192, 73, 47, 0.08) !important; border-color: var(--red) !important; color: var(--red) !important; }
+.btn-generate { border-radius: 999px !important; }
+
+/* Ronde icoonknop (topbar-stijl uit de referentie) */
+.ws-icon-btn {
+  width: 40px; height: 40px; border-radius: 999px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid var(--line); color: var(--ink);
+  cursor: pointer; box-shadow: var(--shadow-card);
+}
+.ws-icon-btn:hover { border-color: var(--gold-line); }
+
+/* ---------- FORMULIERVELDEN ---------- */
+input[type="text"], input[type="password"], input[type="email"],
+input[type="number"], input[type="url"], input[type="search"],
+select, textarea {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  color: var(--ink) !important;
+  padding: 11px 14px !important;
+}
+input::placeholder, textarea::placeholder { color: var(--ink-faint) !important; }
+input:focus, select:focus, textarea:focus {
+  background: #fff !important;
+  border-color: rgba(242, 197, 61, 0.9) !important;
+  box-shadow: 0 0 0 4px rgba(242, 197, 61, 0.22) !important;
+}
+select { appearance: none; -webkit-appearance: none; padding-right: 34px !important;
+  background-image: linear-gradient(45deg, transparent 50%, #8c8577 50%), linear-gradient(135deg, #8c8577 50%, transparent 50%) !important;
+  background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52% !important;
+  background-size: 5px 5px, 5px 5px !important; background-repeat: no-repeat !important;
+}
+
+/* ---------- PILLS & CHIPS ---------- */
+.radio-pill, .fmt-chip, .tf-preset-chip, .px-tab, .dash-chip, .lib-g-chip,
+.cs-chip, .chip, .slib-badge, .px-stat {
+  border-radius: 999px !important;
+}
+.radio-pill, .fmt-chip, .tf-preset-chip, .px-tab {
+  background: #fff !important;
+  border: 1px solid var(--line-strong) !important;
+  color: var(--ink-soft) !important;
+}
+.radio-pill:hover, .fmt-chip:hover, .tf-preset-chip:hover, .px-tab:hover {
+  border-color: var(--amber) !important; color: var(--ink) !important; background: var(--amber-wash) !important;
+}
+.radio-pill.active, .radio-pill input:checked + span,
+.fmt-chip.active, .px-tab.on, .tf-preset-chip.active {
+  background: var(--charcoal) !important; border-color: var(--charcoal) !important;
+  color: #fff !important; font-weight: 600 !important;
+}
+.dash-chip, .lib-g-chip {
+  background: var(--surface-3) !important; color: var(--ink-soft) !important;
+  border: 1px solid var(--line) !important; padding: 5px 12px !important;
+}
+
+/* ---------- SLEEPZONES ---------- */
+.tf-photo-drop, .tf-photo-empty, .ref-dropzone, #bp-upload, .source-ad-drop, .base-photo-drop {
+  background: var(--surface-2) !important;
+  border: 1.5px dashed var(--line-strong) !important;
+  border-radius: 18px !important;
+  color: var(--ink-soft) !important;
+  transition: border-color .18s ease, background .18s ease;
+}
+.tf-photo-drop:hover, .ref-dropzone:hover, #bp-upload:hover, .source-ad-drop:hover, .base-photo-drop:hover {
+  border-color: var(--amber) !important; background: var(--amber-wash) !important;
+}
+
+/* ---------- SUB-TABS ---------- */
+.sw-mode-btn, .cs-tab, .lib-tab {
+  border-radius: 999px !important; background: transparent !important;
+  border: 1px solid transparent !important; color: var(--ink-soft) !important;
+  box-shadow: none !important;
+}
+.sw-mode-btn:hover, .cs-tab:hover, .lib-tab:hover { background: rgba(22, 21, 15, 0.05) !important; color: var(--ink) !important; }
+.sw-mode-btn.active, .cs-tab.active, .lib-tab.active {
+  background: var(--charcoal) !important; border-color: var(--charcoal) !important;
+  color: #fff !important; box-shadow: var(--shadow-card) !important;
+}
+
+/* Kaart-in-kaart blijft vlak: één rand per niveau */
+.settings-panel .vault-section, .dash-card .dash-card,
+.brain-dump-card .tile-explain, .px-detail .px-angle {
+  background: var(--surface-2) !important; box-shadow: none !important;
+}
+.changelog-toggle-meta { color: var(--amber-deep) !important; }
+
+/* ---------- TABELLEN ---------- */
+#cs-table-wrap, .table-wrap {
+  background: var(--surface) !important;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: auto;
+}
+.cs-table { font-size: 13px !important; }
+.cs-table th {
+  background: var(--surface-2) !important;
+  color: var(--ink-faint) !important; opacity: 1 !important;
+  font-weight: 600 !important; letter-spacing: 0.1em !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 13px 14px !important;
+}
+.cs-table td { border-bottom: 1px solid var(--line) !important; padding: 13px 14px !important; color: var(--ink) !important; }
+.cs-table tbody tr:nth-child(even) { background: rgba(250, 247, 240, 0.7); }
+.cs-table tbody tr:hover { background: var(--amber-wash) !important; }
+.cs-table tbody tr:last-child td { border-bottom: none !important; }
+.cs-summary { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* ---------- POP-UPS / MODALS ---------- */
+.modal-backdrop, .px-choice-ov, #iw-overlay {
+  background: rgba(30, 26, 14, 0.34) !important;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.modal, .px-choice, .iw-modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 26px !important;
+  box-shadow: 0 30px 80px rgba(28, 23, 12, 0.28) !important;
+}
+.modal h2, .px-choice-t, .iw-head-t { color: var(--ink) !important; }
+.toast {
+  background: var(--charcoal) !important; color: #fff !important;
+  border: none !important; border-radius: 999px !important;
+  box-shadow: 0 18px 44px rgba(24, 20, 10, 0.3) !important;
+  padding: 13px 22px !important;
+}
+
+/* ---------- LADEN / MELDINGEN ---------- */
+.loading-card { background: var(--surface) !important; color: var(--ink-soft) !important; }
+.error-box { background: rgba(192, 73, 47, 0.08) !important; border: 1px solid rgba(192, 73, 47, 0.3) !important; color: #8f2f1c !important; border-radius: var(--radius) !important; }
+.warning-item { background: var(--amber-wash) !important; border: 1px solid rgba(242, 197, 61, 0.5) !important; color: #6b5310 !important; border-radius: var(--radius) !important; }
+/* De statusbolletjes dragen ook de class .error / .active; die botsten met de
+   generieke .error-melding (blok van 46x34). Hier weer een bolletje van. */
+.status-dot, .status-dot.error, .status-dot.active, .status-dot.checking {
+  display: inline-block !important; flex: none !important;
+  width: 7px !important; height: 7px !important;
+  padding: 0 !important; margin: 0 !important;
+  border: none !important; border-radius: 50% !important;
+  font-size: 0 !important;
+}
+.status-dot.active   { background: var(--green) !important; box-shadow: 0 0 0 3px rgba(23, 145, 92, 0.16) !important; }
+.status-dot.error    { background: var(--red) !important;   box-shadow: 0 0 0 3px rgba(192, 73, 47, 0.16) !important; }
+.status-dot.checking { background: var(--amber) !important; box-shadow: 0 0 0 3px rgba(242, 197, 61, 0.3) !important; }
+
+/* Paginatitel links, naast de merkwissel — zoals in de referentie */
+.ws-topbar-title { margin-right: auto !important; }
+
+/* ---------- DASHBOARD-KOP ---------- */
+.dash-wrap { max-width: 1280px !important; }
+.dash-hi { align-items: center !important; margin-bottom: 4px; }
+.dash-hello { font-size: 40px !important; line-height: 1.05 !important; }
+.dash-sub { color: var(--ink-soft) !important; font-size: 13px !important; }
+.dash-sec {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px !important; letter-spacing: 0.2em !important;
+}
+.dash-empty { color: var(--ink-faint) !important; }
+.dash-rec-img { background: var(--surface-3) !important; color: var(--ink-faint) !important; height: 104px !important; }
+.dash-rec-t, .dash-strip-main { color: var(--ink) !important; }
+.dash-rec-s, .dash-strip-lbl { color: var(--ink-soft) !important; }
+.dash-go { color: var(--amber-deep) !important; font-weight: 700; }
+
+/* ---------- ZIJBALK-CTA (referentie: 'AI for results') ---------- */
+.ws-side-cta {
+  margin: 18px 4px 10px; padding: 18px 16px; border-radius: 18px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.1); text-align: center;
+}
+.ws-side-cta-t { color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.ws-side-cta-s { color: rgba(255, 255, 255, 0.55); font-size: 11px; margin-top: 5px; line-height: 1.45; }
+.ws-side-cta button {
+  margin-top: 12px; width: 100%; border: none; cursor: pointer;
+  background: var(--amber); color: #1a1508; font-family: inherit;
+  font-size: 11.5px; font-weight: 700; padding: 9px 12px; border-radius: 999px;
+}
+
+/* ---------- WERKSCHERM: MEER RUIMTE VOOR HET FORMULIER ---------- */
+@media (min-width: 1280px) {
+  #main-tab-generator:not([style*="none"]) { grid-template-columns: minmax(520px, 640px) 1fr !important; gap: 28px !important; }
+  #main-tab-generator .archetype-grid, #main-tab-generator .mode-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  #main-tab-generator > #results:empty {
+    background: rgba(255, 255, 255, 0.5) !important;
+    border: 1.5px dashed var(--line-strong) !important;
+    border-radius: 22px !important; min-height: 520px !important;
+  }
+  #main-tab-generator > #results:empty::before { color: var(--ink-faint) !important; }
+  .tf-grid { grid-template-columns: minmax(440px, 560px) 1fr !important; }
+}
+@media (min-width: 1700px) {
+  .container, body > [id^="main-tab-"] { max-width: 1680px; margin-left: auto; margin-right: auto; }
+}
+
+/* ---------- RESPONSIEF ---------- */
+@media (max-width: 900px) {
+  body { padding-left: 0 !important; }
+  .ws-sidebar, body.brand-wellshave .ws-sidebar, body.brand-wellshine .ws-sidebar {
+    top: 0 !important; left: 0 !important; bottom: 0 !important;
+    width: min(84vw, 300px) !important; border-radius: 0 24px 24px 0 !important;
+  }
+  .ws-topbar, body.brand-wellshave .ws-topbar, body.brand-wellshine .ws-topbar {
+    left: 0 !important; padding: 0 12px !important; gap: 8px !important;
+  }
+  .ws-topbar-title { font-size: 18px !important; margin-right: 0 !important; }
+  .brand-switch-btn { margin-right: 0 !important; padding: 7px 12px !important; font-size: 11px !important; }
+  .brand-switch-arrow { display: none !important; }
+  body > [id^="main-tab-"] { padding: 0 14px 90px; }
+  .container { padding: 16px 14px 90px !important; }
+  .dash-acts, .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .dash-cols, .dash-strips { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 560px) {
+  .dash-acts, .dash-stats, .dash-recent { grid-template-columns: 1fr !important; }
+  .dash-hello { font-size: 30px !important; }
+}

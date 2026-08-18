@@ -1,0 +1,598 @@
+# Ontwerpcontract — Marketing HQ
+
+Harde regels voor het uiterlijk en het gedrag van het systeem. Geen moodboard:
+elke regel hieronder is toetsbaar, en waar dat kan wordt hij ook getoetst.
+
+Dit document gaat vóór op smaak, ook op de mijne. Wijkt een scherm hiervan af,
+dan is dat een fout in het scherm, niet in dit document.
+
+Status: **akkoord, 30 juli 2026.** Bij dat akkoord is ontwerpprincipe 0
+toegevoegd; de rest is ongewijzigd op vier plekken na waar dat principe een
+bestaande regel aanscherpt (3.3, 6.3, 8.5, §12).
+
+---
+
+## 0. Ontwerpprincipe 0 — Beslissingen boven dashboards
+
+Marketing HQ is geen dashboard.
+
+Marketing HQ is een Marketing Operating System.
+
+Iedere pagina moet de gebruiker helpen een betere beslissing te nemen. Data
+zonder context is geen eindresultaat. Iedere belangrijke metriek, melding of
+AI-analyse moet leiden tot een logische vervolgstap of aanbeveling.
+
+Vraag jezelf bij iedere nieuwe interface af:
+
+> **"Welke beslissing helpt dit scherm de gebruiker vandaag nemen?"**
+
+Als het antwoord ontbreekt, hoort die informatie daar niet thuis.
+
+**Waarom dit boven de rest staat.** Alles hierna gaat over hóe iets eruitziet en
+zich gedraagt: contrast, ritme, beweging, vakmanschap. Dit gaat over of het er
+überhaupt hoort te staan. Een scherm kan elke andere regel in dit document halen
+en alsnog waardeloos zijn, omdat het netjes vertelt hoe het gaat zonder ooit te
+zeggen wat je ermee moet.
+
+Dat is ook het verschil dat de estafette al maakt (regel 3): daar is elke stap
+óf af, óf hij wacht op iemand. Een station dat op jou wacht is een beslissing die
+klaarligt. Principe 0 tilt die eigenschap van dat ene scherm naar alle schermen.
+
+**Hoe je het toetst**
+
+**Regel 0.1** Elk scherm draagt één beslisvraag, opgeschreven vóór de eerste
+regel code — in dit contract of in de pull request. Staat er geen beslisvraag,
+dan wordt het scherm niet gebouwd. Twee beslisvragen op één scherm betekent
+meestal twee schermen.
+
+**Regel 0.2** Elke metriek die prominent staat — een groot getal, een chip, een
+waarschuwing — heeft een zichtbaar antwoord op "en nu?". Dat antwoord is een
+vervolgstap, een aanbeveling, of expliciet *nog niets, want …*. Een getal zonder
+vervolg is decoratie.
+
+**Regel 0.3** Een aanbeveling noemt de eerstvolgende handeling met naam en id.
+"Pauzeer de onderpresteerders" is geen aanbeveling. "Zet C3 - Social Proof
+(`120252206202030577`) uit — ROAS 0,81 en CTR 0,92%, beide onder de mediaan" wel.
+
+**Regel 0.4** Waar het systeem niets kan aanbevelen, zégt het dat, met de reden.
+"Te weinig soortgenoten voor een vergelijking" is een geldige uitkomst; een leeg
+vlak is dat niet. Niets doen is ook een beslissing, maar alleen als je weet
+waarom.
+
+**Regel 0.5** Historie hoort bij een beslissing, niet naast een beslissing. Een
+verloop, een tijdlijn of een log staat er omdat het de keuze van vandaag
+onderbouwt — anders staat het er niet, of het staat ingeklapt onder de conclusie
+die eruit volgt (regel 6.3).
+
+---
+
+## 1. De opdracht in één zin
+
+Het moet voelen als een creatief marketinghoofdkwartier waar negen agents elkaar
+werk doorgeven tot er iets af is — niet als een AI-tool die advertenties uitpoept.
+
+Dat "tot er iets af is" is het zwaartepunt. Een systeem waarin agents losse taken
+uitvoeren bestaat al overal. Het verschil zit erin dat je kunt zíen hoe een idee
+van hand tot hand gaat en ergens uitkomt.
+
+## 2. Wat vastligt
+
+Uit de brief, niet onderhandelbaar:
+
+| | |
+|---|---|
+| Palet | Daylight — `--paper #f4f1ea`, wit vlak, inkt `#16150f`, amber accent |
+| Letters | Fraunces (display), Hanken Grotesk (tekst), JetBrains Mono (cijfers) |
+| Taal | Nederlands, ook in code-commentaar en foutmeldingen |
+| Logica | ongewijzigd — presentatie mag anders, gedrag niet |
+
+**Eén ding hoort daarbij gezegd.** De `frontend-design`-skill waarschuwt voor drie
+looks waar AI-ontwerp standaard in vervalt. De eerste is: warme crème rond
+`#F4F1EA`, serif-display met hoog contrast, amber/terracotta accent. Dat is
+precies Daylight.
+
+De brief pint dit vast en de brief wint — het is het merk, en er mag niets
+verloren gaan. Maar het betekent wel dat de eigenheid niet uit het palet kan
+komen. Die moet ergens anders vandaan, en dat is regel 3.
+
+## 3. Het signatuur: de estafette
+
+**De eenheid van de interface is niet de agent. Het is het werkstuk.**
+
+Dit is de enige plek waar het ontwerp uitgesproken mag zijn; overal elders is het
+rustig en gedisciplineerd.
+
+Het templateantwoord voor een agent-systeem is een raster van agentkaarten met
+statusbolletjes, plus een chronologische feed. Dat toont negen wezens die iets
+doen, maar nooit dat ze sámen ergens uitkomen. Precies wat hier het belangrijkst
+is, valt dan buiten beeld.
+
+Dus draaien we het om. Het object op het scherm is één stuk werk — een idee, een
+advertentie, een campagne — en je ziet aan welke handen het is geweest en waar
+het nu ligt:
+
+```
+  WERKSTUK  "Scheerirritatie in de nek" · Man 30-45 · Problem-Solution
+
+  ①────────②────────③────────④────────⑤────────⑥
+  Radar    Nova     Pixel    Bolt     Atlas    Vector
+  trend    brief    beeld    live     meting   landing
+  ✓ ma     ✓ ma     ✓ di     ● nu     ○        ○
+                             │
+                             └─ 3 dagen live · EUR 62 · ROAS 2,1
+                                nog niet beoordeelbaar (4 dagen nodig)
+```
+
+De genummerde markering mag hier, want de inhoud ís een volgorde: je kunt niet
+meten voor je gelanceerd hebt. (Bij een lijst die geen volgorde heeft, is
+nummeren decoratie — en dan mag het niet.)
+
+**Wat de referenties hieraan toevoegden**
+
+Twee van de vier referenties (Crextio, NL Corp) bevatten dezelfde kaart: een
+onboarding-lijst met vinkjes voor wat af is en grijze bollen voor wat nog komt.
+Dat is de estafette, alleen verticaal en zonder de agents erbij — een vorm die
+zichzelf al bewezen heeft. De estafette leent daarvan:
+
+- **een afgeronde stap krijgt een vinkje, geen kleurverschil alleen** — dat is
+  ook wat regel 4.4 eist
+- **de teller staat erbij** ("2/8" bij Crextio). Bij ons: hoeveel stappen van de
+  keten af zijn, zodat je in één blik ziet hoe ver iets is
+- **wie het deed hoort erbij**, zoals de gezichten bij NL Corp. Bij ons is dat de
+  agent
+
+Traxen droeg iets anders bij: op de kaart staat een **route van A naar B**, geen
+status op een moment. Dat is precies het verschil dat dit systeem moet maken. Een
+werkstuk is onderweg, en die weg is zichtbaar — ook het stuk dat nog komt.
+
+**Harde regels voor de estafette**
+
+1. Elk werkstuk toont zijn volledige keten, ook de stappen die nog niet gebeurd
+   zijn. Een lege stap is informatie: het laat zien waar het vastloopt.
+2. Elke voltooide stap toont **wie** het deed en **wanneer**, en is aanklikbaar
+   naar wat er toen besloten is.
+3. De actieve stap toont waaróp gewacht wordt, in mensentaal. Niet "pending"
+   maar "nog 1 dag tot beoordeelbaar". Wacht de stap op jóu, dan staat de
+   handeling erbij — dat is de beslissing die op dat moment klaarligt (regel 0.2).
+4. Er is altijd een zichtbaar eindpunt. Een keten zonder eindpunt is een feed,
+   en dat is precies wat dit niet moet worden.
+5. De live-feed (`agent_events`) is de textuur van deze keten, geen eigen scherm.
+   Losse gebeurtenissen horen bij het werkstuk waar ze over gaan.
+
+**De negen agents en hun plek.** Ze bestaan alle negen al en dekken de keten
+volledig:
+
+| Agent | Rol | In de keten |
+|---|---|---|
+| Radar | Trend- & concurrentiescout | ① signaal uit de markt |
+| Nova | Creative Director & strategie | ② briefing en pipeline |
+| Pixel | Content creator (statics & UGC) | ③ beeld |
+| Quill | Copywriter | ③ tekst |
+| Bolt | Performance marketeer | ④ lancering en oordeel |
+| Atlas | Data-analyst | ⑤ meting en terugkoppeling |
+| Echo | E-mailmarketeer | ⑥ Klaviyo-campagne |
+| Vector | Webdesigner | ⑥ landingspagina |
+| Sage | SEO-specialist | ⑥ vindbaarheid |
+
+## 3b. Hoe de estafette werkt, station voor station
+
+Drie soorten overdracht, en het verschil is geen detail:
+
+| | | |
+|---|---|---|
+| **vanzelf** | de volgende stap start zelf | kost niets, werkt niet naar buiten |
+| **poort** | wacht op een mens | geld of iets naar buiten |
+| **door een mens** | een mens ís de stap | creatief werk |
+
+---
+
+**① Radar — het signaal**
+
+*Draait:* `trend_scan`, elke dag 05:15. Gereedschap: `db_query`, `write_report`,
+`send_message`.
+
+Radar leest de markt en schrijft een rapport. Wat hij achterlaat is een
+observatie: een hoek die opkomt, een concurrent die iets nieuws doet, een
+formulering die het blijkbaar goed doet.
+
+*Overdracht naar Nova:* **vanzelf** — een signaal kost niets en doet niets naar
+buiten. Het hoort als voorstel op Nova's stapel te komen, niet in een rapport
+dat iemand moet openen.
+
+**② Nova — de briefing**
+
+*Draait:* `pipeline_sync`, elke dag 06:00. Gereedschap: `db_query`,
+`update_pipeline`, `write_report`, `send_message`, `request_approval`.
+
+Nova is de creative director. Zij zet een signaal om in een testbaar voorstel:
+welk product, welke persona, welke hoek, en waarom nu. Ze weegt daarbij mee wat
+`angle_learnings` al weet — welke hoek bij deze persona werkt, en welke uitgeput
+raakt.
+
+*Overdracht naar Pixel en Quill:* **vanzelf** naar de wachtrij, want een briefing
+schrijven kost niets.
+
+**③ Pixel en Quill — beeld en tekst**
+
+*Draaien nog niet.* Vandaag is dit station **een mens**: jij in de wizard, met
+Fable als sparringpartner — product, persona, hoek, format, scene — en de
+generator maakt de concepten en beelden.
+
+Dat is geen tekortkoming die weggewerkt moet worden. Dit is het station waar een
+mens hoort te staan, en Pixel en Quill worden zijn gereedschap, niet zijn
+vervanger. Wat het station oplevert is een rij in `public.creatives`.
+
+*Overdracht naar Bolt:* **door een mens** — jij zet hem klaar om te testen.
+
+**④ Bolt — live**
+
+*Draait:* `creative_scorecard` (05:20) en `publish_queue`. Gereedschap onder meer
+`meta_prepare_ad`.
+
+Bolt zet de advertentie klaar bij Meta: beeld uploaden, ad-creative aanmaken.
+Dat kost niets en wordt nooit vertoond. Hij schrijft een rij in
+`meta_publications` met `creative_id` — **de eerste echte koppeling in de hele
+keten.**
+
+*Overdracht naar Atlas:* **poort.** Bolt kán niet lanceren. Alleen een mens maakt
+er via `POST /agents/publications/<id>/publish` een draaiende advertentie van.
+Dat zit in de code, niet in de prompt.
+
+Op het scherm is die poort geen uitzondering maar onderdeel van de keten: de
+estafette toont hem als een stap die op jou wacht, met wat er gebeurt als je
+ja zegt.
+
+**⑤ Atlas — meten en terugkoppelen**
+
+*Draait:* `daily_report` (05:00) en `feedback_sync` (05:40). Die laatste is een
+systeemtaak: geen taalmodel, nul kosten.
+
+Atlas telt de cijfers op — eerst de tellers, dan pas delen — en schrijft ROAS,
+CTR, hook rate en de rest terug naar de creative. Boven de drempel (4 dagen,
+€ 50, 1.000 vertoningen) verandert ook de status.
+
+*Overdracht:* **vanzelf**, en hier sluit de lus. Het resultaat gaat terug naar
+station ③: de hoekkaarten in de wizard staan op volgorde van wat werkte.
+
+Dit stuk — ③ → ④ → ⑤ → ③ — is het enige deel van de keten dat vandaag echt
+gekoppeld is, en het is getest.
+
+**⑥ Echo en Vector — de oogst**
+
+*Echo draait:* `flow_audit`, `campaign_plan`. Gereedschap: `klaviyo_read`,
+`email_draft`. Hij schrijft een concept in `email_drafts`.
+
+*Vector draait nog niet.* Zijn werk begint waar Bolt eindigt: bij een advertentie
+die wint hoort een landingspagina die dezelfde belofte waarmaakt.
+
+*Overdracht:* **poort.** Een e-mail versturen en een pagina live zetten zijn
+naar-buiten-acties en wachten op een mens.
+
+**Sage** staat naast de keten, niet erin: vindbaarheid is een doorlopende taak,
+geen station.
+
+---
+
+### Wat hier nog niet klopt
+
+De estafette heeft een ruggengraat nodig die er niet is.
+
+Elke koppeling in de database wijst vandaag naar `agents`, `runs`, `jobs` of
+`approvals`. **Geen enkele wijst naar een stuk werk.** Het model kan beantwoorden
+welke agent wat deed en wanneer; het kan niet beantwoorden wat er met één idee is
+gebeurd.
+
+Wat er wél is:
+
+- `meta_publications.creative_id` en `meta_recommendations.creative_id` — de
+  koppeling ④ → ⑤ werkt
+- `agent_messages.ref_pipeline_item` — agents kunnen naar een pipeline-item
+  verwijzen
+
+Wat ontbreekt:
+
+- `reports` (Radar) heeft alleen een auteur. Een signaal hangt nergens aan vast.
+- `pipeline_items` (Nova) kent geen `creative_id`. De briefing en de creative die
+  eruit voortkomt weten niet van elkaar.
+- `email_drafts` (Echo) kent alleen een vrij tekstveld `angle`.
+
+Dat veld `angle` komt in drie tabellen voor als losse tekst — `pipeline_items`,
+`email_drafts`, `meta_publications`. Het is een koppelsleutel die niemand zo
+bedoeld heeft: "Problem-Solution" als string, zonder garantie dat het overal
+hetzelfde geschreven staat.
+
+**Regel 3b.1** Voor de estafette komt er één ruggengraat: een werkstuk-id dat van
+station ① tot ⑥ wordt meegedragen. Elke tabel die aan de keten deelneemt krijgt
+die verwijzing. Zonder dat is de estafette een plaatje dat de data niet kan
+onderbouwen.
+
+**Regel 3b.2** Elke stap legt vast **waaróm** hij deed wat hij deed, niet alleen
+wat. Dat is wat de keten leesbaar maakt in plaats van een reeks tijdstempels.
+
+## 4. Kleur — gemeten, niet aangenomen
+
+Alle waarden hieronder zijn berekend tegen `--paper #f4f1ea`.
+
+**Regel 4.1** Elke tekst haalt minstens **4,5:1**. Grote tekst (≥ 24px, of ≥ 19px
+vet) mag op **3:1**. Geen uitzonderingen, ook niet voor "het is maar een hint".
+
+Wat er nu niet aan voldoet en wat het wordt:
+
+| Token | Nu | Ratio | Wordt | Ratio |
+|---|---|---:|---|---:|
+| `--ink-faint` | `#9a9488` | **2,67** | `#736e62` | 4,50 |
+| `--amber-deep` | `#8a6a12` | **4,48** | `#896912` | 4,55 |
+| `.wgp-groep` (van mij, gisteren) | `rgba(20,20,20,.45)` | **2,91** | `#6f6e6b` | 4,52 |
+
+Die laatste is een fout die ik zelf heb ingebracht: een groepskop op 10px met
+2,91:1. Die gaat mee in de eerste ronde.
+
+**Regel 4.2** Amber (`#f2c53d`) is een **vlak, nooit een letter**. Als tekst op
+papier haalt het 1,45:1 — onleesbaar. Als vlak met inkt erop haalt het 11,17:1,
+en zo hoort het.
+
+**Regel 4.3** Wit op amber is verboden (1,64:1). Op een amber vlak staat inkt.
+
+**Regel 4.4** Kleur draagt nooit alléén betekenis. Statussen krijgen een woord of
+een vorm ernaast. Rood/groen alleen is niet toegestaan — een op de twaalf mannen
+ziet dat verschil niet.
+
+**Regel 4.5** Nieuwe kleuren worden aan het tokenblok toegevoegd, niet in een
+component gezet. Een rauwe hex in een component is een fout.
+
+## 5. Typografie
+
+**Regel 5.1** Fraunces alleen voor koppen en het ene grote getal dat ergens toe
+doet. Niet voor labels, niet voor tabellen. Een display-letter die overal staat,
+is geen display-letter meer.
+
+**Regel 5.2** Ondergrens 12px voor alles wat gelezen moet worden. De enige
+uitzondering: eyebrow-labels in kapitalen op 11px, met minstens 0,12em spatiëring
+én 4,5:1. De console heeft nu labels op 10px op halve dekking; die gaan omhoog.
+
+**Regel 5.3** Regelhoogte minstens 1,5 voor lopende tekst.
+
+**Regel 5.4** Cijfers die vergeleken worden staan in JetBrains Mono met
+`font-variant-numeric: tabular-nums`. Een ROAS-kolom die niet uitlijnt is niet te
+scannen.
+
+## 6. Ritme en dichtheid
+
+Dit is een werkomgeving, geen landingspagina. Dicht, maar niet benauwd.
+
+**Regel 6.1** Spatiëring uit één schaal: 8 · 12 · 16 · 24 · 32px. Geen tussenmaten.
+
+**Regel 6.2** Eén rasterbreedte per scherm. Kaarten die net niet uitlijnen zijn de
+snelste manier om iets amateuristisch te laten voelen.
+
+**Regel 6.3** Progressieve onthulling: een scherm opent met het oordeel, niet met
+de onderbouwing. Details staan ingeklapt. (Dit is precies wat `v10-review` op main
+al goed doet.)
+
+Het oordeel is niet het eindpunt maar de opmaat: eronder staat wat het betekent
+voor vandaag (regel 0.2). Een scherm dat opent met een conclusie en daar stopt,
+is nog steeds een dashboard.
+
+## 6b. Vakmanschap — het afwerkingsniveau
+
+Uit de referenties overgenomen, want daar zijn ze allemaal goed in. Dit is het
+verschil tussen "werkt" en "hier is aandacht aan besteed".
+
+**Regel 6b.1** Hoekradius uit één schaal: 8px (chips, velden), 12px (kaarten),
+18px (panelen en pop-ups), 999px (pillen). Geen tussenmaten.
+
+**Regel 6b.2** Schaduw is zacht en dubbel: een haarscherpe rand van 1px plus een
+brede, lage schaduw. Nooit één harde slagschaduw. Op papier:
+`0 1px 2px rgba(22,21,15,.05), 0 8px 24px rgba(22,21,15,.05)`.
+
+**Regel 6b.3** Een cijfer dat ertoe doet staat groot in Fraunces met een klein
+label in kapitalen eronder — niet andersom. Het getal is de kop.
+
+**Regel 6b.4** Een verandering ten opzichte van de vorige periode toont richting
+in **vorm én woord**, niet in kleur alleen: `▲ 12% t.o.v. vorige maand`.
+
+**Regel 6b.5** Status is een chip met het woord erin ("Live", "Wacht op akkoord",
+"Gestopt"), zoals de referenties het doen. Een bolletje zonder tekst is geen
+status.
+
+**Regel 6b.6** De donkere zijbalk tegen het lichte canvas blijft. Dat is de
+opbouw die de console al heeft, en die twee van de vier referenties bevestigen.
+
+## 6c. Groepering — wat hoort bij wat
+
+Regel 6.1 zegt hoevéél ruimte er is. Die schaal stond er al, en toch las het
+scherm als één lange lap. Dat komt doordat de schaal niets zegt over waar de
+ruimte hoort te vallen: als elke afstand 12px is, vertelt geen enkele afstand
+je iets. Ruimte is geen decoratie maar de goedkoopste vorm van uitleg, en dit
+hoofdstuk legt vast dat ze die uitleg ook moet geven.
+
+De aanleiding is gemeten, niet aangevoeld. Op het Statics-scherm gold:
+
+| grens | binnen een groep | tussen groepen |
+|---|---|---|
+| navigatie in de zijbalk | 2px | 2px |
+| de drie kolommen van het werkscherm | 12px | 14px |
+| `Stap 2`-label en de kaart die het benoemt | 12px eronder | 16px erboven |
+
+**Regel 6c.1** De ruimte tússen twee groepen is minstens het dubbele van de
+ruimte bínnen een groep. Uit dezelfde schaal als 6.1: 12px binnen, 24px of 32px
+ertussen. Gelijke afstanden zijn geen neutrale keuze — ze beweren actief dat
+alles even veel met elkaar te maken heeft.
+
+**Regel 6c.2** Elke groepsgrens heeft één zichtbare naad, en precies één: een
+haarlijn van 1px, óf een ander vlak, óf een rand om een kaart. Twee naden op
+dezelfde grens (een lijn ín een omkaderd vlak) verdubbelen het signaal zonder
+de informatie te verdubbelen; nul naden laat de lezer raden.
+
+**Regel 6c.3** Een kop hoort bij wat eronder staat en bewijst dat met ruimte:
+de afstand van kop naar het benoemde is hoogstens de helft van de afstand van
+de kop naar wat erboven staat. Een kop die even ver van beide staat, is
+zwevend — hij lijkt bij het vorige blok te horen en benoemt het volgende.
+
+**Regel 6c.4** Nesten gaat twee niveaus diep, niet meer, en het binnenste
+niveau herhaalt de behandeling van het buitenste niet. Buiten: `--surface` met
+rand en zachte schaduw. Binnen: `--surface-2` met rand, zonder schaduw. Een
+kaart in een kaart met hetzelfde vlak, dezelfde radius en dezelfde schaduw
+leest als een buurman, niet als inhoud.
+
+**Regel 6c.5** Eén labelstijl per niveau. De kleine, vervaagde kapitalen zijn
+voorbehouden aan het hoogste niveau — groepen in de zijbalk en de kop van een
+kolom. Wordt diezelfde stijl ook binnen een paneel gebruikt, dan is er geen
+verschil meer tussen "dit is een zone" en "dit is een veldje in een zone".
+
+**Regel 6c.6** Een kolom van een werkscherm draagt bovenaan zijn eigen naam met
+een lijn eronder. De lijn is de belofte: alles hieronder in deze kolom is
+hetzelfde soort werk. Drie naamloze kolommen naast elkaar zijn drie
+verzamelingen kaarten.
+
+### Wat hier nog niet klopt
+
+Regel 6b.1 schrijft radius 8 / 12 / 18 / 999 voor. De lagen doen het anders:
+`08-atelier-v6-daylight.css` zet `--radius: 14px` en `--radius-lg: 22px`,
+`11-atelier-v8-studio.css` gebruikt 16px voor kaarten. Dat is een echte
+afwijking en geen vergissing in dit hoofdstuk. Ze rechttrekken raakt twintig
+gestapelde css-lagen tegelijk en hoort een eigen wijziging te zijn, met eigen
+bewijs dat er niets omvalt. Tot dan staat het hier, zichtbaar, in plaats van
+dat het contract doet alsof het al klopt.
+
+## 7. Beweging
+
+**Regel 7.1** 150–300ms. Boven 500ms is het in de weg.
+
+**Regel 7.2** Maximaal twee bewegende elementen per scherm.
+
+**Regel 7.3** Beweging betekent iets, of is er niet. In dit systeem is er precies
+één plek waar beweging expressief mag zijn: **de overdracht van de ene agent naar
+de volgende in de estafette.** Dat is het hart van de opdracht, dus dat mag je
+zien gebeuren. Al het andere beweegt functioneel of niet.
+
+**Regel 7.4** `prefers-reduced-motion` wordt gerespecteerd. Wie dat aan heeft
+staan, krijgt de overdracht als toestandswissel zonder animatie — niet als niets.
+
+**Regel 7.5** Geen `width`/`height` animeren. `transform` en `opacity`.
+
+## 8. Agents zichtbaar en eerlijk
+
+**Regel 8.1** Wat een agent schreef is gemarkeerd als door een agent geschreven.
+Nooit gepresenteerd alsof een mens het typte.
+
+**Regel 8.2** Wachten wordt gestreamd of getoond met voortgang, niet met een
+spinner die tien seconden staat. Een agent die denkt, laat zien waar hij is.
+
+**Regel 8.3** Elke naar-buiten-actie (budget, campagne live, e-mail versturen)
+verschijnt als een rij die op een mens wacht, en is als zodanig herkenbaar.
+Dit is de bestaande guardrail; het ontwerp moet hem tonen, niet verbergen.
+
+**Regel 8.4** Een mislukte run is zichtbaar, met de fout in mensentaal en wat de
+volgende poging is. Stil falen is de ergste uitkomst.
+
+**Regel 8.5** Cijfers waar een oordeel op rust, tonen waaróp ze rusten. "ROAS 4,1
+over 6 advertenties", niet "ROAS 4,1". Een getal zonder noemer is een mening — en
+een getal zonder vervolgstap is decoratie (regel 0.2). Allebei moeten erbij.
+
+## 9. Eén laag, geen twaalfde
+
+De console draagt nu elf gestapelde skin-lagen. `v6-daylight` alleen heeft 207
+`!important` op 563 regels; de basis heeft er 29 op 3.721. Die lagen bestaan niet
+om iets te doen, maar om de laag eronder te overstemmen.
+
+**Regel 9.1** Nieuwe UI komt niet als laag twaalf. Er komt één stijllaag die de
+elf vervangt.
+
+**Regel 9.2** `!important` is verboden in nieuwe CSS. Komt het toch voor, dan is
+dat het bewijs dat er iets onder staat dat weg had gemoeten.
+
+**Regel 9.3** De opruiming gaat scherm voor scherm, niet in één klap. Een scherm
+is "om" als het geen enkele regel uit de oude lagen meer nodig heeft.
+
+## 10. Terugwerkende kracht — en hoe "niets verloren" wordt bewezen
+
+De regels gelden ook voor de vijftien bestaande tabbladen. Presentatie mag anders,
+**logica blijft identiek**. Dat is geen belofte maar een controle.
+
+Bij het opsplitsen van de console is daar een methode voor gebouwd, en die wordt
+hier hergebruikt. Voor elk scherm dat op de schop gaat:
+
+```
+node ad-generator/test/console-boot.cjs pad/naar/vorige-versie.html
+```
+
+Dat vergelijkt oud en nieuw in een echte browser. Wat **identiek moet blijven**:
+
+- elke element-id (de aangrijpingspunten van alle logica)
+- elke functie die de HTML aanroept, aanwezig op `window`
+- geen enkele nieuwe JavaScript-fout bij het opstarten
+
+Wat **mag verschillen**: de DOM-structuur, de klassen, de berekende stijlen, de
+volgorde op het scherm. Dat is precies de scheidslijn die jij trok.
+
+**Regel 10.1** Een scherm gaat niet naar main zonder dat die vergelijking gedraaid
+is en de eerste drie punten gelijk zijn.
+
+**Regel 10.2** Voor gedrag dat niet uit een opstart-vergelijking blijkt (een flow
+met kliks) komt er een testlus zoals `test/wizard-angles.cjs`, vóór de verbouwing,
+zodat je kunt bewijzen dat hij daarna nog hetzelfde doet.
+
+## 11. Wat dit contract niet regelt
+
+- **Welke schermen er komen.** Dat is de bouwvolgorde, niet het ontwerp.
+- **De inhoud van de agentprofielen.** Die staan in `marketing-hq/agents/`.
+- **Het donkere thema.** Bestaat nu niet; als het komt, is dat een eigen ronde met
+  eigen gemeten contrastwaarden.
+
+## 12. De referenties — wat is overgenomen en wat niet
+
+Vier dashboards aangeleverd: Traxen (vrachtvervoer, donker), Crextio (HR, warm
+licht), NL Corp (HR, crème met donkere zijbalk), Shopeers (e-commerce, wit met
+blauw).
+
+**Overgenomen**
+
+| Uit | Wat | Waar het landt |
+|---|---|---|
+| Crextio, NL Corp | de afvinkreeks met stappen, vinkjes en een teller | regel 3, de estafette |
+| Traxen | het traject van A naar B in plaats van een status op een moment | regel 3, de estafette |
+| alle vier | het afwerkingsniveau: radius, schaduw, chips, groot getal met klein label | regel 6b |
+| Crextio, NL Corp | warm palet met geel/amber accent, donkere zijbalk op licht canvas | bevestigt regel 2 |
+
+**Niet overgenomen, met reden**
+
+- **Het donkere thema van Traxen.** Besloten: Daylight blijft licht. Donker zou
+  elke gemeten contrastwaarde ongeldig maken en alle vijftien bestaande tabbladen
+  raken — en v6 ging juist bewust van donker naar licht.
+- **Het acid-groene accent.** Naast dat het botst met amber, is dat de tweede
+  look waar de `frontend-design`-skill voor waarschuwt.
+- **Het KPI-kaartraster als hoofdindeling.** Alle vier de referenties openen met
+  vier tegels met een groot getal. Prachtig gemaakt, maar je ziet er losse cijfers
+  en nooit dat er iets van hand tot hand gaat. Dat is precies de eis die dit
+  systeem wél moet halen. Losse cijfers mogen bestaan, maar niet als het
+  organiserende principe van het beginscherm.
+
+  Ontwerpprincipe 0 maakt scherper waaróm. Zo'n raster beantwoordt "hoe staan we
+  ervoor" en stopt daar. De vraag die dit systeem moet beantwoorden is "wat moet
+  ik vandaag doen", en dat is een andere vraag met een ander scherm.
+- **De widget-kiezer van Shopeers.** Besloten: niet doen. Pas zinvol als er
+  genoeg te kiezen valt, en het verplaatst een ontwerpkeuze naar de gebruiker
+  voordat we die keuze zelf goed hebben gemaakt.
+
+**Wat in geen van de vier zat.** Het zijn showcase-beelden: volle, perfecte data.
+Geen lege staat, geen fout, geen wachten. Bij een agentsysteem is dat juist een
+groot deel van wat er op het scherm staat — een agent die faalt, een keten die
+stilligt, een dag zonder data. Die staten zijn hier niet uit af te kijken en
+moeten we zelf goed doen. Zie regel 8.4.
+
+## 13. Waarom het gereedschap niet klakkeloos is gevolgd
+
+`ui-ux-pro-max` gaf op de eerste vraag roze (`#EC4899`) met Fredoka — een
+letter voor kinder-apps — en parallax-scroll. Dat is niet overgenomen: de zoekterm
+"creative" werd te letterlijk gelezen.
+
+Op een betere vraag kwam **Swiss Modernism 2.0**: rastersysteem, editorial, WCAG
+AAA, uitstekende prestaties. Dat is wél de richting, en de aanbevolen typografie
+(een warme editorial serif naast een grotesk, voor "analytics dashboards,
+marketing tools, operations platforms") is exact het archetype dat de console al
+heeft met Fraunces + Hanken Grotesk.
+
+Het gegenereerde palet is bewust **niet** opgeslagen als `design-system/MASTER.md`.
+Dat zou een tweede waarheid maken die het merk tegenspreekt. Dit document is de
+bron.

@@ -1,0 +1,699 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Creative Strategy — de tabel en het dossier
+
+   Twee dingen bepalen de vorm.
+
+   1. Een tabel van honderd rijen wordt gescand, niet gelezen. Daarom rustige
+      regels, één accentkleur per statusgroep en verder geen versiering: elke
+      kleur die niets betekent maakt de kleur die wél iets betekent zwakker.
+
+   2. Status is een groep en geen tint. Zes groepen, zes plekken in het hoofd.
+      "Wacht op jou" krijgt de enige echt luide kleur, want dat is het enige
+      dat om een handeling vraagt.
+
+   Alle kleuren komen uit het tokenblok in 08-atelier-v6-daylight.css. Er staat
+   hier bewust geen losse hex: één plek waar de huid vandaan komt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.str { max-width: 100%; }
+
+/* De wissel tussen "wat vraagt om een beslissing" en "cijfers bijwerken".
+   Twee vragen aan dezelfde rijen, dus twee knoppen en geen twee tabbladen. */
+.str-wissel { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.str-knop--aan {
+  background: var(--ink);
+  color: var(--paper, var(--surface));
+  border-color: var(--ink);
+  font-weight: 600;
+}
+.str-knop--aan:hover { background: var(--ink); }
+
+.str-vraag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+/* ── de balk: zoeken, filteren, kolommen ────────────────────────────────── */
+
+.str-balk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.str-zoek {
+  flex: 1 1 240px;
+  min-width: 180px;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.str-filter {
+  /* 01-basis.css zet `select { width: 100% }` voor het hele formulierenpak.
+     In een flexbalk betekent dat: elk filter eist een eigen regel, en dan staan
+     er zeven balken onder elkaar in plaats van een rij knopjes. Deze drie
+     regels zetten dat terug; zonder de eerste is de rest zinloos. */
+  width: auto;
+  max-width: 210px;
+  flex: 0 1 auto;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.str-knop {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+.str-knop:hover { background: var(--surface-2, var(--surface)); }
+
+.str-kiezer {
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-3);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.str-kiezer-kop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.str-kiezer-lijst {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 14px;
+}
+.str-vink {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.str-kiezer-uitleg {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 72ch;
+}
+
+.str-telling { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 8px; }
+.str-telling a { color: var(--ink); }
+
+/* ── de tabel ───────────────────────────────────────────────────────────── */
+
+.str-tabelwrap {
+  overflow-x: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.str-tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+.str-tabel th {
+  text-align: left;
+  padding: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.str-sorteer {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 10px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.str-tabel td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: top;
+  max-width: 220px;
+}
+.str-rij { cursor: pointer; }
+.str-rij:hover td { background: var(--surface-3); }
+.str-vinkkolom { width: 26px; padding-left: 8px !important; cursor: default; }
+.str-leeg-cel { color: var(--ink-soft); }
+.str-geen {
+  padding: 22px 14px !important;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.str-geen a { color: var(--ink); }
+
+.str-thumb { color: var(--ink); font-size: 12px; }
+.str-thumb--leeg { color: var(--ink-soft); }
+
+/* ── de statusgroep: zes dingen die je verschillend doet ────────────────── */
+
+.str-status {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  /* Mag afbreken: een lange statusnaam hoort de kolom niet op te rekken tot de
+     tabel horizontaal gaat schuiven. Twee regels leest prima. */
+  white-space: normal;
+  max-width: 150px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: var(--surface-3);
+}
+/* Alleen dit vraagt om een handeling van jou — en dus om de enige luide kleur. */
+.str-status--wacht   { background: var(--amber-wash); border-color: var(--amber); }
+.str-status--klaar   { background: var(--surface-3); border-color: var(--ink-soft); }
+.str-status--live    { background: var(--surface-3); border-color: var(--ink); font-weight: 700; }
+.str-status--oordeel { background: var(--surface-3); border-color: var(--line-strong); }
+.str-status--gestopt { color: var(--ink-soft); }
+.str-status--concept { color: var(--ink-soft); }
+
+/* Een gestopte test blijft leesbaar maar hoeft geen aandacht meer te trekken. */
+.str-rij--gestopt td { color: var(--ink-soft); }
+
+/* ── leeg is een uitkomst, geen lege plek ───────────────────────────────── */
+
+.str-leeg {
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  padding: 22px 24px;
+  background: var(--surface-3);
+  max-width: 76ch;
+}
+.str-leeg-kop {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.str-leeg p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 8px; }
+.str-leeg p:last-child { margin-bottom: 0; }
+.str-leeg code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+/* ── het dossier ────────────────────────────────────────────────────────── */
+
+.str-dos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99991;
+  background: rgba(22, 21, 15, 0.42);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 30px 18px;
+  overflow: auto;
+}
+.str-dos {
+  width: 940px;
+  max-width: 100%;
+  margin: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  padding: 22px 26px 24px;
+  box-shadow: 0 30px 90px rgba(84, 72, 48, .28);
+}
+.str-dos-kop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-strong);
+  margin-bottom: 6px;
+}
+.str-dos-kop strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.str-x {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.str-x:hover { color: var(--ink); }
+
+/* ── de beslislaag ─────────────────────────────────────────────────────────
+
+   Dit is het enige dat je moet lezen. Het krijgt dus de ruimte, de grootte en
+   de kleur — en de rest van het dossier krijgt die juist niet. Eén luide plek
+   per scherm, anders is niets meer luid.
+
+   De ernst bepaalt de kleur, en er staat altijd een woord bij: kleur alleen is
+   regel 4.4 overtreden, en iemand die kleuren niet onderscheidt leest hier
+   anders niets. */
+
+.str-besluit {
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  margin: 14px 0 16px;
+}
+/* Vraagt om een handeling van jou — de enige echt luide variant. */
+.str-besluit--jij,
+.str-besluit--blokkade { background: var(--amber-wash); border-color: var(--amber); border-width: 2px; }
+.str-besluit--let-op   { background: var(--amber-wash); border-color: var(--amber); }
+/* Wacht op iemand anders of op de meting: rustig, want jij hoeft niets. */
+.str-besluit--wacht,
+.str-besluit--geduld,
+.str-besluit--rustig   { background: var(--surface-3); border-color: var(--line-strong); }
+
+.str-oordeel-kop {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.str-oordeel-waarom {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+  max-width: 68ch;
+}
+.str-actie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.str-actie-knop {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper, var(--surface));
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.str-actie-hoe { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); max-width: 62ch; }
+
+/* ── de compacte samenvatting: chips, geen veldlijst ─────────────────────── */
+
+.str-samenvatting { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.str-mini-beeld {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+  padding-top: 2px;
+}
+.str-mini-beeld--leeg { color: var(--ink-soft); }
+.str-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.str-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--ink);
+  max-width: 100%;
+}
+.str-chip-l {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+
+.str-legacy {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--line-strong);
+  background: var(--surface-3);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 74ch;
+}
+
+/* ── de inklapbare groepen ───────────────────────────────────────────────── */
+
+.str-groep { border-top: 1px solid var(--line); }
+.str-groep-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.str-groep-kop::-webkit-details-marker { display: none; }
+/* Een driehoekje dat meedraait: zonder affordance ziet niemand dat het opengaat. */
+.str-groep-kop::before {
+  content: '▸';
+  color: var(--ink-soft);
+  font-size: 11px;
+  transition: transform .12s;
+}
+.str-groep[open] > .str-groep-kop::before { transform: rotate(90deg); }
+.str-groep-kop:hover { background: var(--surface-3); }
+.str-groep-titel { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+/* De samenvatting in de kop is de reden dat inklappen mag: je weet zonder
+   openklappen of er iets te halen valt. */
+.str-groep-samenvatting { font-size: 12.5px; color: var(--ink-soft); }
+.str-groep--leeg .str-groep-titel { color: var(--ink-soft); font-weight: 600; }
+.str-waarschuwing {
+  margin-left: auto;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+/* Zelf dichtdoen in plaats van op het browsergedrag vertrouwen: zodra een kind
+   van <details> een eigen display krijgt, laat de browser het alsnog zien. Dan
+   is "ingeklapt" een belofte die niet klopt. */
+.str-groep:not([open]) > .str-groep-body { display: none; }
+.str-groep-body { padding: 4px 4px 18px; }
+
+/* "Bekijk onderbouwing": de volledige tekst blijft bestaan, hij ligt alleen
+   niet in de weg. Samenvatten mag nooit betekenen dat de bron weg is. */
+.str-meer { margin-top: 6px; }
+.str-meer summary {
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.str-meer p { font-size: 12.5px; line-height: 1.6; color: var(--ink); margin: 6px 0 0; max-width: 72ch; }
+
+.str-sec-leeg { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin: 0; max-width: 74ch; }
+
+.str-mini { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+.str-mini th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.str-mini td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: top;
+}
+.str-mini small { color: var(--ink-soft); }
+/* Een aanname ziet er anders uit dan een meting: anders lees je een gok als feit. */
+.str-zeker--aanname td { background: var(--amber-wash); }
+.str-zeker--leeg td, .str-zeker--open td { color: var(--ink-soft); }
+
+.str-werkstuk { font-size: 13px; color: var(--ink); margin: 0 0 8px; }
+.str-sub {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  margin: 14px 0 6px;
+}
+.str-oordeel,
+.str-overdracht,
+.str-bericht,
+.str-learning {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-3);
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.str-bericht p { margin: 6px 0 0; color: var(--ink); }
+.str-overdracht small { color: var(--ink-soft); }
+.str-let-op { color: var(--ink) !important; font-weight: 700; }
+.str-learning small { color: var(--ink-soft); }
+
+/* ── wat op een mens wacht ──────────────────────────────────────────────── */
+
+/* Dit is het enige in de tabel dat om een handeling vraagt, dus het enige dat
+   luid mag zijn. Staat er als zin en niet als kleur: kleur alleen is regel 4.4
+   overtreden, en een tabel van honderd rijen scan je niet op tinten. */
+.str-wacht {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.str-wacht--aan { border-width: 2px; }
+.str-jij {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.str-rij--jij td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+.str-verdict { font-weight: 600; }
+.str-voorstel { color: var(--ink-soft); font-style: italic; }
+
+/* ── het dossier: tijdlijn en losse noten ───────────────────────────────── */
+
+.str-sec-noot { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 8px; max-width: 74ch; }
+.str-blokkade {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.str-tijdlijn { list-style: none; margin: 8px 0 0; padding: 0; }
+.str-tl {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) auto 1fr auto;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 0 8px 14px;
+  border-left: 2px solid var(--line-strong);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+/* Mens en agent zijn het verschil dat de werkbank maakt, dus staat het er in
+   woorden én in de lijn — nooit alleen in kleur. */
+.str-tl--mens { border-left-color: var(--ink); }
+.str-tl-wie { font-weight: 700; }
+.str-tl-door {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.str-tl-wanneer { color: var(--ink-soft); text-align: right; white-space: nowrap; }
+.str-tl-waarom {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  max-width: 74ch;
+}
+
+/* ── de klassieke tabel: een verouderde status ──────────────────────────── */
+
+/* Staat in dit bestand omdat het bij dezelfde beslissing hoort: één
+   statusvocabulaire. De klassieke tabel gebruikt zijn eigen cs-klassen, maar
+   "verouderd" is een nieuw geval dat daar niet bestond. */
+.cs-badge.cs-b-verouderd {
+  background: var(--surface-3);
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-soft);
+}
+.cs-badge.cs-b-verouderd em { font-style: normal; font-weight: 400; }
+.cs-status-let-op {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* Een status uit het oude vocabulaire. Gestippeld en gedempt: hij zegt iets,
+   maar niet iets waar het systeem mee kan rekenen. */
+.str-status--verouderd {
+  background: var(--surface-3);
+  border-style: dashed;
+  color: var(--ink-soft);
+}
+
+/* Een veld dat de gebruiker nú moet aanvullen. Lege velden verdwijnen; dit
+   niet, want dit is de reden dat de creative vastzit. */
+.str-paar--nodig dd { color: var(--ink); font-style: italic; }
+.str-paar--nodig dt { color: var(--ink); }
+
+/* Een actie die de console zelf kan uitvoeren is een knop. Een actie die
+   ergens anders gebeurt is een label — het mag er niet uitzien alsof je erop
+   kunt drukken, want dat kost een poging en een moment twijfel. */
+button.str-actie-knop { border: 0; font: inherit; cursor: pointer; }
+button.str-actie-knop:hover { opacity: .88; }
+.str-actie-label {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── de koppelkeuze ──────────────────────────────────────────────────────── */
+
+/* Beelden naast elkaar, groot genoeg om te herkennen. Dit is het enige moment
+   waarop de gebruiker moet zien wélke advertentie het is; een lijstje met
+   koppen zou de vraag onbeantwoordbaar maken. */
+.str-koppel { width: 820px; }
+.str-kandidaten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.str-kandidaat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.str-kandidaat:hover { background: var(--surface-3); }
+.str-kandidaat--aan { border-color: var(--ink); border-width: 2px; padding: 9px; }
+/* Uit dezelfde generatie: waarschijnlijk het antwoord, maar niet zeker — dus
+   een hint en geen voorselectie. */
+.str-kandidaat--zelfde { background: var(--amber-wash); }
+.str-kandidaat img { width: 100%; border-radius: 8px; display: block; }
+.str-kandidaat-geenbeeld {
+  display: flex;
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.str-kandidaat-tekst { display: flex; flex-direction: column; gap: 3px; }
+.str-kandidaat-tekst strong { font-size: 13px; line-height: 1.35; color: var(--ink); }
+.str-kandidaat-tekst small { font-size: 11px; color: var(--ink-soft); word-break: break-all; }
+.str-kandidaat-nr {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 11px;
+  color: var(--ink);
+}
+.str-dos-beeld {
+  width: 100%;
+  max-width: 340px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  display: block;
+  margin-bottom: 10px;
+}
+.str-fout {
+  margin: 10px 0 0;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: var(--amber-wash);
+  border: 1px solid var(--amber);
+  font-size: 13px;
+  color: var(--ink);
+}

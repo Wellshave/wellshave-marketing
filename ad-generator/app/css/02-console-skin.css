@@ -1,0 +1,151 @@
+/* ============================================================
+   ATELIER CONSOLE SKIN — donker + goud, flat panels, native feel
+   Overschrijft alleen de visuele laag; alle functionaliteit intact.
+   ============================================================ */
+:root { --console-titlebar-h: 42px; --ws-sidebar-w: 232px; --ws-topbar-h: 56px; }
+
+/* Tokens: flat Console-oppervlakken, uniform over beide merken */
+:root, body.brand-wellshave, body.brand-wellshine {
+  --bg: #080705;
+  --bg-elevated: #0e0c08;
+  --glass: #0e0c08;
+  --glass-2: #12100a;
+  --glass-hover: #161209;
+  --hairline: rgba(255,255,255,0.06);
+  --hairline-strong: rgba(255,255,255,0.11);
+  --text: #f7f2e8;
+  --text-soft: #ada599;
+  --text-faint: #6b6357;
+  --blur: none;
+  --blur-strong: none;
+  --shadow-glass: inset 0 1px 0 rgba(255,255,255,0.03);
+  --shadow-lift: 0 20px 60px rgba(0,0,0,0.5);
+  --radius: 12px;
+  --radius-lg: 14px;
+  --ui-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --ui-head: 'Fraunces', Georgia, serif;
+}
+body, body.brand-wellshave, body.brand-wellshine {
+  background: #f4f2ee !important;
+}
+::selection { background: rgba(var(--gold-rgb), 0.3); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #f1eee6; border: 3px solid #f4f2ee; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #f0ede3; }
+
+/* Venster-titelbalk (native app-chrome) */
+.console-titlebar { position: fixed; top: 0; left: 0; right: 0; height: var(--console-titlebar-h); z-index: 300; display: flex; align-items: center; padding: 0 16px; background: #f4f2ed; border-bottom: 1px solid rgba(26, 22, 14, 0.057); }
+.console-dots { display: flex; gap: 8px; }
+.console-dots span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.console-dots span:nth-child(1) { background: #ff5f57; }
+.console-dots span:nth-child(2) { background: #f3c03f; }
+.console-dots span:nth-child(3) { background: #55dd69; }
+.console-name { position: absolute; left: 0; right: 0; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: #87806f; pointer-events: none; }
+body { padding-top: calc(var(--ws-topbar-h) + var(--console-titlebar-h)) !important; }
+.ws-sidebar { top: var(--console-titlebar-h) !important; }
+.ws-topbar { top: var(--console-titlebar-h) !important; }
+
+/* Sidebar */
+.ws-sidebar, body.brand-wellshine .ws-sidebar { background: #f4f2ed !important; border-right: 1px solid rgba(26, 22, 14, 0.057) !important; padding: 18px 12px 14px; }
+.ws-logo { padding: 6px 6px 14px; }
+.ws-logo img { max-height: 40px; width: auto !important; margin: 0 auto; }
+.ws-nav-section { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.2em; padding: 16px 10px 8px; color: #87806f; }
+.ws-nav-item { font-size: 13px; font-weight: 500; padding: 8px 10px; border-radius: 8px; gap: 10px; }
+.ws-nav-item svg { width: 15px; height: 15px; opacity: 0.6; }
+.ws-nav-item.active { background: rgba(var(--gold-rgb), 0.12); border-color: transparent; box-shadow: inset 2px 0 0 var(--gold); color: var(--gold-bright); font-weight: 600; }
+.ws-sidebar-foot { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.08em; }
+
+/* Topbar */
+.ws-topbar, body.brand-wellshine .ws-topbar { background: rgba(244, 242, 238, 0.92) !important; border-bottom: 1px solid rgba(26, 22, 14, 0.057) !important; }
+.ws-topbar-title { font-family: var(--ui-body); font-size: 15px; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; }
+.ws-topbar-meta .status-line { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.02em; }
+.brand-switch-btn { border-radius: 9px; background: rgba(var(--gold-rgb), 0.08); }
+
+/* Koppen: Fraunces op gewicht 600 */
+h1, h2, h3, h4, .results-title, .section-title, .brand-title, .proxy-guide-h1, .proxy-guide-h2 { font-weight: 600; }
+.btn-primary { color: #050402; }
+
+/* ============================================================
+   CONSOLE PASS 2 — de binnenkant van de schermen
+   ============================================================ */
+/* Veldlabels als mono-kickers (zoals de mocks) */
+.label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: #43371e !important;
+}
+.label .label-hint { text-transform: none; letter-spacing: 0.02em; }
+
+/* Invoervelden: flat, donkerder dan het paneel, gouden focus */
+input[type="text"], input[type="password"], input[type="email"],
+input[type="number"], input[type="url"], input[type="search"],
+select, textarea {
+  background: #f4f2ed !important;
+  border: 1px solid rgba(26, 22, 14, 0.115) !important;
+  border-radius: 9px !important;
+  color: var(--text) !important;
+  font-family: var(--ui-body) !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(var(--gold-rgb), 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.12) !important;
+  outline: none !important;
+}
+
+/* Paneel- en sectietitels: strak sans 800 i.p.v. display-font */
+.section-title, .results-title {
+  font-family: var(--ui-body) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+}
+#main-tab-generator h3, #main-tab-generator h4,
+.settings-panel h3, .settings-panel h4, .modal h3 {
+  font-family: var(--ui-body);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Gouden kaartranden worden neutrale hairlines; goud alleen op actief */
+.form-section { border-top: 1px solid rgba(26, 22, 14, 0.081) !important; }
+.archetype-card-body, .mode-card-body {
+  background: #f4f2ed !important;
+  border-radius: 9px !important;
+}
+.tile-explain {
+  background: #f3f1ec;
+  border-color: rgba(26, 22, 14, 0.092);
+}
+.brain-dump-card { border-color: rgba(26, 22, 14, 0.092) !important; }
+
+/* Chips: pill-vorm, neutraal met gouden hover (mock-stijl) */
+.tf-preset-chip {
+  border-radius: 20px !important;
+  background: rgba(26, 22, 14, 0.034) !important;
+  border-color: rgba(26, 22, 14, 0.115) !important;
+  color: var(--text-soft) !important;
+}
+.tf-preset-chip:hover {
+  background: rgba(var(--gold-rgb), 0.12) !important;
+  border-color: rgba(var(--gold-rgb), 0.4) !important;
+  color: var(--gold-bright) !important;
+}
+
+/* Toast + modals op Console-panelen */
+.toast {
+  background: #f3f1eb !important;
+  border: 1px solid rgba(26, 22, 14, 0.115) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 60px rgba(84, 72, 48, 0.275) !important;
+}
+.modal { background: #f3f1ec !important; border: 1px solid rgba(26, 22, 14, 0.092) !important; }
+
+/* Settings-panel: flat paneel met hairline */
+.settings-panel {
+  background: #f3f1ec !important;
+  border: 1px solid rgba(26, 22, 14, 0.081) !important;
+  box-shadow: none !important;
+}

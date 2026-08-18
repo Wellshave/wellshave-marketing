@@ -1,0 +1,9 @@
+# De AI-calls lopen via deze origin naar de worker toe (status 200 = proxy,
+# geen omleiding die de browser ziet). Zo is er geen CORS in het spel: de
+# browser praat met deze site, Netlify praat met de worker. De
+# Authorization-header gaat mee — daarop weigert de worker, niet op herkomst.
+/anthropic   https://marketing-ads.dustin-9ff.workers.dev/anthropic        200
+/v1/*        https://marketing-ads.dustin-9ff.workers.dev/v1/:splat        200
+/openai/*    https://marketing-ads.dustin-9ff.workers.dev/openai/:splat    200
+/agents/*    https://marketing-ads.dustin-9ff.workers.dev/agents/:splat    200
+/health      https://marketing-ads.dustin-9ff.workers.dev/health           200

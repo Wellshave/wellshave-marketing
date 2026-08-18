@@ -1,0 +1,187 @@
+/* ============================================================
+   ATELIER CONSOLE v8 — "STUDIO"
+   Het Statics-werkscherm als creative workspace: drie zones
+   (configuratie links, creatief hart in het midden, output en
+   inspiratie rechts) met een vaste werkbalk erboven. De laag
+   verplaatst bestaande DOM-knopen — IDs, listeners en logica
+   blijven onaangeraakt. Geldt ook voor Kopieer ad en Itereren,
+   die in hetzelfde werkscherm draaien.
+   ============================================================ */
+
+/* De oudere twee-koloms werkscherm-grid wijkt voor de studio-shell */
+@media (min-width: 1280px) {
+  #main-tab-generator:not([style*="none"]) { display: block !important; }
+  #main-tab-generator #results { grid-column: auto; grid-row: auto; position: static; }
+}
+#main-tab-generator .form-grid { display: none !important; }
+#main-tab-generator { zoom: 1 !important; }
+
+/* ---------- vaste werkbalk ---------- */
+.ws8-header {
+  position: sticky; top: calc(var(--console-titlebar-h, 38px) + var(--ws-topbar-h, 76px) - 2px);
+  z-index: 40;
+  max-width: 1780px; margin: 0 auto 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: rgba(255, 253, 248, 0.88);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(22, 21, 15, 0.08);
+  border-radius: 16px; padding: 10px 16px;
+  box-shadow: 0 8px 26px rgba(32, 27, 16, 0.08);
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+.ws8-h-title { font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 600; color: var(--ink); }
+.ws8-h-mode { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #1d1c22; color: #ffd75e; }
+.ws8-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.ws8-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 210px;
+  font-size: 12px; font-weight: 600; color: var(--ink-soft);
+  background: #f2efe5; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.ws8-chip b { color: var(--ink); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.ws8-chip:hover { border-color: rgba(var(--gold-rgb), 0.5); background: var(--amber-wash); }
+.ws8-chip.empty b { color: var(--ink-faint); font-weight: 500; }
+.ws8-done { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.ws8-done-bar { width: 66px; height: 6px; border-radius: 4px; background: #e9e4d6; overflow: hidden; }
+.ws8-done-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e4b32e, #f2c53d); border-radius: 4px; transition: width 0.4s cubic-bezier(0.22, 0.8, 0.3, 1); }
+.ws8-h-generate {
+  border: none; cursor: pointer; touch-action: manipulation;
+  font: 700 13.5px 'Hanken Grotesk', sans-serif;
+  background: #f2c53d; color: #241d0a; border-radius: 999px; padding: 10px 20px;
+  box-shadow: 0 6px 16px rgba(242, 197, 61, 0.35);
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+.ws8-h-generate:hover { background: #ffd75e; }
+.ws8-h-generate:active { transform: translateY(1px); }
+
+/* ---------- drie zones ---------- */
+.ws8-grid {
+  max-width: 1780px; margin: 0 auto;
+  display: grid; grid-template-columns: 296px minmax(0, 1fr) 372px;
+  gap: 14px; align-items: start;
+}
+.ws8-left, .ws8-center, .ws8-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+/* ---------- linkerkolom: configuratie-accordions ---------- */
+.ws8-zone-lbl { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); padding: 2px 4px 0; }
+.ws8-left .ws8-acc, .ws8-left .settings-panel {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 14px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 0 !important; margin: 0 !important; overflow: hidden;
+}
+.ws8-acc-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 16px; cursor: pointer; user-select: none;
+}
+.ws8-acc-head:hover { background: #f8f5ec; }
+.ws8-acc-t { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.ws8-acc-sum { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws8-acc-chev { flex: none; transition: transform 0.2s ease; color: var(--ink-faint); font-size: 12px; }
+.ws8-acc.open .ws8-acc-chev { transform: rotate(180deg); }
+.ws8-acc-body { padding: 2px 16px 16px; display: none; }
+.ws8-acc.open .ws8-acc-body { display: block; }
+.ws8-acc-body .field { margin-bottom: 12px; }
+/* Genummerde koppen van de oude formulier-secties verbergen in de accordion */
+.ws8-acc-body .form-section-head { display: none; }
+/* In het midden geen dubbele nummering: de Stap-markers leiden */
+.ws8-center .form-section-num { display: none !important; }
+.ws8-acc-body .form-section { border: none !important; background: transparent !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+.ws8-left .settings-panel .settings-toggle { padding: 13px 16px; }
+
+/* ---------- middenkolom: creatief hart ---------- */
+.ws8-center .mode-tabs { margin: 0 !important; }
+.ws8-card, .ws8-center .brain-dump-card, .ws8-center .form-section,
+.ws8-center #source-ad-section, .ws8-center .iw-launch {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 16px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 20px 22px; margin: 0 !important;
+}
+.ws8-center .brain-dump-card {
+  background: linear-gradient(165deg, #23222a 0%, #17161b 70%) !important;
+  border: none !important; color: #f3efe6;
+  box-shadow: 0 18px 40px rgba(20, 17, 8, 0.18);
+}
+.ws8-center .brain-dump-card .brain-dump-title { color: #ffe9a3 !important; font-family: 'Fraunces', Georgia, serif; font-size: 19px !important; }
+.ws8-center .brain-dump-card .brain-dump-hint { color: rgba(243, 239, 230, 0.62) !important; }
+.ws8-center .brain-dump-card textarea {
+  background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f3efe6 !important; border-radius: 12px;
+}
+.ws8-center .brain-dump-card textarea::placeholder { color: rgba(243, 239, 230, 0.4) !important; }
+.ws8-center .brain-dump-card .brain-dump-toggle-help { background: rgba(255, 255, 255, 0.08) !important; color: #f3efe6 !important; border-color: transparent !important; }
+.ws8-center .brain-dump-card .brain-dump-help { background: rgba(255, 255, 255, 0.05) !important; color: rgba(243, 239, 230, 0.8) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+.ws8-step { display: flex; align-items: baseline; gap: 10px; margin: 4px 2px 0; }
+.ws8-step b { font-family: 'Fraunces', serif; font-size: 15px; color: var(--amber-deep); }
+.ws8-step span { font-size: 13px; font-weight: 700; color: var(--ink); }
+.ws8-step small { font-size: 12px; color: var(--ink-faint); font-weight: 500; }
+
+/* Formats: grotere, rustigere kaarten */
+#fmt-grid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)) !important; gap: 10px !important; }
+.fmt-card {
+  background: #fbf8f0 !important; border: 1px solid rgba(22, 21, 15, 0.08) !important;
+  border-radius: 14px !important; padding: 15px 16px !important; cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.22, 0.8, 0.3, 1), box-shadow 0.2s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.fmt-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(32, 27, 16, 0.1); border-color: rgba(var(--gold-rgb), 0.45) !important; }
+.fmt-card.on { background: var(--amber-wash) !important; border-color: rgba(var(--gold-rgb), 0.75) !important; box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.4); }
+.fmt-name { font-size: 13.5px !important; font-weight: 700 !important; }
+.fmt-desc { font-size: 11.5px !important; line-height: 1.5 !important; }
+
+/* Genereer-rij onderaan het midden, plakt in beeld */
+.ws8-center .generate-row {
+  position: sticky; bottom: 12px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: rgba(29, 28, 34, 0.96); color: #f3efe6;
+  border-radius: 16px; padding: 14px 18px; margin: 0 !important;
+  box-shadow: 0 16px 40px rgba(20, 17, 8, 0.3);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.ws8-center .generate-row .meta { color: rgba(243, 239, 230, 0.55) !important; font-size: 11.5px !important; }
+.ws8-center .generate-row .btn-generate {
+  background: #f2c53d !important; color: #241d0a !important; border: none !important;
+  border-radius: 999px !important; font-weight: 700 !important; box-shadow: 0 6px 18px rgba(242, 197, 61, 0.4);
+}
+.ws8-center .generate-row .btn-generate:hover { background: #ffd75e !important; }
+
+/* ---------- rechterkolom: output & inspiratie ---------- */
+.ws8-right { position: sticky; top: calc(var(--console-titlebar-h, 38px) + var(--ws-topbar-h, 76px) + 78px); max-height: calc(100vh - var(--console-titlebar-h, 38px) - var(--ws-topbar-h, 76px) - 92px); overflow-y: auto; scrollbar-width: thin; border-radius: 16px; }
+.ws8-insp-card {
+  background: #fffdf8; border: 1px solid rgba(22, 21, 15, 0.07);
+  border-radius: 16px; box-shadow: 0 1px 2px rgba(32, 27, 16, 0.04);
+  padding: 16px 18px;
+}
+.ws8-insp-t { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.ws8-live-ph {
+  border: 1.5px dashed rgba(22, 21, 15, 0.14); border-radius: 12px;
+  min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: #f8f5ec; text-align: center; padding: 18px;
+}
+.ws8-live-ph b { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--ink); }
+.ws8-live-ph span { font-size: 12px; color: var(--ink-faint); line-height: 1.5; max-width: 30ch; }
+.ws8-prod-img { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; background: #1d1c22 center/cover; position: relative; overflow: hidden; }
+.ws8-prod-img .ph {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(-45deg, #201f26 0 12px, #24232b 12px 24px);
+  font-family: 'Fraunces', serif; font-size: 54px; font-weight: 600; color: rgba(242, 197, 61, 0.28);
+}
+.ws8-prod-cap { font-size: 12px; color: var(--ink-soft); margin-top: 8px; line-height: 1.5; }
+.ws8-tip { display: flex; gap: 10px; padding: 7px 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+.ws8-tip b { color: var(--amber-deep); font-family: 'Fraunces', serif; flex: none; }
+.ws8-right.has-results .ws8-inspire { display: none; }
+.ws8-right #results { min-width: 0; }
+
+/* ---------- responsief ---------- */
+@media (max-width: 1420px) { .ws8-grid { grid-template-columns: 272px minmax(0, 1fr) 330px; } }
+@media (max-width: 1180px) {
+  .ws8-grid { grid-template-columns: 1fr; }
+  .ws8-center { order: 1; } .ws8-left { order: 2; } .ws8-right { order: 3; position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 768px) {
+  .ws8-header { top: calc(var(--console-titlebar-h, 38px) + 6px); }
+  .ws8-chips { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fmt-card, .fmt-card:hover { transform: none; transition: none; }
+  .ws8-done-bar i { transition: none; }
+}

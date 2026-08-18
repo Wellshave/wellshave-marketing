@@ -1,0 +1,9 @@
+# Wat er gepubliceerd wordt is de app, en niets anders uit deze repo.
+# Zonder deze regel is de publicatiemap de repo-wortel, en dan staat de
+# platformcode, de migraties en de agentbeschrijvingen op een openbaar adres.
+[build]
+  publish = "ad-generator/app"
+  command = ""
+
+# De omleidingen staan in ad-generator/app/_redirects, naast de app zelf, zodat
+# ze meegaan met elke publicatie van die map — ook als iemand hem los deployt.

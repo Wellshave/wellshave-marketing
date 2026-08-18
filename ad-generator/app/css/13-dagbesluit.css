@@ -1,0 +1,267 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Het dagbesluit — bovenaan de Creative Strategy-tab
+
+   Eén beslisvraag: welke advertentie zet ik vandaag uit, en welke geef ik meer
+   budget? De tabel eronder blijft wat hij was; dit staat ervoor, want het
+   oordeel hoort vóór de onderbouwing te komen (regel 6.3).
+
+   Alle kleuren komen uit het tokenblok in 08-atelier-v6-daylight.css. Er staat
+   hieronder geen rauwe hex die niet ook daar staat (regel 4.5).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dbs {
+  margin-bottom: 32px;
+}
+
+/* ── de vraag zelf ──────────────────────────────────────────────────────── */
+/* Hij staat er letterlijk, en niet als ondertitel in het klein: het is de
+   reden dat dit blok bestaat (regel 0.1). */
+.dbs-vraag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 25px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 8px;
+  max-width: 30ch;
+}
+
+.dbs-bron {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0 0 24px;
+}
+
+.dbs-bron strong { font-weight: 600; color: var(--ink); }
+
+/* ── de twee kolommen ───────────────────────────────────────────────────── */
+.dbs-kolommen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.dbs-kolom {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(22, 21, 15, .05), 0 8px 24px rgba(22, 21, 15, .05);
+  overflow: hidden;
+}
+
+.dbs-kop {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dbs-kop-titel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink);
+}
+
+.dbs-kop-aantal {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+
+/* Amber is een vlak en nooit een letter (regel 4.2). De kolom die geld kost
+   krijgt het randje; de rest blijft rustig. */
+.dbs-kolom--uitzetten .dbs-kop { background: var(--amber-wash); }
+.dbs-kolom--uitzetten { border-color: var(--line-strong); }
+
+/* ── een advertentie in de lijst ────────────────────────────────────────── */
+.dbs-rij {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 0 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+.dbs-rij:last-child { border-bottom: 0; }
+
+/* Nummeren mag hier: dit ís een volgorde — je handelt de grootste eerst af. */
+.dbs-rang {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  padding-top: 3px;
+}
+
+.dbs-naam {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* Naam én id, want zonder id is een aanbeveling niet uitvoerbaar (regel 0.3). */
+.dbs-id {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+/* Het id is in één klik te selecteren -- je moet het in Meta kunnen plakken.
+   Daarom staat het in een eigen element en niet los in de regel: anders pakt
+   een dubbelklik de chips ernaast mee. */
+.dbs-id-nr { user-select: all; }
+
+/* Het getal is de kop, het label staat eronder (regel 6b.3). */
+.dbs-bedrag {
+  text-align: right;
+  white-space: nowrap;
+}
+.dbs-bedrag-getal {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  display: block;
+}
+.dbs-bedrag-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+  display: block;
+  margin-top: 3px;
+}
+
+/* Richting staat in vorm én woord, niet in kleur alleen (regel 6b.4) -- maar
+   het teken zelf staat in de HTML en niet hier. Een ::before is onzichtbaar
+   voor een voorleesprogramma en verdwijnt bij kopiëren, en dan is het teken
+   opmaak geworden in plaats van betekenis. Deze klassen zijn er alleen nog om
+   het label eronder te kunnen aansturen. */
+
+.dbs-cijfers {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.dbs-cijfers b { font-weight: 500; color: var(--ink); }
+
+.dbs-waarom {
+  grid-column: 2 / -1;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* ── chips ──────────────────────────────────────────────────────────────── */
+/* Een status is een chip met het woord erin, nooit een bolletje (regel 6b.5),
+   en de kleur draagt de betekenis nooit alleen (regel 4.4). */
+.dbs-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: var(--surface-3);
+  vertical-align: 1px;
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+.dbs-chip--zeker    { background: var(--amber-wash); border-color: var(--amber); }
+.dbs-chip--eensignaal { background: var(--surface-3); }
+
+/* ── de rest, ingeklapt ─────────────────────────────────────────────────── */
+/* Historie en nuance horen onder de conclusie, niet ernaast (regel 0.5/6.3). */
+.dbs-rest { margin-top: 16px; }
+
+.dbs-rest details {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  margin-bottom: 8px;
+}
+.dbs-rest summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+}
+.dbs-rest summary::-webkit-details-marker { display: none; }
+.dbs-rest summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 16px;
+  color: var(--ink-soft);
+}
+.dbs-rest details[open] summary::before { content: '▾'; }
+.dbs-rest summary span {
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-left: 6px;
+}
+.dbs-rest-lijst {
+  padding: 0 16px 12px 32px;
+  margin: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.dbs-rest-lijst li { padding: 6px 0; border-top: 1px solid var(--line); }
+.dbs-rest-lijst b { color: var(--ink); font-weight: 600; }
+.dbs-rest-lijst code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  user-select: all;
+}
+
+/* ── als er niets te besluiten valt ─────────────────────────────────────── */
+/* Een leeg vlak is geen geldige uitkomst; de reden wél (regel 0.4). */
+.dbs-leeg {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(22, 21, 15, .05), 0 8px 24px rgba(22, 21, 15, .05);
+  padding: 24px;
+}
+.dbs-leeg-kop {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.dbs-leeg p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+.dbs-leeg p + p { margin-top: 12px; }
+
+@media (max-width: 760px) {
+  .dbs-vraag { font-size: 21px; }
+  .dbs-rij { grid-template-columns: 24px 1fr; }
+  .dbs-bedrag { grid-column: 2; text-align: left; margin-top: 8px; }
+}

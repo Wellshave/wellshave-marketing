@@ -1,0 +1,36 @@
+# Cloudflare Worker `marketing-ads` — de Marketing OS-runtime.
+#
+# De worker draaide tot nu toe als los bestand dat via het dashboard werd
+# geplakt. Dat kan nog steeds (zie ../README.md), maar met cron-triggers is
+# wrangler handiger: die kun je niet via het dashboard versiebeheren.
+#
+#   npx wrangler deploy --config platform/worker/wrangler.toml
+#
+# Secrets zet je één keer, ze staan niet in dit bestand:
+#   npx wrangler secret put ANTHROPIC_KEY
+#   npx wrangler secret put OPENAI_KEY
+#   npx wrangler secret put SUPABASE_SERVICE_KEY
+#   npx wrangler secret put META_ACCESS_TOKEN
+#   npx wrangler secret put META_AD_ACCOUNT_ID
+#   npx wrangler secret put KLAVIYO_API_KEY
+
+name = "marketing-ads"
+main = "marketing-os.worker.js"
+compatibility_date = "2026-07-28"
+
+# Expliciet aan, niet omdat het de standaard niet is maar omdat de console
+# ervan afhangt: js/21-supabase-sync.js praat met
+# marketing-ads.dustin-9ff.workers.dev. Verdwijnt dat adres bij een deploy,
+# dan is niet de worker stuk maar de hele console, en dat zoek je op de
+# verkeerde plek.
+workers_dev = true
+
+# Elke vijf minuten kijken of er gepland werk klaarstaat en de wachtrij
+# afwerken. De agents zelf staan in marketing_hq.schedules, niet hier — een
+# tijd verschuiven vergt dus geen deploy.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Observability aan: zonder logs is een agent die 's nachts omvalt onzichtbaar.
+[observability]
+enabled = true
