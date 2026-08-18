@@ -498,8 +498,12 @@ function wizRenderRoryBalk() {
   else tekst = WIZ_OPENING[k] || '';
   el.innerHTML = tekst
     ? '<span class="wiz-rorybalk-punt' + (wizState.busy ? ' bezig' : '') + '"></span>' +
-      '<span>' + wizEsc(tekst) + '</span>'
+      '<span>' + wizEsc(tekst) + '</span>' +
+      /* De lichtlijn bestaat alleen terwijl er echt iets draait: beweging die
+         niets betekent is decoratie, en decoratie went binnen een dag. */
+      (wizState.busy ? '<span class="wiz-lichtlijn" aria-hidden="true"></span>' : '')
     : '';
+  el.classList.toggle('bezig', !!(tekst && wizState.busy));
   el.style.display = tekst ? '' : 'none';
 }
 

@@ -1,0 +1,236 @@
+/* Static Ad Wizard — de goudlaag.
+ *
+ * Dit bestand verandert geen enkele beslissing en geen enkel element van
+ * plaats: het is de interactielaag bovenop 23-wizard.css. Alles hier is
+ * gescoped op de wizard (.wiz-*, #wiz-*, .iw2-ingang) zodat Kopieer ad,
+ * Itereren, de Transformer en de rest van de console er niets van merken.
+ *
+ * Het principe dat elke regel hieronder moet halen: beweging betekent iets.
+ *   - iets laadt            -> shimmer of lichtlijn
+ *   - iets is zojuist gekozen -> één pulse die uitdooft
+ *   - Rory denkt            -> gloed om de avatar, punten in de balk
+ *   - je zweeft boven iets klikbaars -> lichte lift
+ * Beweging zonder een van die vier redenen hoort hier niet. Een dashboard
+ * waarin alles gloeit, gloeit nergens.
+ *
+ * Herbruikbaar: de keyframes en de klassen .net, .bezig, .denkt zijn de
+ * primitieven. Stap 2 t/m 9 krijgen dezelfde laag door dezelfde klassen te
+ * dragen; er hoeft dan geen nieuwe animatie bij.
+ */
+
+/* ── Bewegingstokens ─────────────────────────────────────────────────────── */
+
+:root {
+  --wg-t-snel: 150ms;      /* hover, focus */
+  --wg-t-keuze: 220ms;     /* selectie */
+  --wg-t-stap: 320ms;      /* wisselen van stap */
+  --wg-ease: cubic-bezier(0.22, 0.7, 0.3, 1);
+  --wg-gloed-zacht: 0 0 0 1px rgba(var(--gold-rgb), 0.25), 0 0 18px rgba(var(--gold-rgb), 0.10);
+  --wg-gloed-aan: 0 0 0 1px rgba(var(--gold-rgb), 0.45), 0 0 22px rgba(var(--gold-rgb), 0.16);
+}
+
+/* ── Keyframes: de vier betekenissen ────────────────────────────────────── */
+
+/* Zojuist gekozen: één keer opgloeien en binnen een seconde tot rust komen. */
+@keyframes wgSettle {
+  0%   { box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.7), 0 0 26px rgba(var(--gold-rgb), 0.35); }
+  100% { box-shadow: var(--wg-gloed-aan); }
+}
+
+/* Laden: een veeg licht die over het element loopt. */
+@keyframes wgShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
+
+/* De lichtlijn onder de statusbalk terwijl Rory werkt. */
+@keyframes wgLichtlijn {
+  0%   { left: -30%; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* Denken: een langzame ademende gloed. Nadrukkelijk traag — dit mag minuten
+   aanstaan zonder te vermoeien. */
+@keyframes wgAdem {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0.0); }
+  50%      { box-shadow: 0 0 0 5px rgba(var(--gold-rgb), 0.14); }
+}
+
+/* De drie punten in "Rory is thinking". */
+@keyframes wgPunt {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30%           { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ── Selectie: levend, daarna rustig ────────────────────────────────────── */
+
+.wiz-tegel.on, .wiz-pil.on {
+  border-color: var(--gold);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--gold-rgb), 0.10) 0%, transparent 70%),
+    var(--gold-haze);
+  box-shadow: var(--wg-gloed-aan);
+}
+/* De bevestiging: alleen op het element dat zojuist gekozen is (.net wordt in
+   JS voor ~1s gezet), één keer, en dan is het stil. */
+.wiz-tegel.on.net, .wiz-pil.on.net {
+  animation: wgSettle 0.9s var(--wg-ease) 1;
+}
+/* Vinkje op de gekozen tegel: bevestiging zonder woorden. */
+.wiz-tegel.on::after {
+  content: '✓';
+  position: absolute; top: -7px; right: -7px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold); color: #1a1408;
+  font-size: 11px; font-weight: 700;
+}
+.wiz-tegel { position: relative; }
+
+/* ── Hover: reageren vóór de klik ───────────────────────────────────────── */
+
+.wiz-tegel, .wiz-pil, .wiz-personakaart, .wiz-personarij, .wiz-format,
+.wiz-basis-tegel, .iw2-optie {
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              color var(--wg-t-snel) var(--wg-ease),
+              background var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-keuze) var(--wg-ease),
+              transform var(--wg-t-snel) var(--wg-ease);
+}
+.wiz-tegel:hover:not(.on), .wiz-pil:hover:not(.on),
+.wiz-personakaart:hover:not(.on), .wiz-personarij:hover:not(.on),
+.wiz-format:hover:not(.on), .wiz-basis-tegel:hover, .iw2-optie:hover {
+  border-color: var(--gold-line-strong);
+  box-shadow: var(--wg-gloed-zacht);
+  transform: translateY(-1px);
+}
+
+/* ── Dropdowns: bij de donkere werkbank horen ───────────────────────────── */
+
+.wiz-veld select {
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%),
+                    linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-snel) var(--wg-ease);
+  cursor: pointer;
+}
+.wiz-veld select:hover { border-color: var(--gold-line-strong); }
+.wiz-veld select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.14);
+  background-color: rgba(var(--gold-rgb), 0.04);
+}
+
+/* ── De stappenbalk ─────────────────────────────────────────────────────── */
+
+.wiz-step { transition: color var(--wg-t-snel), border-color var(--wg-t-snel), background var(--wg-t-stap) var(--wg-ease), box-shadow var(--wg-t-stap) var(--wg-ease); }
+.wiz-step.on {
+  background: linear-gradient(180deg, rgba(var(--gold-rgb), 0.14) 0%, rgba(var(--gold-rgb), 0.05) 100%);
+  box-shadow: var(--wg-gloed-zacht);
+}
+.wiz-step.done .wiz-step-num { background: rgba(var(--gold-rgb), 0.14); }
+.wiz-step:disabled { opacity: 0.45; }
+
+/* ── Rory: aanwezig, en actief als hij werkt ────────────────────────────── */
+
+.wiz-rory-avatar { transition: box-shadow var(--wg-t-stap) var(--wg-ease); }
+.wiz-rory-avatar.denkt { animation: wgAdem 2.6s ease-in-out infinite; }
+
+/* "Rory is thinking…" met drie levende punten in plaats van een vaste zin. */
+.wiz-rory-thinking { display: flex; align-items: center; gap: 8px; }
+.wiz-rory-thinking::after {
+  content: '';
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 8px 0 0 var(--gold), 16px 0 0 var(--gold);
+  animation: wgPunt 1.4s ease-in-out infinite;
+  margin-right: 16px;
+}
+
+/* De statusbalk boven de stap: een lichtlijn zolang er iets draait. */
+#wiz-rorybalk { position: relative; overflow: hidden; }
+#wiz-rorybalk .wiz-lichtlijn {
+  position: absolute; bottom: 0; height: 1px; width: 30%;
+  background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+  animation: wgLichtlijn 2.2s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+.wiz-rorybalk-punt.bezig { animation: wgAdem 1.6s ease-in-out infinite; }
+
+/* ── De hoofdknop ───────────────────────────────────────────────────────── */
+
+.wiz-btn { transition: background var(--wg-t-snel) var(--wg-ease), border-color var(--wg-t-snel), box-shadow var(--wg-t-snel) var(--wg-ease), transform 90ms var(--wg-ease); }
+.wiz-btn.primary {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 55%, var(--gold-deep) 130%);
+  border-color: rgba(var(--gold-rgb), 0.7);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 6px 16px rgba(var(--gold-rgb), 0.12);
+}
+.wiz-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-bright) 40%, var(--gold) 130%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 6px 22px rgba(var(--gold-rgb), 0.22);
+}
+.wiz-btn.primary:active:not(:disabled) { transform: scale(0.985); }
+/* Uitgeschakeld terwijl de wizard werkt: de knop zelf zegt dat er geladen
+   wordt, met een lichtveeg in plaats van alleen een grijze sluier. */
+#wiz-next:disabled { position: relative; overflow: hidden; opacity: 0.75; cursor: progress; }
+#wiz-next:disabled::after {
+  content: '';
+  position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: wgShimmer 1.4s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+
+/* ── Return to interview ────────────────────────────────────────────────── */
+
+.iw2-ingang { transition: border-color var(--wg-t-snel) var(--wg-ease), transform var(--wg-t-snel) var(--wg-ease), box-shadow var(--wg-t-keuze) var(--wg-ease); }
+.iw2-ingang:hover {
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 18px rgba(var(--gold-rgb), 0.20);
+}
+.iw2-ingang:hover .iw2-ingang-i { box-shadow: 0 0 10px rgba(var(--gold-rgb), 0.5); }
+.iw2-ingang-i { transition: box-shadow var(--wg-t-snel) var(--wg-ease); }
+
+/* ── Diepte: het paneel is een werkbank, geen vlak ──────────────────────── */
+
+.wiz-paneel {
+  background:
+    radial-gradient(90% 40% at 50% 0%, rgba(var(--gold-rgb), 0.035) 0%, transparent 60%),
+    var(--bg-elevated);
+}
+.wiz-zijpaneel, .wiz-bd, .iw2-aannames {
+  transition: border-color var(--wg-t-snel) var(--wg-ease);
+}
+
+/* Denkblokken in de stap zelf (wizDenkt) delen de puntjes van Rory. Het
+   punt-element bestaat al in de markup; hier wordt het drie levende punten. */
+.wiz-denkt .wiz-denkt-punt {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 8px 0 0 var(--gold), 16px 0 0 var(--gold);
+  animation: wgPunt 1.4s ease-in-out infinite;
+  margin-right: 14px; flex-shrink: 0;
+}
+
+/* ── Reduced motion: toestanden blijven, beweging verdwijnt ─────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wiz-tegel.on.net, .wiz-pil.on.net,
+  .wiz-rory-avatar.denkt, .wiz-rorybalk-punt.bezig,
+  .wiz-rory-thinking::after, .wiz-denkt .wiz-denkt-punt,
+  #wiz-rorybalk .wiz-lichtlijn, #wiz-next:disabled::after {
+    animation: none;
+  }
+  #wiz-rorybalk .wiz-lichtlijn { display: none; }
+  .wiz-tegel, .wiz-pil, .wiz-personakaart, .wiz-personarij, .wiz-format,
+  .wiz-basis-tegel, .iw2-optie, .wiz-btn, .wiz-step, .iw2-ingang {
+    transition: none;
+  }
+  .wiz-tegel:hover:not(.on), .wiz-pil:hover:not(.on), .iw2-ingang:hover { transform: none; }
+}

@@ -84,9 +84,23 @@ function wizChoices(stepKey, field, opts, kolommen) {
   }).join('') + '</div>';
 }
 
+/* De keuze die zojuist gemaakt is, als 'vak.veld.waarde'. Kort daarna weer
+ * leeg: de pulse is een bevestiging van de klik, geen eigenschap van de
+ * toestand. Een geselecteerd element dat blijft pulseren zegt na een seconde
+ * niets meer en irriteert na een minuut. */
+var wizNetGekozen = null;
+var wizNetTimer = null;
+
+function wizNetKlas(stepKey, field, value) {
+  return wizNetGekozen === (stepKey + '.' + field + '.' + value) ? ' net' : '';
+}
+
 function wizPick(stepKey, field, value) {
   wizSet(stepKey, field, value, 'user');
   wizState.openVeld = null;
+  wizNetGekozen = stepKey + '.' + field + '.' + value;
+  clearTimeout(wizNetTimer);
+  wizNetTimer = setTimeout(function () { wizNetGekozen = null; }, 1100);
   wizRender();
 }
 
@@ -280,6 +294,7 @@ function wizTegels(stepKey, field, opts) {
   return '<div class="wiz-tegels">' + opts.map(function (o) {
     var aan = String(v) === String(o.value);
     return '<button type="button" class="wiz-tegel' + (aan ? ' on' : '') +
+      (aan ? wizNetKlas(stepKey, field, o.value) : '') +
       (String(tip) === String(o.value) ? ' rec' : '') + '" ' +
       'onclick="wizPick(\'' + stepKey + '\',\'' + field + '\',\'' + wizEsc(o.value) + '\')">' +
       (o.vorm ? '<span class="wiz-tegel-vorm ' + o.vorm + '"></span>' : '') +
@@ -805,7 +820,7 @@ window.wizVisualOptionsText = wizVisualOptionsText; window.WIZ_VISUAL = WIZ_VISU
 window.WIZ_AWARENESS = WIZ_AWARENESS; window.WIZ_SOPHISTICATION = WIZ_SOPHISTICATION;
 window.WIZ_DIFFERENTIATION = WIZ_DIFFERENTIATION; window.wizSofistHint = wizSofistHint; window.WIZ_FUNNELS = WIZ_FUNNELS; window.WIZ_PLACEMENTS = WIZ_PLACEMENTS;
 window.wizOpenVeld = wizOpenVeld; window.wizToggleUitklap = wizToggleUitklap;
-window.wizZin = wizZin; window.wizDenkt = wizDenkt; window.wizUitklap = wizUitklap;
+window.wizNetKlas = wizNetKlas; window.wizZin = wizZin; window.wizDenkt = wizDenkt; window.wizUitklap = wizUitklap;
 window.wizOptLabel = wizOptLabel; window.wizChoices = wizChoices; window.wizField = wizField;
 window.wizSelect = wizSelect; window.wizTegels = wizTegels; window.wizPaneel = wizPaneel;
 window.wizWireVorm = wizWireVorm; window.wizHeadlineOpties = wizHeadlineOpties;

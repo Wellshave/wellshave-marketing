@@ -332,7 +332,8 @@ function wizRenderRory() {
   var adv = wizState.advice[stap] || null;
   var h = '';
 
-  h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar">R</span>' +
+  h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar' +
+       (wizState.busy ? ' denkt' : '') + '">R</span>' +
        '<div><div class="wiz-rory-name">Rory</div><div class="wiz-rory-role">Creative strategist</div></div></div>';
 
   if (wizState.busy) {

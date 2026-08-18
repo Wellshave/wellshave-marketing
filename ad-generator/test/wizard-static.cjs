@@ -1234,6 +1234,99 @@ const VULLEN = `
   check('en de lege melding is weg bij die kaart', eind.metBeeld.geenLegeMelding, 2);
   check('de andere manier van varieren staat er als regel', eind.metBeeld.andereManier, true);
 
+  /* ── Beweging betekent iets ──────────────────────────────────────────── */
+  console.log('\n  de goudlaag: beweging alleen met een reden');
+
+  const goud = await page.evaluate(vullen => {
+    eval(vullen);
+    wizReset(true);
+    wizState.busy = false;
+    wizOpen();
+    wizGo('product');
+
+    /* 1. De bevestigingspulse: alleen op de zojuist gekozen tegel, en hij
+       dooft — na de timer is de klasse weg en draait er niets meer. */
+    wizPick('product', 'placement', 'stories');
+    var direct = document.querySelector('.wiz-tegel.on.net');
+    var directAnim = direct ? getComputedStyle(direct).animationName : '';
+
+    return new Promise(function (klaar) {
+      setTimeout(function () {
+        wizRender();
+        var later = document.querySelector('.wiz-tegel.on.net');
+        var aan = document.querySelector('.wiz-tegel.on');
+        var vinkje = aan ? getComputedStyle(aan, '::after').content : '';
+
+        /* 2. Busy draagt zijn klassen: de statusbalk en de avatar weten dat er
+           iets draait, en zonder busy weten ze van niets. */
+        wizState.busy = true;
+        wizRenderRoryBalk();
+        if (typeof wizRenderRory === 'function') wizRenderRory();
+        var balk = document.getElementById('wiz-rorybalk');
+        var bezig = {
+          balkKlasse: balk ? balk.classList.contains('bezig') : false,
+          lichtlijn: !!(balk && balk.querySelector('.wiz-lichtlijn')),
+          avatar: !!document.querySelector('.wiz-rory-avatar.denkt')
+        };
+        wizState.busy = false;
+        wizRenderRoryBalk();
+        if (typeof wizRenderRory === 'function') wizRenderRory();
+        var rustig = {
+          balkKlasse: balk ? balk.classList.contains('bezig') : false,
+          lichtlijn: !!(balk && balk.querySelector('.wiz-lichtlijn')),
+          avatar: !!document.querySelector('.wiz-rory-avatar.denkt')
+        };
+
+        /* 3. De laag is gescoped op de wizard: het klassieke formulier en de
+           andere modules dragen geen enkele wizardklasse. */
+        var css = [].slice.call(document.styleSheets).filter(function (sh) {
+          return /24-wizard-goud/.test(sh.href || ''); })[0];
+        var regels = css ? [].slice.call(css.cssRules) : [];
+        var selectors = [];
+        var loop = function (rs) { [].slice.call(rs).forEach(function (r) {
+          if (r.selectorText) selectors.push(r.selectorText);
+          if (r.cssRules) loop(r.cssRules);
+        }); };
+        loop(regels);
+        var buitenDeWizard = selectors.filter(function (sel) {
+          return sel.split(',').some(function (deel) {
+            return !/\.wiz|#wiz|\.iw2|:root/.test(deel);
+          });
+        });
+
+        /* 4. Reduced motion staat in het bestand als echt blok. */
+        var heeftReduced = regels.some(function (r) {
+          return r.media && /prefers-reduced-motion/.test(r.media.mediaText);
+        });
+
+        klaar({
+          directNet: !!direct, directAnim: directAnim,
+          laterNet: !!later, vinkje: vinkje,
+          bezig: bezig, rustig: rustig,
+          buitenDeWizard: buitenDeWizard,
+          heeftReduced: heeftReduced,
+          bladGeladen: !!css
+        });
+      }, 1250);
+    });
+  }, VULLEN);
+  check('de goudlaag is geladen', goud.bladGeladen, true);
+  check('direct na de klik draagt de gekozen tegel de pulse', goud.directNet, true);
+  check('en die pulse is de settle-animatie', /wgSettle/.test(goud.directAnim), true);
+  /* Een geselecteerd element dat blijft pulseren zegt na een seconde niets
+     meer; de klasse hoort te verdwijnen. */
+  check('na ruim een seconde is de pulse weg', goud.laterNet, false);
+  check('het vinkje op de gekozen tegel blijft', /✓/.test(goud.vinkje), true);
+  check('terwijl er iets draait weet de statusbalk dat', goud.bezig.balkKlasse, true);
+  check('met de lichtlijn erin', goud.bezig.lichtlijn, true);
+  check('en gloeit de avatar', goud.bezig.avatar, true);
+  check('zodra het klaar is, is de balk stil', goud.rustig.balkKlasse, false);
+  check('de lichtlijn weg', goud.rustig.lichtlijn, false);
+  check('en de avatar rustig', goud.rustig.avatar, false);
+  /* Kopieer ad, Itereren en de rest mogen hier niets van merken. */
+  check('geen enkele regel reikt buiten de wizard', goud.buitenDeWizard, []);
+  check('en reduced motion heeft zijn eigen blok', goud.heeftReduced, true);
+
   /* ── Geen oordeel over niets ─────────────────────────────────────────── */
   console.log('\n  zonder onderwerp geen richting');
 
