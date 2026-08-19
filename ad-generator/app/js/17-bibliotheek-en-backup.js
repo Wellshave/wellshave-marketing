@@ -748,8 +748,22 @@ function renderLibrary() {
     lib.innerHTML = html;
     return;
   }
+  /* Welke groepen open staan leeft alleen in de DOM, en innerHTML gooit die
+     DOM weg. Elke herteken (teamsync, filter, verwijderen) klapte dus alles
+     dicht waar je net in zat te lezen. Eerst onthouden, straks terugzetten. */
+  var openGroepen = {};
+  lib.querySelectorAll('.lib-group').forEach(function(g){
+    var b = g.querySelector('.lib-group-body');
+    if (b && b.style.display !== 'none') openGroepen[g.getAttribute('data-batch')] = true;
+  });
   html += '<div class="library-list">' + libRenderGroups(filtered) + '</div>';
   lib.innerHTML = html;
+  lib.querySelectorAll('.lib-group').forEach(function(g){
+    if (!openGroepen[g.getAttribute('data-batch')]) return;
+    var b = g.querySelector('.lib-group-body'), h = g.querySelector('.lib-group-head');
+    if (b) b.style.display = '';
+    if (h) h.classList.add('open');
+  });
 
   lib.querySelectorAll('[data-matrix-id]').forEach(el => {
     el.addEventListener('input', () => {

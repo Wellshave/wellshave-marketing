@@ -97,18 +97,31 @@
       sb.from('app_state').delete().eq('brand', BRAND).eq('key', k).then(function(r){ if (r && r.error) console.warn('cloud delete ' + k, r.error.message); });
     };
 
+    /* Geeft terug of er werkelijk iets veranderde. Dat onderscheid is niet
+       cosmetisch: op elke venster-focus draait hydrate, en die eindigde
+       altijd in softRefresh -- de hele bibliotheek en alle menu's opnieuw
+       getekend terwijl je er middenin zat te lezen. Alles klapte dicht om
+       een "wijziging" die er niet was. Gelijke data = niets aanraken. */
     function applyRows(rows){
+      var veranderd = false;
       applying = true;
       try { rows.forEach(function(row){
         if (!row || SYNC_KEYS.indexOf(row.key) === -1) return;
         if (pendingKeys[row.key]) return; /* lokale wijziging nog niet bevestigd: niet overschrijven */
         var pk = PREFIX + row.key; var str; try { str = JSON.stringify(row.value); } catch(e){ str = null; }
         if (str == null) return;
+        var huidig = (HEAVY_KEYS.indexOf(row.key) !== -1) ? bigCache[pk] : _origGet(pk);
+        if (huidig === str) return;
+        veranderd = true;
         if (HEAVY_KEYS.indexOf(row.key) !== -1) { bigCache[pk] = str; idbSet(pk, str).catch(function(){}); }
         else { try { _origSet(pk, str); } catch(e){} }
       }); }
       finally { applying = false; }
+      return veranderd;
     }
+    /* Testhaakje: applyRows zit in deze closure en het "gelijke data = niets
+       aanraken"-gedrag moet van buitenaf te bewijzen zijn. */
+    window._wgSync = { applyRows: applyRows };
     function softRefresh(){
       try { if (typeof loadState === 'function') loadState(); } catch(e){}
       ['renderProductSelect','renderProductPreview','renderBundleBuilder','renderPersonaSelect','renderPersonaPreview','renderLibrary','renderScriptLibrary','renderProductList','renderProductLibrary','renderPersonaLibrary','renderPersonaDbList','renderBrandSettings','renderSwSelects','wgRenderDashboard'].forEach(function(fn){ if (typeof window[fn] === 'function') { try { window[fn](); } catch(e){} } });
@@ -124,7 +137,13 @@
               if (payload.new && payload.new.updated_by === clientId) return; // eigen wijziging negeren
               if (SYNC_KEYS.indexOf(row.key) === -1) return;
               if (payload.eventType === 'DELETE') { applying = true; try { if (HEAVY_KEYS.indexOf(row.key) !== -1) { delete bigCache[PREFIX + row.key]; idbDel(PREFIX + row.key).catch(function(){}); } else { _origRemove(PREFIX + row.key); } } finally { applying = false; } }
-              else if (payload.new) { applyRows([payload.new]); }
+              else if (payload.new) {
+                /* Kwam er werkelijk iets nieuws binnen? Realtime stuurt ook
+                   berichten die lokaal al bekend zijn (eigen andere tab,
+                   dubbele levering). Daarop hertekenen sloopt de leespositie
+                   van wie er middenin zit -- dus dan: niets doen. */
+                if (!applyRows([payload.new])) return;
+              }
               softRefresh();
               if (typeof toast === 'function') toast('Teamdata bijgewerkt');
             } catch(e){ console.warn('realtime handler', e); }
@@ -144,9 +163,9 @@
             if (v != null) { var p; try { p = JSON.parse(v); } catch(e){ p = v; } sb.from('app_state').upsert({ brand: BRAND, key: k, value: p, updated_by: clientId }, { onConflict: 'brand,key' }).then(function(r){ if (r && r.error) console.warn('seed push ' + k, r.error.message); }); }
           });
         } else {
-          // Cloud heeft data: lokaal bijwerken en de schermen direct verversen (geen herlaad)
-          applyRows(rows);
-          softRefresh();
+          // Cloud heeft data: lokaal bijwerken, en alleen verversen als er
+          // ook echt iets nieuws in zat -- hydrate draait op elke focus.
+          if (applyRows(rows)) softRefresh();
         }
       });
     }
