@@ -4113,7 +4113,7 @@ input:focus, select:focus, textarea:focus {
         <div class="field">
           <label class="label">Model</label>
           <select id="anthropic-model">
-            <option value="claude-fable-5" selected>Fable 5 (default, nieuwste en slimste)</option>
+            <option value="claude-opus-5" selected>Opus 5 (standaard)</option>
             <option value="claude-opus-4-8">Opus 4.8</option>
             <option value="claude-opus-4-7">Opus 4.7</option>
             <option value="claude-opus-4-6">Opus 4.6</option>
@@ -8379,7 +8379,7 @@ function wgpOrder(){ return wgp.mode==='vary' ? WGP_ORDER_VARY : (wgp.mode==='id
 var WGP_NAMEN = { start:'Start', braindump:'Idee', winner:'Winner', varywhat:'Variabele', product:'Product', persona:'Persona', angle:'Angle', format:'Format', scene:'Scene', plan:'Plan' };
 var WGP_AW_MAP = { 'Unaware':'unaware', 'Problem Aware':'problem', 'Solution Aware':'solution', 'Product Aware':'product', 'Most Aware':'most' };
 
-function wgpModel(){ var el=document.getElementById('anthropic-model'); return (el && el.value) || 'claude-fable-5'; }
+function wgpModel(){ var el=document.getElementById('anthropic-model'); return (el && el.value) || 'claude-opus-5'; }
 function wgpEsc(t){ return escapeHtml(t==null?'':String(t)); }
 function wgpSet(key,val){ if(val==null||String(val).trim()===''){ return; } wgp.sel[key]=String(val).trim(); }
 function wgpLbl(key){ var v=wgp.sel[key]; if(!v) return ''; return v.length>46?v.slice(0,46)+'...':v; }
@@ -11249,7 +11249,7 @@ if (savedMode) {
 /* ===== Interview-mode (Wizard) voor Statics (v5.09): adaptief Rory-interview -> Theriot scherpt -> 3 statics ===== */
 var iw = { open:false, phase:'entrance', entrance:'persona', product:'', persona:null, angle:'', chat:[], known:{}, checklist:{}, hist:null, briefing:null, busy:false, suggest:[] };
 
-function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function iwEsc(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function iwText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function iwJson(txt){ var a=txt.indexOf('{'), b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }
@@ -16453,7 +16453,7 @@ function buildRecipeChips(m){
 /* ===== Rijke Customer Persona's (v5.15): Schwartz-stages + angle-brein + launch + test-hook ===== */
 var px = { selectedId:null, stage:'unaware', busy:false, angleStats:{}, statsLoaded:{} };
 var PX_STAGES = [['unaware','Onbewust'],['problem','Probleembewust'],['solution','Oplossingsbewust'],['product','Productbewust'],['most','Meest bewust']];
-function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function pxE(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function pxText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function pxJson(txt){ var a=txt.indexOf('{'),b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }
