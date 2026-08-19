@@ -47,6 +47,8 @@ geldt. Prijzen, bestandsnamen en losse incidenten horen bij het project, niet hi
   --grad-gold:linear-gradient(158deg,#F8DFAB 0%,#E5BC77 42%,#C8913F 100%);
   --grad-dark:linear-gradient(168deg,#242220 0%,#171614 58%,#0E0D0C 100%);
   --grad-sand:linear-gradient(180deg,#FBF8F3 0%,#F1EBE0 100%);
+  /* tekstverloop op lichte grond: donkerder, anders onleesbaar (zie deel 3) */
+  --grad-gold-tekst:linear-gradient(100deg,#B0742A 0%,#8C5A1A 100%);
 
   /* vorm — één schaal over alles */
   --r-s:12px;                 /* kleine vlakken, invoervelden */
@@ -97,10 +99,33 @@ de tweede levert de opluchting in accentkleur.
 ```css
 .duo{font-weight:900;letter-spacing:-.025em;line-height:1.02;
      font-size:clamp(31px,4.6vw,54px);text-wrap:balance}
-.duo .b{display:block;color:var(--bronze)}
+.duo .b{display:block;color:#B0742A}          /* terugval */
 .duo.on-dark{color:#fff}
-.duo.on-dark .b{color:var(--gold)}
+.duo.on-dark .b{color:var(--gold)}            /* terugval */
+
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .duo .b{background-image:var(--grad-gold-tekst);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent}
+  .duo.on-dark .b{background-image:var(--grad-gold)}
+}
 ```
+
+**De tweede regel loopt in een verloop, niet in een effen kleur.** Dat is merkeigen. Maar het
+verloop verschilt per grond, en dat is geen smaakkwestie:
+
+| Grond | Verloop | Contrast |
+|---|---|---|
+| Donker | `--grad-gold` (licht goud → brons) | ruim voldoende |
+| Licht | `--grad-gold-tekst` (`#B0742A` → `#8C5A1A`) | 3,47 en 5,19 |
+
+Het lichte goud uit de merkgradiënt haalt op zand niet meer dan 1,2:1 en is daar vrijwel
+onleesbaar. Zelfs `--bronze` zelf komt op zand niet verder dan 2,94 en blijft daarmee net
+onder de norm van 3,0 voor grote tekst. **Reken het contrast na voordat je een accentkleur op
+tekst zet**, ook als het een merkkleur is.
+
+Zet altijd een effen terugvalkleur, zodat er zonder `background-clip:text` geen onzichtbare
+tekst overblijft.
 
 **Consequent doorvoeren of niet doen.** Eén keer in de hero en daarna laten vallen is de
 klassieke fout: het sterkste merkelement verdwijnt dan na de eerste schermhoogte. De lezer
@@ -140,6 +165,19 @@ afgerond — dat is het verschil tussen zacht en technisch.
 - Direct onder een koopknop staan de risiconemers: proefperiode, garantie, verzending.
   Nabijheid tot het klikpunt is wat telt, niet dat ze ergens op de pagina staan.
 - Zichtbare toetsenbordfocus overal: `3px solid var(--bronze)`, `outline-offset:3px`.
+
+**Koopknoppen leggen direct in de winkelwagen.** Op een landingspagina is de productpagina
+een omweg: de bezoeker is daar al overtuigd, en nog een pagina met opnieuw kiezen kost
+verkopen. Gebruik een Shopify-permalink:
+
+```
+https://wellshave.com/cart/{variant-id}:{aantal}
+```
+
+Variant-ID's haal je uit `wellshave.com/products.json?limit=250`. Zet het label op de
+handeling plus de prijs — "In de winkelwagen · €59,95" — zodat er geen verrassing volgt.
+
+Dit is het verschil met de gewone webshop: daar mag iemand rondkijken, hier is er één pad.
 
 ---
 
@@ -210,7 +248,31 @@ direct zichtbaar zetten en de waarnemer niet starten.
 
 ---
 
-## 8. Beeld
+## 8. Cijfers en claims
+
+Getallen zijn het sterkste overtuigingsmiddel dat er is, en daarom ook het gevaarlijkste om
+los uit de pols in te vullen.
+
+**Nooit een getal opschrijven dat je niet kunt nawijzen.** Niet afronden naar boven, niet
+"ongeveer", niet een plausibel klinkend aantal omdat de zin erom vraagt. Een bezoeker die één
+cijfer betrapt, gelooft de rest ook niet meer — en op een pagina die om precisie draait, zoals
+een halve millimeter, is dat dodelijk.
+
+**Label altijd waar het getal over gaat.** Bestellingen zijn geen klanten, klanten zijn geen
+gebruikers van dít product, en een Trustpilot-score over het hele bedrijf is geen score over
+één artikel. Schrijf het bereik erbij in plaats van het weg te laten:
+
+- goed: "Ruim 200.000 bestellingen sinds 2021" met daaronder waar dat over gaat
+- fout: een productpagina die suggereert dat al die bestellingen dit ene apparaat betroffen
+
+**Betrouwbare bronnen:** `products.json` voor prijzen en voorraad, het Trustpilot-profiel voor
+score en aantal beoordelingen, Shopify-analytics voor bestellingen. Weet je het niet, vraag
+het dan of laat het weg. Een pagina zonder getal is beter dan een pagina met een verzonnen
+getal.
+
+---
+
+## 9. Beeld
 
 **Een blok krijgt nooit een foto die er niet echt bij hoort.** Een beeld dat er ongeveer op
 lijkt is erger dan geen beeld: het maakt het blok plat en ongeloofwaardig.
@@ -220,7 +282,7 @@ Volgorde:
 1. **Eigen merkfotografie eerst.** Die is echt en niemand kan hem namaken. De bibliotheek
    staat in Drive onder `1. WELLSHAVE ★/1. E-commerce/2. Team Wellshave/2. Photo & Video/`,
    met lifestyle, productsets en losse featurebeelden per productlijn.
-2. **Genereren als er niets past** (zie deel 9).
+2. **Genereren als er niets past** (zie deel 10).
 3. **Nooit genereren wat bewijs moet zijn.** Dit is de grens. Illustreren mag: een stilleven
    van wat iemand al probeerde, een sfeerbeeld van de gebruikssituatie. Bewijs mag niet: een
    voor-en-na van huid, een resultaat, een gezicht bij een review. Dat is verzonnen bewijs,
@@ -233,7 +295,7 @@ springt de stijl bij het wisselen.
 
 ---
 
-## 9. Beeld genereren
+## 10. Beeld genereren
 
 Via de Higgsfield-MCP. `gpt_image_2` op `quality:"high"` geeft duidelijk fotografischer
 resultaat dan de marketingmodellen, die een CGI-look opleveren. Stuur een referentiebeeld mee
@@ -254,7 +316,7 @@ verlies.
 
 ---
 
-## 10. Het aanbodblok
+## 11. Het aanbodblok
 
 Drie opties, nooit meer. Naast elkaar als kaarten, niet onder elkaar als lijst.
 
@@ -275,7 +337,7 @@ pakket niet als los product, dan kan de knop er ook niet heen.
 
 ---
 
-## 11. Technische regels
+## 12. Technische regels
 
 **Beeldverhoudingen.** Zet altijd `height:auto` in de basis, anders wint een HTML
 `height`-attribuut van `width:100%` en worden beelden tot de helft uitgerekt:
@@ -299,7 +361,7 @@ mobiele regels nog staan.
 
 ---
 
-## 12. Waar dit woont
+## 13. Waar dit woont
 
 - **Bron:** `Wellshave/design` → `.claude/skills/sanwarwala-landing-pages/`
 - **Spiegel:** `Wellshave/wellshave-marketing`, alleen om te lezen
@@ -314,7 +376,7 @@ details hier niet neer zonder je af te vragen of ze openbaar mogen staan.
 
 ---
 
-## 13. Wat deze laag nog niet weet
+## 14. Wat deze laag nog niet weet
 
 - **Geen conversiedata.** Alles hierboven is opbouw volgens principe en één vergelijking met
   een eigen ontwerp, geen gemeten resultaat. Zodra er Clarity- of GA4-cijfers zijn, hoort
