@@ -2,6 +2,10 @@
 name: sanwarwala-landing-pages
 description: Build, audit, write or spec high-converting landing pages, sales pages and e-commerce product pages. PRIMARY USE — building NEW landing pages from an existing ad creative or marketing message, so the page continues the exact promise, hook, tone and visual language of the ad that earned the click ("the post-click matters more than the pre-click"); one page per creative-angle, matched to how direct the ad is. Also audits existing pages. Primary lens is Arsh Sanwarwala (ThrillX) — 400+ pages built, 1,500+ audited, pages converting 15-20% on cold traffic — extended with Mark (Brand Builder Academy) on DTC sales pages, offers and market sophistication, and Daniel Priestley on scorecard/assessment lead-gen. Covers the psychology (Life Force 8, halo effect, cognitive load, labor illusion, loss aversion, believability), lead-gen page anatomy, e-commerce PDP anatomy, offer structure, the copy-first-design-second workflow, research methods (review mining, user testing, Clarity heat/scroll maps) and the CRO/AB-testing playbook. ALWAYS use this skill when the user wants to create, improve, critique, score, restructure or spec ANY landing page, sales page, product page, PDP, opt-in page, funnel page, buy box or hero section — even if they never mention Arsh or CRO. Trigger on phrasings like "build a landing page", "bouw een landingspagina", "maak een salespagina", "write a hero headline", "schrijf een headline voor mijn pagina", "why isn't my landing page converting", "waarom converteert mijn productpagina niet", "audit this landing page", "review mijn landingspagina", "verbeter mijn productpagina", "which sections should my page have", "welke secties heeft mijn pagina nodig", "make a brief for Lovable/Claude Design", "hoe structureer ik mijn bundels", "improve my conversion rate on this page", "bouw een landingspagina bij deze advertentie", "build a landing page for this creative", "maak een pagina die aansluit op deze ad", "landingspagina voor deze Meta-campagne", "welke pagina hoort bij deze hoek", "page that matches this ad". Works for lead-gen, service, course, SaaS and e-commerce. Bilingual (English/Dutch): always reply in the user's language.
 ---
+> **Spiegel — niet hier bewerken.** De bron staat in Wellshave/design onder
+> `.claude/skills/sanwarwala-landing-pages/`. Wijzigingen daar maken en daarna
+> `scripts/sync-skill.sh` draaien.
+
 
 # High-Converting Landing Pages
 
@@ -23,7 +27,7 @@ bottom). When something isn't covered there, say so and label your reasoning as 
 
 ## Read this first when the work is for Wellshave
 
-If the page, product or brand is Wellshave, **read `WELLSHAVE-BRANDLAAG.md` in this skill's
+If the page, product or brand is Wellshave, **read `references/wellshave-merklaag.md` in this skill's
 folder before writing any copy or CSS.** It holds the exact brand tokens (the thirteen colour
 values, the single typeface, the layout rails), the confrontational page pattern, the
 ad-to-page workflow, the Higgsfield image pipeline and the technical traps that have already

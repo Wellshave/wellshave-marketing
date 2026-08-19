@@ -1,3 +1,7 @@
+> **Spiegel — niet hier bewerken.** De bron staat in Wellshave/design onder
+> `.claude/skills/sanwarwala-landing-pages/`. Wijzigingen daar maken en daarna
+> `scripts/sync-skill.sh` draaien.
+
 # Wellshave-merklaag — confronterende landingspagina's
 
 Aanvulling op `SKILL.md`. Die bevat de algemene kennis (Arsh, Mark, Priestley). Dit bestand
@@ -295,3 +299,35 @@ Uit het aangeleverde ontwerp bleken twee onderdelen zwakker dan wat er al stond,
 bewust níet overgenomen: het reviewblok was klein en gedrongen, en de FAQ was een kale lijst
 terwijl de rest verzorgd was. **Beoordeel een referentieontwerp per onderdeel, niet als
 geheel.**
+
+---
+
+## 11. Waar deze skill woont, en hoe je hem bijwerkt
+
+**De design-repo is de bron. Punt.**
+
+- Canoniek: `Wellshave/design` → `.claude/skills/sanwarwala-landing-pages/`
+- Spiegel: `Wellshave/wellshave-marketing` → zelfde pad, alleen om te lezen
+- Globaal beschikbaar via een symlink: `~/.claude/skills/sanwarwala-landing-pages`
+  → de design-kloon
+
+**Bewerk nooit de kopie in wellshave-marketing.** Die wordt overschreven. Wijzigingen gaan
+altijd in de design-repo, en daarna spiegel je ze:
+
+```bash
+~/Documents/GitHub/design/scripts/sync-skill.sh
+```
+
+Dat script kopieert `SKILL.md` en `references/` naar de marketing-kloon en zet er een
+kopregel boven die zegt dat het een spiegel is. Daarna in beide repo's committen.
+
+**Verandert er iets aan de skill of aan deze merklaag, dan hoort de spiegel in dezelfde
+beurt mee.** Twee kopieën die uit elkaar lopen zijn erger dan één kopie op de verkeerde plek,
+want dan weet niemand meer welke klopt.
+
+### Let op de zichtbaarheid
+
+`Wellshave/design` is **openbaar**, `wellshave-marketing` is privé. Dit bestand bevat
+prijsopbouw, marges, interne aantekeningen over wat nog niet geverifieerd is, en paden naar
+de Drive. Zet nieuwe commerciële details er niet in zonder je af te vragen of ze openbaar
+mogen staan.
