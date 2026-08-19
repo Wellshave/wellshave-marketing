@@ -27,11 +27,13 @@ bottom). When something isn't covered there, say so and label your reasoning as 
 
 ## Read this first when the work is for Wellshave
 
-If the page, product or brand is Wellshave, **read `references/wellshave-merklaag.md` in this skill's
-folder before writing any copy or CSS.** It holds the exact brand tokens (the thirteen colour
-values, the single typeface, the layout rails), the confrontational page pattern, the
-ad-to-page workflow, the Higgsfield image pipeline and the technical traps that have already
-cost one rebuild.
+If the page, product or brand is Wellshave, **read `references/wellshave-merklaag.md` in this
+skill's folder before writing any copy or CSS.** It is the brand's design system, not a log of
+one project: the exact colour, type, shape and gradient tokens; the two-beat headline device
+that carries the brand; button, card and section-rhythm rules; how much motion is allowed and
+how to switch it off; when to use own photography versus generate an image, and the line
+between illustrating and fabricating proof; the three-card offer pattern; and the technical
+rules that keep it from breaking.
 
 Do not derive Wellshave styling from the live site by eye and do not invent a palette. The
 tokens in that file are copied from the real site, and using them is the difference between a
