@@ -35,6 +35,13 @@ how to switch it off; when to use own photography versus generate an image, and 
 between illustrating and fabricating proof; the three-card offer pattern; and the technical
 rules that keep it from breaking.
 
+**Two files, one order of use.** `references/wellshave-merklaag.md` opens with the workflow —
+follow it from step 1. At step 4 it sends you to `references/startbestand.html`: a complete
+skeleton carrying the full token block, every component's CSS and all ten sections with
+placeholder content in square brackets. **Start from that file, never from a blank page.**
+Replace what is bracketed, delete the sections you do not need, and leave the CSS alone unless
+you are adding something genuinely new — in which case record it in the brand layer too.
+
 Do not derive Wellshave styling from the live site by eye and do not invent a palette. The
 tokens in that file are copied from the real site, and using them is the difference between a
 page that belongs to the brand and one that reads as a generic AI template. For any other

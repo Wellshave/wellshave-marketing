@@ -16,7 +16,58 @@ geldt. Prijzen, bestandsnamen en losse incidenten horen bij het project, niet hi
 
 ---
 
-## 1. Tokens
+## 1. De werkwijze
+
+Van creative tot gepubliceerde pagina. Houd deze volgorde aan; hij is zo gebouwd dat elke stap
+het werk van de volgende vastlegt.
+
+### 1. Lees de creative uit
+
+Noteer letterlijk: de belofte, de hook, het getal dat genoemd wordt, en de visuele taal.
+Die belofte komt woordelijk boven de vouw. Niet parafraseren naar iets algemeners — dat is de
+meest gemaakte fout en hij kost het grootste deel van de klikwaarde.
+
+### 2. Haal de harde gegevens op
+
+Uit `wellshave.com/products.json?limit=250`: welke varianten en pakketten bestaan, hun prijs,
+`compare_at_price`, voorraad en variant-ID. Uit het Trustpilot-profiel: score en aantal.
+**Cijfers die je niet kunt nawijzen, gebruik je niet** (deel 10).
+
+Bestaat er geen tweede of derde pakket, forceer er dan geen.
+
+### 3. Schrijf de copy, alles, voordat je opmaakt
+
+Van kop tot FAQ. Pas als de tekst staat, bepaal je de vorm — de opmaak volgt het argument, niet
+andersom.
+
+### 4. Bouw vanaf het startbestand
+
+`references/startbestand.html` bevat het volledige tokenblok, alle component-CSS en de tien
+secties met tijdelijke inhoud tussen blokhaken. **Begin daar, niet bij nul.** Elke sectie die
+je niet nodig hebt verwijder je; wat je houdt is dan gegarandeerd consistent met de rest.
+
+Vervang alleen wat tussen blokhaken staat. Raak de CSS niet aan tenzij je iets toevoegt dat er
+echt niet in zit — en zet dat dan ook in deze merklaag.
+
+### 5. Vul het beeld
+
+Eerst de eigen fotografie, dan pas genereren (deel 11 en 12). Controleer per blok of het beeld
+er werkelijk bij hoort.
+
+### 6. Controleer voor het publiceren
+
+- Beeldverhoudingen: `naturalWidth/naturalHeight` tegen de weergegeven maat
+- 390px: alle rasters naar een kolom, geen horizontale overloop
+- Elke knop: gaat hij waarheen de tekst belooft
+- Div-balans: evenveel openende als sluitende tags
+
+### 7. Publiceer en lees terug
+
+Volg deel 14. Publiceren is niet af zonder de controle achteraf.
+
+---
+
+## 2. Tokens
 
 ```css
 :root{
@@ -47,7 +98,7 @@ geldt. Prijzen, bestandsnamen en losse incidenten horen bij het project, niet hi
   --grad-gold:linear-gradient(158deg,#F8DFAB 0%,#E5BC77 42%,#C8913F 100%);
   --grad-dark:linear-gradient(168deg,#242220 0%,#171614 58%,#0E0D0C 100%);
   --grad-sand:linear-gradient(180deg,#FBF8F3 0%,#F1EBE0 100%);
-  /* tekstverloop op lichte grond: donkerder, anders onleesbaar (zie deel 3) */
+  /* tekstverloop op lichte grond: donkerder, anders onleesbaar (zie deel 4) */
   --grad-gold-tekst:linear-gradient(100deg,#B0742A 0%,#8C5A1A 100%);
 
   /* vorm — één schaal over alles */
@@ -69,7 +120,7 @@ oogt het als een sjabloon met een gouden randje.
 
 ---
 
-## 2. Typografie
+## 3. Typografie
 
 **Uitsluitend Montserrat** (400/500/600/700/800/900). Eén familie over het hele merk. Een
 display-serif erbij verzinnen breekt de herkenning direct.
@@ -80,13 +131,13 @@ display-serif erbij verzinnen breekt de herkenning direct.
 | Subkop in artikel | 900 | `-.022em` | ink |
 | Lopende tekst | 400-500 | normaal, `line-height:1.7` | ink-80 |
 | Eyebrow / label | 800 | `.2em`, uppercase, ~10.5px | ink-40 |
-| Knoptekst | 800 | normaal | zie deel 4 |
+| Knoptekst | 800 | normaal | zie deel 5 |
 
 Koppen krijgen `text-wrap:balance`. Lopende tekst blijft binnen `--read`.
 
 ---
 
-## 3. Het tweeslags-kopapparaat
+## 4. Het tweeslags-kopapparaat
 
 De handtekening van het merk. Elke sectiekop bestaat uit twee regels: de eerste stelt vast,
 de tweede levert de opluchting in accentkleur.
@@ -135,7 +186,7 @@ De tweede regel draagt de emotie, de eerste de feitelijkheid. Zet het voordeel d
 
 ---
 
-## 4. Knoppen
+## 5. Knoppen
 
 Alle knoppen zijn **pillen** (`border-radius:100px`). Nooit rechthoekig, nooit licht
 afgerond — dat is het verschil tussen zacht en technisch.
@@ -181,7 +232,7 @@ Dit is het verschil met de gewone webshop: daar mag iemand rondkijken, hier is e
 
 ---
 
-## 5. Kaarten en blokken
+## 6. Kaarten en blokken
 
 De kaart is de bouwsteen. Vaste kenmerken: afronding `--r-m`, ruime binnenmarge van 20 tot
 26px, en op lichte gronden een zachte schaduw (`0 14px 34px rgba(17,17,17,.09)`).
@@ -201,7 +252,7 @@ tekst die kort genoeg blijft om te scannen. Iconen zijn dunne lijntekeningen
 
 ---
 
-## 6. De vaste componenten
+## 7. De vaste componenten
 
 Een pagina wordt uit deze onderdelen opgebouwd. Ze liggen vast in vorm, niet in inhoud.
 
@@ -247,7 +298,7 @@ thema, dan vervallen die allebei** — het thema levert ze al, en dubbel is erge
 
 ---
 
-## 7. Sectieritme
+## 8. Sectieritme
 
 Licht en donker wisselen elkaar af. Een bruikbare volgorde:
 
@@ -264,7 +315,7 @@ zodat hij leesbaar blijft, ongeacht de foto eronder.
 
 ---
 
-## 8. Beweging
+## 9. Beweging
 
 Ingehouden. Te veel animatie is precies wat een pagina goedkoop en machinaal maakt.
 
@@ -294,7 +345,7 @@ direct zichtbaar zetten en de waarnemer niet starten.
 
 ---
 
-## 9. Cijfers en claims
+## 10. Cijfers en claims
 
 Getallen zijn het sterkste overtuigingsmiddel dat er is, en daarom ook het gevaarlijkste om
 los uit de pols in te vullen.
@@ -323,7 +374,7 @@ iets anders dan een aantal.
 
 ---
 
-## 10. Beeld
+## 11. Beeld
 
 **Een blok krijgt nooit een foto die er niet echt bij hoort.** Een beeld dat er ongeveer op
 lijkt is erger dan geen beeld: het maakt het blok plat en ongeloofwaardig.
@@ -333,7 +384,7 @@ Volgorde:
 1. **Eigen merkfotografie eerst.** Die is echt en niemand kan hem namaken. De bibliotheek
    staat in Drive onder `1. WELLSHAVE ★/1. E-commerce/2. Team Wellshave/2. Photo & Video/`,
    met lifestyle, productsets en losse featurebeelden per productlijn.
-2. **Genereren als er niets past** (zie deel 11).
+2. **Genereren als er niets past** (zie deel 12).
 3. **Nooit genereren wat bewijs moet zijn.** Dit is de grens. Illustreren mag: een stilleven
    van wat iemand al probeerde, een sfeerbeeld van de gebruikssituatie. Bewijs mag niet: een
    voor-en-na van huid, een resultaat, een gezicht bij een review. Dat is verzonnen bewijs,
@@ -346,7 +397,7 @@ springt de stijl bij het wisselen.
 
 ---
 
-## 11. Beeld genereren
+## 12. Beeld genereren
 
 Via de Higgsfield-MCP. `gpt_image_2` op `quality:"high"` geeft duidelijk fotografischer
 resultaat dan de marketingmodellen, die een CGI-look opleveren. Stuur een referentiebeeld mee
@@ -367,7 +418,7 @@ verlies.
 
 ---
 
-## 12. Het aanbodblok
+## 13. Het aanbodblok
 
 Hier valt de aankoop, en hier zit de ruimte om de orderwaarde te verhogen. Drie opties naast
 elkaar als kaarten, nooit onder elkaar als lijst en nooit meer dan drie.
@@ -457,7 +508,7 @@ X erbij" verwarrend en kun je het beter als upgrade framen.
 
 ---
 
-## 13. Publiceren binnen een Shopify-thema
+## 14. Publiceren binnen een Shopify-thema
 
 Een landingspagina hoort op het eigen domein: dat houdt attributie en analytics schoon. In de
 praktijk draait hij dan binnen het themasjabloon, met de themaheader en -footer eromheen. Dat
@@ -515,7 +566,7 @@ prima; weeg het opnieuw zodra de pagina volume draait.
 
 ---
 
-## 14. Technische regels
+## 15. Technische regels
 
 **Beeldverhoudingen.** Zet altijd `height:auto` in de basis, anders wint een HTML
 `height`-attribuut van `width:100%` en worden beelden tot de helft uitgerekt:
@@ -539,7 +590,7 @@ mobiele regels nog staan.
 
 ---
 
-## 15. Waar dit woont
+## 16. Waar dit woont
 
 - **Bron:** `Wellshave/design` → `.claude/skills/sanwarwala-landing-pages/`
 - **Spiegel:** `Wellshave/wellshave-marketing`, alleen om te lezen
@@ -554,7 +605,7 @@ details hier niet neer zonder je af te vragen of ze openbaar mogen staan.
 
 ---
 
-## 16. Wat deze laag nog niet weet
+## 17. Wat deze laag nog niet weet
 
 - **Geen conversiedata.** Alles hierboven is opbouw volgens principe en één vergelijking met
   een eigen ontwerp, geen gemeten resultaat. Zodra er Clarity- of GA4-cijfers zijn, hoort

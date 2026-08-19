@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[KOP] | Wellshave</title>
+<meta name="description" content="[Een zin die de belofte uit de advertentie herhaalt.]">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#111111;
+  --ink-80:rgba(17,17,17,.8);
+  --ink-60:rgba(17,17,17,.6);
+  --ink-40:rgba(17,17,17,.4);
+  --ink-10:rgba(17,17,17,.10);
+  --paper:#FFFFFF;
+  --sand:#F5F1EA;
+  --sand-deep:#EDE6DA;
+  --carbon:#191816;
+  --bronze:#BC813E;
+  --gold:#F5D18A;
+  --alert:#E61C1C;
+
+  /* betekenis-tinten, gedempt zodat ze in de warme merkwereld blijven */
+  --tint-rose:#F4E3DE;
+  --tint-amber:#F7EBD3;
+  --tint-sage:#E5EBE1;
+
+  /* gradienten */
+  --grad-gold:linear-gradient(158deg,#F8DFAB 0%,#E5BC77 42%,#C8913F 100%);
+  --grad-dark:linear-gradient(168deg,#242220 0%,#171614 58%,#0E0D0C 100%);
+  --grad-sand:linear-gradient(180deg,#FBF8F3 0%,#F1EBE0 100%);
+  /* tekstgradient op lichte grond: blijft binnen leesbaar bereik */
+  --grad-gold-tekst:linear-gradient(100deg,#B0742A 0%,#8C5A1A 100%);
+
+  /* vorm */
+  --r-s:12px;
+  --r-m:18px;
+  --r-l:26px;
+
+  --rail:1140px;
+  --read:660px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:'Montserrat',system-ui,-apple-system,sans-serif;
+  font-size:16px;line-height:1.65;font-weight:400;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--bronze);outline-offset:3px}
+
+.wrap{max-width:var(--rail);margin:0 auto;padding:0 24px}
+.read{max-width:var(--read);margin:0 auto;padding:0 24px}
+
+/* ---------- handtekening: de tweeslags kop ---------- */
+.duo{
+  font-weight:900;text-transform:none;letter-spacing:-.025em;line-height:1.02;
+  font-size:clamp(31px,4.6vw,54px);text-wrap:balance;
+}
+.duo .b{display:block;color:#B0742A}
+.duo.on-dark{color:#fff}
+.duo.on-dark .b{color:var(--gold)}
+/* gradient met terugval: zonder background-clip blijft de effen kleur staan */
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .duo .b{background-image:var(--grad-gold-tekst);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent}
+  .duo.on-dark .b{background-image:var(--grad-gold)}
+}
+.kicker{
+  display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-40);margin-bottom:14px;
+}
+.kicker.on-dark{color:rgba(255,255,255,.45)}
+.lead{margin-top:16px;font-size:16.5px;line-height:1.7;color:var(--ink-80);max-width:52ch}
+.lead.on-dark{color:rgba(255,255,255,.7)}
+
+/* ---------- meldbalk + nav ---------- */
+.melding{background:var(--carbon);color:var(--gold);text-align:center;
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px}
+.nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.93);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--ink-10)}
+.nav-in{max-width:var(--rail);margin:0 auto;padding:13px 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px}
+.logo{font-weight:800;letter-spacing:.24em;font-size:13.5px;text-transform:uppercase}
+.nav-cta{background:var(--ink);color:#fff;text-decoration:none;border-radius:100px;
+  padding:11px 22px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  white-space:nowrap;transition:background .18s ease,transform .18s ease}
+.nav-cta:hover{background:var(--bronze);transform:translateY(-1px)}
+
+/* ---------- hero ---------- */
+.hero{background:var(--grad-sand);padding:52px 0 0}
+.hero-in{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:1.02fr .98fr;gap:44px;align-items:center}
+.hero-copy{padding-bottom:56px}
+.hero-lede{margin-top:20px;font-size:16.5px;line-height:1.7;color:var(--ink-80);max-width:44ch}
+.hero-acts{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-top:26px}
+.knop{display:inline-flex;align-items:center;gap:9px;background:var(--ink);color:#fff;
+  text-decoration:none;border-radius:100px;padding:16px 30px;font-size:14.5px;font-weight:800;
+  transition:background .18s ease,transform .18s ease}
+.knop:hover{background:var(--bronze);transform:translateY(-1px)}
+.knop.goud{background:var(--grad-gold);color:#1A1408}
+.knop.goud:hover{filter:brightness(1.04)}
+.knop-tekst{font-size:13.5px;font-weight:700;color:var(--ink-60);text-decoration:none;
+  border-bottom:1px solid var(--ink-10)}
+.hero-assure{list-style:none;display:flex;flex-wrap:wrap;gap:7px 18px;margin-top:18px}
+.hero-assure li{font-size:12.5px;font-weight:600;color:var(--ink-60);position:relative;padding-left:16px}
+.hero-assure li::before{content:"";position:absolute;left:0;top:7px;width:8px;height:8px;
+  border-radius:50%;background:var(--bronze)}
+.hero-badge{display:inline-flex;align-items:center;gap:9px;margin-top:22px;background:var(--paper);
+  border:1px solid var(--ink-10);border-radius:100px;padding:9px 17px;font-size:12.5px;font-weight:600}
+.hero-badge b{color:var(--bronze);font-weight:800}
+.hero-art{align-self:end;padding-bottom:34px}
+.hero-art .plaat{background:var(--grad-dark);border-radius:var(--r-l);padding:16px;
+  box-shadow:0 26px 60px rgba(17,17,17,.24)}
+.hero-art img{width:100%;border-radius:var(--r-m)}
+
+/* ---------- geruststrook ---------- */
+.strook{background:var(--paper);border-top:1px solid var(--ink-10);border-bottom:1px solid var(--ink-10)}
+.strook-in{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:repeat(4,1fr)}
+.strook-item{display:flex;align-items:center;gap:12px;padding:20px 18px}
+.strook-item + .strook-item{border-left:1px solid var(--ink-10)}
+.strook-ico{width:34px;height:34px;border-radius:50%;background:var(--sand);flex-shrink:0;
+  display:grid;place-items:center;color:var(--bronze)}
+.strook-ico svg{width:17px;height:17px}
+.strook-tx b{display:block;font-size:13px;font-weight:800;line-height:1.3}
+.strook-tx span{display:block;font-size:11.5px;color:var(--ink-60);margin-top:2px}
+
+/* ---------- artikel ---------- */
+.article{padding:66px 0 0;background:var(--paper)}
+.article h2{font-weight:900;letter-spacing:-.022em;line-height:1.06;
+  font-size:clamp(25px,3.6vw,38px);margin:52px 0 18px;text-wrap:balance}
+.article p{font-size:16.5px;line-height:1.78;color:var(--ink-80);margin-bottom:20px}
+.article p b,.article p strong{color:var(--ink);font-weight:700}
+.lede-para{font-size:18.5px;line-height:1.7;color:var(--ink);font-weight:500}
+.byline{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:0 0 24px;
+  margin-bottom:32px;border-bottom:1px solid var(--ink-10);font-size:12px;color:var(--ink-40);font-weight:600}
+.tag{border:1px solid var(--ink-10);border-radius:100px;padding:5px 13px;
+  letter-spacing:.08em;text-transform:uppercase;font-size:10.5px}
+.callout{border-left:3px solid var(--bronze);background:var(--sand);
+  border-radius:0 var(--r-s) var(--r-s) 0;padding:22px 24px;margin:30px 0}
+.callout .kicker{color:var(--bronze);margin-bottom:8px}
+.callout p{margin:0;font-size:16px;color:var(--ink)}
+.quote{font-size:clamp(20px,2.9vw,27px);font-weight:800;line-height:1.2;letter-spacing:-.02em;
+  color:var(--ink);padding:30px 0;margin:38px 0;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.uitprobeersel{margin:30px 0 34px}
+.uitprobeersel img{width:100%;border-radius:var(--r-m)}
+.uitprobeersel figcaption{margin-top:11px;font-size:13px;line-height:1.55;color:var(--ink-60)}
+
+/* ---------- drie tintkaarten ---------- */
+.tintkop{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:end;margin-bottom:26px}
+.kaarten3{max-width:var(--rail);margin:0 auto 8px;padding:0 24px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tk{border-radius:var(--r-m);padding:24px 22px 20px;display:flex;flex-direction:column;gap:12px}
+.tk.rose{background:var(--tint-rose)}
+.tk.amber{background:var(--tint-amber)}
+.tk.sage{background:var(--tint-sage)}
+.tk-ico{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.72);
+  display:grid;place-items:center;color:var(--ink)}
+.tk-ico svg{width:18px;height:18px}
+.tk h3{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.tk p{font-size:14px;line-height:1.6;color:var(--ink-80)}
+.tk-voet{margin-top:auto;padding-top:14px;border-top:1px solid rgba(17,17,17,.1);
+  font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-40)}
+
+/* ---------- donker mechaniekblok ---------- */
+.mech{background:var(--grad-dark);color:#fff;padding:76px 0;margin:70px 0}
+.mech-in{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:.92fr 1.08fr;gap:48px;align-items:center}
+.checks{list-style:none;margin-top:26px;display:flex;flex-direction:column;gap:12px}
+.checks li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;line-height:1.55;
+  color:rgba(255,255,255,.82)}
+.checks .v{width:22px;height:22px;border-radius:50%;background:var(--grad-gold);flex-shrink:0;
+  display:grid;place-items:center;color:#1A1408;font-size:12px;font-weight:900;margin-top:1px}
+.mech-kaart{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);
+  border-radius:var(--r-l);padding:26px}
+.mech-kaart svg{width:100%;height:auto;display:block}
+.mech-note{margin-top:16px;font-size:12.5px;color:rgba(255,255,255,.5);text-align:center}
+
+/* ---------- vier kenmerkkaarten ---------- */
+.kenmerken{background:var(--sand);padding:74px 0}
+.kenmerk-kop{max-width:760px;margin:0 auto 34px;padding:0 24px;text-align:center}
+.kaarten4{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kk{border-radius:var(--r-m);padding:24px 20px;display:flex;flex-direction:column;gap:12px;
+  min-height:196px}
+.kk-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center}
+.kk-ico svg{width:17px;height:17px}
+.kk h3{font-size:16px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.kk p{font-size:13.5px;line-height:1.55;margin-top:auto}
+.kk.wit{background:var(--paper);color:var(--ink)}
+.kk.wit .kk-ico{background:var(--sand);color:var(--bronze)}
+.kk.wit p{color:var(--ink-60)}
+.kk.zwart{background:var(--carbon);color:#fff}
+.kk.zwart .kk-ico{background:rgba(255,255,255,.1);color:var(--gold)}
+.kk.zwart p{color:rgba(255,255,255,.62)}
+.kk.goud{background:var(--grad-gold);color:#1A1408}
+.kk.goud .kk-ico{background:rgba(255,255,255,.5);color:#6B4A16}
+.kk.goud p{color:rgba(26,20,8,.72)}
+.kk.creme{background:var(--sand-deep);color:var(--ink)}
+.kk.creme .kk-ico{background:rgba(255,255,255,.7);color:var(--bronze)}
+.kk.creme p{color:var(--ink-60)}
+
+/* ---------- beeldband ---------- */
+.band{max-width:var(--rail);margin:70px auto;padding:0 24px}
+.band-in{position:relative;border-radius:var(--r-l);overflow:hidden}
+.band-in img{width:100%;height:clamp(300px,48vh,520px);object-fit:cover;object-position:60% 42%}
+.band-copy{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+  gap:6px;padding:32px 30px;color:#fff;
+  background:linear-gradient(90deg,rgba(15,14,13,.74) 0%,rgba(15,14,13,.34) 44%,rgba(15,14,13,0) 74%)}
+.band-line{max-width:19ch;font-size:clamp(22px,3.2vw,34px);font-weight:800;line-height:1.12;
+  letter-spacing:-.022em;text-wrap:balance}
+
+/* ---------- galerij ---------- */
+.gallery{padding:0 0 4px}
+.gallery-kop{max-width:var(--rail);margin:0 auto 26px;padding:0 24px}
+.grid3{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.shot{display:flex;flex-direction:column;border-radius:var(--r-m);overflow:hidden;
+  background:var(--paper);box-shadow:0 14px 34px rgba(17,17,17,.09)}
+.shot img{width:100%;aspect-ratio:4/5;object-fit:cover}
+.shot figcaption{padding:16px 18px 20px;font-size:13.5px;line-height:1.55;color:var(--ink-60)}
+.shot figcaption b{display:block;font-size:14px;color:var(--ink);margin-bottom:4px}
+
+/* ---------- specmap ---------- */
+.specmap{max-width:var(--rail);margin:70px auto;padding:0 24px;
+  display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+.specmap img{width:100%;border-radius:var(--r-m);border:1px solid var(--ink-10)}
+.speclist{display:grid;grid-template-columns:132px 1fr;margin-top:22px;
+  border-top:1px solid var(--ink-10)}
+.speclist dt{font-weight:800;font-size:13.5px;padding:14px 14px 14px 0;
+  border-bottom:1px solid var(--ink-10)}
+.speclist dd{font-size:14px;color:var(--ink-80);line-height:1.6;padding:14px 0;
+  border-bottom:1px solid var(--ink-10)}
+@media(max-width:520px){
+  .speclist{grid-template-columns:1fr}
+  .speclist dt{padding-bottom:2px;border-bottom:0}
+  .speclist dd{padding-top:0}
+}
+
+/* ---------- aanbod: drie pakketkaarten ---------- */
+.offer{background:var(--grad-dark);color:#fff;padding:78px 0}
+.offer-kop{max-width:760px;margin:0 auto 40px;padding:0 24px;text-align:center}
+.plannen{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:stretch}
+
+.plan{position:relative;display:flex;flex-direction:column;border-radius:var(--r-l);
+  background:#141312;border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.plan.top{background:var(--grad-gold);border-color:transparent;color:#141008;
+  box-shadow:0 0 0 1px rgba(245,209,138,.5),0 24px 60px rgba(200,145,63,.3)}
+.plan.waarde{border-color:rgba(245,209,138,.45);
+  box-shadow:0 18px 46px rgba(0,0,0,.4)}
+
+.plan-lint{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:3;
+  background:#141312;color:var(--gold);font-size:10.5px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;padding:7px 16px;border-radius:100px;white-space:nowrap}
+.plan-lint.lijn{background:transparent;border:1px solid rgba(245,209,138,.55)}
+
+.plan-strik{position:absolute;top:0;right:0;width:96px;height:96px;z-index:2;pointer-events:none;
+  background:
+    radial-gradient(circle at 78% 22%, rgba(245,209,138,.55) 0 12%, transparent 13%),
+    linear-gradient(225deg, rgba(245,209,138,.9) 0 34%, transparent 35%)}
+
+/* de plaat volgt de ingebakken achtergrond van de foto, niet andersom */
+.plan-beeld{background:#FFFFFF;padding:22px 20px 14px;display:grid;place-items:center}
+.plan.top .plan-beeld{background:#FFFFFF}
+.plan-beeld.gloed{background:radial-gradient(ellipse at 50% 55%, rgba(245,209,138,.18) 0%, #050505 64%)}
+.plan-beeld img{width:100%;max-width:290px;aspect-ratio:1/1;object-fit:contain}
+
+.plan-body{display:flex;flex-direction:column;gap:12px;padding:20px 22px 24px;flex:1;text-align:center}
+.plan-naam{font-size:16px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.plan-prijs{display:flex;align-items:baseline;justify-content:center;gap:10px}
+.plan-nu{font-size:34px;font-weight:900;letter-spacing:-.03em;line-height:1}
+.plan-was{font-size:13.5px;text-decoration:line-through;color:rgba(255,255,255,.4)}
+.plan.top .plan-was{color:rgba(20,16,8,.5)}
+.plan-eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold);padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+.plan.top .plan-eyebrow{color:#5E4210;border-top-color:rgba(20,16,8,.22)}
+.plan.waarde .plan-eyebrow{border-top:0;padding-top:0}
+
+.plan-lijst{list-style:none;display:flex;flex-direction:column;gap:10px;text-align:left;margin-top:2px}
+.plan-lijst li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;
+  color:rgba(255,255,255,.85)}
+.plan.top .plan-lijst li{color:rgba(20,16,8,.88)}
+.plan-lijst .v{flex-shrink:0;width:19px;height:19px;color:var(--gold);margin-top:1px}
+.plan.top .plan-lijst .v{color:#141008}
+.plan-lijst .v svg{width:19px;height:19px;display:block}
+
+
+
+.cadeau{display:flex;align-items:center;gap:14px;text-align:left;
+  border:1px solid rgba(245,209,138,.5);border-radius:var(--r-m);padding:12px 14px;
+  background:rgba(245,209,138,.06)}
+.cadeau-badge{width:44px;height:auto;border-radius:5px;flex-shrink:0}
+.cadeau-tx{display:flex;flex-direction:column;gap:3px}
+.cadeau-tx b{font-size:13.5px;font-weight:800;color:var(--gold);line-height:1.25}
+.cadeau-tx span{font-size:12px;line-height:1.45;color:rgba(255,255,255,.7)}
+.plan-knop{margin-top:auto;display:block;text-align:center;text-decoration:none;
+  border-radius:100px;padding:15px 20px;font-size:13.5px;font-weight:800;
+  letter-spacing:.05em;text-transform:uppercase;
+  transition:background .18s ease,transform .18s ease,filter .18s ease}
+.plan-knop:hover{transform:translateY(-1px)}
+.plan-knop.lijn{border:1px solid rgba(245,209,138,.55);color:var(--gold);background:transparent}
+.plan-knop.lijn:hover{background:rgba(245,209,138,.12)}
+.plan-knop.vol-donker{background:#141312;color:#fff}
+.plan-knop.vol-donker:hover{background:#000}
+.plan-knop.vol-goud{background:var(--grad-gold);color:#141008}
+.plan-knop.vol-goud:hover{filter:brightness(1.05)}
+
+.assure{max-width:var(--rail);margin:36px auto 0;padding:0 24px;display:flex;flex-wrap:wrap;
+  justify-content:center;gap:10px 26px;font-size:11px;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;color:rgba(255,255,255,.5)}
+
+@media(max-width:980px){
+  .plannen{grid-template-columns:1fr;max-width:440px}
+}
+
+/* ---------- proof (ongewijzigd van opzet) ---------- */
+.proof{padding:74px 0;text-align:center;background:var(--paper)}
+.proof > .wrap > h2{margin-bottom:10px}
+.proof .sub{color:var(--ink-60);margin-bottom:32px;font-size:15px}
+.tp-summary{display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap;margin:0 0 28px}
+.tp-score{display:flex;align-items:center;gap:12px}
+.tp-num{font-size:30px;font-weight:900;letter-spacing:-.02em}
+.tp-stars{display:flex;gap:3px}
+.tp-star{width:26px;height:26px;background:#00B67A;position:relative;display:inline-block}
+.tp-star::after{content:"";position:absolute;inset:0;background:#fff;
+  clip-path:polygon(50% 12%,61% 39%,90% 39%,67% 57%,76% 85%,50% 68%,24% 85%,33% 57%,10% 39%,39% 39%);}
+.tp-star.is-half{background:linear-gradient(90deg,#00B67A 50%,#DCDCE6 50%)}
+.tp-star.is-off{background:#DCDCE6}
+.tp-count{font-size:13px;color:var(--ink-60);font-weight:600}
+.tp-brand{height:26px;width:auto;flex-shrink:0}
+.reviews{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;text-align:left;
+  padding:6px 24px 18px;margin:0 auto;max-width:var(--rail);
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.rev{flex:0 0 clamp(268px,31%,340px);scroll-snap-align:start;background:var(--paper);
+  border:1px solid var(--ink-10);border-radius:var(--r-m);padding:20px}
+.rev-top{display:flex;align-items:center;gap:11px;margin-bottom:13px}
+.rev-av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:700;color:#191919;flex-shrink:0}
+.rev-id{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.rev-id b{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rev-id span{font-size:12px;color:var(--ink-40)}
+.rev-date{margin-left:auto;font-size:11.5px;color:var(--ink-40);white-space:nowrap;flex-shrink:0}
+.rev-stars{display:flex;align-items:center;gap:3px;margin-bottom:12px}
+.rev-stars .tp-star{width:20px;height:20px}
+.rev-verified{margin-left:7px;font-size:11px;font-weight:600;color:#00875A;
+  border:1px solid #00875A;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.rev-title{font-size:15px;font-weight:700;margin-bottom:7px;line-height:1.35}
+.rev-body{font-size:14px;line-height:1.6;color:var(--ink-80)}
+.tp-link{display:inline-block;margin-top:18px;font-size:13.5px;font-weight:700;color:#00B67A;
+  text-decoration:underline;text-underline-offset:3px}
+
+
+.bron-scheiding{width:1px;height:38px;background:var(--ink-10);flex-shrink:0}
+.bron{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.bron-num{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1}
+.bron-tx{font-size:12.5px;color:var(--ink-60);font-weight:600}
+.bron-tx b{color:var(--ink);font-weight:800}
+@media(max-width:640px){.bron-scheiding{display:none}}
+
+/* ---------- faq ---------- */
+.faq{max-width:820px;margin:0 auto;padding:60px 24px 74px}
+.faq h2{margin-bottom:26px}
+.faq details{border-bottom:1px solid var(--ink-10)}
+.faq summary{cursor:pointer;list-style:none;padding:20px 34px 20px 0;position:relative;
+  font-size:16px;font-weight:700;line-height:1.4}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";position:absolute;right:6px;top:18px;font-size:22px;
+  font-weight:400;color:var(--bronze);transition:transform .2s ease}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{padding:0 0 22px;font-size:15px;line-height:1.7;color:var(--ink-80)}
+
+/* ---------- afsluiter ---------- */
+.closer{background:var(--grad-dark);color:#fff;padding:80px 0}
+.closer-in{max-width:var(--rail);margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+.closer .assure{justify-content:flex-start;margin-left:0;margin-right:0;padding:0}
+
+/* ---------- voet ---------- */
+.legal{max-width:var(--read);margin:0 auto;padding:30px 24px 0;font-size:11.5px;line-height:1.65;
+  color:var(--ink-40)}
+footer{max-width:var(--rail);margin:0 auto;padding:34px 24px 46px;text-align:center;
+  font-size:11.5px;color:var(--ink-40)}
+footer .logo{display:block;margin-bottom:8px;color:var(--ink)}
+
+/* ---------- onthulling ---------- */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- responsief ---------- */
+@media(max-width:980px){
+  .hero-in{grid-template-columns:1fr;gap:6px;padding-top:26px}
+  .hero-copy{padding-bottom:6px}
+  .hero-art{padding-bottom:30px}
+  .mech-in,.specmap,.closer-in,.tintkop{grid-template-columns:1fr;gap:30px}
+  .kaarten4{grid-template-columns:repeat(2,1fr)}
+  .strook-in{grid-template-columns:repeat(2,1fr)}
+  .strook-item:nth-child(3){border-left:0}
+  .strook-item:nth-child(n+3){border-top:1px solid var(--ink-10)}
+  .plannen{grid-template-columns:1fr;max-width:460px}
+  .plan-lint{left:20px;transform:none}
+}
+@media(max-width:760px){
+  .kaarten3,.grid3{grid-template-columns:1fr}
+  .rev{flex:0 0 82%}
+  .article h2{margin:40px 0 16px}
+  .mech,.band,.specmap{margin:48px 0}
+  .band{margin-left:auto;margin-right:auto}
+}
+@media(max-width:520px){
+  .strook-in{grid-template-columns:1fr}
+  .strook-item{border-left:0!important}
+  .strook-item + .strook-item{border-top:1px solid var(--ink-10)}
+  .kaarten4{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none;transition:none}
+  .knop,.nav-cta,.plan-knop{transition:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Meldbalk en navigatie: ALLEEN op een standalone pagina.
+     Draait de pagina binnen een Shopify-thema, verwijder ze dan allebei. -->
+<div class="melding">[Korte belofte, bv. verzendtijd]</div>
+
+<nav class="nav">
+  <div class="nav-in">
+    <span class="logo">Wellshave</span>
+    <a class="nav-cta" href="#kopen">[Knoptekst]</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============
+     De belofte uit de advertentie staat hier, in de woorden van de advertentie.
+     Tweeslags kop: eerste regel stelt vast, tweede regel levert de opluchting. -->
+<header class="hero">
+  <div class="hero-in">
+    <div class="hero-copy">
+      <span class="kicker">[Categorie &middot; Segment]</span>
+      <h1 class="duo">[Eerste regel]<span class="b">[Tweede regel.]</span></h1>
+      <p class="hero-lede">[Een of twee zinnen die de spanning vasthouden. Max 44 tekens breed.]</p>
+      <div class="hero-acts">
+        <a class="knop goud" href="#kopen">[Primaire actie]</a>
+        <a class="knop-tekst" href="#mechanisme">[Zachte tweede optie]</a>
+      </div>
+      <ul class="hero-assure">
+        <li>[Proefperiode]</li>
+        <li>[Garantie]</li>
+        <li>[Verzending]</li>
+      </ul>
+      <span class="hero-badge"><b>[score]</b> uit [aantal] reviews op Trustpilot</span>
+    </div>
+    <div class="hero-art">
+      <div class="plaat">
+        <img src="[BEELD-URL]" alt="[Wat er te zien is, feitelijk beschreven.]"
+             width="1400" height="1400" fetchpriority="high">
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ GERUSTSTROOK ============ vier items, iconen zijn dunne lijntekeningen -->
+<div class="strook">
+  <div class="strook-in">
+    <div class="strook-item">
+      <span class="strook-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 12h16M8 8l-4 4 4 4"/></svg></span>
+      <span class="strook-tx"><b>[Kernfeit]</b><span>[Toelichting]</span></span>
+    </div>
+    <!-- nog drie identieke blokken -->
+  </div>
+</div>
+
+<!-- ============ ARTIKEL ============ lopende tekst binnen --read -->
+<article class="article">
+  <div class="read">
+    <div class="byline">
+      <span>Leestijd [x] minuten</span>
+      <span>[Rubriek]</span>
+      <span class="tag">Gesponsord door Wellshave</span>
+    </div>
+    <p class="lede-para">[Openingszin die het probleem benoemt zonder het product te noemen.]</p>
+    <p>[Vervolg.]</p>
+    <h2>[Subkop]</h2>
+    <p>[Uitleg.]</p>
+    <div class="callout">
+      <span class="kicker">[Label]</span>
+      <p>[De kern van het mechanisme, feitelijk.]</p>
+    </div>
+    <p class="quote">[Een zin die blijft hangen.]</p>
+  </div>
+</article>
+
+<!-- ============ MECHANISME ============ donker blok met vinkjes en een tekening -->
+<section class="mech reveal" id="mechanisme">
+  <div class="mech-in">
+    <div>
+      <span class="kicker on-dark">[Label]</span>
+      <h2 class="duo on-dark">[Eerste regel,]<span class="b">[tweede regel.]</span></h2>
+      <p class="lead on-dark">[Toelichting.]</p>
+      <ul class="checks">
+        <li><span class="v">&#10003;</span><span>[Punt]</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="mech-kaart">[SVG-tekening of beeld]</div>
+      <p class="mech-note">[Bijschrift.]</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DRIE TINTKAARTEN ============ probleem, probleem, oplossing -->
+<section class="reveal">
+  <div class="tintkop">
+    <div>
+      <span class="kicker">[Label]</span>
+      <h2 class="duo">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+    </div>
+    <p class="lead">[Toelichting.]</p>
+  </div>
+  <div class="kaarten3">
+    <div class="tk rose"><span class="tk-ico">[icoon]</span><h3>[Probleem]</h3><p>[Uitleg.]</p><span class="tk-voet">[Bron &middot; oorzaak]</span></div>
+    <div class="tk amber"><span class="tk-ico">[icoon]</span><h3>[Probleem]</h3><p>[Uitleg.]</p><span class="tk-voet">[Bron &middot; oorzaak]</span></div>
+    <div class="tk sage"><span class="tk-ico">[icoon]</span><h3>[Oplossing]</h3><p>[Uitleg.]</p><span class="tk-voet">[Product &middot; techniek]</span></div>
+  </div>
+</section>
+
+<!-- ============ BEELDBAND ============ hooguit een per pagina -->
+<section class="band reveal">
+  <div class="band-in">
+    <img src="[BEELD-URL]" alt="[Beschrijving.]" width="1800" height="1200" loading="lazy">
+    <div class="band-copy">
+      <span class="kicker on-dark">[Label]</span>
+      <p class="band-line">[Een zin, max 19 tekens breed.]</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIER KENMERKKAARTEN ============ wit, zwart, goud, creme -->
+<section class="kenmerken reveal">
+  <div class="kenmerk-kop">
+    <span class="kicker">[Label]</span>
+    <h2 class="duo">[Eerste regel.]<span class="b">[Tweede regel.]</span></h2>
+  </div>
+  <div class="kaarten4">
+    <div class="kk wit"><span class="kk-ico">[icoon]</span><h3>[Kenmerk]</h3><p>[Voordeel.]</p></div>
+    <div class="kk zwart"><span class="kk-ico">[icoon]</span><h3>[Kenmerk]</h3><p>[Voordeel.]</p></div>
+    <div class="kk goud"><span class="kk-ico">[icoon]</span><h3>[Kenmerk]</h3><p>[Voordeel.]</p></div>
+    <div class="kk creme"><span class="kk-ico">[icoon]</span><h3>[Kenmerk]</h3><p>[Voordeel.]</p></div>
+  </div>
+</section>
+
+<!-- ============ GALERIJ ============ drie echte foto's met bijschrift -->
+<section class="gallery reveal">
+  <div class="gallery-kop">
+    <span class="kicker">[Label]</span>
+    <h2 class="duo">[Eerste regel.]<span class="b">[Tweede regel.]</span></h2>
+    <p class="lead">[Toelichting.]</p>
+  </div>
+  <div class="grid3">
+    <figure class="shot">
+      <img src="[BEELD-URL]" alt="[Beschrijving.]" width="1000" height="750" loading="lazy">
+      <figcaption><b>[Kop]</b>[Een zin.]</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ SPECIFICATIES ============ let op: dt/dd in een dl, nooit li -->
+<section class="specmap reveal">
+  <img src="[BEELD-URL]" alt="[Beschrijving.]" loading="lazy" width="1000" height="1000">
+  <div>
+    <span class="kicker">[Label]</span>
+    <h2 class="duo">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+    <dl class="speclist">
+      <dt>[Kenmerk]</dt><dd>[Waarde]</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ============ AANBOD ============ drie kaarten, middelste uitgelicht.
+     Prijzen uit products.json, inclusief compare_at_price.
+     Knoppen naar /cart/{variant}:1 zodat de productpagina wordt overgeslagen. -->
+<section class="offer" id="kopen">
+  <div class="offer-kop">
+    <span class="kicker on-dark">[Label]</span>
+    <h2 class="duo on-dark">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+    <p class="lead on-dark" style="margin-left:auto;margin-right:auto">[Wat elk pakket gemeen heeft.]</p>
+  </div>
+  <div class="plannen">
+
+    <div class="plan">
+      <div class="plan-beeld"><img src="[BEELD-URL]" alt="[Beschrijving.]" width="900" height="900" loading="lazy"></div>
+      <div class="plan-body">
+        <h3 class="plan-naam">[Naam]</h3>
+        <p class="plan-prijs"><span class="plan-nu">&euro;[nu]</span><span class="plan-was">&euro;[was]</span></p>
+        <span class="plan-eyebrow">[Typering]</span>
+        <ul class="plan-lijst"><li><span class="v">[vinkicoon]</span>[Inhoud]</li></ul>
+        <a class="plan-knop lijn" href="https://wellshave.com/cart/[VARIANT]:1">[Actie]</a>
+      </div>
+    </div>
+
+    <div class="plan top">
+      <span class="plan-lint">Meest gekozen</span>
+      <div class="plan-beeld"><img src="[BEELD-URL]" alt="[Beschrijving.]" width="900" height="900" loading="lazy"></div>
+      <div class="plan-body">
+        <h3 class="plan-naam">[Naam]</h3>
+        <p class="plan-prijs"><span class="plan-nu">&euro;[nu]</span><span class="plan-was">&euro;[was]</span></p>
+        <span class="plan-eyebrow">[Typering]</span>
+        <ul class="plan-lijst"><li><span class="v">[vinkicoon]</span>Alles uit [vorige]</li></ul>
+        <a class="plan-knop vol-donker" href="https://wellshave.com/cart/[VARIANT]:1">[Actie]</a>
+      </div>
+    </div>
+
+    <div class="plan waarde">
+      <span class="plan-lint lijn">Beste waarde</span>
+      <span class="plan-strik" aria-hidden="true"></span>
+      <div class="plan-beeld gloed"><img src="[BEELD-URL]" alt="[Beschrijving.]" width="700" height="700" loading="lazy"></div>
+      <div class="plan-body">
+        <h3 class="plan-naam">[Naam]</h3>
+        <p class="plan-prijs"><span class="plan-nu">&euro;[nu]</span><span class="plan-was">&euro;[was]</span></p>
+        <!-- Cadeaublok: alleen als de winkelwagen het cadeau ook echt levert.
+             Verborgen nulprijs-variant meelinken: /cart/{pakket}:1,{cadeau}:1 -->
+        <div class="cadeau">
+          <img class="cadeau-badge" src="[BADGE-URL]" alt="[Onderscheiding.]" width="224" height="420" loading="lazy">
+          <div class="cadeau-tx"><b>[Kop]</b><span>[Wat het is en wat het normaal kost.]</span></div>
+        </div>
+        <ul class="plan-lijst"><li><span class="v">[vinkicoon]</span>Alles uit [vorige]</li></ul>
+        <a class="plan-knop vol-goud" href="https://wellshave.com/cart/[VARIANT]:1,[CADEAU-VARIANT]:1">[Actie]</a>
+      </div>
+    </div>
+
+  </div>
+  <div class="assure">
+    <span>[Proef]</span><span>[Garantie]</span><span>[Verzending]</span><span>[Levertijd]</span>
+  </div>
+</section>
+
+<!-- ============ BEWIJS ============ echte reviews, bron erbij, scope benoemen -->
+<section class="reveal proof" id="reviews">
+  <div class="wrap">
+    <h2 class="duo">[Cijfer dat je kunt nawijzen]<span class="b">[toelichting.]</span></h2>
+    <p class="sub">[Waar het cijfer over gaat. Bedrijfsbreed is geen productcijfer.]</p>
+    <div class="tp-summary">
+      <div class="tp-score">
+        <span class="tp-num">[score]</span>
+        <div class="tp-stars" aria-label="[score] van de 5 sterren"><i class="tp-star"></i></div>
+        <span class="tp-count">[aantal] reviews</span>
+        [OFFICIEEL TRUSTPILOT-LOGO, inline SVG]
+      </div>
+      <span class="bron-scheiding" aria-hidden="true"></span>
+      <div class="bron"><span class="bron-num">[aantal]</span><span class="bron-tx">beoordelingen op <b>[platform]</b></span></div>
+    </div>
+  </div>
+  <div class="reviews" role="region" aria-label="Reviews, horizontaal scrollbaar" tabindex="0">
+    <article class="rev">
+      <header class="rev-top">
+        <span class="rev-av" style="background:[pasteltint]">[XX]</span>
+        <div class="rev-id"><b>[Naam]</b><span>[Land] &middot; [n] reviews</span></div>
+        <span class="rev-date">[datum]</span>
+      </header>
+      <div class="rev-stars" aria-label="[n] van de 5 sterren"><i class="tp-star"></i><span class="rev-verified">Geverifieerd</span></div>
+      <h3 class="rev-title">[Titel]</h3>
+      <p class="rev-body">[Letterlijke reviewtekst.]</p>
+    </article>
+  </div>
+  <a class="tp-link" href="[PROFIEL-URL]" target="_blank" rel="noopener">Lees alle [aantal] reviews</a>
+</section>
+
+<!-- ============ FAQ ============ de echte bezwaren, niet de marketingvragen -->
+<section class="faq">
+  <span class="kicker">[Label]</span>
+  <h2 class="duo">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+  <details><summary>[Vraag]</summary><p>[Antwoord.]</p></details>
+</section>
+
+<!-- ============ AFSLUITER ============ mini-hero met een laatste actie -->
+<section class="closer">
+  <div class="closer-in">
+    <div>
+      <span class="kicker on-dark">[Label]</span>
+      <h2 class="duo on-dark">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+    </div>
+    <div>
+      <p class="lead on-dark">[Samenvatting van wat er verandert.]</p>
+      <div class="hero-acts"><a class="knop goud" href="#kopen">[Actie]</a></div>
+      <div class="assure"><span>[Proef]</span><span>[Garantie]</span><span>[Verzending]</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="legal">
+  [Verplichte vermelding: gesponsord artikel, geen medisch advies, wat de weergave overdrijft.]
+</div>
+
+<footer>
+  <span class="logo">Wellshave</span>
+  Gesponsorde content &middot; wellshave.com
+</footer>
+
+<script>
+(function(){
+  var el = document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches){
+    el.forEach(function(n){ n.classList.add('in'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(rijen){
+    rijen.forEach(function(r){ if(r.isIntersecting){ r.target.classList.add('in'); io.unobserve(r.target); } });
+  }, {rootMargin:'0px 0px -12% 0px'});
+  el.forEach(function(n){ io.observe(n); });
+})();
+</script>
+</body>
+</html>
