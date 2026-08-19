@@ -265,10 +265,15 @@ gebruikers van dít product, en een Trustpilot-score over het hele bedrijf is ge
 - goed: "Ruim 200.000 bestellingen sinds 2021" met daaronder waar dat over gaat
 - fout: een productpagina die suggereert dat al die bestellingen dit ene apparaat betroffen
 
-**Betrouwbare bronnen:** `products.json` voor prijzen en voorraad, het Trustpilot-profiel voor
-score en aantal beoordelingen, Shopify-analytics voor bestellingen. Weet je het niet, vraag
-het dan of laat het weg. Een pagina zonder getal is beter dan een pagina met een verzonnen
-getal.
+**Betrouwbare bronnen:** `products.json` voor prijzen en voorraad, het Trustpilot-profiel van
+wellshave.nl voor score en aantal beoordelingen, de bol.com-verkooppagina's voor het aantal
+beoordelingen daar, en Shopify-analytics voor bestellingen. Weet je het niet, vraag het dan of
+laat het weg. Een pagina zonder getal is beter dan een pagina met een verzonnen getal.
+
+**Twee onafhankelijke platforms verslaan één platform met meer cijfers.** Trustpilot naast
+bol.com zegt meer dan Trustpilot alleen, omdat de bezoeker ze los van elkaar kan nagaan.
+Zet ze naast elkaar met een haarlijn ertussen en label per bron wat het meet — een score is
+iets anders dan een aantal.
 
 ---
 
