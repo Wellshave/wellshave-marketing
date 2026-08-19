@@ -201,7 +201,53 @@ tekst die kort genoeg blijft om te scannen. Iconen zijn dunne lijntekeningen
 
 ---
 
-## 6. Sectieritme
+## 6. De vaste componenten
+
+Een pagina wordt uit deze onderdelen opgebouwd. Ze liggen vast in vorm, niet in inhoud.
+
+### Hero
+
+Van boven naar beneden: eyebrow, tweeslags kop, een lede van hooguit 44 tekens breed, dan de
+acties, dan de geruststellers, dan een bewijsregel. Rechts het beeld op een donkere plaat
+(`--grad-dark`, `--r-l`, ruime binnenmarge, zachte slagschaduw) met het beeld zelf op `--r-m`.
+
+De acties zijn er twee en ongelijk van gewicht: een primaire pilknop, en ernaast een tekstlink
+met onderlijn die naar het bewijsblok springt. Twee even zware knoppen naast elkaar heffen
+elkaar op.
+
+De geruststellers staan als korte opsomming met een bronzen stip ervoor, niet als vinkjes.
+Vinkjes zijn voorbehouden aan de kaarten.
+
+### Geruststrook
+
+Direct onder de hero, op wit, met een hairline boven en onder. Vier items naast elkaar,
+gescheiden door verticale hairlines. Per item een rond icoonvlak in `--sand`, een vette regel
+en een lichtere onderregel. Valt terug naar twee kolommen onder 980px en een onder 520px,
+waarbij de verticale scheidingen horizontaal worden.
+
+### Beeldband
+
+Volle breedte binnen de rail, `--r-l`, beeld met `object-fit:cover` en een vaste hoogte via
+`clamp()`. De tekst staat linksonder op een gradientsluier die van donker naar transparant
+loopt, zodat hij leesbaar blijft ongeacht de foto. Een zin, hooguit 19 tekens breed.
+
+Hooguit een band per pagina.
+
+### Iconen
+
+Dunne lijntekeningen, `stroke-width:2.1`, `fill:none`, afgeronde uiteinden. Geen gevulde
+vormen, geen emoji, geen kleurige icoonsets. Vinkjes in kaartlijsten zijn omcirkeld en iets
+zwaarder (`2.4`), zodat ze als bevestiging lezen en niet als versiering.
+
+### Meldbalk en navigatie
+
+Een standalone pagina krijgt een smalle meldbalk in `--carbon` met `--gold` tekst, en daaronder
+een sticky navigatiebalk met alleen het woordmerk en een knop. **Draait de pagina binnen een
+thema, dan vervallen die allebei** — het thema levert ze al, en dubbel is erger dan geen.
+
+---
+
+## 7. Sectieritme
 
 Licht en donker wisselen elkaar af. Een bruikbare volgorde:
 
@@ -218,7 +264,7 @@ zodat hij leesbaar blijft, ongeacht de foto eronder.
 
 ---
 
-## 7. Beweging
+## 8. Beweging
 
 Ingehouden. Te veel animatie is precies wat een pagina goedkoop en machinaal maakt.
 
@@ -248,7 +294,7 @@ direct zichtbaar zetten en de waarnemer niet starten.
 
 ---
 
-## 8. Cijfers en claims
+## 9. Cijfers en claims
 
 Getallen zijn het sterkste overtuigingsmiddel dat er is, en daarom ook het gevaarlijkste om
 los uit de pols in te vullen.
@@ -277,7 +323,7 @@ iets anders dan een aantal.
 
 ---
 
-## 9. Beeld
+## 10. Beeld
 
 **Een blok krijgt nooit een foto die er niet echt bij hoort.** Een beeld dat er ongeveer op
 lijkt is erger dan geen beeld: het maakt het blok plat en ongeloofwaardig.
@@ -287,7 +333,7 @@ Volgorde:
 1. **Eigen merkfotografie eerst.** Die is echt en niemand kan hem namaken. De bibliotheek
    staat in Drive onder `1. WELLSHAVE ★/1. E-commerce/2. Team Wellshave/2. Photo & Video/`,
    met lifestyle, productsets en losse featurebeelden per productlijn.
-2. **Genereren als er niets past** (zie deel 10).
+2. **Genereren als er niets past** (zie deel 11).
 3. **Nooit genereren wat bewijs moet zijn.** Dit is de grens. Illustreren mag: een stilleven
    van wat iemand al probeerde, een sfeerbeeld van de gebruikssituatie. Bewijs mag niet: een
    voor-en-na van huid, een resultaat, een gezicht bij een review. Dat is verzonnen bewijs,
@@ -300,7 +346,7 @@ springt de stijl bij het wisselen.
 
 ---
 
-## 10. Beeld genereren
+## 11. Beeld genereren
 
 Via de Higgsfield-MCP. `gpt_image_2` op `quality:"high"` geeft duidelijk fotografischer
 resultaat dan de marketingmodellen, die een CGI-look opleveren. Stuur een referentiebeeld mee
@@ -321,7 +367,7 @@ verlies.
 
 ---
 
-## 11. Het aanbodblok
+## 12. Het aanbodblok
 
 Hier valt de aankoop, en hier zit de ruimte om de orderwaarde te verhogen. Drie opties naast
 elkaar als kaarten, nooit onder elkaar als lijst en nooit meer dan drie.
@@ -411,7 +457,65 @@ X erbij" verwarrend en kun je het beter als upgrade framen.
 
 ---
 
-## 12. Technische regels
+## 13. Publiceren binnen een Shopify-thema
+
+Een landingspagina hoort op het eigen domein: dat houdt attributie en analytics schoon. In de
+praktijk draait hij dan binnen het themasjabloon, met de themaheader en -footer eromheen. Dat
+stelt vijf eisen aan hoe je hem bouwt.
+
+### Alles afschermen in een laag
+
+Wikkel de pagina in `<div class="gg-lp">` en scoop elke elementselector daarbinnen. Een
+ongeschermde reset als `*{margin:0}` of `img{display:block}` slaat dwars door de themaheader
+en -footer heen en sloopt de rest van de winkel op die pagina.
+
+```css
+.gg-lp *{box-sizing:border-box;margin:0;padding:0}
+.gg-lp{ /* wat anders op body zou staan */ }
+.gg-lp img{max-width:100%;height:auto;display:block}
+.gg-lp a{color:inherit}
+.gg-lp :focus-visible{outline:3px solid var(--bronze);outline-offset:3px}
+```
+
+### Beelden en stylesheet naar de CDN
+
+Nooit base64 in de pagina: dat maakt hem loodzwaar en oncachebaar. Upload naar Shopify Files en
+verwijs met de CDN-URL. De route is `stagedUploadsCreate` voor een uploadadres, het bestand er
+met `curl` naartoe POSTen, dan `fileCreate`. Zo gaan de bytes rechtstreeks en hoeft niemand ze
+over te typen.
+
+De stylesheet gaat als los `.css`-bestand mee. **Wijzigt de opmaak, upload dan onder een nieuwe
+naam** (`-2`, `-3`) en pas de verwijzing aan; een bestaande naam overschrijven levert cachegedoe op.
+
+### Alleen geldige HTML
+
+De editor schoont ongeldige markup stil op en herschrijft hem, en in de bewerker ziet dat er
+normaal uit. Een voorbeeld dat is voorgekomen: `li` binnen een `dl` mag niet, dus werd de lijst
+vroegtijdig gesloten, vielen alle regels erbuiten en verdween de opmaak. Gebruik `dt`/`dd` in
+een `dl` en `li` in `ul`/`ol`, en niets anders.
+
+### Alle niet-ASCII als entiteit
+
+Bij het plakken van een grote lap HTML kunnen tekensets omvallen: letterlijke accenten komen er
+als onzin uit terwijl entiteiten heel blijven. Zet elk teken buiten het basisalfabet om naar
+`&#nnn;` voordat je plakt.
+
+### Achteraf teruglezen
+
+Publiceren is niet af zonder controle. Lees de opgeslagen inhoud terug via de API en tel wat je
+erin stopte: secties, beelden, knoppen, kaarten. Beide fouten hierboven zijn zo gevonden, en
+geen van tweeen was zichtbaar in de bewerker.
+
+### Wat de themaroute kost
+
+De themaheader bevat navigatielinks, en dat zijn uitgangen op een pagina die om een actie draait.
+Wil je die weg, dan is een eigen kale layout plus paginasjabloon nodig — twee themabestanden,
+waarvoor iemand toegang tot de code-editor moet hebben. Voor een eerste versie is de themaroute
+prima; weeg het opnieuw zodra de pagina volume draait.
+
+---
+
+## 14. Technische regels
 
 **Beeldverhoudingen.** Zet altijd `height:auto` in de basis, anders wint een HTML
 `height`-attribuut van `width:100%` en worden beelden tot de helft uitgerekt:
@@ -435,7 +539,7 @@ mobiele regels nog staan.
 
 ---
 
-## 13. Waar dit woont
+## 15. Waar dit woont
 
 - **Bron:** `Wellshave/design` → `.claude/skills/sanwarwala-landing-pages/`
 - **Spiegel:** `Wellshave/wellshave-marketing`, alleen om te lezen
@@ -450,7 +554,7 @@ details hier niet neer zonder je af te vragen of ze openbaar mogen staan.
 
 ---
 
-## 14. Wat deze laag nog niet weet
+## 16. Wat deze laag nog niet weet
 
 - **Geen conversiedata.** Alles hierboven is opbouw volgens principe en één vergelijking met
   een eigen ontwerp, geen gemeten resultaat. Zodra er Clarity- of GA4-cijfers zijn, hoort
