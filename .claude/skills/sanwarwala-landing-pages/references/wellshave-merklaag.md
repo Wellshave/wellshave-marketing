@@ -374,30 +374,40 @@ willekeurigs erbij gooien voegt niets toe.
 
 ### 11.4 Hoe het cadeau technisch werkt
 
-**Twee delen die alleen samen werken.** Dit is de val: Shopify's automatische "koop X, krijg
-Y"-korting voegt niets toe aan de winkelwagen, hij zet alleen de prijs op nul zodra beide
-artikelen erin liggen.
+**Wellshave heeft verborgen cadeauvarianten van €0,00.** Dat is de eenvoudigste route en
+vrijwel altijd de juiste: de knop legt het cadeau er gewoon bij, want het artikel kost niets.
+Geen kortingsregel, niets dat kan verlopen, niets dat met andere regels botst.
 
-1. **De permalink voegt toe.** De knop draagt beide varianten:
-   `/cart/{pakket-variant}:1,{cadeau-variant}:1`
-2. **De automatische korting maakt gratis.** Kortingen → Koop X, krijg Y, type *automatisch*:
-   koopt het pakket (1 stuk), krijgt het cadeau (1 stuk) tegen 100% korting, maximaal één keer
-   per bestelling.
+```
+/cart/{pakket-variant}:1,{cadeau-variant}:1
+```
 
-Zonder de korting betaalt de klant het cadeau gewoon. **Zet de korting aan vóórdat de pagina
-live gaat**, en zet de variant-ID's als commentaar bij het blok in de HTML zodat de volgende
-persoon ziet waar het van afhangt.
+**Die cadeauvarianten staan NIET in `products.json`.** Ze zijn `UNLISTED` en de openbare feed
+laat verborgen producten weg. Zoek ze via de Admin API, bijvoorbeeld op handle (`gift-…`) of
+op `product_type: "Gift"`. Concludeer nooit uit een lege feed dat een cadeauvariant niet
+bestaat — dat is precies de fout die hier één keer is gemaakt.
 
-Twee dingen om na te lopen:
+**Controleer altijd live.** Open de permalink en lees `wellshave.com/cart.js`. Wat je wilt
+zien: het juiste aantal artikelen, het cadeau op `price: 0`, en `total_discount: 0`. Laad
+daarna een gewone winkelpagina en lees `cart.js` opnieuw, zodat het thema en de cadeaubalk
+hebben gedraaid. Blijft het cadeau staan, dan is het bestand.
 
-- **Automatische kortingen stapelen standaard niet.** Draait er al een andere automatische
-  korting, dan wint er één. Controleer wat er actief staat.
-- **Dit dekt de landingspagina, niet de hele winkel.** Wie het pakket vanaf de gewone
-  productpagina toevoegt, krijgt het cadeau niet vanzelf. Moet dat overal, dan is een Shopify
-  Function of een cadeau-app nodig — voor een landingspagina is dat niet vereist.
+**Blijf van de drempels van de cadeaubalk af.** Wellshave heeft een eigen cadeaumechaniek met
+stappen (verzending, washbag, neustrimmer) die op meerdere plekken in de winkel wordt getoond.
+Die drempels verlagen om één landingspagina te laten kloppen, laat de winkel en de balk uit
+elkaar lopen. De permalink-route raakt dat systeem niet: cadeaubalken voegen toe bij het halen
+van een drempel, maar verwijderen niet wat er langs een andere weg in ligt. Getest en bevestigd.
 
-**De harde regel:** een gratis extra staat pas op de pagina als de winkelwagen hem ook
-werkelijk oplevert. Een belofte die de kassa niet nakomt, kost meer dan het cadeau opbrengt.
+**Let op de voorraad van de cadeauvariant.** Staat die op `DENY` en raakt hij leeg, dan kan het
+artikel niet meer worden toegevoegd en belooft de pagina iets wat de winkelwagen niet levert.
+
+**Alleen als er géén €0-variant bestaat** is een automatische korting het alternatief: Kortingen
+→ Koop X, krijg Y, type automatisch, 100% korting, maximaal één per bestelling. Nadeel: hij kan
+botsen met andere automatische kortingen, en hij is een extra ding dat stuk kan. Voordeel: hij
+is niet te manipuleren, terwijl iemand een €0-variant ook los via een permalink kan toevoegen.
+
+**Controleer wat het pakket al bevat.** Zit er al een variant van het cadeau in, dan is "gratis
+X erbij" verwarrend en kun je het beter als upgrade framen.
 
 ---
 
