@@ -323,22 +323,81 @@ verlies.
 
 ## 11. Het aanbodblok
 
-Drie opties, nooit meer. Naast elkaar als kaarten, niet onder elkaar als lijst.
+Hier valt de aankoop, en hier zit de ruimte om de orderwaarde te verhogen. Drie opties naast
+elkaar als kaarten, nooit onder elkaar als lijst en nooit meer dan drie.
 
-Elke kaart bevat: eigen productfoto, naam, één regel wat het is, prijs met doorstreepte
-vanaf-prijs, **de besparing in euro's**, een vinkjeslijst van de inhoud, en een eigen knop
-naar dat product.
+### 11.1 Eerst kijken wat er is
 
-- De **middelste** is de uitgelichte: `--grad-gold`, donkere knop, lintje "meest gekozen".
+**Ontwerp de ladder pas nadat je hebt gecontroleerd wat er werkelijk bestaat.** Niet elk
+product heeft een PRO-versie, een pakket of iets om cadeau te doen. Haal op uit
+`wellshave.com/products.json?limit=250`:
+
+- welke varianten en pakketten er zijn voor dit product
+- de prijs én `compare_at_price` van elk daarvan
+- of ze op voorraad staan (`available`)
+- de variant-ID's, want die heb je nodig voor de knoppen
+
+Bestaat er geen pakket, forceer er dan geen. Twee eerlijke opties verslaan drie waarvan er
+één verzonnen is. En verzin nooit een bundelprijs: bestaat het pakket niet als los product,
+dan kan de knop er ook niet heen.
+
+### 11.2 De drie behandelingen
+
+Alle kaarten staan op donkere grond en zijn even hoog. Het verschil zit in de behandeling,
+en die codeert de rol van de kaart:
+
+| Rol | Kaart | Lint | Knop |
+|---|---|---|---|
+| Instap | donker, subtiele rand | geen | goud omlijnd |
+| Uitgelicht | `--grad-gold` met gloed | "meest gekozen", donker pilletje | donker gevuld |
+| Beste waarde | donker met gouden rand, gloed achter de foto, gouden hoekband | "beste waarde", omlijnd pilletje | goud gevuld |
+
+Per kaart: eigen productfoto op donkere plaat, naam in kapitalen, de prijs groot en
+gecentreerd met de doorstreepte vanaf-prijs ernaast, een gouden eyebrow die de kaart typeert
+("de essentials", "glad en veilig in één"), een vinkjeslijst met omcirkelde vinkicoontjes, en
+een eigen knop.
+
 - Hogere pakketten beginnen hun lijst met "alles uit de vorige" — dat maakt de trap zichtbaar.
 - **Toon de besparing bij élke optie**, ook de goedkoopste. Niemand hoort te rekenen.
 - Drie kaarten met eigen foto's verslaan één keuzelijst met wisselend beeld: het verschil is
   zichtbaar zonder klikken, er is geen JavaScript nodig, en knoptekst en bestemming kunnen
   niet uit de pas lopen.
 
-**Prijzen altijd uit de echte productfeed** (`wellshave.com/products.json?limit=250`),
-inclusief `compare_at_price` voor de doorstreping. Verzin nooit een bundelprijs: bestaat het
-pakket niet als los product, dan kan de knop er ook niet heen.
+### 11.3 Een gratis extra op de bovenste kaart
+
+Het sterkste middel om de orderwaarde te verhogen: geef bij het duurste pakket iets weg dat
+de routine compleet maakt. De kaart krijgt dan een **cadeaubalk** — een omlijnde pil in goud
+met een cadeau-icoon en de tekst "Gratis [product] t.w.v. €X" — plus de gouden hoekband.
+
+Kies een extra dat een bezwaar wegneemt of de klant sneller bij het resultaat brengt. Iets
+willekeurigs erbij gooien voegt niets toe.
+
+### 11.4 Hoe het cadeau technisch werkt
+
+**Twee delen die alleen samen werken.** Dit is de val: Shopify's automatische "koop X, krijg
+Y"-korting voegt niets toe aan de winkelwagen, hij zet alleen de prijs op nul zodra beide
+artikelen erin liggen.
+
+1. **De permalink voegt toe.** De knop draagt beide varianten:
+   `/cart/{pakket-variant}:1,{cadeau-variant}:1`
+2. **De automatische korting maakt gratis.** Kortingen → Koop X, krijg Y, type *automatisch*:
+   koopt het pakket (1 stuk), krijgt het cadeau (1 stuk) tegen 100% korting, maximaal één keer
+   per bestelling.
+
+Zonder de korting betaalt de klant het cadeau gewoon. **Zet de korting aan vóórdat de pagina
+live gaat**, en zet de variant-ID's als commentaar bij het blok in de HTML zodat de volgende
+persoon ziet waar het van afhangt.
+
+Twee dingen om na te lopen:
+
+- **Automatische kortingen stapelen standaard niet.** Draait er al een andere automatische
+  korting, dan wint er één. Controleer wat er actief staat.
+- **Dit dekt de landingspagina, niet de hele winkel.** Wie het pakket vanaf de gewone
+  productpagina toevoegt, krijgt het cadeau niet vanzelf. Moet dat overal, dan is een Shopify
+  Function of een cadeau-app nodig — voor een landingspagina is dat niet vereist.
+
+**De harde regel:** een gratis extra staat pas op de pagina als de winkelwagen hem ook
+werkelijk oplevert. Een belofte die de kassa niet nakomt, kost meer dan het cadeau opbrengt.
 
 ---
 
