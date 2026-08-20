@@ -31,7 +31,7 @@ meest gemaakte fout en hij kost het grootste deel van de klikwaarde.
 
 Uit `wellshave.com/products.json?limit=250`: welke varianten en pakketten bestaan, hun prijs,
 `compare_at_price`, voorraad en variant-ID. Uit het Trustpilot-profiel: score en aantal.
-**Cijfers die je niet kunt nawijzen, gebruik je niet** (deel 10).
+**Cijfers die je niet kunt nawijzen, gebruik je niet** (deel 11).
 
 Bestaat er geen tweede of derde pakket, forceer er dan geen.
 
@@ -42,8 +42,10 @@ andersom.
 
 ### 4. Bouw vanaf het startbestand
 
-`references/startbestand.html` bevat het volledige tokenblok, alle component-CSS en de tien
-secties met tijdelijke inhoud tussen blokhaken. **Begin daar, niet bij nul.** Elke sectie die
+Kies eerst het type (deel 2), pak dan het bijbehorende skelet:
+`references/startbestand-advertorial.html` of `references/startbestand-listicle.html`. Allebei
+dragen ze het volledige tokenblok en alle component-CSS, met tijdelijke inhoud tussen
+blokhaken. **Begin daar, niet bij nul.** Elke sectie die
 je niet nodig hebt verwijder je; wat je houdt is dan gegarandeerd consistent met de rest.
 
 Vervang alleen wat tussen blokhaken staat. Raak de CSS niet aan tenzij je iets toevoegt dat er
@@ -51,7 +53,7 @@ echt niet in zit — en zet dat dan ook in deze merklaag.
 
 ### 5. Vul het beeld
 
-Eerst de eigen fotografie, dan pas genereren (deel 11 en 12). Controleer per blok of het beeld
+Eerst de eigen fotografie, dan pas genereren (deel 13 en 14). Controleer per blok of het beeld
 er werkelijk bij hoort.
 
 ### 6. Controleer voor het publiceren
@@ -63,11 +65,80 @@ er werkelijk bij hoort.
 
 ### 7. Publiceer en lees terug
 
-Volg deel 14. Publiceren is niet af zonder de controle achteraf.
+Volg deel 16. Publiceren is niet af zonder de controle achteraf.
 
 ---
 
-## 2. Tokens
+## 2. Welk paginatype, en wat dat betekent voor de opbouw
+
+**Kies het type voordat je iets ontwerpt.** Type bepaalt de ruggengraat, en de ruggengraat
+bepaalt welke secties er zijn en in welke volgorde. De tokens, knoppen, kaarten en het
+kopapparaat zijn voor allebei identiek; het verschil zit in de opbouw.
+
+### De keuze
+
+| | Advertorial | Listicle |
+|---|---|---|
+| Ruggengraat | Een doorlopend argument | Losse genummerde punten |
+| Past bij | Unaware en problem-aware | Solution-aware en product-aware |
+| Kies dit als | De lezer zijn probleem verkeerd diagnosticeert en je dat moet omdraaien | De lezer het probleem kent en wil weten waarom jij beter bent dan het identiek ogende alternatief |
+| Kies dit NIET als | Het product simpel en voor de hand liggend is, er valt dan niks te diagnosticeren | De punten alleen in deze volgorde kloppen, dan heb je een betoog |
+| Startbestand | `references/startbestand-advertorial.html` | `references/startbestand-listicle.html` |
+
+De praktische toets: **kun je de punten omwisselen zonder dat het betoog omvalt?** Kan dat, dan
+is het een listicle. Kan dat niet, dan is het een advertorial en moet je hem ook zo bouwen.
+
+De hook van de creative geeft meestal de doorslag. Een creative die een vraag stelt of een
+mechanisme demonstreert, levert nieuwsgierig verkeer op dat nog gediagnosticeerd moet worden:
+advertorial. Een creative die een voordeel claimt of een aanbod toont, levert verkeer op dat
+al weet wat het wil: listicle.
+
+### Advertorial: de opbouw
+
+```
+hero -> geruststrook -> artikel (scene, probleem, oorzaak) -> mechaniekblok (donker)
+-> drie tintkaarten -> artikel (waarom het andere faalde) -> beeldband
+-> vier kenmerkkaarten -> galerij -> specificaties -> aanbod -> bewijs -> faq -> afsluiter
+```
+
+Eigen aan dit type, komt niet in een listicle voor:
+
+- **Het artikel met lopende tekst.** Byline met leestijd, een scene in de tweede persoon, een
+  callout met de oorzaak, een uitgelicht citaat. Dit is waar de diagnose gebeurt.
+- **Het donkere mechaniekblok** met tekening en vinkjes: het bewijs van de ene claim waar de
+  hele pagina op rust.
+- **De drie tintkaarten** in probleem-probleem-oplossing. Die volgorde is inhoudelijk; ze zijn
+  niet omwisselbaar.
+
+### Listicle: de opbouw
+
+```
+hero (met het getal in de kop) -> geruststrook -> korte intro (max twee alinea's)
+-> de genummerde lijst -> vergelijkingstabel -> beeldband -> aanbod -> bewijs -> faq -> afsluiter
+```
+
+Eigen aan dit type, komt niet in een advertorial voor:
+
+- **Genummerde items.** Grote cijfers in het goudverloop, kop met tweeslags-vorm, twee tot vier
+  zinnen, en beeld dat per even punt van kant wisselt. Vijf tot acht punten werkt: onder de vijf
+  voelt het mager, boven de acht haakt de lezer af voordat hij het aanbod ziet.
+- **De vergelijkingstabel** (wij versus zij). Dit is het natuurlijke thuis van dat argument, en
+  hij weegt zwaarder naarmate de markt verzadigder is.
+- **Een korte intro in plaats van een verhaal.** Zodra je een scene gaat schrijven, ben je een
+  advertorial aan het bouwen.
+
+Nummering is hier geoorloofd omdat de volgorde inhoud draagt: de lezer weet hoeveel er nog komt.
+Op een advertorial zijn genummerde markeringen decoratie, en dan horen ze er niet.
+
+### Wat allebei hetzelfde is
+
+Hero, geruststrook, beeldband, aanbodblok, bewijs, FAQ en afsluiter zijn identiek. Ook alle
+tokens, knoppen, kaartvormen, het kopapparaat en de bewegingsregels. Bouw je een nieuw component
+voor een van de twee, zet het dan in de gedeelde CSS zodat het andere type het ook kan gebruiken.
+
+---
+
+## 3. Tokens
 
 ```css
 :root{
@@ -98,7 +169,7 @@ Volg deel 14. Publiceren is niet af zonder de controle achteraf.
   --grad-gold:linear-gradient(158deg,#F8DFAB 0%,#E5BC77 42%,#C8913F 100%);
   --grad-dark:linear-gradient(168deg,#242220 0%,#171614 58%,#0E0D0C 100%);
   --grad-sand:linear-gradient(180deg,#FBF8F3 0%,#F1EBE0 100%);
-  /* tekstverloop op lichte grond: donkerder, anders onleesbaar (zie deel 4) */
+  /* tekstverloop op lichte grond: donkerder, anders onleesbaar (zie deel 5) */
   --grad-gold-tekst:linear-gradient(100deg,#B0742A 0%,#8C5A1A 100%);
 
   /* vorm — één schaal over alles */
@@ -120,7 +191,7 @@ oogt het als een sjabloon met een gouden randje.
 
 ---
 
-## 3. Typografie
+## 4. Typografie
 
 **Uitsluitend Montserrat** (400/500/600/700/800/900). Eén familie over het hele merk. Een
 display-serif erbij verzinnen breekt de herkenning direct.
@@ -131,13 +202,13 @@ display-serif erbij verzinnen breekt de herkenning direct.
 | Subkop in artikel | 900 | `-.022em` | ink |
 | Lopende tekst | 400-500 | normaal, `line-height:1.7` | ink-80 |
 | Eyebrow / label | 800 | `.2em`, uppercase, ~10.5px | ink-40 |
-| Knoptekst | 800 | normaal | zie deel 5 |
+| Knoptekst | 800 | normaal | zie deel 6 |
 
 Koppen krijgen `text-wrap:balance`. Lopende tekst blijft binnen `--read`.
 
 ---
 
-## 4. Het tweeslags-kopapparaat
+## 5. Het tweeslags-kopapparaat
 
 De handtekening van het merk. Elke sectiekop bestaat uit twee regels: de eerste stelt vast,
 de tweede levert de opluchting in accentkleur.
@@ -186,7 +257,7 @@ De tweede regel draagt de emotie, de eerste de feitelijkheid. Zet het voordeel d
 
 ---
 
-## 5. Knoppen
+## 6. Knoppen
 
 Alle knoppen zijn **pillen** (`border-radius:100px`). Nooit rechthoekig, nooit licht
 afgerond — dat is het verschil tussen zacht en technisch.
@@ -232,7 +303,7 @@ Dit is het verschil met de gewone webshop: daar mag iemand rondkijken, hier is e
 
 ---
 
-## 6. Kaarten en blokken
+## 7. Kaarten en blokken
 
 De kaart is de bouwsteen. Vaste kenmerken: afronding `--r-m`, ruime binnenmarge van 20 tot
 26px, en op lichte gronden een zachte schaduw (`0 14px 34px rgba(17,17,17,.09)`).
@@ -252,7 +323,7 @@ tekst die kort genoeg blijft om te scannen. Iconen zijn dunne lijntekeningen
 
 ---
 
-## 7. De vaste componenten
+## 8. De vaste componenten
 
 Een pagina wordt uit deze onderdelen opgebouwd. Ze liggen vast in vorm, niet in inhoud.
 
@@ -290,6 +361,30 @@ Dunne lijntekeningen, `stroke-width:2.1`, `fill:none`, afgeronde uiteinden. Geen
 vormen, geen emoji, geen kleurige icoonsets. Vinkjes in kaartlijsten zijn omcirkeld en iets
 zwaarder (`2.4`), zodat ze als bevestiging lezen en niet als versiering.
 
+### Advertentie-echo
+
+Wanneer de advertentie zelf een herkenbaar beeld heeft dat geen foto is &mdash; een zoekbalk, een
+chatvenster, een schermafdruk &mdash; bouw dat beeld na in HTML op de donkere plaat in de hero, in
+plaats van de statische advertentie als afbeelding te plakken. Het is scherp op elk scherm, het
+schaalt mee, en de tekst erin blijft doorzoekbaar en aanpasbaar per variant.
+
+Regels die het bruikbaar houden:
+
+- **Woordelijk overnemen.** De regels in de echo zijn dezelfde regels als in de advertentie, in
+  dezelfde volgorde. Een parafrase breekt precies de herkenning waarvoor je het bouwt.
+- **Geen echte merkinterface namaken.** Geen Google-logo, geen exacte kopie van een bestaande
+  zoekmachine of app. Bouw de vorm, niet het merk, en zet in de kleine lettertjes dat het een
+  weergave is en geen schermafdruk.
+- **Laat het beeld doorlopen naar het product.** Onderaan de echo hoort de stap die de bezoeker
+  zoekt: bij een zoekbalk is dat een resultaatkaart met productnaam en prijs. Zo staat het aanbod
+  al boven de vouw zonder dat het de sfeer breekt.
+- **Op mobiel direct onder de kop.** Zet de hero met `display:contents` op `.hero-copy` in een
+  kolomvolgorde, zodat de echo v&oacute;&oacute;r de knoppen valt en binnen de eerste schermhoogte
+  zichtbaar is. Zakt hij daaronder, dan is de herkenning weg op het apparaat waar de meeste
+  klikken vandaan komen.
+- Dezelfde regel als losse pil (`.vraagrij`) boven elk antwoord verderop op de pagina houdt het
+  motief vast, net als de tweeslags kop.
+
 ### Meldbalk en navigatie
 
 Een standalone pagina krijgt een smalle meldbalk in `--carbon` met `--gold` tekst, en daaronder
@@ -298,7 +393,7 @@ thema, dan vervallen die allebei** — het thema levert ze al, en dubbel is erge
 
 ---
 
-## 8. Sectieritme
+## 9. Sectieritme
 
 Licht en donker wisselen elkaar af. Een bruikbare volgorde:
 
@@ -315,7 +410,7 @@ zodat hij leesbaar blijft, ongeacht de foto eronder.
 
 ---
 
-## 9. Beweging
+## 10. Beweging
 
 Ingehouden. Te veel animatie is precies wat een pagina goedkoop en machinaal maakt.
 
@@ -345,7 +440,7 @@ direct zichtbaar zetten en de waarnemer niet starten.
 
 ---
 
-## 10. Cijfers en claims
+## 11. Cijfers en claims
 
 Getallen zijn het sterkste overtuigingsmiddel dat er is, en daarom ook het gevaarlijkste om
 los uit de pols in te vullen.
@@ -374,7 +469,30 @@ iets anders dan een aantal.
 
 ---
 
-## 11. Beeld
+## 12. Toon: pijn zonder schaamte
+
+Het VoC-dossier van Wellshave (`4. CLAUDE/wellshave_voc_dossier_v4.html`, 120+ citaten uit
+Trustpilot, bol.com, Amazon.de en Reddit) noemt vier dingen die bij deze doelgroep
+a&aacute;ntoonbaar averechts werken. Ze gelden voor elke pagina, niet voor &eacute;&eacute;n campagne:
+
+- **Geen insecurity-marketing.** "Zoveel procent vindt je vies" verkoopt hier niet, het
+  duwt weg. Schrijf de pijn als kosten &mdash; uitstellen, haast, aandacht die ergens anders
+  heen ging &mdash; niet als een gebrek aan de lezer.
+- **Geen partner-shaming** en geen patroniserende toon ("je wist niet hoe"). Zet er
+  desnoods letterlijk bij dat er niets mis is met hem en dat het gereedschap het probleem is.
+- **Geen kaal-belofte.** De meerderheid wil kort, geen biljartbal. 3 tot 5 mm is het
+  midden waar de markt om vraagt; "kaal als glas" spreekt een minderheid aan.
+- **Trademark-scepsis.** Getrademarkte techtermen zonder uitleg wekken wantrouwen. Leg het
+  mechanisme uit in gewone woorden; het merkteken mag erbij staan, maar draagt het argument niet.
+
+Twee dingen die volgens hetzelfde dossier w&eacute;l werken en te weinig worden gebruikt:
+"vergevend" in plaats van "veilig" (klanten weten dat ze zelf niet nauwkeurig zijn), en
+eerlijke prijsvergelijking op vervangmesjes, omdat verborgen kosten bij de concurrentie een
+terugkerende dealbreaker zijn.
+
+---
+
+## 13. Beeld
 
 **Een blok krijgt nooit een foto die er niet echt bij hoort.** Een beeld dat er ongeveer op
 lijkt is erger dan geen beeld: het maakt het blok plat en ongeloofwaardig.
@@ -384,7 +502,7 @@ Volgorde:
 1. **Eigen merkfotografie eerst.** Die is echt en niemand kan hem namaken. De bibliotheek
    staat in Drive onder `1. WELLSHAVE ★/1. E-commerce/2. Team Wellshave/2. Photo & Video/`,
    met lifestyle, productsets en losse featurebeelden per productlijn.
-2. **Genereren als er niets past** (zie deel 12).
+2. **Genereren als er niets past** (zie deel 14).
 3. **Nooit genereren wat bewijs moet zijn.** Dit is de grens. Illustreren mag: een stilleven
    van wat iemand al probeerde, een sfeerbeeld van de gebruikssituatie. Bewijs mag niet: een
    voor-en-na van huid, een resultaat, een gezicht bij een review. Dat is verzonnen bewijs,
@@ -397,7 +515,7 @@ springt de stijl bij het wisselen.
 
 ---
 
-## 12. Beeld genereren
+## 14. Beeld genereren
 
 Via de Higgsfield-MCP. `gpt_image_2` op `quality:"high"` geeft duidelijk fotografischer
 resultaat dan de marketingmodellen, die een CGI-look opleveren. Stuur een referentiebeeld mee
@@ -418,7 +536,7 @@ verlies.
 
 ---
 
-## 13. Het aanbodblok
+## 15. Het aanbodblok
 
 Hier valt de aankoop, en hier zit de ruimte om de orderwaarde te verhogen. Drie opties naast
 elkaar als kaarten, nooit onder elkaar als lijst en nooit meer dan drie.
@@ -508,7 +626,7 @@ X erbij" verwarrend en kun je het beter als upgrade framen.
 
 ---
 
-## 14. Publiceren binnen een Shopify-thema
+## 16. Publiceren binnen een Shopify-thema
 
 Een landingspagina hoort op het eigen domein: dat houdt attributie en analytics schoon. In de
 praktijk draait hij dan binnen het themasjabloon, met de themaheader en -footer eromheen. Dat
@@ -566,7 +684,7 @@ prima; weeg het opnieuw zodra de pagina volume draait.
 
 ---
 
-## 15. Technische regels
+## 17. Technische regels
 
 **Beeldverhoudingen.** Zet altijd `height:auto` in de basis, anders wint een HTML
 `height`-attribuut van `width:100%` en worden beelden tot de helft uitgerekt:
@@ -590,7 +708,7 @@ mobiele regels nog staan.
 
 ---
 
-## 16. Waar dit woont
+## 18. Waar dit woont
 
 - **Bron:** `Wellshave/design` → `.claude/skills/sanwarwala-landing-pages/`
 - **Spiegel:** `Wellshave/wellshave-marketing`, alleen om te lezen
@@ -605,7 +723,7 @@ details hier niet neer zonder je af te vragen of ze openbaar mogen staan.
 
 ---
 
-## 17. Wat deze laag nog niet weet
+## 19. Wat deze laag nog niet weet
 
 - **Geen conversiedata.** Alles hierboven is opbouw volgens principe en één vergelijking met
   een eigen ontwerp, geen gemeten resultaat. Zodra er Clarity- of GA4-cijfers zijn, hoort
