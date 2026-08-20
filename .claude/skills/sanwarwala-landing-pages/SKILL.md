@@ -35,22 +35,25 @@ how to switch it off; when to use own photography versus generate an image, and 
 between illustrating and fabricating proof; the three-card offer pattern; and the technical
 rules that keep it from breaking.
 
-**The order of use.** `references/wellshave-merklaag.md` opens with the workflow — follow it
-from step 1. Its part 2 makes you choose the page type *before* any design happens, because the
-type decides the spine and the spine decides which sections exist:
+**The order of use.** `references/wellshave-merklaag.md` is the shared design system and opens
+with the workflow — follow it from step 1. Its part 2 makes you choose the page type *before*
+any design happens, because the type decides the spine and the spine decides which sections
+exist. The test: can the points be reordered without the argument collapsing? If yes it is a
+listicle, if no it is an advertorial.
 
-- **Advertorial** — one continuous argument, for unaware and problem-aware traffic, when the
-  reader has mis-diagnosed the problem. Skeleton: `references/startbestand-advertorial.html`
-- **Listicle** — numbered, independent points, for solution-aware and product-aware traffic,
-  when the reader knows the problem and wants to know why you beat the identical-looking
-  alternative. Skeleton: `references/startbestand-listicle.html`
+Then read the matching page-type file, which carries the section order, what is exclusive to
+that type, and how to set up its copy:
 
-The test: can the points be reordered without the argument collapsing? If yes it is a listicle,
-if no it is an advertorial. Both skeletons carry the identical token block and component CSS,
-with placeholder content in square brackets. **Start from the matching skeleton, never from a
-blank page.** Replace what is bracketed, delete the sections you do not need, and leave the CSS
-alone unless you are adding something genuinely new — in which case record it in the brand
-layer too.
+| Type | For | Read | Start from |
+|---|---|---|---|
+| Advertorial | Unaware, problem-aware; reader has mis-diagnosed the problem | `references/paginatype-advertorial.md` | `references/startbestand-advertorial.html` |
+| Listicle | Solution-aware, product-aware; reader wants to know why you beat the lookalike | `references/paginatype-listicle.md` | `references/startbestand-listicle.html` |
+
+Both skeletons carry the identical token block and component CSS, with placeholder content in
+square brackets. **Start from the matching skeleton, never from a blank page.** Replace what is
+bracketed, delete the sections you do not need, and leave the CSS alone unless you are adding
+something genuinely new — in which case record it in the brand layer so the other type can use
+it too.
 
 Do not derive Wellshave styling from the live site by eye and do not invent a palette. The
 tokens in that file are copied from the real site, and using them is the difference between a

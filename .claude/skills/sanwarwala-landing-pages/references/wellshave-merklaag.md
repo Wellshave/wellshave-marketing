@@ -69,72 +69,33 @@ Volg deel 16. Publiceren is niet af zonder de controle achteraf.
 
 ---
 
-## 2. Welk paginatype, en wat dat betekent voor de opbouw
+## 2. Welk paginatype
 
-**Kies het type voordat je iets ontwerpt.** Type bepaalt de ruggengraat, en de ruggengraat
-bepaalt welke secties er zijn en in welke volgorde. De tokens, knoppen, kaarten en het
-kopapparaat zijn voor allebei identiek; het verschil zit in de opbouw.
-
-### De keuze
+**Kies het type voordat je iets ontwerpt.** Het type bepaalt de ruggengraat, en de ruggengraat
+bepaalt welke secties er zijn en in welke volgorde. Alles in dit bestand geldt voor allebei;
+alleen de opbouw verschilt.
 
 | | Advertorial | Listicle |
 |---|---|---|
-| Ruggengraat | Een doorlopend argument | Losse genummerde punten |
+| Ruggengraat | Een doorlopend argument | Losse punten, meestal genummerd |
 | Past bij | Unaware en problem-aware | Solution-aware en product-aware |
-| Kies dit als | De lezer zijn probleem verkeerd diagnosticeert en je dat moet omdraaien | De lezer het probleem kent en wil weten waarom jij beter bent dan het identiek ogende alternatief |
-| Kies dit NIET als | Het product simpel en voor de hand liggend is, er valt dan niks te diagnosticeren | De punten alleen in deze volgorde kloppen, dan heb je een betoog |
-| Startbestand | `references/startbestand-advertorial.html` | `references/startbestand-listicle.html` |
+| Kies als | De lezer zijn probleem verkeerd diagnosticeert | De lezer het probleem kent en wil weten waarom jij beter bent |
+| Uitwerking | `references/paginatype-advertorial.md` | `references/paginatype-listicle.md` |
+| Startbestand | `startbestand-advertorial.html` | `startbestand-listicle.html` |
 
-De praktische toets: **kun je de punten omwisselen zonder dat het betoog omvalt?** Kan dat, dan
-is het een listicle. Kan dat niet, dan is het een advertorial en moet je hem ook zo bouwen.
+**De toets: kun je de punten omwisselen zonder dat het betoog omvalt?** Kan dat, dan is het een
+listicle. Kan dat niet, dan is het een advertorial en moet je hem ook zo bouwen.
 
-De hook van de creative geeft meestal de doorslag. Een creative die een vraag stelt of een
-mechanisme demonstreert, levert nieuwsgierig verkeer op dat nog gediagnosticeerd moet worden:
-advertorial. Een creative die een voordeel claimt of een aanbod toont, levert verkeer op dat
-al weet wat het wil: listicle.
+De creative geeft meestal de doorslag. Stelt hij een vraag of demonstreert hij een mechanisme,
+dan komt er nieuwsgierig verkeer dat nog gediagnosticeerd moet worden: advertorial. Claimt hij
+een voordeel of toont hij een aanbod, dan weet de lezer al wat hij wil: listicle.
 
-### Advertorial: de opbouw
+**Lees daarna het bijbehorende typebestand.** Daar staat de sectievolgorde, wat exclusief bij
+dat type hoort, en hoe je de copy ervoor opzet. Hero, geruststrook, beeldband, aanbodblok,
+bewijs, FAQ en afsluiter zijn in beide gevallen identiek.
 
-```
-hero -> geruststrook -> artikel (scene, probleem, oorzaak) -> mechaniekblok (donker)
--> drie tintkaarten -> artikel (waarom het andere faalde) -> beeldband
--> vier kenmerkkaarten -> galerij -> specificaties -> aanbod -> bewijs -> faq -> afsluiter
-```
-
-Eigen aan dit type, komt niet in een listicle voor:
-
-- **Het artikel met lopende tekst.** Byline met leestijd, een scene in de tweede persoon, een
-  callout met de oorzaak, een uitgelicht citaat. Dit is waar de diagnose gebeurt.
-- **Het donkere mechaniekblok** met tekening en vinkjes: het bewijs van de ene claim waar de
-  hele pagina op rust.
-- **De drie tintkaarten** in probleem-probleem-oplossing. Die volgorde is inhoudelijk; ze zijn
-  niet omwisselbaar.
-
-### Listicle: de opbouw
-
-```
-hero (met het getal in de kop) -> geruststrook -> korte intro (max twee alinea's)
--> de genummerde lijst -> vergelijkingstabel -> beeldband -> aanbod -> bewijs -> faq -> afsluiter
-```
-
-Eigen aan dit type, komt niet in een advertorial voor:
-
-- **Genummerde items.** Grote cijfers in het goudverloop, kop met tweeslags-vorm, twee tot vier
-  zinnen, en beeld dat per even punt van kant wisselt. Vijf tot acht punten werkt: onder de vijf
-  voelt het mager, boven de acht haakt de lezer af voordat hij het aanbod ziet.
-- **De vergelijkingstabel** (wij versus zij). Dit is het natuurlijke thuis van dat argument, en
-  hij weegt zwaarder naarmate de markt verzadigder is.
-- **Een korte intro in plaats van een verhaal.** Zodra je een scene gaat schrijven, ben je een
-  advertorial aan het bouwen.
-
-Nummering is hier geoorloofd omdat de volgorde inhoud draagt: de lezer weet hoeveel er nog komt.
-Op een advertorial zijn genummerde markeringen decoratie, en dan horen ze er niet.
-
-### Wat allebei hetzelfde is
-
-Hero, geruststrook, beeldband, aanbodblok, bewijs, FAQ en afsluiter zijn identiek. Ook alle
-tokens, knoppen, kaartvormen, het kopapparaat en de bewegingsregels. Bouw je een nieuw component
-voor een van de twee, zet het dan in de gedeelde CSS zodat het andere type het ook kan gebruiken.
+Bouw je een nieuw component voor een van de twee, zet het dan in de gedeelde CSS zodat het
+andere type het ook kan gebruiken.
 
 ---
 
@@ -384,6 +345,16 @@ Regels die het bruikbaar houden:
   klikken vandaan komen.
 - Dezelfde regel als losse pil (`.vraagrij`) boven elk antwoord verderop op de pagina houdt het
   motief vast, net als de tweeslags kop.
+
+### Copy- en beeldregels die overal gelden
+
+- **Maximaal ongeveer 150 woorden per sectie.** Langer en de lezer scant weg in plaats van te
+  lezen. Geldt per artikelsectie en per genummerd punt.
+- **Elke sectie krijgt een beeld** dat de tekst breekt en er inhoudelijk bij hoort.
+- **Beelden in de tekst zijn liggend**, 4:3 werkt het best. Vierkant leest trager en staand
+  duwt de tekst te ver weg. De hero en de pakketkaarten zijn de uitzondering; die zijn vierkant.
+- **Elke testimonial pakt één specifiek bezwaar.** Kies ze daarop, niet op enthousiasme. Weet je
+  bij een review niet welk bezwaar hij wegneemt, dan hoort hij er niet.
 
 ### Meldbalk en navigatie
 
