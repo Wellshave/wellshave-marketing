@@ -596,3 +596,77 @@
 @media (prefers-reduced-motion: no-preference) {
   #wiz-inline .wiz-refs-persoon { animation: wgSettle var(--wg-t-stap, 320ms) var(--wg-ease, ease); }
 }
+
+/* ── Een melding met een uitweg ────────────────────────────────────────────
+   Een waarschuwing die alleen constateert, klik je weg. Deze noemt per leeg
+   veld een knop die je erheen brengt en het veld aanwijst, want jij weet het
+   antwoord en de generator gaat anders gokken. */
+#wiz-inline .wiz-warn-t { margin-bottom: 9px; }
+#wiz-inline .wiz-warn-knoppen { display: flex; flex-wrap: wrap; gap: 7px; }
+#wiz-inline .wiz-rory-error { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+
+/* Het veld waar een knop je net heen bracht, kort gemarkeerd. Zonder dit kom
+   je op de goede stap aan en zoek je alsnog welk van de acht velden het was. */
+#wiz-inline .wiz-aangewezen {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), .18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  #wiz-inline .wiz-aangewezen { animation: wgAdem 1.1s var(--wg-ease, ease) 2; }
+}
+
+/* ── De werkpersona ────────────────────────────────────────────────────────
+   Afgeleid uit productdata, niet uit interviews. Dat verschil zit in de
+   opmaak en niet alleen in een veld: hij mag bruikbaar zijn zonder dat hij
+   over een half jaar wordt aangezien voor iemand die daadwerkelijk gesproken
+   is. Vandaar de stippelrand, dezelfde taal als een afgeleide waarde in de
+   scorekaart. */
+#wiz-inline .wiz-pxbouw {
+  margin-top: 14px; padding: 13px 14px;
+  border: 1px dashed rgba(var(--gold-rgb), .3);
+  border-radius: 11px;
+  background: rgba(var(--gold-rgb), .035);
+}
+#wiz-inline .wiz-pxbouw.met { border-style: solid; border-color: rgba(var(--gold-rgb), .22); }
+#wiz-inline .wiz-pxbouw-kop {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--gold); font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+#wiz-inline .wiz-pxbouw-merk,
+#wiz-inline .wiz-pxmerk {
+  font-size: 9px; letter-spacing: .06em; color: var(--text-faint);
+  text-transform: none; font-family: inherit;
+}
+#wiz-inline .wiz-pxmerk {
+  margin-left: 8px; padding: 2px 7px; border-radius: 99px;
+  border: 1px dashed rgba(var(--gold-rgb), .35);
+}
+#wiz-inline .wiz-pxbouw-uitleg {
+  margin: 7px 0 11px; font-size: 12px; line-height: 1.55; color: var(--text-soft);
+}
+#wiz-inline .wiz-pxbouw-fout { margin: 9px 0 0; font-size: 12px; color: #d9714f; }
+#wiz-inline .wiz-pxkaart {
+  margin: 10px 0; padding: 12px 13px; border-radius: 10px;
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid rgba(var(--gold-rgb), .14);
+}
+#wiz-inline .wiz-pxkaart.on { border-color: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-pxnaam { font-size: 14px; color: var(--gold); margin-bottom: 5px; }
+#wiz-inline .wiz-pxdesc { font-size: 12.5px; line-height: 1.55; color: var(--text-soft); }
+#wiz-inline .wiz-pxblok { margin-top: 9px; }
+#wiz-inline .wiz-pxblok-k {
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint);
+}
+#wiz-inline .wiz-pxblok ul { margin: 3px 0 0; padding-left: 16px; }
+#wiz-inline .wiz-pxblok li { font-size: 12px; line-height: 1.5; color: var(--text-soft); }
+#wiz-inline .wiz-pxonzeker {
+  margin-top: 10px; padding-top: 9px; font-size: 12px; line-height: 1.5;
+  border-top: 1px solid rgba(var(--gold-rgb), .12); color: var(--text-faint);
+}
+#wiz-inline .wiz-pxonzeker strong { color: var(--text-soft); }
+#wiz-inline .wiz-pxknoppen { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+#wiz-inline .wiz-pxinuse {
+  font-size: 11px; color: var(--gold); padding: 4px 10px;
+  border: 1px solid rgba(var(--gold-rgb), .4); border-radius: 99px;
+}

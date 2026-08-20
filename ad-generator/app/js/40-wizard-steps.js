@@ -389,8 +389,12 @@ function wizRender_audience() {
   var lijst = passend.length ? passend : alle;
   var pers = wizPersona();
 
+  /* Geen personas: dat was een doodlopende melding ("voeg klantonderzoek toe
+     in een ander tabblad"), terwijl je middenin een ad zit. Er valt hier wel
+     degelijk iets te doen. */
   if (!lijst.length) {
-    return '<div class="wiz-empty">No personas available. Add customer research in the Personas tab — without it Rory has nothing to build the angle on.</div>';
+    return '<div class="wiz-empty">No customer research for this category yet.</div>' +
+      ((typeof wizRenderPersonaBouwer === 'function') ? wizRenderPersonaBouwer() : '');
   }
 
   /* De aanbevolen persona groot, de rest als lijst ernaast. Dat is de kern van
@@ -406,10 +410,18 @@ function wizRender_audience() {
       '<button type="button" class="wiz-personakaart' + (pers && pers.id === hoofd.id ? ' on' : '') + '" ' +
       'onclick="wizPick(\'audience\',\'personaId\',\'' + wizEsc(hoofd.id) + '\')">' +
       (isTip ? '<span class="wiz-choice-rec">Recommended</span>' : '') +
-      '<span class="wiz-personakaart-naam">' + wizEsc(hoofd.name) + '</span>' +
+      '<span class="wiz-personakaart-naam">' + wizEsc(hoofd.name) +
+      /* Een persona die uit productdata is afgeleid is geen klantonderzoek.
+         Dat verschil hoort op de kaart te staan, niet alleen in de data. */
+      ((typeof wizPxIsWerk === 'function' && wizPxIsWerk(hoofd))
+        ? '<span class="wiz-pxmerk">working persona</span>' : '') + '</span>' +
       '<span class="wiz-personakaart-desc">' + wizEsc(hoofd.description || '') + '</span>' +
       '</button></div>';
   }
+
+  /* De bouwer onder de aanbeveling: hij hoort erbij als geen van de bestaande
+     personas de mens van deze ad is, en dat merk je pas als je ze ziet. */
+  if (typeof wizRenderPersonaBouwer === 'function') links += wizRenderPersonaBouwer();
 
   links += '<div class="wiz-veld"><label>Awareness level</label>' +
     '<div class="wiz-pillen">' + WIZ_AWARENESS.map(function (o) {

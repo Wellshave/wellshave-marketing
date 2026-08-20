@@ -94,8 +94,15 @@ function wizRender_review() {
 
   var ontbreekt = wizBlueprintGaps();
   if (ontbreekt.length) {
-    links += '<div class="wiz-warn">Still empty: ' + wizEsc(ontbreekt.join(', ')) +
-      '. You can continue, but the generator will fill those gaps on its own.</div>';
+    links += '<div class="wiz-warn">' +
+      '<div class="wiz-warn-t">Still empty. You can continue, and the generator will fill these ' +
+      'in on its own -- but it will guess, and you know the answer.</div>' +
+      '<div class="wiz-warn-knoppen">' +
+      ontbreekt.map(function (g) {
+        return '<button type="button" class="wiz-btn ghost small" ' +
+          'onclick="wizNaarGat(\'' + g.stap + '\',\'' + g.veld + '\')">' +
+          'Fill in ' + wizEsc(g.label) + ' →</button>';
+      }).join('') + '</div></div>';
   }
 
   var rechts = '';
@@ -148,13 +155,32 @@ function wizAfter_review() {
   wizDescribeVisual();
 }
 
+/* De gaten met hun plek erbij. Een melding die zegt DAT er iets leeg is maar
+   niet WAAR, laat je zelf zoeken -- en dan klik je hem weg. Elk gat weet nu
+   op welke stap het veld staat, zodat er een knop op kan die je erheen
+   brengt en het veld aanwijst. */
 function wizBlueprintGaps() {
   var d = wizState.data, gaten = [];
-  if (!d.strategy.proof) gaten.push('proof mechanism');
-  if (!d.strategy.objection) gaten.push('main objection');
-  if (!d.copy.supporting) gaten.push('supporting line');
-  if (!d.copy.proof) gaten.push('proof copy');
+  if (!d.strategy.proof) gaten.push({ label: 'proof mechanism', stap: 'strategy', veld: 'proof' });
+  if (!d.strategy.objection) gaten.push({ label: 'main objection', stap: 'strategy', veld: 'objection' });
+  if (!d.copy.supporting) gaten.push({ label: 'supporting line', stap: 'copy', veld: 'supporting' });
+  if (!d.copy.proof) gaten.push({ label: 'proof copy', stap: 'copy', veld: 'proof' });
   return gaten;
+}
+
+/* Naar het lege veld toe: de stap open, en het veld zelf gemarkeerd en met
+   de cursor erin. Alleen de stap openen laat je nog steeds zoeken welk van de
+   acht velden het was. */
+function wizNaarGat(stap, veld) {
+  wizGo(stap);
+  setTimeout(function () {
+    var el = document.getElementById('wizf-' + stap + '-' + veld);
+    if (!el) return;
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    try { el.focus(); } catch (e) {}
+    el.classList.add('wiz-aangewezen');
+    setTimeout(function () { el.classList.remove('wiz-aangewezen'); }, 2200);
+  }, 60);
 }
 
 function wizDescribeVisual() {
@@ -1032,7 +1058,7 @@ window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPic
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll;
 window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOff = wizHandOff;
 window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata; window.wizBriefZonderBeeld = wizBriefZonderBeeld;
-window.wizBlueprintGaps = wizBlueprintGaps; window.wizVisualLabel = wizVisualLabel;
+window.wizBlueprintGaps = wizBlueprintGaps; window.wizNaarGat = wizNaarGat; window.wizVisualLabel = wizVisualLabel;
 window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;
 window.wizSofistLabel = wizSofistLabel; window.wizDiffLabel = wizDiffLabel;
 window.wizClearMainResults = wizClearMainResults; window.wizBriefGroep = wizBriefGroep;

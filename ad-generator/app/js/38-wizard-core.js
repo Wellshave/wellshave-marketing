@@ -513,6 +513,13 @@ function wizRenderRoryBalk() {
   el.innerHTML = tekst
     ? '<span class="wiz-rorybalk-punt' + (wizState.busy ? ' bezig' : '') + '"></span>' +
       '<span>' + wizEsc(tekst) + '</span>' +
+      /* Een mislukte aanroep is bijna altijd tijdelijk: druk, een afgekapte
+         verbinding. Zonder knop staat er een mededeling die je alleen kunt
+         wegkijken, en dan vul je de stap zelf in terwijl een tweede poging
+         het gedaan had. */
+      (!wizState.busy && adv.error
+        ? ' <button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'' + k + '\')">Try again</button>'
+        : '') +
       /* De lichtlijn bestaat alleen terwijl er echt iets draait: beweging die
          niets betekent is decoratie, en decoratie went binnen een dag. */
       (wizState.busy ? '<span class="wiz-lichtlijn" aria-hidden="true"></span>' : '')

@@ -38,7 +38,28 @@ function wizParseJson(txt) {
   return JSON.parse(schoon.substring(a, b + 1));
 }
 
+/* Beelddata hoort nooit in een tekstprompt. Een data-url van een foto is
+   makkelijk een megabyte, en die belandde via het LOCKED-blok woord voor
+   woord in de opdracht: "prompt is too long: 1694198 tokens". Rory was
+   daarmee op elke stap onbereikbaar, en de melding wees naar de lengte in
+   plaats van naar de oorzaak.
+
+   Dit is het vangnet en niet de fix: de plek die het deed is ook rechtgezet.
+   Maar een prompt is de optelsom van tien stukken tekst, en de volgende keer
+   dat iemand ergens een veld meestuurt hoort dat niet opnieuw drie ronden te
+   kosten. Wat eruit gaat is de payload; dat het er was blijft leesbaar. */
+function wizZonderBeeld(tekst) {
+  return String(tekst == null ? '' : tekst)
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi, '[image omitted]');
+}
+
 function wizCall(system, messages, maxTokens) {
+  system = wizZonderBeeld(system);
+  messages = (messages || []).map(function (m) {
+    return (m && typeof m.content === 'string')
+      ? { role: m.role, content: wizZonderBeeld(m.content) }
+      : m;
+  });
   return fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
@@ -173,7 +194,16 @@ function wizContext() {
   Object.keys(wizState.source).forEach(function (k) {
     if (wizState.source[k] !== 'user') return;
     var deel = k.split('.'), vak = wizState.data[deel[0]];
-    if (vak && vak[deel[1]]) vast.push(k + ' = ' + vak[deel[1]]);
+    if (!vak || !vak[deel[1]]) return;
+    var w = vak[deel[1]];
+    /* Een vastgezet BEELD is een besluit dat Rory moet kennen, maar de foto
+       zelf zegt hem in tekst niets -- hij ziet hem niet. Dus de mededeling
+       wel, de megabyte niet. */
+    if (typeof w !== 'string' || /^data:image\//i.test(w)) {
+      vast.push(k + ' = [an image you chose yourself]');
+      return;
+    }
+    vast.push(k + ' = ' + w);
   });
   if (vast.length) {
     c += '\n# LOCKED BY THE USER (never silently override; challenge in words if you disagree)\n' + vast.join('\n') + '\n';
@@ -340,7 +370,9 @@ function wizRenderRory() {
   if (wizState.busy) {
     h += '<div class="wiz-rory-thinking">Rory is thinking…</div>';
   } else if (adv && adv.error) {
-    h += '<div class="wiz-rory-error">' + wizEsc(adv.error) + '</div>';
+    h += '<div class="wiz-rory-error">' + wizEsc(adv.error) +
+      '<button type="button" class="wiz-btn ghost small" onclick="wizAskFor(\'' +
+      wizState.current + '\')">Try again</button></div>';
   } else if (adv) {
     if (adv.why) h += '<div class="wiz-rory-why"><div class="wiz-rory-lbl">Why this direction</div><p>' + wizEsc(adv.why) + '</p></div>';
     if (adv.evidence && adv.evidence.length) {
@@ -493,5 +525,5 @@ window.wizChatSend = wizChatSend; window.wizChatQuick = wizChatQuick;
 window.wizAnswerQuestion = wizAnswerQuestion; window.wizDismissQuestion = wizDismissQuestion;
 window.wizContext = wizContext; window.wizProduct = wizProduct; window.wizPersona = wizPersona;
 window.wizFormat = wizFormat; window.wizLoadHistory = wizLoadHistory;
-window.wizCall = wizCall; window.wizParseJson = wizParseJson; window.wizTextOf = wizTextOf;
+window.wizCall = wizCall; window.wizZonderBeeld = wizZonderBeeld; window.wizParseJson = wizParseJson; window.wizTextOf = wizTextOf;
 window.wizModel = wizModel;
