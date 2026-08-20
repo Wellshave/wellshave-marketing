@@ -107,6 +107,14 @@ const OPZET = `
       ingang: zicht('#iw2-ingang'),
       opties: document.querySelectorAll('.iw2-optie').length,
       rijen: document.querySelectorAll('.iw2-brij').length,
+      /* Afgeleid in plaats van een vast getal: het paneel hoort ELKE rij uit
+         IW2_RIJEN te tekenen, en dat is de eigenschap die telt. Een hard
+         getal moest bij elke nieuwe beslissing met de hand bij, en dan is een
+         rij die stilletjes niet meer rendert niet te onderscheiden van een
+         rij die er bewust bij kwam. */
+      rijenVerwacht: (typeof IW2_RIJEN !== 'undefined') ? IW2_RIJEN.length : -1,
+      labels: Array.prototype.map.call(document.querySelectorAll('.iw2-brij'),
+        function (r) { return (r.textContent || '').trim(); }),
       typeveld: !!document.getElementById('iw2-in')
     };
   }, OPZET);
@@ -115,7 +123,14 @@ const OPZET = `
   check('Exit heet nu Exit interview', start.exit, 'Exit interview');
   check('de ingang is weg -- je bent er al', start.ingang, false);
   check('de eerste vraag heeft twee antwoorden', start.opties, 2);
-  check('en het begrepen-paneel staat er met zestien regels', start.rijen, 16);
+  check('en het begrepen-paneel tekent elke beslissing uit de lijst',
+    start.rijen, start.rijenVerwacht);
+  check('de rijen zijn er ook echt (geen leeg paneel dat toevallig klopt)',
+    start.rijen > 10, true);
+  /* Waar de klik landt hoort in de blueprint: het is een beslissing die de ad
+     verandert (de CTA en hoeveel de ad zelf moet afmaken), geen nazorg. */
+  check('waar de klik landt staat erbij',
+    start.labels.some(function (t) { return /Lands on/.test(t); }), true);
   check('en je kunt altijd zelf typen', start.typeveld, true);
 
   /* ── De startvraag bepaalt de route ───────────────────────────────────── */

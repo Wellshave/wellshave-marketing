@@ -120,6 +120,18 @@ function wizLeerBrief() {
     t += 'Different how: ' + wizDiffLabel(d.strategy.differentiation) +
          '. Every concept must actually use that lever, not merely be pretty.\n';
   }
+  /* De bestemming staat in de leer en niet alleen in de brief, omdat hij een
+     regel is en geen voorkeur: hoe minder de lezer weet, hoe meer pagina er
+     nodig is voordat een product logisch wordt. Meta leest de ad en de pagina
+     samen, dus een mismatch kost bereik voordat hij conversie kost. */
+  t += 'Destination is part of the ad, not an afterthought. Unaware and problem-aware ' +
+       'traffic needs an advertorial or a quiz, because the diagnosis has to happen ' +
+       'before a product means anything. Solution-aware and product-aware traffic belongs ' +
+       'on a listicle, where you control which points land before the product page. ' +
+       'Product-aware and most-aware traffic can go straight to the product page. ' +
+       'The platform reads the creative AND the page and uses both to decide who to show ' +
+       'this to, so an ad built for a new tribe pointing at a page built for the old mass ' +
+       'market sends a contradictory signal.\n';
 
   t += '\nThe law of the static: ONE idea, half a second. The failure mode is never too ' +
        'little, it is addition -- one more benefit, one more badge, one more line. If an ' +
@@ -213,6 +225,7 @@ function wizToegestaan(vak, veld) {
   if (vak === 'audience' && veld === 'awareness' && typeof WIZ_AWARENESS !== 'undefined') return w(WIZ_AWARENESS);
   if (vak === 'audience' && veld === 'sophistication' && typeof WIZ_SOPHISTICATION !== 'undefined') return w(WIZ_SOPHISTICATION);
   if (vak === 'strategy' && veld === 'differentiation' && typeof WIZ_DIFFERENTIATION !== 'undefined') return w(WIZ_DIFFERENTIATION);
+  if (vak === 'strategy' && veld === 'destination' && typeof WIZ_BESTEMMINGEN !== 'undefined') return w(WIZ_BESTEMMINGEN);
   if (vak === 'visual' && typeof WIZ_VISUAL !== 'undefined') {
     var r = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
     if (r) return w(r.opts);

@@ -236,6 +236,20 @@ function wizBuildBrief(aantal) {
   if (d.strategy.pain) t += 'Primaire pijn: ' + d.strategy.pain + '\n';
   if (d.strategy.proof) t += 'Bewijsmechanisme: ' + d.strategy.proof + '\n';
   if (d.strategy.objection) t += 'Weg te nemen bezwaar: ' + d.strategy.objection + '\n';
+  /* De bestemming stuurt de CTA en hoeveel de ad zelf moet afmaken. Wie naar
+     een artikel gaat hoeft niet in de ad al te kopen; wie naar de
+     productpagina gaat wel. Zonder dit staat er een koop-CTA boven een
+     bestemming die eerst nog iets uit te leggen heeft. */
+  if (d.strategy.destination && typeof wizBestemming === 'function') {
+    var _b = wizBestemming(d.strategy.destination);
+    if (_b) {
+      t += 'Bestemming van de klik: ' + _b.label + ' -- ' + _b.hint + '\n';
+      t += 'Waarom die pagina bij dit publiek hoort: ' + _b.waarom + '\n';
+      t += (d.strategy.destination === 'pdp'
+        ? 'De CTA mag rechtstreeks op kopen aansturen; de pagina verkoopt niet meer voor je.\n'
+        : 'De CTA stuurt naar lezen of ontdekken, niet naar kopen: de pagina doet de verkoop.\n');
+    }
+  }
 
   if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
   if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
@@ -293,8 +307,13 @@ function wizMetadata() {
     concept: d.strategy.marketingAngle,
     offer: '',
     mode: d.format.formatId || 'auto',
-    sophistication: null,
+    /* Dit stond hardgecodeerd op null terwijl de wizard het stadium wel
+       vraagt. Gevolg: de bibliotheek toonde nooit een sophistication-chip en
+       de SO-code in de bestandsnaam bleef leeg -- precies het veld waarop je
+       later wilt terugkijken om te zien welk claimniveau het deed. */
+    sophistication: d.audience.sophistication || null,
     awareness: d.audience.awareness || null,
+    destination: d.strategy.destination || null,
     timestamp: Date.now(),
     bundleProductIds: [],
     personaId: pers ? pers.id : null,
@@ -564,15 +583,27 @@ function wizPickTake(i) {
  * Drie kleurstellingen van hetzelfde idee is geen test, dat is een moodboard.
  * Varieer het idee of varieer het beeld, en weet welke van de twee je doet --
  * daarom staat het op het scherm en niet in de code verstopt. */
+/* De twee passes doen niet hetzelfde soort werk, en dat verschil bepaalt wat
+   je uit een test leert.
+
+   De visuele pass is de echte batch: één idee, één tekst, drie beelden. Wint
+   er een, dan weet je dat het aan het beeld lag, want de woorden waren de
+   controle. Dat is de standaard, en niet uit voorzichtigheid: drie
+   tegelijk gewijzigde dingen leveren een winnaar op waar je niets van leert.
+
+   De hoekpass is geen batch maar drie kandidaat-ideeen naast elkaar. Elke
+   andere kop is namelijk zelf een nieuwe test. Nuttig als je nog zoekt welk
+   idee draagt, maar de winnaar hoort daarna alsnog zijn eigen visuele pass
+   te krijgen. */
 var WIZ_PASSES = [
   { key: 'visueel', label: 'Visual pass',
-    sub: 'One headline, three treatments. Isolates the picture.' },
+    sub: 'One idea, one headline, three pictures. The words are the control, so a winner tells you what won.' },
   { key: 'hoek', label: 'Angle pass',
-    sub: 'Same promise, three ways of saying and showing it. More spread, less isolation.' }
+    sub: 'Three candidate ideas side by side. Use it to find the idea, then run the winner as a visual pass.' }
 ];
 
 function wizPass() {
-  return wizState.data.generate.pass || 'hoek';
+  return wizState.data.generate.pass || 'visueel';
 }
 
 function wizZetPass(key) {
@@ -597,6 +628,10 @@ function wizBuildTakeBrief() {
   if (d.strategy.messaging) t += '- Core message: ' + d.strategy.messaging + '\n';
   if (d.strategy.proof) t += '- Proof: ' + d.strategy.proof + '\n';
   if (f) t += '- Format: ' + f.name + ' (' + f.desc + ')\n';
+  if (d.strategy.destination && typeof wizBestemming === 'function') {
+    var _tb = wizBestemming(d.strategy.destination);
+    if (_tb) t += '- Destination: ' + _tb.label + ' (all three send to the same page)\n';
+  }
   if (c.headline_nl) t += '- Approved concept headline: ' + c.headline_nl + '\n';
   if (c.visual_nl) t += '- Approved concept visual: ' + c.visual_nl + '\n';
   t += '\nThe promise the ad makes is the same in all three. Do not add claims that ' +
@@ -622,6 +657,11 @@ function wizBuildTakeBrief() {
          'Three colourways of the same shot is not a test, it is a mood board. If two takes ' +
          'would look alike in a feed, change one of them.\n\n';
     if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
+    /* De zelfcontrole hoorde hier ook te staan en stond er niet. Zolang de
+       hoekpass de standaard was viel dat niet op, maar de visuele pass is nu
+       wat je standaard draait -- en dan levert de generator drie beelden af
+       die nooit tegen de acht eigenschappen zijn gehouden. */
+    if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
     t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
     t += 'Return exactly 3 variations in the JSON shape you always use, with the same ' +
          'headline text in all three.\n';
@@ -735,6 +775,34 @@ var WIZ_TWEAKS = [
  * Dus: één knop, drie kaarten, kiezen. De verfijnacties komen pas als er een
  * gekozen is, en de tweede manier van varieren staat als één regel onder de
  * drie in plaats van als blok erboven. */
+/* Het bestemmingspaneel op de laatste stap. Drie toestanden: er is een keuze
+   (dan staat er waarom die past, of dat hij juist niet past), er is alleen
+   een aanbeveling (dan staat die er met een knop om hem over te nemen), of er
+   is nog geen awareness en dan is er niets te zeggen. */
+function wizBestemmingPaneel() {
+  if (typeof WIZ_BESTEMMINGEN === 'undefined') return '';
+  var d = wizState.data;
+  var gekozen = d.strategy.destination ? wizBestemming(d.strategy.destination) : null;
+  var advies = (typeof wizBestemmingAdvies === 'function') ? wizBestemmingAdvies() : null;
+
+  if (!gekozen && !advies) {
+    return '<div class="wiz-bestemming leeg">Where this click should land follows from the ' +
+      'awareness stage, and that is not set yet.</div>';
+  }
+  if (!gekozen && advies) {
+    var b = wizBestemming(advies.keuze);
+    return '<div class="wiz-bestemming">' +
+      '<div class="wiz-best-kop">Send this traffic to a ' + wizEsc(b.label.toLowerCase()) + '</div>' +
+      '<p>' + wizEsc(b.waarom) + '</p>' +
+      '<button type="button" class="wiz-linkbtn" onclick="wizPick(\'strategy\',\'destination\',\'' +
+      b.value + '\')">Set ' + wizEsc(b.label) + ' as the destination</button></div>';
+  }
+  var mis = (typeof wizBestemmingMismatch === 'function') ? wizBestemmingMismatch() : null;
+  return '<div class="wiz-bestemming' + (mis ? ' mismatch' : '') + '">' +
+    '<div class="wiz-best-kop">Lands on: ' + wizEsc(gekozen.label) + '</div>' +
+    '<p>' + wizEsc(mis || gekozen.waarom) + '</p></div>';
+}
+
 function wizRender_generate() {
   var sel = wizState.data.concepts.selected;
   if (sel == null) {
@@ -749,6 +817,12 @@ function wizRender_generate() {
   var h = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
     (c.visual_nl ? '<div class="wiz-final-vis">' + wizEsc(c.visual_nl) + '</div>' : '') + '</div>';
 
+  /* Waar de klik heen moet. Dit staat hier en niet alleen op de strategiestap,
+     omdat dit het moment is waarop de ad de deur uit gaat: wie hem nu naar de
+     verkeerde pagina hangt, betaalt dat in bereik. Zonder awareness geen
+     advies -- een verzonnen bestemming is erger dan een leeg vak. */
+  h += wizBestemmingPaneel();
+
   /* Nog niets: één knop en één zin over wat er gebeurt. */
   if (!takes.length) {
     return h + '<div class="wiz-final-start">' +
@@ -756,9 +830,12 @@ function wizRender_generate() {
       (wizState.busy ? ' disabled' : '') + '>' +
       (wizState.busy ? 'Working out three variations…' : 'Generate ' + WIZ_TAKE_COUNT + ' variations') +
       '</button>' +
-      '<div class="wiz-take-uitleg">Same persona, same angle, same promise. Three different ' +
-      'headlines, three different pictures, and a call to action that follows the headline. ' +
-      'You pick the one that runs.</div></div>';
+      '<div class="wiz-take-uitleg">' + (wizPass() === 'visueel'
+        ? 'Same persona, same angle, same promise, and the same words on all three. Only the ' +
+          'picture changes, so whichever wins tells you it was the picture. You pick the one that runs.'
+        : 'Same persona, same angle, same promise. Three different headlines and three different ' +
+          'pictures: three candidate ideas rather than one batch. Run the winner as a visual pass ' +
+          'afterwards.') + '</div></div>';
   }
 
   /* De drie naast elkaar. Elke kaart zegt in welke toestand hij is: er is een
@@ -924,7 +1001,7 @@ function wizHandOff() {
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
-window.wizRender_generate = wizRender_generate;
+window.wizRender_generate = wizRender_generate; window.wizBestemmingPaneel = wizBestemmingPaneel;
 window.wizAfter_review = wizAfter_review; window.wizAfter_concepts = wizAfter_concepts;
 window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;

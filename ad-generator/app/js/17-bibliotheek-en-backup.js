@@ -76,7 +76,13 @@ async function saveToLibraryFromCard(varIndex) {
     saved_at: Date.now(),
     batch_id: (state.lastGenerated && state.lastGenerated._batch_id) || null,
     batch_title: (state.lastGenerated && state.lastGenerated._batch_title) || '',
-    variant_index: varIndex
+    variant_index: varIndex,
+    /* De naam waaronder deze creative in het advertentie-account komt te
+       staan. Meteen bij het bewaren vastleggen en niet pas bij het uploaden:
+       zodra de wizard-state weg is, is de hoek niet meer te reconstrueren, en
+       dan heet hij in Meta iets naamloos en is de data achteraf niet meer aan
+       een beslissing te koppelen. */
+    ad_name: (typeof wizAdNaam === 'function') ? wizAdNaam(metadata, varIndex) : null
   };
   /* Het id terugschrijven op de variatie in het geheugen. Zonder dit weet
      "Klaarzetten voor test" straks niet uit welk bibliotheekitem deze variant
@@ -646,6 +652,41 @@ function iterateFromLibrary(item){
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){}
 }
 /* ===== Bibliotheek: concept-groepering (v5.11) ===== */
+/* Het strategie-dossier op de kaart. Dit stond tot nu toe alleen in de
+   wizard en verdween bij het opslaan, waardoor de bibliotheek liet zien DAT
+   er een creative was en niet WAARVOOR hij gemaakt was. Zonder hoek,
+   verlangen en de twee assen is een testlog niet te lezen: je ziet welke ad
+   won, maar niet welke beslissing won. */
+function libDossierHtml(item){
+  var brief = ((item.metadata || {}).wizardBrief) || null;
+  if (!brief || typeof wizDossierVan !== 'function') return '';
+  var regels = wizDossierVan(brief);
+  if (!regels.length) return '';
+  return '<div class="lib-dossier">' + regels.map(function(r){
+    return '<div class="lib-dos-rij"><span class="lib-dos-k">' + escapeHtml(r.label) + '</span>'
+      + '<span class="lib-dos-v">' + escapeHtml(r.tekst) + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/* De naam voor het advertentie-account, met een knop ernaast. Oudere items
+   hebben hem nog niet opgeslagen; die krijgen hem alsnog berekend, zodat de
+   bibliotheek niet in twee soorten uiteenvalt. */
+function libAdNaam(item){
+  if (item.ad_name) return item.ad_name;
+  if (typeof wizAdNaam === 'function' && item.metadata) {
+    return wizAdNaam(item.metadata, item.variant_index == null ? 0 : item.variant_index);
+  }
+  return '';
+}
+function libAdNaamHtml(item){
+  var naam = libAdNaam(item);
+  if (!naam) return '';
+  return '<div class="lib-adnaam">'
+    + '<code>' + escapeHtml(naam) + '</code>'
+    + '<button class="btn btn-small btn-ghost" data-action="copy-name" data-id="' + item.id + '" '
+    + 'title="Copy this name into the Meta ad account">Copy ad name</button></div>';
+}
+
 function libCardHtml(item){
   const d = new Date(item.saved_at);
   const dateStr = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -671,6 +712,8 @@ function libCardHtml(item){
           ${bodyHtml}
           <div class="lib-meta">${escapeHtml(m.product || '')} , ${escapeHtml(String(m.funnel || ''))} , ${escapeHtml(String(m.archetype || ''))}${ctaTxt}</div>
           ${buildRecipeChips(m)}
+          ${libAdNaamHtml(item)}
+          ${libDossierHtml(item)}
           ${libExtraHtml(v)}
           ${libMatrixHtml(item.id, mat, m)}
           <div class="lib-actions">
@@ -785,6 +828,9 @@ function renderLibrary() {
       if (action === 'copy-prompt') {
         navigator.clipboard.writeText(item.variation.image_prompt_en);
         toast('Image prompt gekopieerd');
+      } else if (action === 'copy-name') {
+        navigator.clipboard.writeText(libAdNaam(item));
+        toast('Ad name gekopieerd, plak hem in Meta');
       } else if (action === 'view') {
         viewLibraryItem(item);
       } else if (action === 'iterate') {

@@ -827,6 +827,11 @@ const VULLEN = `
     wizSet('strategy', 'proof', 'SkinSafe ceramic blades', 'rory');
     wizState.data.concepts.list = [{ headline_nl: 'Zo trim je gevoelige zones', visual_nl: 'macro van de kop' }];
     wizState.data.concepts.selected = 0;
+    /* Expliciet de hoekpass: dit blok toetst wat DIE pass eist (drie andere
+       koppen, drie andere scenes). De standaard is inmiddels de visuele pass,
+       die juist de woorden vastzet, en dan meet dit blok het verkeerde
+       contract. Het visuele contract staat verderop in zijn eigen blok. */
+    wizZetPass('hoek');
     var t = wizBuildTakeBrief();
     return {
       /* wat vast staat hoort er letterlijk in te staan, anders herinterpreteert
@@ -1178,6 +1183,12 @@ const VULLEN = `
     d.innerHTML = wizRender_generate();
     var start = {
       knoppen: d.querySelectorAll('button').length,
+      /* De ruwe knoptelling zei "één knop en verder niets", maar telde alles
+         mee wat een knop is. Wat het moest bewaken is preciezer: er is één
+         hoofdactie (genereren) en geen enkele knop die pas ergens over gaat
+         als er al iets staat. De bestemmingsknop hoort hier juist wel: waar
+         de klik landt weet je liever voor je genereert dan erna. */
+      hoofdacties: d.querySelectorAll('.wiz-btn.primary').length,
       tekst: d.textContent.replace(/\s+/g, ' ').trim(),
       /* Geen keuzeblokken meer bovenaan: die stonden er voordat je iets had. */
       passblokken: d.querySelectorAll('.wiz-passknop').length,
@@ -1215,7 +1226,7 @@ const VULLEN = `
   }, VULLEN);
   /* Voor je begint is er één knop en verder niets: geen passkeuze, geen
      verfijnrij, geen uitleg waarom je nog niet kunt verfijnen. */
-  check('voor je begint staat er één knop', eind.start.knoppen, 1);
+  check('voor je begint is er precies één hoofdactie', eind.start.hoofdacties, 1);
   check('en die zegt wat hij doet', /Generate 3 variations/.test(eind.start.tekst), true);
   check('geen keuzeblokken voor de pass', eind.start.passblokken, 0);
   check('en geen verfijnknoppen zonder beeld', eind.start.verfijnen, 0);
@@ -2058,7 +2069,12 @@ const VULLEN = `
   check('de hoekpass vraagt daar wel om', passes.hoekVraagtWelNieuweKoppen, true);
   check('maar houdt de belofte vast', passes.hoekHoudtBeloftevast, true);
   check('beide passes dragen de leer mee', passes.beideDeLeer, true);
-  check('en de hoekpass is wat je standaard draait', passes.standaard, 'hoek');
+  /* Dit eiste eerst de hoekpass als standaard. Dat was de omgekeerde regel:
+     een batch is een idee met dezelfde woorden en drie beelden, en verandert
+     de kop mee, dan weet je bij een winnaar niet waardoor hij won. De
+     hoekpass is geen batch maar drie kandidaat-ideeen, en die kies je
+     bewust. */
+  check('en de visuele pass is wat je standaard draait', passes.standaard, 'visueel');
 
   /* ── De scorekaart ───────────────────────────────────────────────────── */
   console.log('\n  de acht eigenschappen worden echt gevraagd');

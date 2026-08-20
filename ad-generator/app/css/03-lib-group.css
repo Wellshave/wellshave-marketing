@@ -12,3 +12,34 @@
 .lib-g-chev { color:#624c1b; font-size:15px; transition:transform .18s; flex-shrink:0; }
 .lib-group-head.open .lib-g-chev { transform:rotate(180deg); }
 .lib-group-body { padding:2px 12px 14px; display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; align-items:start; }
+
+/* ── Dossier en advertentienaam op de bibliotheekkaart ──────────────────────
+   Het dossier is een leesblok, geen formulier: sleutel links smal, waarde
+   rechts. De advertentienaam staat in monospace omdat hij op breedte
+   gescand wordt en elk streepje een veldgrens is. */
+.lib-adnaam {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 8px 0 2px;
+}
+.lib-adnaam code {
+  flex: 1 1 240px; min-width: 0; overflow-x: auto; white-space: nowrap;
+  padding: 6px 9px; border-radius: 6px;
+  background: rgba(var(--gold-rgb), .06);
+  border: 1px solid rgba(var(--gold-rgb), .18);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; color: var(--gold);
+}
+.lib-dossier {
+  margin: 8px 0 4px; padding: 9px 11px;
+  background: rgba(var(--gold-rgb), .04);
+  border: 1px solid rgba(var(--gold-rgb), .12);
+  border-radius: 8px;
+  display: grid; gap: 4px;
+}
+.lib-dos-rij { display: grid; grid-template-columns: 116px 1fr; gap: 10px; align-items: baseline; }
+.lib-dos-k {
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.lib-dos-v { font-size: 12px; color: var(--text-soft); line-height: 1.45; }
+@media (max-width: 560px) { .lib-dos-rij { grid-template-columns: 1fr; gap: 1px; } }

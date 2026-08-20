@@ -435,3 +435,36 @@
   object-fit: cover; border-radius: 50%;
 }
 .wiz-rory-avatar i, .iw2-avatar i, .iw2-ingang-i i { font-style: normal; }
+
+/* ── De mismatch-waarschuwing bij de bestemming ─────────────────────────────
+   Geen rode alarmkleur: dit blokkeert niets en is soms een bewuste keuze
+   (er is maar één pagina). Wel een zichtbare rand, want stil laten staan is
+   precies hoe de fout blijft zitten. */
+#wiz-inline .wiz-waarschuwing {
+  margin: 8px 0 0; padding: 9px 11px;
+  background: rgba(var(--gold-rgb), .07);
+  border-left: 2px solid rgba(var(--gold-rgb), .5);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-soft); font-size: 12px; line-height: 1.5;
+}
+
+/* ── Bestemmingspaneel op de laatste stap ──────────────────────────────────
+   Rustig als de keuze past, met een gouden rand als hij dat niet doet. Geen
+   alarmrood: het blokkeert niets, het hoort alleen niet ongemerkt te blijven
+   staan. */
+#wiz-inline .wiz-bestemming {
+  margin: 10px 0 16px; padding: 12px 14px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  border-radius: 10px;
+}
+#wiz-inline .wiz-bestemming.mismatch { border-color: rgba(var(--gold-rgb), .45); }
+#wiz-inline .wiz-bestemming.leeg { background: transparent; color: var(--text-faint); font-size: 12px; }
+#wiz-inline .wiz-best-kop {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 5px;
+}
+#wiz-inline .wiz-bestemming p {
+  margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-soft);
+}
+#wiz-inline .wiz-bestemming .wiz-linkbtn { margin-top: 7px; }

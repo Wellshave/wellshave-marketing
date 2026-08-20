@@ -123,6 +123,101 @@ function serve(root) {
   check('de kop draagt de open-stijl ook nog', groep.kopNa, true);
   check('een groep die dicht was blijft gewoon dicht', groep.dichtGebleven, true);
 
+  console.log('\n  de kaart toont waarvoor de creative gemaakt is');
+  /* Een bibliotheek die alleen laat zien DAT er een creative is, is een
+     plakboek. Om te itereren moet er naast het beeld staan welke beslissing
+     eronder lag: de hoek, het verschil, het verlangen en de twee assen. En de
+     naam waaronder hij in het advertentie-account komt, want zonder die naam
+     is de data straks niet aan de beslissing te koppelen. */
+  const kaart = await page.evaluate(() => {
+    const brief = wizBlankData();
+    brief.audience.awareness = 'solution';
+    brief.audience.sophistication = 's3';
+    brief.strategy.theme = 'De scheerbeurt zonder nabranden';
+    brief.strategy.differentiation = 'mechanism';
+    brief.strategy.desire = 'Geen rode vlekken';
+    brief.strategy.destination = 'listicle';
+    state.library = [{
+      id: 'x1', batch_id: 'batch-x', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+      ad_name: 'trimmer_AW-SOLU_SO-S3_ANG-de-scheerbeurt_V1_2026-08-20',
+      metadata: { product: 'Trimmer', funnel: 'tof', archetype: 'mix', awareness: 'solution',
+                  sophistication: 's3', personaName: 'Gijs', wizardBrief: brief },
+      variation: { headline_nl: 'Kop', image_prompt_en: 'p' }
+    }];
+    renderLibrary();
+    const lib = document.getElementById('library');
+    const tekst = lib.textContent;
+    return {
+      naam: !!lib.querySelector('.lib-adnaam code'),
+      naamTekst: (lib.querySelector('.lib-adnaam code') || {}).textContent || '',
+      knop: !!lib.querySelector('button[data-action="copy-name"]'),
+      hoek: tekst.indexOf('De scheerbeurt zonder nabranden') !== -1,
+      verschil: tekst.indexOf('New mechanism') !== -1,
+      bestemming: tekst.indexOf('Listicle') !== -1,
+      sophChip: tekst.indexOf('Soph: s3') !== -1
+    };
+  });
+  check('de advertentienaam staat op de kaart', kaart.naam, true);
+  check('en die naam is de opgeslagen naam',
+    kaart.naamTekst, 'trimmer_AW-SOLU_SO-S3_ANG-de-scheerbeurt_V1_2026-08-20');
+  check('met een knop om hem te kopieren', kaart.knop, true);
+  check('de hoek staat er', kaart.hoek, true);
+  check('het soort verschil als label', kaart.verschil, true);
+  check('en waar de klik landt', kaart.bestemming, true);
+  check('de sophistication-chip verschijnt nu ook', kaart.sophChip, true);
+
+  console.log('\n  het opslaan legt de naam zelf vast');
+  /* De kaart kan de naam ook berekenen, dus een test op de kaart alleen zegt
+     niets over de opslag. En juist de opslag is wat telt: zodra de
+     wizard-state weg is valt de hoek niet meer te reconstrueren, dus de naam
+     moet op het item staan en niet elke keer opnieuw ontstaan. */
+  const opgeslagen = await page.evaluate(async () => {
+    state.library = [];
+    wizState.data = wizBlankData();
+    wizState.data.audience.awareness = 'product';
+    wizState.data.audience.sophistication = 's2';
+    wizState.data.strategy.theme = 'Scheren zonder spiegel';
+    wizState.data.strategy.differentiation = 'avatar';
+    wizState.data.strategy.destination = 'pdp';
+    state.lastGenerated = {
+      variations: [{ headline_nl: 'Kop een', image_prompt_en: 'p' },
+                   { headline_nl: 'Kop twee', image_prompt_en: 'p' }],
+      metadata: wizMetadata()
+    };
+    state.generatedImages = {};
+    // Geen beeld: de bevestigingsvraag zou blijven staan, dus even ja zeggen
+    const echteConfirm = window.confirm; window.confirm = () => true;
+    await saveToLibraryFromCard(1);
+    window.confirm = echteConfirm;
+    const it = state.library[0] || {};
+    return { naam: it.ad_name || null, variant: it.variant_index };
+  });
+  check('de tweede variant is als V2 opgeslagen', /_V2_/.test(opgeslagen.naam || ''), true);
+  check('met de hoek erin', /ANG-scheren-zonder-spiegel/.test(opgeslagen.naam || ''), true);
+  check('het soort verschil', /DF-AVTR/.test(opgeslagen.naam || ''), true);
+  check('de bestemming', /LP-PDP/.test(opgeslagen.naam || ''), true);
+  check('en de sophistication die de wizard verzamelde',
+    /SO-S2/.test(opgeslagen.naam || ''), true);
+
+  console.log('\n  een oud item zonder opgeslagen naam krijgt er alsnog een');
+  /* De bibliotheek mag niet in twee soorten uiteenvallen: items van voor deze
+     wijziging hebben geen ad_name, en die moeten hem berekend krijgen in
+     plaats van een leeg vak te tonen. */
+  const oud = await page.evaluate(() => {
+    const brief = wizBlankData();
+    brief.strategy.theme = 'Oude hoek';
+    state.library = [{
+      id: 'oud1', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+      metadata: { product: 'Trimmer', timestamp: Date.UTC(2026, 7, 20), wizardBrief: brief },
+      variation: { headline_nl: 'Kop', image_prompt_en: 'p' }
+    }];
+    renderLibrary();
+    const c = document.getElementById('library').querySelector('.lib-adnaam code');
+    return c ? c.textContent : null;
+  });
+  check('het oude item toont een berekende naam met de hoek erin',
+    /ANG-oude-hoek/.test(oud || ''), true);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();

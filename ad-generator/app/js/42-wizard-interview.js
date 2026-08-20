@@ -1137,6 +1137,9 @@ var IW2_RIJEN = [
   { label: 'Marketing angle', pad: 'strategy.marketingAngle', lees: function (d) { return d.strategy.marketingAngle; } },
   { label: 'Different how', pad: 'strategy.differentiation', lees: function (d) { return d.strategy.differentiation ? wizDiffLabel(d.strategy.differentiation) : ''; } },
   { label: 'Mechanism', pad: 'strategy.mechanism', lees: function (d) { return d.strategy.mechanism; } },
+  { label: 'Lands on', pad: 'strategy.destination', lees: function (d) {
+      if (!d.strategy.destination || typeof wizBestemming !== 'function') return '';
+      var b = wizBestemming(d.strategy.destination); return b ? b.label : d.strategy.destination; } },
   { label: 'Format', pad: 'format.formatId', lees: function (d) { var f = wizFormat(); return f ? f.name : ''; } },
   { label: 'Visual style', pad: 'visual.mood', lees: function (d) { return d.visual.mood ? wizVisualLabel('mood', d.visual.mood) : ''; } },
   { label: 'Human', pad: 'visual.humanPresence', lees: function (d) { return d.visual.humanPresence ? wizVisualLabel('humanPresence', d.visual.humanPresence) : ''; } },

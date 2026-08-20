@@ -512,6 +512,28 @@ function wizRender_strategy() {
         'onclick="wizPick(\'strategy\',\'differentiation\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
     }).join('') + '</div></div>';
 
+  /* Waar de klik landt. Dit hoort bij de strategie en niet bij de nazorg:
+     Meta leest de advertentie en de pagina samen en beslist op allebei aan
+     wie hij hem laat zien. Een ad voor een nieuwe groep die naar een pagina
+     voor de oude massa wijst, kost bereik voordat hij conversie kost. */
+  if (typeof WIZ_BESTEMMINGEN !== 'undefined') {
+    var destAdv = (typeof wizBestemmingAdvies === 'function') ? wizBestemmingAdvies() : null;
+    links += '<div class="wiz-veld"><label>Where the click lands</label>' +
+      '<div class="wiz-pillen">' + WIZ_BESTEMMINGEN.map(function (o) {
+        var aan = (s.destination === o.value);
+        var rec = !!(destAdv && (destAdv.keuze === o.value || (destAdv.ook || []).indexOf(o.value) !== -1));
+        return '<button type="button" class="wiz-pil' + (aan ? ' on' + wizNetKlas('strategy', 'destination', o.value) : '') + (rec ? ' rec' : '') + '" ' +
+          'title="' + wizEsc(o.hint) + '" ' +
+          'onclick="wizPick(\'strategy\',\'destination\',\'' + o.value + '\')">' + wizEsc(o.label) + '</button>';
+      }).join('') + '</div>';
+    var mis = (typeof wizBestemmingMismatch === 'function') ? wizBestemmingMismatch() : null;
+    if (mis) links += '<p class="wiz-waarschuwing">' + wizEsc(mis) + '</p>';
+    else if (!s.destination && !wizState.data.audience.awareness) {
+      links += '<p class="wiz-hint">Pick the awareness stage first and the fitting destination lights up.</p>';
+    }
+    links += '</div>';
+  }
+
   var adv = wizState.advice.strategy || {};
   var aantalAlt = (adv.alternatives || []).length;
   links += '<div class="wiz-actions">' +

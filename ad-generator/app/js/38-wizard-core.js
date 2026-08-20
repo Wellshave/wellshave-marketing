@@ -92,9 +92,13 @@ function wizBlankData() {
        gebruikt. Zonder dat veld is 'anders' een compliment in plaats van een
        besluit. mechanism is het hoe -- vanaf sophistication 3 is dat het enige
        wat een uitgekeken markt nog gelooft. */
+    /* destination: waar de klik landt. Dit is geen nazorg maar onderdeel van
+       de strategie: het platform leest de ad EN de pagina en beslist op beide
+       aan wie hij hem laat zien. Een ad voor een nieuwe tribe die naar een
+       pagina voor de oude massa wijst, geeft een tegenstrijdig signaal. */
     strategy: { angleType: '', goal: '', theme: '', differentiation: '', mechanism: '',
                 marketingAngle: '', messaging: '', desire: '', ultimateDesire: '', timing: '',
-                pain: '', proof: '', objection: '' },
+                pain: '', proof: '', objection: '', destination: '' },
     format:   { formatId: '' },
     /* basisFoto: de foto waar de ad OP gebouwd wordt, in plaats van een beeld dat
        helemaal uit niets ontstaat. Dat is wat een founder-ad nodig heeft: de
@@ -107,7 +111,10 @@ function wizBlankData() {
     copy:     { direction: '', headline: '', supporting: '', body: '', proof: '', cta: '', removed: '' },
     review:   { visualDescription: '' },
     concepts: { list: [], selected: null },
-    generate: { varIndex: null, takes: null, selectedTake: null, pass: 'hoek' }
+    /* pass: 'visueel' is de batchregel -- een idee, dezelfde woorden, drie
+       beelden. De hoekpass verandert ook de kop en is daarmee geen batch maar
+       drie losse ideeen; die kies je bewust. */
+    generate: { varIndex: null, takes: null, selectedTake: null, pass: 'visueel' }
   };
 }
 
