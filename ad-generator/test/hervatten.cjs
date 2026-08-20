@@ -355,6 +355,88 @@ const OPZET = () => {
      ze ongemerkt mee naar de volgende. */
   check('daarna is het vak weer leeg', fotoBijEdit.leeggemaakt, 0);
 
+  console.log('\n  opnieuw uitwerken laat zien dat er iets loopt');
+  /* Tijdens het opnieuw uitwerken was er NERGENS een teken: de knop stond
+     stil op disabled, en de "Working…"-tekst verschijnt alleen in een LEEG
+     beeldvak -- dus met drie bestaande beelden zag je precies niets. Dat is
+     de klacht "variaties genereren niet opnieuw". */
+  const bezigOpNegen = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.concepts.selected = 0;
+    const idx = wizTakeIndexen();
+    state.generatedImages = {};
+    idx.forEach(i => { state.generatedImages[i] = { versions: [{ b64: 'AAA', mime: 'image/png' }], currentIndex: 0 }; });
+    wizState.data.generate.selectedTake = idx[0];
+
+    wizState.busy = false;
+    const rustig = (() => { const d = document.createElement('div');
+      d.innerHTML = wizRender_generate(); return !!d.querySelector('.iw2-bezig'); })();
+    wizState.busy = true;
+    const d2 = document.createElement('div');
+    d2.innerHTML = wizRender_generate();
+    const bezig = { balk: !!d2.querySelector('.iw2-bezig'),
+                    tekst: (d2.querySelector('.iw2-bezig-tekst') || {}).textContent || '',
+                    beweegt: !!d2.querySelector('.iw2-bezig-balk span') };
+    wizState.busy = false;
+    return { rustig, bezig };
+  }, OPZET.toString());
+  check('in rust staat er geen balk', bezigOpNegen.rustig, false);
+  /* Juist mét bestaande beelden moet het teken er zijn: dat is het geval
+     waarin er anders niets te zien is. */
+  check('maar tijdens het uitwerken wel', bezigOpNegen.bezig.balk, true);
+  check('en die zegt wat er gebeurt',
+    /working out three new variations/.test(bezigOpNegen.bezig.tekst), true);
+  check('met een bewegend deel', bezigOpNegen.bezig.beweegt, true);
+
+  console.log('\n  en een tweede druk krijgt antwoord in plaats van stilte');
+  const tweedeDruk = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.concepts.selected = 0;
+    wizState.busy = true;
+    const meldingen = []; const echteToast = window.toast;
+    window.toast = m => meldingen.push(String(m));
+    wizGenerateTakes();
+    window.toast = echteToast;
+    wizState.busy = false;
+    return meldingen;
+  }, OPZET.toString());
+  check('hij zegt dat de vorige ronde nog loopt',
+    tweedeDruk.some(m => /still working on the previous round/.test(m)), true);
+
+  console.log('\n  en de drie nieuwe beelden starten samen');
+  /* Aan het eind van het uitwerken stond een lus die wizPreview drie keer
+     aanriep, en die tekent zelf: herteken twee veegde de laadstatus van de
+     eerste weg. Dezelfde fout als bij "Generate 3 previews". */
+  const nieuweBeelden = await page.evaluate(async opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.pass = 'visueel';
+    wizState.data.strategy.messaging = 'Kern';
+    window.__WG_TEAMSERVER = true;
+    const gevraagd = []; let hertekensNa = 0; let klaar = false;
+    const echteGen = window.generateImage;
+    const echteRender = window.wizRender;
+    const echteCall = window.wizCall;
+    window.generateImage = i => { gevraagd.push(i); return Promise.resolve(); };
+    window.wizCall = () => Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+      variations: [{ headline_nl: 'A', image_prompt_en: 'a' },
+                   { headline_nl: 'B', image_prompt_en: 'b' },
+                   { headline_nl: 'C', image_prompt_en: 'c' }] }) }] });
+    window.wizRender = function () { if (klaar) hertekensNa++; return echteRender.apply(this, arguments); };
+    wizGenerateTakes();
+    /* Vanaf hier tellen: alles na het antwoord van het model. */
+    klaar = true;
+    await new Promise(r => setTimeout(r, 250));
+    window.generateImage = echteGen; window.wizRender = echteRender; window.wizCall = echteCall;
+    const vlaggen = Object.keys(wizBeeldBezig).sort();
+    Object.keys(wizBeeldBezig).forEach(k => { delete wizBeeldBezig[k]; });
+    return { gevraagd: gevraagd.sort(), vlaggen: vlaggen, hertekensNa: hertekensNa };
+  }, OPZET.toString());
+  check('alle drie de beelden worden gestart', nieuweBeelden.gevraagd.length, 3);
+  check('en alle drie staan als bezig gemerkt', nieuweBeelden.vlaggen.length, 3);
+  /* Een keer tekenen na het antwoord, niet per beeld. */
+  check('met een enkele herteken erna', nieuweBeelden.hertekensNa, 1);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();

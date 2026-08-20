@@ -881,9 +881,15 @@ const VULLEN = `
       { headline_nl: 'Keramische bladen, geen sneetjes', visual_nl: 'Het product met annotaties en icoontjes bij de bladen', hook_label_nl: 'Voor-na', image_prompt_en: 'c' }
     ] }) }] };
 
-    var echtCall = window.wizCall, echtPreview = window.wizPreview;
+    /* Tellen wat er werkelijk in productie gaat, niet welke hulpfunctie dat
+       doet. Dit stond op wizPreview, en toen die lus een batch werd (drie
+       beelden starten na EEN herteken, in plaats van drie keer wizPreview met
+       een herteken per stuk) mat dit blok ineens niets meer -- terwijl het
+       gedrag juist beter werd. generateImage is de plek waar een beeld echt
+       begint, en die verschuift niet. */
+    var echtCall = window.wizCall, echtGen = window.generateImage;
     var beeldjes = [];
-    window.wizPreview = function (i) { beeldjes.push(i); };
+    window.generateImage = function (i) { beeldjes.push(i); return Promise.resolve(); };
     window.wizCall = function () { return Promise.resolve(drie); };
     wizState.current = 'generate';
     wizGenerateTakes();
@@ -891,7 +897,7 @@ const VULLEN = `
       setTimeout(function () {
         var takes = wizState.data.generate.takes || [];
         var vs = takes.map(function (i) { return state.lastGenerated.variations[i] || {}; });
-        window.wizCall = echtCall; window.wizPreview = echtPreview;
+        window.wizCall = echtCall; window.generateImage = echtGen;
         klaar({
           aantal: takes.length,
           headlines: vs.map(function (v) { return v.headline_nl; }),

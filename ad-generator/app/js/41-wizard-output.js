@@ -843,7 +843,12 @@ function wizBuildTakeBrief() {
 }
 
 function wizGenerateTakes() {
-  if (wizState.busy) return;
+  /* Stil terugkeren op een lopende beurt betekent: je drukt, er gebeurt
+     niets, en je weet niet of hij bezig is of stuk. Zeg het gewoon. */
+  if (wizState.busy) {
+    if (typeof toast === 'function') toast('Rory is still working on the previous round', true);
+    return;
+  }
   if (!wizHerstelGeneratie()) {
     if (typeof toast === 'function') toast('Work out the concepts first', true); return;
   }
@@ -876,8 +881,13 @@ function wizGenerateTakes() {
       /* Tekenen voordat de beelden komen: generateImage schrijft in
          #gen-image-<i> en die vakken moeten er staan. En je ziet nu al waarin de
          drie verschillen, voordat er een euro aan beeld op gaat. */
+      /* Alle drie de vlaggen zetten, EEN keer tekenen, dan pas starten.
+         wizPreview tekent zelf, en drie keer tekenen veegt de laadstatus van
+         de vorige twee weg -- dezelfde fout die de knop "Generate 3 previews"
+         had. */
+      idx.forEach(function (i) { wizBeeldBezig[i] = true; });
       wizRender();
-      idx.forEach(function (i) { wizPreview(i); });
+      idx.forEach(function (i) { generateImage(i); wizWachtOpBeeld(i); });
     })
     .catch(function (err) {
       wizState.busy = false;
@@ -973,6 +983,17 @@ function wizRender_generate() {
      verkeerde pagina hangt, betaalt dat in bereik. Zonder awareness geen
      advies -- een verzonnen bestemming is erger dan een leeg vak. */
   h += wizBestemmingPaneel();
+
+  /* Wat er nu loopt, boven de drie kaarten. Zonder dit was er tijdens het
+     opnieuw uitwerken NERGENS een teken: de knop stond stil op disabled, en
+     de "Working…"-tekst in het beeldvak verschijnt alleen als dat vak leeg
+     is -- dus met drie bestaande beelden zag je precies niets gebeuren. */
+  if (wizState.busy) {
+    h += '<div class="iw2-bezig" role="status" aria-live="polite">' +
+      '<div class="iw2-bezig-balk"><span></span></div>' +
+      '<div class="iw2-bezig-tekst">Rory is working out three new variations. ' +
+      'The pictures follow once the three executions are there.</div></div>';
+  }
 
   /* Nog niets: één knop en één zin over wat er gebeurt. */
   if (!takes.length) {
