@@ -526,8 +526,44 @@ function wizPickConcept(i) {
    dat er niets gebeurt -- precies de klacht. */
 var wizBeeldBezig = {};
 
+/* De brug tussen de bewaarde concepten en de generator.
+ *
+ * De wizard bewaart zichzelf in localStorage; state.lastGenerated doet dat
+ * niet en begint elke sessie op null. Gevolg: je komt terug op stap 8, ziet
+ * je drie uitgewerkte concepten staan, drukt op "Generate 3 previews" en
+ * krijgt "Work out the concepts first" -- terwijl ze er zichtbaar staan. Een
+ * melding die je tegenspreekt op het scherm ernaast.
+ *
+ * De data is er wel: concepts.list IS de lijst variaties. Die hoort dus
+ * hersteld te worden in plaats van geweigerd. Geeft terug of er nu iets
+ * bruikbaars staat.
+ *
+ * Alleen aanvullen, nooit overschrijven: een lastGenerated uit Kopieer ad of
+ * Itereren hoort niet door de wizard weggeduwd te worden. */
+function wizHerstelGeneratie() {
+  var lijst = (wizState.data.concepts.list || []);
+  if (!lijst.length) return false;
+  if (state.lastGenerated && (state.lastGenerated.variations || []).length) return true;
+  state.lastGenerated = {
+    variations: lijst.slice(),
+    metadata: wizMetadata(),
+    /* Zodat een latere generatie weet dat dit uit de bewaarde wizard komt en
+       niet vers uit het model. */
+    hersteld: true
+  };
+  if (!state.generatedImages || typeof state.generatedImages !== 'object') {
+    state.generatedImages = {};
+  }
+  if (typeof wizZetBasisFotos === 'function') {
+    wizZetBasisFotos(lijst.map(function (x, i) { return i; }));
+  }
+  return true;
+}
+
 function wizPreview(i) {
-  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
+  if (!wizHerstelGeneratie()) {
+    if (typeof toast === 'function') toast('Work out the concepts first', true); return;
+  }
   if (typeof generateImage !== 'function') return;
   wizBeeldBezig[i] = true;
   wizRender();
@@ -571,7 +607,12 @@ var WIZ_TAKE_COUNT = 3;
    tweede pijplijn ernaast die daarna uit elkaar gaat lopen. */
 function wizTakeIndexen() {
   var sel = wizState.data.concepts.selected;
-  if (sel == null || !state.lastGenerated || !state.lastGenerated.variations) return [];
+  if (sel == null) return [];
+  /* Ook hier eerst herstellen: kom je terug in een bewaarde sessie, dan staan
+     de concepten er wel en state.lastGenerated niet, en dan levert deze
+     functie een lege lijst -- waarna stap 9 doet alsof er niets is. */
+  if (!wizHerstelGeneratie()) return [];
+  if (!state.lastGenerated || !state.lastGenerated.variations) return [];
   var bewaard = wizState.data.generate.takes;
   /* Nieuwe concepten betekenen een nieuwe lijst; oude indexen wijzen dan naar
      niets meer en moeten opnieuw gemaakt worden. */
@@ -744,7 +785,9 @@ function wizBuildTakeBrief() {
 
 function wizGenerateTakes() {
   if (wizState.busy) return;
-  if (!state.lastGenerated) { if (typeof toast === 'function') toast('Work out the concepts first', true); return; }
+  if (!wizHerstelGeneratie()) {
+    if (typeof toast === 'function') toast('Work out the concepts first', true); return;
+  }
   if (wizState.data.concepts.selected == null) {
     if (typeof toast === 'function') toast('Pick a concept first', true); return;
   }
@@ -1055,7 +1098,7 @@ window.wizAfter_review = wizAfter_review; window.wizAfter_concepts = wizAfter_co
 window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
-window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll;
+window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll; window.wizHerstelGeneratie = wizHerstelGeneratie;
 window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOff = wizHandOff;
 window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata; window.wizBriefZonderBeeld = wizBriefZonderBeeld;
 window.wizBlueprintGaps = wizBlueprintGaps; window.wizNaarGat = wizNaarGat; window.wizVisualLabel = wizVisualLabel;
