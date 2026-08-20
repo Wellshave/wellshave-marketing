@@ -35,6 +35,13 @@ how to switch it off; when to use own photography versus generate an image, and 
 between illustrating and fabricating proof; the three-card offer pattern; and the technical
 rules that keep it from breaking.
 
+**Open with the intake.** The brand layer's workflow starts with five questions (part 1,
+step 0): the creative and its literal promise, the product and its package ladder plus whether
+the cart actually delivers any gift, what proof may be used and what scope it covers, the
+destination URL, and the page type. Ask them in one batch and do not start building until they
+are answered. Anything you can look up yourself, look up — but never invent an answer. Each of
+those five exists because building without it went wrong.
+
 **The order of use.** `references/wellshave-merklaag.md` is the shared design system and opens
 with the workflow — follow it from step 1. Its part 2 makes you choose the page type *before*
 any design happens, because the type decides the spine and the spine decides which sections

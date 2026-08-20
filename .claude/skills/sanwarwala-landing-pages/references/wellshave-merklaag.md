@@ -21,6 +21,29 @@ geldt. Prijzen, bestandsnamen en losse incidenten horen bij het project, niet hi
 Van creative tot gepubliceerde pagina. Houd deze volgorde aan; hij is zo gebouwd dat elke stap
 het werk van de volgende vastlegt.
 
+### 0. Vraag deze vijf dingen eerst
+
+**Stel ze in een keer, en begin niet met bouwen voordat je antwoord hebt.** Elk van deze vijf
+komt voort uit iets dat werkelijk fout ging toen ze niet gesteld werden. Kun je een antwoord
+zelf ophalen, doe dat dan en laat de vraag weg; verzin nooit een antwoord.
+
+1. **De creative en de belofte.** Welke advertentie ligt eronder, en wat belooft hij letterlijk?
+   Die belofte komt woordelijk boven de vouw.
+2. **Product en pakketten.** Welk product, en welke twee of drie pakketten vormen de ladder?
+   Zit er een cadeau bij, en *levert de winkelwagen dat cadeau ook echt*? Controleer dat in de
+   feed en in een echte winkelwagen, niet op gevoel. Bestaat een pakket niet, dan bestaat het
+   niet: verzin er geen.
+3. **Bewijs, en waar het over gaat.** Welke cijfers en reviews mag je gebruiken, van welke bron,
+   en betreft het dit product of het hele bedrijf? Een bedrijfsbreed getal op een productpagina
+   zonder dat erbij te zetten is misleidend. Heb je geen cijfer, meld het als gat.
+4. **Bestemming.** Welke URL, en draait de pagina binnen het thema of als kale pagina? De handle
+   ligt daarna vast, want advertenties wijzen erheen.
+5. **Type.** Advertorial of listicle. Meestal leid je dit zelf af uit de creative en de
+   awareness; leg je afleiding voor en laat hem bevestigen in plaats van hem te vragen te kiezen.
+
+Blijft er iets onbeantwoord, benoem dan expliciet welke aanname je maakt en bouw door. Niet
+stilvallen, maar ook niet stilzwijgend invullen.
+
 ### 1. Lees de creative uit
 
 Noteer letterlijk: de belofte, de hook, het getal dat genoemd wordt, en de visuele taal.
