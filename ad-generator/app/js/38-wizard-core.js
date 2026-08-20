@@ -111,7 +111,11 @@ function wizBlankData() {
        extraRefs: foto's die alleen voor DEZE ad gelden -- de founder, een
        model, een scene. Ze staan niet in het productbestand omdat ze daar
        ook niet horen. */
-    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product', basisFoto: null, refsUit: [], extraRefs: [] },
+    /* newsArchetype/newsAfzender: alleen in gebruik bij een redactioneel
+       formaat. Het archetype bepaalt de anatomie van het beeld; de afzender
+       is de enige plek waar dit formaat werkelijk fout gaat, en leeg betekent
+       hier bewust leeg -- dan blijft de mastheadpositie onbedrukt. */
+    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product', basisFoto: null, refsUit: [], extraRefs: [], newsArchetype: '', newsAfzender: '' },
     /* removed: wat er bewust niet op de static staat. Een regel die verplicht
        is omdat weglaten anders nooit gebeurt: elke toevoeging voelt gratis en
        is het niet -- ze delen samen de halve seconde aandacht. */

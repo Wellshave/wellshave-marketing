@@ -746,6 +746,11 @@ function wizRender_visual() {
      is het geen extra optie maar de vraag die er op dat moment toe doet. */
   if (typeof wizRenderEigenFotos === 'function') links += wizRenderEigenFotos();
 
+  /* En bij een redactioneel formaat het archetype plus de afzender. Dat hoort
+     hier en niet op de formatstap: het is een beeldbesluit -- het bepaalt de
+     typografie, de foto en wat er niet op mag. */
+  if (typeof wizRenderNieuwsstijl === 'function') links += wizRenderNieuwsstijl();
+
   links += wizUitklap('visual',
     wizSelect('visual', 'referenceUsage', 'Reference image usage',
       (WIZ_VISUAL.filter(function (x) { return x.field === 'referenceUsage'; })[0] || {}).opts || []) +

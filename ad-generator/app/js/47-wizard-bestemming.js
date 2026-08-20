@@ -150,7 +150,12 @@ var WIZ_DOSSIER = [
   { key: 'sophistication',  label: 'Sophistication',    pad: ['audience', 'sophistication'], opts: 'WIZ_SOPHISTICATION' },
   { key: 'destination',     label: 'Lands on',          pad: ['strategy', 'destination'], opts: 'WIZ_BESTEMMINGEN' },
   { key: 'proof',           label: 'Proof',             pad: ['strategy', 'proof'] },
-  { key: 'timing',          label: 'Why now',           pad: ['strategy', 'timing'] }
+  { key: 'timing',          label: 'Why now',           pad: ['strategy', 'timing'] },
+  /* Bij een redactioneel formaat zijn dit twee besluiten die je later terug
+     wilt kunnen zien: welke artikelstijl het was, en wie eronder stond. Het
+     tweede vooral -- als er ooit een klacht komt is dat de vraag. */
+  { key: 'newsArchetype',   label: 'Editorial style',   pad: ['visual', 'newsArchetype'], opts: 'NIEUWS_ARCHETYPEN' },
+  { key: 'newsAfzender',    label: 'Article from',      pad: ['visual', 'newsAfzender'], opts: 'NIEUWS_AFZENDERS' }
 ];
 
 /* Zet een opgeslagen waarde om naar het label dat de mens koos. Zonder dit
@@ -161,7 +166,10 @@ function wizDossierLabel(regel, waarde) {
   if (!regel.opts) return String(waarde);
   var lijst = window[regel.opts];
   if (!Array.isArray(lijst)) return String(waarde);
-  var o = lijst.filter(function (x) { return x.value === waarde; })[0];
+  /* De ene catalogus heet zijn sleutel 'value', de andere 'id'. Beide
+     accepteren scheelt een tweede labelfunctie die na een maand uit de pas
+     loopt met deze. */
+  var o = lijst.filter(function (x) { return (x.value || x.id) === waarde; })[0];
   return o ? o.label : String(waarde);
 }
 

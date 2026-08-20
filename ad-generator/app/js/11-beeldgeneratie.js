@@ -265,6 +265,12 @@ async function generateImage(varIndex) {
   const safeZone = buildSafeZoneInstruction(metadata.placement);
   const textOverlay = buildTextOverlayInstruction(variation);
   let layoutPriority = 'LAYOUT PRIORITY (read first): every piece of text, the WELLSHAVE wordmark and the CTA button must sit fully inside the safe area, inset from all edges, never flush against the top or bottom edge. See SAFE ZONE REQUIREMENTS below. ';
+  /* Bij een redactioneel formaat is de anatomie geen smaak maar het formaat
+     zelf: welke typografie, welke foto, welke knop, en wat er beslist NIET op
+     mag -- geen verzonnen uitgever, geen geleend logo, geen zegel. Die regels
+     overleven de reis via image_prompt_en niet, dus gaan ze hier mee. */
+  const nieuwsregel = (typeof wizNieuwsBeeldregel === 'function') ? wizNieuwsBeeldregel() : '';
+  if (nieuwsregel) layoutPriority += nieuwsregel + ' ';
   if (metadata.placement === 'stories') {
     layoutPriority += 'THIS IS A 9:16 STORIES PLACEMENT: every text and UI element sits ENTIRELY between 16 and 78 percent of the image height. The top 16 percent and the bottom 22 percent are hard-forbidden for any text, button, link or logo. ';
   } else if (metadata.placement === 'reels') {

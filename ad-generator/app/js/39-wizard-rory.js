@@ -254,8 +254,8 @@ var WIZ_ADVICE_SPEC = {
     opdracht: 'Recommend the format that executes this angle and awareness level most directly, plus two runners-up. Explain the fit in terms of the angle, not the format description.'
   },
   visual: {
-    velden: '"composition":"","humanPresence":"","scene":"","framing":"","mood":"","productVisibility":"","background":"","productUsage":"","textPlacement":"","referenceUsage":""',
-    opdracht: 'Recommend the visual direction. Use only values from the option lists given below. If usage photos exist, the product usage must match them.'
+    velden: '"composition":"","humanPresence":"","scene":"","framing":"","mood":"","productVisibility":"","background":"","productUsage":"","textPlacement":"","referenceUsage":"","newsArchetype":""',
+    opdracht: 'Recommend the visual direction. Use only values from the option lists given below. If usage photos exist, the product usage must match them. Fill "newsArchetype" ONLY when an editorial archetype list is given below, and then pick the id that carries this angle; leave it empty otherwise. Never fill in who the article is from -- that is a fact about the world, not a creative choice, and the user establishes it.'
   },
   copy: {
     velden: '"headline":"","supporting":"","body":"","proof":"","cta":"","removed":"what you deliberately left off the image, and why, one line"',
@@ -303,6 +303,14 @@ function wizAdvise(stepKey, extra) {
       ? ('\n\n# FORMATS (use an exact id)\n' + AD_FORMATS.map(function (f) { return f.id + ' — ' + f.name + ': ' + f.desc; }).join('\n'))
       : '') +
     (stepKey === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
+    /* De archetypes alleen bij een redactioneel formaat: op een productposter
+       is een krantenkop geen keuze maar ruis, en een lijst die er staat wordt
+       gekozen. */
+    (stepKey === 'visual' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
+      ? ('\n\n# EDITORIAL ARCHETYPES (this is a news/article format — pick one id for newsArchetype)\n' +
+         NIEUWS_ARCHETYPEN.map(function (a) {
+           return a.id + ' — ' + a.label + ': ' + a.kort + ' When: ' + a.wanneer;
+         }).join('\n')) : '') +
     '\n\n' + ctx.text;
 
   return wizCall(WIZ_RORY_SYSTEM, [{ role: 'user', content: vraag }], 2500)
@@ -499,6 +507,8 @@ function wizChatSend(vast) {
       '\nFields you may set on this step: ' + Object.keys(wizState.data[stap] || {}).join(', ') +
       (stap === 'format' && typeof AD_FORMATS !== 'undefined'
         ? ('\nValid formatId values: ' + AD_FORMATS.map(function (f) { return f.id; }).join(', ')) : '') +
+      (stap === 'visual' && typeof NIEUWS_ARCHETYPEN !== 'undefined'
+        ? ('\nValid newsArchetype values: ' + NIEUWS_ARCHETYPEN.map(function (a) { return a.id; }).join(', ')) : '') +
       (stap === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
       '\n\n' + ctx.text
   };

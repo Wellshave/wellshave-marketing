@@ -746,3 +746,69 @@
 #wiz-inline .wiz-concept-preview:has(img),
 #wiz-inline .wiz-final-preview:has(img) { cursor: zoom-in; }
 @media (prefers-reduced-motion: reduce) { .wiz-loep { transition: none; } }
+
+/* ── De nieuws- en artikelstijl op stap 5 ──────────────────────────────────
+   "Nieuwsstijl" is zes verschillende beelden, en het verschil zit in de
+   typografie en in wat er NIET op mag. Vandaar dat het archetype hier als
+   kaartje staat met zijn eigen samenvatting erbij: een keuzelijst zou zes
+   namen tonen waar je niets aan hebt zonder de anatomie erachter.
+
+   De afzender staat eronder in een eigen vak, want dat is het enige veld in
+   dit formaat waar het werkelijk misgaat -- niet in de kop. */
+#wiz-inline .wiz-nieuws { border-color: rgba(var(--gold-rgb), .26); }
+#wiz-inline .wiz-nieuwsrij {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+#wiz-inline .wiz-nieuwskaart {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 9px 10px; text-align: left; cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  background: rgba(0, 0, 0, .22);
+  transition: border-color var(--wg-t-snel, 150ms) ease, background var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-nieuwskaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+#wiz-inline .wiz-nieuwskaart.aan {
+  border-color: var(--gold); background: rgba(var(--gold-rgb), .1);
+}
+#wiz-inline .wiz-nieuwskaart-t {
+  font-size: 12px; color: var(--text); line-height: 1.3;
+}
+#wiz-inline .wiz-nieuwskaart.aan .wiz-nieuwskaart-t { color: var(--gold); }
+#wiz-inline .wiz-nieuwskaart-k {
+  font-size: 10.5px; line-height: 1.45; color: var(--text-faint);
+}
+
+#wiz-inline .wiz-nieuwsuit {
+  margin-top: 11px; padding: 11px 12px; border-radius: 9px;
+  background: rgba(0, 0, 0, .24);
+  border: 1px solid rgba(var(--gold-rgb), .1);
+}
+#wiz-inline .wiz-nieuwsuit-r { font-size: 11.5px; line-height: 1.55; color: var(--text-soft); }
+#wiz-inline .wiz-nieuwsuit-r + .wiz-nieuwsuit-r { margin-top: 8px; }
+#wiz-inline .wiz-nieuwsuit-r em {
+  display: block; font-style: normal;
+  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 3px;
+}
+#wiz-inline .wiz-nieuwsuit-r ul { margin: 0; padding-left: 16px; }
+#wiz-inline .wiz-nieuwsuit-r li { margin: 2px 0; }
+
+#wiz-inline .wiz-nieuwsbron {
+  margin-top: 11px; padding: 11px 12px; border-radius: 9px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .18);
+}
+/* Nog niet vastgesteld: een aandachtsrand, geen foutmelding. Er is niets
+   kapot, er is iets nog niet besloten -- en zolang dat zo is blijft de
+   mastheadpositie leeg, wat een geldige uitkomst is. */
+#wiz-inline .wiz-nieuwsbron.leeg { border-color: rgba(200, 150, 60, .4); }
+#wiz-inline .wiz-nieuwsbron label {
+  display: block; font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px;
+}
+#wiz-inline .wiz-nieuwsbron select { width: 100%; }
+#wiz-inline .wiz-nieuwsbron-u {
+  margin: 7px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-faint);
+}

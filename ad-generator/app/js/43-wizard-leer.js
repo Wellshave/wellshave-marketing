@@ -226,6 +226,15 @@ function wizToegestaan(vak, veld) {
   if (vak === 'audience' && veld === 'sophistication' && typeof WIZ_SOPHISTICATION !== 'undefined') return w(WIZ_SOPHISTICATION);
   if (vak === 'strategy' && veld === 'differentiation' && typeof WIZ_DIFFERENTIATION !== 'undefined') return w(WIZ_DIFFERENTIATION);
   if (vak === 'strategy' && veld === 'destination' && typeof WIZ_BESTEMMINGEN !== 'undefined') return w(WIZ_BESTEMMINGEN);
+  /* De twee velden van de nieuwsstijl staan niet in WIZ_VISUAL: dat zijn de
+     acht keuzelijsten van het beeld, en deze twee gelden alleen bij een
+     redactioneel formaat. Ze horen wel dezelfde grens te krijgen. */
+  if (vak === 'visual' && veld === 'newsArchetype' && typeof NIEUWS_ARCHETYPEN !== 'undefined') {
+    return NIEUWS_ARCHETYPEN.map(function (a) { return a.id; });
+  }
+  if (vak === 'visual' && veld === 'newsAfzender' && typeof NIEUWS_AFZENDERS !== 'undefined') {
+    return w(NIEUWS_AFZENDERS);
+  }
   if (vak === 'visual' && typeof WIZ_VISUAL !== 'undefined') {
     var r = WIZ_VISUAL.filter(function (x) { return x.field === veld; })[0];
     if (r) return w(r.opts);

@@ -165,6 +165,10 @@ function wizBlueprintGaps() {
   if (!d.strategy.objection) gaten.push({ label: 'main objection', stap: 'strategy', veld: 'objection' });
   if (!d.copy.supporting) gaten.push({ label: 'supporting line', stap: 'copy', veld: 'supporting' });
   if (!d.copy.proof) gaten.push({ label: 'proof copy', stap: 'copy', veld: 'proof' });
+  /* Bij een redactioneel formaat komt de afzender erbij. Die staat niet in dit
+     rijtje omdat hij alleen dan bestaat -- op een productposter is het geen
+     gat maar een veld dat niet meedoet. */
+  if (typeof wizNieuwsGaten === 'function') gaten = gaten.concat(wizNieuwsGaten());
   return gaten;
 }
 
@@ -282,6 +286,10 @@ function wizBuildBrief(aantal) {
   if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
   if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
   if (f) t += '\nFORMAT-MODE: ' + ((typeof AD_FORMAT_DIRECTIVE !== 'undefined' && AD_FORMAT_DIRECTIVE[f.id]) || (f.name + ' — ' + f.desc)) + '\n';
+  /* De nieuws- en artikelstijl staat NA de format-mode en gaat er dus boven:
+     de format-mode zegt "opgemaakt als nieuwsartikel", dit zegt welk soort
+     artikel, hoe het eruitziet en wat er niet op mag. */
+  if (typeof wizNieuwsBrief === 'function') t += wizNieuwsBrief();
 
   t += '\n## VISUELE RICHTING (HARDE DRIVER voor image_prompt_en)\n';
   (typeof WIZ_VISUAL !== 'undefined' ? WIZ_VISUAL : []).forEach(function (g) {
@@ -823,6 +831,11 @@ function wizBuildTakeBrief() {
        wat je standaard draait -- en dan levert de generator drie beelden af
        die nooit tegen de acht eigenschappen zijn gehouden. */
     if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
+    /* Ook de variaties zijn nieuwsbeelden. Zonder deze regels houdt take 1 de
+       krantenopmaak vast en zakken take 2 en 3 terug naar een gewone
+       productadvertentie -- precies de klacht dat de derde variatie niet meer
+       op een nieuwsartikel leek. */
+    if (typeof wizNieuwsBrief === 'function') t += wizNieuwsBrief();
     t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
     t += 'Return exactly 3 variations in the JSON shape you always use, with the same ' +
          'headline text in all three.\n';
@@ -844,6 +857,7 @@ function wizBuildTakeBrief() {
 
   if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
   if (typeof wizZelfcontrole === 'function') t += wizZelfcontrole();
+  if (typeof wizNieuwsBrief === 'function') t += wizNieuwsBrief();
 
   t += '\nPlacement: ' + wizLabel('placement', d.product.placement) + '.\n';
   t += 'Return exactly 3 variations in the JSON shape you always use.\n';
