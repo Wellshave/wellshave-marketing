@@ -293,8 +293,31 @@ async function generateImage(varIndex) {
     // Lifestyle-Placement: lifestyle first, then product
     // Bundle-Showcase / Offer-heavy: packaging first, then product, then lifestyle
     // Default: product first, then lifestyle, then packaging
-    function orderedRefsForProduct(p) {
-      const n = normalizeRefs(p.references);
+    /* Welke referenties van het HOOFDproduct uitgezet zijn, als
+       bak -> set van indexen. Op positie en niet op waarde: twee identieke
+       foto's in verschillende bakken zijn twee referenties, en uitsluiten op
+       de data-url zou ze allebei weghalen terwijl je er een aanwees. */
+    const refUitPerBak = {};
+    if (metadata.refKeuze && (metadata.refKeuze.uit || []).length) {
+      metadata.refKeuze.uit.forEach(k => {
+        const deel = String(k).split(':');
+        if (deel.length !== 2) return;
+        (refUitPerBak[deel[0]] = refUitPerBak[deel[0]] || new Set()).add(+deel[1]);
+      });
+    }
+    function zonderUitgezette(lijst, bak, isHoofdproduct) {
+      if (!isHoofdproduct || !refUitPerBak[bak]) return lijst;
+      return lijst.filter((_, i) => !refUitPerBak[bak].has(i));
+    }
+
+    function orderedRefsForProduct(p, isHoofdproduct) {
+      const rauw = normalizeRefs(p.references);
+      const n = {
+        product: zonderUitgezette(rauw.product, 'product', isHoofdproduct),
+        usage: zonderUitgezette(rauw.usage, 'usage', isHoofdproduct),
+        lifestyle: zonderUitgezette(rauw.lifestyle, 'lifestyle', isHoofdproduct),
+        packaging: zonderUitgezette(rauw.packaging, 'packaging', isHoofdproduct)
+      };
       const pref = (typeof getRefScenePref === 'function') ? getRefScenePref() : 'both';
       const life = (pref === 'both' || pref === 'lifestyle') ? n.lifestyle : [];
       const use = (pref === 'both' || pref === 'usage') ? n.usage : [];
@@ -308,8 +331,18 @@ async function generateImage(varIndex) {
       return [...n.product, ...use, ...life, ...n.packaging];
     }
     const collectedRefs = [];
-    if (product) collectedRefs.push(...orderedRefsForProduct(product));
-    bundleProductsFull.forEach(bp => { collectedRefs.push(...orderedRefsForProduct(bp)); });
+    if (product) collectedRefs.push(...orderedRefsForProduct(product, true));
+    bundleProductsFull.forEach(bp => { collectedRefs.push(...orderedRefsForProduct(bp, false)); });
+
+    /* De foto's die je voor DEZE ad erbij sleepte (de founder, een model)
+       gaan vooraan: een beeld dat je bewust koos weegt zwaarder dan het
+       zoveelste productshot, en de lijst wordt op 16 afgekapt.
+
+       Andere modi (Kopieer ad, Itereren) dragen geen refKeuze en merken hier
+       niets van. */
+    if (metadata.refKeuze && (metadata.refKeuze.extra || []).length) {
+      collectedRefs.unshift(...metadata.refKeuze.extra);
+    }
     // OpenAI /images/edits accepts up to 16 reference images
     const refs = collectedRefs.slice(0, 16);
     const hasRefs = refs.length > 0;

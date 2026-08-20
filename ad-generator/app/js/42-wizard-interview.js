@@ -42,7 +42,15 @@ var iw2 = {
   /* Welke optie je op welke vraag koos, voor de weg terug. */
   antwoorden: {},
   klaar: false,
+  /* busy = er loopt een beurt van het GESPREK: een antwoord verwerken, een
+     vervolgvraag ophalen, de blueprint schrijven. Zolang die staat mag je niet
+     nog een antwoord insturen, want dan lopen er twee beurten door elkaar. */
   busy: false,
+  /* analyseBezig = de openingsanalyse loopt. Bewust een aparte vlag: die
+     bepaalt de eerste vraag niet, dus hij hoort het gesprek niet stil te
+     leggen. Toen dit dezelfde vlag was, deed het interview er niets terwijl
+     die aanroep liep, en stond dat nergens. */
+  analyseBezig: false,
   /* Rory's samenvatting bij de blueprint. */
   samenvatting: '',
   /* Antwoorden die Rory zelf voorstelde bij zijn laatste vervolgvraag. Zolang
@@ -536,6 +544,7 @@ function iw2Start() {
      volgende gesprek nooit op gang komen: elke aanroep begint met "if (busy)
      return", en dan lijkt het scherm stuk zonder dat er iets stuk is. */
   iw2.busy = false;
+  iw2.analyseBezig = false;
   iw2Zeg('rory', IW2_VRAGEN[0].vraag);
   wizToonInline();
   wizRender();
@@ -555,8 +564,14 @@ function iw2Start() {
  * wat jij wel weet en het systeem niet. */
 function iw2Aannames() {
   if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) return;
-  if (iw2.busy) return;
-  iw2.busy = true;
+  /* Een eigen vlag, niet iw2.busy. Dit is een bijgerecht: het vult "wat ik tot
+     nu toe begrepen heb", maar de eerste vraag staat er al en hangt er niet
+     van af. Met de gedeelde vlag was het hele gesprek dood zolang deze aanroep
+     liep -- je klikte een antwoord aan, iw2Kies zag busy en deed niets, en er
+     stond nergens dat er iets liep. Dat is de klacht "er gebeurt helemaal
+     niets": er gebeurde juist iets, alleen onzichtbaar. */
+  if (iw2.analyseBezig) return;
+  iw2.analyseBezig = true;
   wizRender();
 
   var ctx = (typeof wizContext === 'function') ? wizContext() : { text: '' };
@@ -586,7 +601,7 @@ function iw2Aannames() {
       }
     })
     .catch(function () { /* geen aannames is jammer, geen reden om het gesprek te blokkeren */ })
-    .finally(function () { iw2.busy = false; wizRender(); });
+    .finally(function () { iw2.analyseBezig = false; wizRender(); });
 }
 
 /* Terug in het gesprek waar je was. Dit is niet hetzelfde als opnieuw
@@ -1074,10 +1089,39 @@ function iw2Kop() {
   return { num: iw2.i + 2, titel: v ? v.titel : '' };
 }
 
+/* Wat Rory op dit moment aan het doen is, of null als hij niets doet.
+   De volgorde is de volgorde van belang: een lopende beurt van het gesprek
+   telt zwaarder dan de openingsanalyse die op de achtergrond meeloopt. */
+function iw2Bezigheid() {
+  if (iw2.busy) {
+    if (iw2.klaar) return 'Rory is writing out the angle, the message and the headline.';
+    return 'Rory is thinking about your answer.';
+  }
+  if (iw2.analyseBezig) return 'Rory is reading the product data and the customer research.';
+  return null;
+}
+
+/* De balk bovenaan die laat zien dat er gewerkt wordt. Hij staat er alleen
+   als er werkelijk iets loopt: een balk die er altijd staat zegt niets meer.
+
+   Waarom bovenaan en niet bij de vraag: een aanroep kan tientallen seconden
+   duren, en dan scrol je rond in een scherm dat stil lijkt. Dit is het enige
+   element dat op elke scrolpositie zichtbaar is. */
+function iw2RenderBezig() {
+  var wat = iw2Bezigheid();
+  if (!wat) return '';
+  return '<div class="iw2-bezig" role="status" aria-live="polite">' +
+    '<div class="iw2-bezig-balk"><span></span></div>' +
+    '<div class="iw2-bezig-tekst">' + wizEsc(wat) + '</div></div>';
+}
+
 function iw2Render() {
+  /* Wat er loopt, bovenaan: zonder dit lijkt een trage aanroep op een stuk
+     scherm, en dat is precies wat er gemeld werd. */
+  var links = iw2RenderBezig();
   /* Zijn aannames staan boven het gesprek: het is wat hij dacht voordat jij
      iets zei, en dat hoort niet halverwege ergens op te duiken. */
-  var links = iw2RenderAannames();
+  links += iw2RenderAannames();
   links += '<div class="iw2-chat" id="iw2-chat">' + iw2.chat.map(function (r) {
     if (r.wie === 'user') {
       return '<div class="iw2-jij"><div class="iw2-bubbel">' + wizEsc(r.tekst) +
@@ -1283,6 +1327,7 @@ window.iw2 = iw2;
 window.iw2Start = iw2Start; window.iw2Hervat = iw2Hervat;
 window.iw2Exit = iw2Exit; window.iw2VraagExit = iw2VraagExit; window.iw2ExitAf = iw2ExitAf;
 window.iw2Kies = iw2Kies; window.iw2Render = iw2Render; window.iw2Kop = iw2Kop;
+window.iw2Bezigheid = iw2Bezigheid; window.iw2RenderBezig = iw2RenderBezig;
 window.iw2RenderVoet = iw2RenderVoet; window.iw2Antwoord = iw2Antwoord;
 window.iw2Losvraag = iw2Losvraag; window.iw2Vastleggen = iw2Vastleggen;
 window.iw2Genereer = iw2Genereer; window.iw2NaarWizard = iw2NaarWizard;

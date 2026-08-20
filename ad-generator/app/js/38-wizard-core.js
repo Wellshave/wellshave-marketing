@@ -104,7 +104,14 @@ function wizBlankData() {
        helemaal uit niets ontstaat. Dat is wat een founder-ad nodig heeft: de
        foto van de oprichter is het uitgangspunt, en het product komt nog steeds
        exact uit de referentiefoto's. Null betekent: bouw vanaf nul. */
-    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product', basisFoto: null },
+    /* refsUit: welke referentiebeelden van het product NIET mee mogen, als
+       stabiele sleutels ('product:0'). Uitsluiten in plaats van insluiten,
+       zodat een foto die later aan het product wordt toegevoegd vanzelf
+       meedoet in plaats van stilletjes te ontbreken.
+       extraRefs: foto's die alleen voor DEZE ad gelden -- de founder, een
+       model, een scene. Ze staan niet in het productbestand omdat ze daar
+       ook niet horen. */
+    visual:   { composition: '', humanPresence: '', scene: '', framing: '', mood: '', productVisibility: '', background: '', productUsage: '', textPlacement: '', referenceUsage: 'product', basisFoto: null, refsUit: [], extraRefs: [] },
     /* removed: wat er bewust niet op de static staat. Een regel die verplicht
        is omdat weglaten anders nooit gebeurt: elke toevoeging voelt gratis en
        is het niet -- ze delen samen de halve seconde aandacht. */

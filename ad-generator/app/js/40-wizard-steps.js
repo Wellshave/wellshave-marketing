@@ -341,6 +341,11 @@ function wizRender_product() {
   /* Rechts de productkaart: beeld, naam, categorie en de USP's met vinkjes.
      Dat is niet decoratie -- het is precies de data waar Rory zijn advies op
      bouwt, en die hoort zichtbaar te zijn op het moment dat je kiest. */
+  /* Welke referentiebeelden deze ad gebruikt, onder de keuzes. Het beeld is
+     het halve werk, en je hoort voor het genereren te weten waar hij vandaan
+     tekent -- niet pas als je naar het resultaat kijkt. */
+  if (typeof wizRenderReferenties === 'function') links += wizRenderReferenties();
+
   var rechts = '';
   if (p) {
     var usps = (p.usps || []).filter(Boolean);

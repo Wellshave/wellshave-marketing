@@ -468,3 +468,116 @@
   margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-soft);
 }
 #wiz-inline .wiz-bestemming .wiz-linkbtn { margin-top: 7px; }
+
+/* ── De denkbalk in het interview ──────────────────────────────────────────
+   Een aanroep naar het model duurt soms tientallen seconden. Zonder iets dat
+   beweegt is dat niet te onderscheiden van een stuk scherm, en dan klik je
+   nog een keer, of je gaat weg. Vandaar een balk die loopt zolang er gewerkt
+   wordt, met erbij WAT er gebeurt.
+
+   De balk is bewust onbepaald (hij loopt heen en weer, hij vult niet op naar
+   100%): we weten niet hoe lang het duurt, en een voortgangsbalk die dat
+   suggereert liegt. */
+#wiz-inline .iw2-bezig {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 16px; padding: 10px 13px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  border-radius: 9px;
+}
+#wiz-inline .iw2-bezig-balk {
+  flex: 0 0 84px; height: 3px; border-radius: 99px; overflow: hidden;
+  background: rgba(var(--gold-rgb), .14);
+}
+#wiz-inline .iw2-bezig-balk span {
+  display: block; width: 40%; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation: iw2Loopt 1.25s var(--wg-ease, cubic-bezier(.4, 0, .2, 1)) infinite;
+}
+@keyframes iw2Loopt {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+#wiz-inline .iw2-bezig-tekst {
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.4;
+}
+/* Wie beweging heeft uitgezet krijgt geen loopbalk maar een rustige puls:
+   de melding moet blijven, alleen niet als beweging. */
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .iw2-bezig-balk span {
+    animation: none; width: 100%;
+    background: rgba(var(--gold-rgb), .5);
+  }
+}
+
+/* ── Referentiebeelden op stap 1 ───────────────────────────────────────────
+   Het beeld is het halve werk, dus je hoort voor het genereren te zien waar
+   hij vandaan tekent. Een uitgezette referentie blijft staan maar dooft: weg
+   halen zou de indruk wekken dat hij er niet meer is. */
+#wiz-inline .wiz-refs {
+  margin-top: 18px; padding: 14px 15px;
+  background: rgba(var(--gold-rgb), .04);
+  border: 1px solid rgba(var(--gold-rgb), .14);
+  border-radius: 11px;
+}
+#wiz-inline .wiz-refs-kop {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--gold); font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+#wiz-inline .wiz-refs-telling { color: var(--text-faint); letter-spacing: .04em; }
+#wiz-inline .wiz-refs-uitleg,
+#wiz-inline .wiz-refs-leeg {
+  margin: 7px 0 12px; font-size: 12px; line-height: 1.5; color: var(--text-soft);
+}
+#wiz-inline .wiz-refs-bak + .wiz-refs-bak { margin-top: 12px; }
+#wiz-inline .wiz-refs-baknaam {
+  font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+#wiz-inline .wiz-refs-rij { display: flex; flex-wrap: wrap; gap: 8px; }
+
+#wiz-inline .wiz-ref {
+  position: relative; width: 64px; height: 64px; padding: 0;
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+  border: 1px solid rgba(var(--gold-rgb), .18);
+  background: rgba(0, 0, 0, .3);
+  transition: border-color var(--wg-t-snel, 150ms) ease, opacity var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Uit: gedimd en ontkleurd, zodat je in een oogopslag ziet wat er niet meedoet. */
+#wiz-inline .wiz-ref:not(.aan) img { opacity: .3; filter: grayscale(1); }
+#wiz-inline .wiz-ref.aan { border-color: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-ref:hover { border-color: var(--gold); }
+#wiz-inline .wiz-ref-vink {
+  position: absolute; right: 3px; bottom: 3px;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1;
+  background: var(--gold); color: #14100a;
+}
+#wiz-inline .wiz-ref:not(.aan) .wiz-ref-vink { background: rgba(255, 255, 255, .16); }
+#wiz-inline .wiz-ref.eigen { cursor: default; }
+#wiz-inline .wiz-ref-weg {
+  position: absolute; right: 2px; top: 2px;
+  width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, .68); color: var(--text);
+  font-size: 12px; line-height: 1; cursor: pointer;
+}
+#wiz-inline .wiz-ref-weg:hover { background: rgba(180, 60, 40, .85); }
+
+#wiz-inline .wiz-refdrop {
+  width: 64px; height: 64px; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; text-align: center;
+  border: 1px dashed rgba(var(--gold-rgb), .32);
+  background: rgba(var(--gold-rgb), .03);
+  color: var(--text-faint);
+  transition: border-color var(--wg-t-snel, 150ms) ease, background var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-refdrop:hover,
+#wiz-inline .wiz-refdrop.over {
+  border-color: var(--gold); background: rgba(var(--gold-rgb), .1); color: var(--gold);
+}
+#wiz-inline .wiz-refdrop-plus { font-size: 15px; line-height: 1; }
+#wiz-inline .wiz-refdrop-tekst { font-size: 8.5px; line-height: 1.25; letter-spacing: .02em; }

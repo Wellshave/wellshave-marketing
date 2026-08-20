@@ -296,6 +296,23 @@ function wizBuildBrief(aantal) {
 
 /* De metadata die renderResults en generateImage verwachten. Zelfde vorm als
    generate() in 10-kopieermodus.js oplevert -- zo werkt de rest ongewijzigd. */
+/* De brief zoals hij de bibliotheek in gaat: zonder de beelddata.
+   Een basisfoto en de eigen referenties zijn data-urls van tientallen kB per
+   stuk, en de brief wordt bij ELKE bewaarde variatie meegekopieerd. Dat vult
+   de opslag met dezelfde foto in tienvoud, terwijl het dossier alleen de
+   BESLISSINGEN nodig heeft. Wat er stond blijft als telling zichtbaar, zodat
+   je nog kunt zien dat er op een foto gebouwd is. */
+function wizBriefZonderBeeld(d) {
+  var kopie = JSON.parse(JSON.stringify(d));
+  if (kopie.visual) {
+    kopie.visual.basisFotoGebruikt = !!kopie.visual.basisFoto;
+    kopie.visual.basisFoto = null;
+    kopie.visual.extraRefsAantal = (kopie.visual.extraRefs || []).length;
+    kopie.visual.extraRefs = [];
+  }
+  return kopie;
+}
+
 function wizMetadata() {
   var d = wizState.data, p = wizProduct(), pers = wizPersona();
   return {
@@ -314,11 +331,17 @@ function wizMetadata() {
     sophistication: d.audience.sophistication || null,
     awareness: d.audience.awareness || null,
     destination: d.strategy.destination || null,
+    /* Welke referentiebeelden deze ad gebruikt. De generator kende alleen het
+       productbestand en wist niets van een foto die je voor deze ene ad
+       erbij sleepte, of van een productshot dat je juist niet wilde. */
+    refKeuze: (typeof wizRefsInGebruik === 'function')
+      ? { uit: (d.visual.refsUit || []).slice(), extra: (d.visual.extraRefs || []).slice() }
+      : null,
     timestamp: Date.now(),
     bundleProductIds: [],
     personaId: pers ? pers.id : null,
     personaName: pers ? pers.name : null,
-    wizardBrief: JSON.parse(JSON.stringify(d))
+    wizardBrief: wizBriefZonderBeeld(d)
   };
 }
 
@@ -1008,7 +1031,7 @@ window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizAp
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll;
 window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOff = wizHandOff;
-window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata;
+window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata; window.wizBriefZonderBeeld = wizBriefZonderBeeld;
 window.wizBlueprintGaps = wizBlueprintGaps; window.wizVisualLabel = wizVisualLabel;
 window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;
 window.wizSofistLabel = wizSofistLabel; window.wizDiffLabel = wizDiffLabel;
