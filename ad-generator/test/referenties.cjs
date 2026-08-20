@@ -159,7 +159,10 @@ const OPZET = `
   check('per bak gegroepeerd', refs.bakken, ['product', 'product', 'usage', 'lifestyle']);
   check('en ze doen standaard allemaal mee', refs.allemaalAan, true);
   check('het paneel toont ze ook echt', refs.miniaturen, 4);
-  check('met een plek om er een bij te slepen', refs.dropzone, true);
+  /* Op stap 1 kies je een PRODUCT. Of er een mens in beeld komt, laat staan
+     wie, weet je daar nog niet -- dus een sleepvak voor een founder-foto is
+     daar meubilair. Die vraag valt later. */
+  check('maar geen sleepvak: die vraag valt later', refs.dropzone, false);
   check('en de telling klopt', refs.telling, '4 in use');
 
   console.log('\n  en het paneel staat werkelijk op stap 1, niet alleen in een functie');
@@ -182,7 +185,7 @@ const OPZET = `
   check('het paneel staat in de wizard zelf', inPagina.er, true);
   check('en heeft werkelijk afmetingen', [inPagina.breed, inPagina.hoog], [true, true]);
   check('met de tegels erin', inPagina.tegels >= 4, true);
-  check('en de sleepplek', inPagina.drop, true);
+  check('en zonder sleepvak op deze stap', inPagina.drop, false);
 
   console.log('\n  er een uitzetten houdt hem uit de generatie');
   const uitzetten = await page.evaluate(() => {
@@ -219,8 +222,10 @@ const OPZET = `
   check('de foto staat erbij', eigen.extra, 1);
   check('en telt mee in wat er gebruikt wordt', eigen.inGebruik, 4);
   check('de generator krijgt hem mee', eigen.inMeta, 1);
-  check('hij staat als eigen tegel in het paneel', eigen.eigenTegels, 1);
-  check('en de telling telt hem mee', eigen.telling, '4 in use');
+  /* Het productpaneel gaat over de referenties VAN HET PRODUCT; de eigen
+     foto's staan in hun eigen blok bij de vraag. */
+  check('het productpaneel toont hem niet', eigen.eigenTegels, 0);
+  check('en telt de eigen foto er apart bij', eigen.telling, '3 in use + 1 for this ad');
 
   console.log('\n  de bibliotheek wordt niet volgestouwd met dezelfde foto');
   /* De brief wordt bij ELKE bewaarde variatie meegekopieerd. Data-urls daarin
@@ -240,6 +245,84 @@ const OPZET = `
   check('met hun aantal bewaard', licht.aantal, 1);
   /* De generator heeft ze wel nodig: die leest refKeuze, niet de brief. */
   check('en de generator krijgt ze nog steeds', licht.refKeuzeHeeftHemNog, 1);
+
+  console.log('\n  de foto van de mens wordt gevraagd waar die beslissing valt');
+  /* Op stap 1 kies je een product en weet je nog niet of er iemand in beeld
+     komt. Een founder-ad is juist iets waar je halverwege op uitkomt: je
+     begint bij het product en het doel, en pas bij de visuele keuze blijkt
+     dat de oprichter het gezicht is. Dan hoort de vraag te komen. */
+  const vraag = await page.evaluate(() => {
+    const meet = () => {
+      const d = document.createElement('div');
+      d.innerHTML = wizRenderEigenFotos();
+      const kop = d.querySelector('.wiz-refs-kop');
+      return { er: !!d.querySelector('.wiz-refs-persoon'),
+               kop: kop ? kop.textContent.trim() : '',
+               tekst: (d.querySelector('.wiz-refs-uitleg') || {}).textContent || '',
+               drop: !!d.querySelector('.wiz-refdrop') };
+    };
+    wizState.data.visual.extraRefs = [];
+    wizState.data.visual.humanPresence = '';
+    const leeg = meet();
+    wizState.data.visual.humanPresence = 'none';
+    const geenMens = meet();
+    wizState.data.visual.humanPresence = 'hands';
+    const handen = meet();
+    wizState.data.visual.humanPresence = 'founder';
+    const founder = meet();
+    wizState.data.visual.humanPresence = 'male-model';
+    const model = meet();
+    wizState.data.visual.humanPresence = 'ugc-person';
+    const ugc = meet();
+    return { leeg, geenMens, handen, founder, model, ugc,
+             persoon: (wizPersoonNodig() || {}).key };
+  });
+  check('zonder keuze geen vraag', vraag.leeg.er, false);
+  check('bij "geen mens" ook niet', vraag.geenMens.er, false);
+  /* Handen zijn geen persoon: er valt niemand te herkennen, dus er valt ook
+     niets te vragen. */
+  check('en bij alleen handen evenmin', vraag.handen.er, false);
+  check('bij de founder wel', vraag.founder.er, true);
+  check('en de vraag noemt de founder', vraag.founder.kop, 'Reference for the founder');
+  check('met uitleg waarom het uitmaakt',
+    /instead of inventing one/.test(vraag.founder.tekst), true);
+  check('er staat een sleepvak bij', vraag.founder.drop, true);
+  check('bij een model vraagt hij naar het model', vraag.model.kop, 'Reference for the model');
+  check('en bij UGC naar de maker', vraag.ugc.kop, 'Reference for the creator');
+  check('wizPersoonNodig zegt om wie het gaat', vraag.persoon, 'ugc-person');
+
+  console.log('\n  het interview kent de founder als antwoord');
+  /* De vraag "wie komt er in beeld" had wel een model en handen, maar geen
+     founder -- terwijl dat precies het geval is waar je halverwege op uitkomt. */
+  const founderOptie = await page.evaluate(() => {
+    const v = IW2_VRAGEN.filter(x => x.key === 'human')[0];
+    const o = (v.opts || []).filter(x => x.key === 'founder')[0];
+    return { er: !!o, zet: o ? o.zet : null, gevolg: o ? o.gevolg : '',
+             sub: o ? o.sub : '' };
+  });
+  check('de founder staat tussen de antwoorden', founderOptie.er, true);
+  check('en zet het juiste veld', founderOptie.zet, [['visual', 'humanPresence', 'founder']]);
+  check('met de vraag om een foto erbij',
+    /Drop a photo of them/.test(founderOptie.gevolg), true);
+
+  console.log('\n  en in het gesprek staat het sleepvak onder het antwoord');
+  const inGesprek = await page.evaluate(() => {
+    iw2.open = true; iw2.klaar = false;
+    wizState.data.visual.humanPresence = 'founder';
+    wizState.data.visual.extraRefs = [];
+    const r = iw2Render();
+    const d = document.createElement('div'); d.innerHTML = r.links;
+    const zonder = (() => {
+      wizState.data.visual.humanPresence = 'none';
+      const d2 = document.createElement('div'); d2.innerHTML = iw2Render().links;
+      return !!d2.querySelector('.wiz-refs-persoon');
+    })();
+    wizState.data.visual.humanPresence = '';
+    iw2.open = false;
+    return { met: !!d.querySelector('.wiz-refs-persoon'), zonder: zonder };
+  });
+  check('met een founder staat het vak in het gesprek', inGesprek.met, true);
+  check('zonder mens niet', inGesprek.zonder, false);
 
   console.log('\n  en de generator stuurt werkelijk die beelden mee');
   /* Het paneel kan kloppen terwijl de generator er niets mee doet, en dan is

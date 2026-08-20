@@ -125,11 +125,15 @@ function wizRenderReferenties() {
   if (!p) return '';
   var lijst = wizRefLijst();
   var extra = wizState.data.visual.extraRefs || [];
-  var aan = lijst.filter(function (r) { return r.aan; }).length + extra.length;
+  /* De telling gaat over DIT paneel: de referenties van het product. Maar
+     verzwijgen dat er nog iets meegaat zou misleiden, dus de eigen foto's
+     staan er apart bij geteld in plaats van er stilletjes bij opgeteld. */
+  var aan = lijst.filter(function (r) { return r.aan; }).length;
 
   var h = '<div class="wiz-refs">' +
     '<div class="wiz-refs-kop">Reference images' +
-    '<span class="wiz-refs-telling">' + aan + ' in use</span></div>' +
+    '<span class="wiz-refs-telling">' + aan + ' in use' +
+    (extra.length ? ' + ' + extra.length + ' for this ad' : '') + '</span></div>' +
     '<p class="wiz-refs-uitleg">These are what the generator draws the product from. ' +
     'Switch one off to keep it out, or drop your own in, for instance the founder or a model.</p>';
 
@@ -152,23 +156,59 @@ function wizRenderReferenties() {
       'Add them in the Products tab, or drop one here for this ad only.</p>';
   }
 
-  h += '<div class="wiz-refs-bak"><div class="wiz-refs-baknaam">Just for this ad</div>' +
-    '<div class="wiz-refs-rij">' +
+  /* De eigen foto's staan hier NIET. Op stap 1 kies je een product, en dan
+     weet je nog niet of er een mens in beeld komt -- laat staan wie. De vraag
+     om een foto van de founder hoort op het moment dat die beslissing valt,
+     en dat is de visuele stap of het interview. */
+  return h + '</div>';
+}
+
+/* ── De foto van de mens in beeld ───────────────────────────────────────── */
+
+/* Welke persoon deze ad nodig heeft, of null als er niemand in beeld komt.
+   Dit is de trigger: pas als hier iets uitkomt is er iets te vragen. */
+var WIZ_PERSONEN = {
+  'founder':    { wie: 'the founder',
+                  vraag: 'This ad puts the founder in frame. Drop a photo of them, so the generator draws the right person instead of inventing one.' },
+  'male-model': { wie: 'the model',
+                  vraag: 'This ad has a model in frame. Drop a photo if you have someone specific in mind, otherwise the generator casts one itself.' },
+  'ugc-person': { wie: 'the creator',
+                  vraag: 'This is a UGC-style ad. Drop a photo of the creator if it has to be a specific person, otherwise the generator casts one.' }
+};
+
+function wizPersoonNodig() {
+  var h = wizState.data.visual.humanPresence;
+  return WIZ_PERSONEN[h] ? Object.assign({ key: h }, WIZ_PERSONEN[h]) : null;
+}
+
+/* Het blok waarin je die foto kwijt kunt. Staat er alleen als er een mens in
+   beeld komt: een sleepvak dat er altijd staat is meubilair, een sleepvak dat
+   verschijnt op het moment dat het ertoe doet is een vraag. */
+function wizRenderEigenFotos() {
+  var persoon = wizPersoonNodig();
+  var extra = wizState.data.visual.extraRefs || [];
+  if (!persoon && !extra.length) return '';
+
+  var h = '<div class="wiz-refs wiz-refs-persoon">' +
+    '<div class="wiz-refs-kop">Reference for ' + wizEsc(persoon ? persoon.wie : 'this ad') + '</div>' +
+    '<p class="wiz-refs-uitleg">' +
+    wizEsc(persoon ? persoon.vraag
+                   : 'Photos that only count for this ad, on top of the product references.') +
+    '</p><div class="wiz-refs-rij">' +
     extra.map(function (src, i) {
       return '<div class="wiz-ref aan eigen"><img src="' + wizEsc(src) + '" alt="">' +
         '<button type="button" class="wiz-ref-weg" onclick="wizRefWis(' + i + ')" ' +
         'aria-label="Verwijderen">×</button></div>';
     }).join('') +
     (extra.length < WIZ_REF_MAX_EXTRA
-      ? '<label class="wiz-refdrop" ondrop="wizRefDrop(event)" ondragover="wizRefOver(event)" ' +
+      ? '<label class="wiz-refdrop groot" ondrop="wizRefDrop(event)" ondragover="wizRefOver(event)" ' +
         'ondragleave="wizRefUit(event)">' +
         '<input type="file" accept="image/*" multiple onchange="wizRefKies(event)" hidden>' +
         '<span class="wiz-refdrop-plus">+</span>' +
         '<span class="wiz-refdrop-tekst">Drop a photo<br>or click</span></label>'
       : '') +
     '</div></div>';
-
-  return h + '</div>';
+  return h;
 }
 
 window.WIZ_REF_BAKKEN = WIZ_REF_BAKKEN; window.wizRefLijst = wizRefLijst;
@@ -176,5 +216,7 @@ window.wizRefsInGebruik = wizRefsInGebruik; window.wizRefToggle = wizRefToggle;
 window.wizRefVoegToe = wizRefVoegToe; window.wizRefWis = wizRefWis;
 window.wizRefLees = wizRefLees; window.wizRefDrop = wizRefDrop;
 window.wizRefOver = wizRefOver; window.wizRefUit = wizRefUit; window.wizRefKies = wizRefKies;
-window.wizRenderReferenties = wizRenderReferenties; window.WIZ_REF_MAX_EXTRA = WIZ_REF_MAX_EXTRA;
+window.wizRenderReferenties = wizRenderReferenties;
+window.wizRenderEigenFotos = wizRenderEigenFotos; window.wizPersoonNodig = wizPersoonNodig;
+window.WIZ_PERSONEN = WIZ_PERSONEN; window.WIZ_REF_MAX_EXTRA = WIZ_REF_MAX_EXTRA;
 window.wizRefSleutel = wizRefSleutel;

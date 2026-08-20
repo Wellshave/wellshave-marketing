@@ -581,3 +581,18 @@
 }
 #wiz-inline .wiz-refdrop-plus { font-size: 15px; line-height: 1; }
 #wiz-inline .wiz-refdrop-tekst { font-size: 8.5px; line-height: 1.25; letter-spacing: .02em; }
+
+/* ── De vraag om een foto van de mens in beeld ─────────────────────────────
+   Dit blok is geen instelling maar een vraag, en hij verschijnt op het moment
+   dat je "de founder" of "een model" kiest. Vandaar een gouden rand in plaats
+   van de rustige rand van het productpaneel: er wordt iets van je gevraagd. */
+#wiz-inline .wiz-refs-persoon {
+  border-color: rgba(var(--gold-rgb), .34);
+  background: rgba(var(--gold-rgb), .06);
+  margin-top: 14px;
+}
+#wiz-inline .wiz-refdrop.groot { width: 92px; height: 92px; }
+#wiz-inline .wiz-refs-persoon .wiz-ref { width: 92px; height: 92px; }
+@media (prefers-reduced-motion: no-preference) {
+  #wiz-inline .wiz-refs-persoon { animation: wgSettle var(--wg-t-stap, 320ms) var(--wg-ease, ease); }
+}

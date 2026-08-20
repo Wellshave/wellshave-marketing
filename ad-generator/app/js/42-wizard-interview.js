@@ -209,7 +209,16 @@ var IW2_VRAGEN = [
       { key: 'model', label: 'Yes, use a model',
         sub: 'Someone the buyer can place himself next to. It makes the message relatable, and it costs you if the casting is off: a stranger who is too polished reads as an ad.',
         zet: [['visual', 'humanPresence', 'male-model']],
-        gevolg: 'A person in a real environment makes the message relatable.' },
+        gevolg: 'A person in a real environment makes the message relatable. Drop a photo below if it has to be someone specific.' },
+      /* De founder stond hier niet, terwijl een founder-ad juist iets is waar
+         je halverwege op uitkomt: je begint bij het product en het doel, en
+         pas hier blijkt dat de oprichter het gezicht is. Dan hoort er ook om
+         zijn foto gevraagd te worden, want anders verzint de generator een
+         willekeurige man. */
+      { key: 'founder', label: 'Yes, the founder',
+        sub: 'The person behind the brand. Borrows the trust of a real name, and needs a real photo: a made-up founder is the one lie a viewer spots.',
+        zet: [['visual', 'humanPresence', 'founder']],
+        gevolg: 'The founder it is. Drop a photo of them below, otherwise I have to invent a face.' },
       { key: 'hands', label: 'Hands only',
         sub: 'Use without a face. It shows the product working and asks nobody to identify with a stranger — the safe middle when the product is the proof.',
         zet: [['visual', 'humanPresence', 'hands']],
@@ -1148,6 +1157,13 @@ function iw2Render() {
           (o.aanbevolen ? '<span class="iw2-aanbevolen">Recommended</span>' : '') +
           '</button>';
       }).join('') + '</div>';
+
+    /* En direct onder de antwoorden: de foto van de mens die je net koos.
+       Zei je "de founder", dan is de volgende vraag welke founder -- en die
+       vraag beantwoord je met een foto, niet met een zin. Op stap 1 had die
+       vraag geen betekenis: daar weet je nog niet eens of er iemand in beeld
+       komt. */
+    if (typeof wizRenderEigenFotos === 'function') links += wizRenderEigenFotos();
   }
 
   return { links: links, rechts: iw2RenderBegrepen() };

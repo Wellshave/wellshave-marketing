@@ -729,6 +729,11 @@ function wizRender_visual() {
       return wizSelect('visual', g.field, g.title, g.opts, 'Choose…');
     }).join('') + '</div>';
 
+  /* De foto van de mens in beeld, direct onder de keuzes en niet in de
+     uitklap: hij verschijnt pas als er werkelijk een mens gekozen is, en dan
+     is het geen extra optie maar de vraag die er op dat moment toe doet. */
+  if (typeof wizRenderEigenFotos === 'function') links += wizRenderEigenFotos();
+
   links += wizUitklap('visual',
     wizSelect('visual', 'referenceUsage', 'Reference image usage',
       (WIZ_VISUAL.filter(function (x) { return x.field === 'referenceUsage'; })[0] || {}).opts || []) +
