@@ -303,10 +303,21 @@ function wizBdRenderUitslag(u) {
 
   if (u.samenvatting) h += '<div class="wiz-bd-sam">' + wizEsc(u.samenvatting) + '</div>';
 
-  /* Conflicten bovenaan: het is het enige wat om een besluit van jou vraagt. */
+  /* Spanningen bovenaan, met een belangrijk onderscheid dat er niet was.
+     Een tegenstrijdig signaal dat Rory al heeft opgelost is geen fout maar
+     zijn redenering: hij zag dat premium en een prijskop tegen elkaar in
+     werken en koos hoe hij dat oplost. Dat stond in een rood kader met het
+     woord "Conflicting", en dan lees je een 10-uit-10-briefing als een
+     lijst gebreken.
+
+     Alleen een spanning ZONDER oplossing vraagt werkelijk iets van jou, en
+     die krijgt de aandachtskleur. Wie alles rood maakt, maakt niets rood. */
   (u.conflicten || []).forEach(function (c) {
-    h += '<div class="wiz-bd-conflict"><strong>Conflicting signals.</strong> ' +
-      wizEsc(c.what || '') + ' <em>' + wizEsc(c.resolution || '') + '</em></div>';
+    var opgelost = !!(c.resolution && String(c.resolution).trim());
+    h += '<div class="' + (opgelost ? 'wiz-bd-spanning' : 'wiz-bd-conflict') + '">' +
+      '<strong>' + (opgelost ? 'Tension, resolved.' : 'Needs your call.') + '</strong> ' +
+      wizEsc(c.what || '') +
+      (opgelost ? ' <em>' + wizEsc(c.resolution) + '</em>' : '') + '</div>';
   });
 
   h += '<div class="wiz-bd-lijst">' + (u.gezet || []).map(function (b) {

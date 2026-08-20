@@ -1957,18 +1957,48 @@ const VULLEN = `
     return {
       leesbaarStadium: rij ? rij.querySelector('.wiz-bd-waarde').textContent : '',
       redenErnaast: rij ? rij.querySelector('.wiz-bd-waarom').textContent : '',
-      conflictBoven: !!d.querySelector('.wiz-bd-conflict'),
+      conflictBoven: !!d.querySelector('.wiz-bd-spanning, .wiz-bd-conflict'),
+      /* Opgelost of niet: dat verschil bepaalt of het jouw beurt is. */
+      opgelostRustig: !!d.querySelector('.wiz-bd-spanning'),
+      opgelostNietRood: !d.querySelector('.wiz-bd-conflict'),
+      opgelostKop: (d.querySelector('.wiz-bd-spanning strong') || {}).textContent || '',
       openBlok: (d.querySelector('.wiz-bd-open') || {}).textContent || '',
       geweigerdZichtbaar: (d.querySelector('.wiz-bd-geweigerd') || {}).textContent || '',
       naarBlueprint: d.innerHTML.indexOf('wizBdNaarBlueprint()') > -1
     };
   }, VULLEN);
+  /* De andere kant: een spanning waar hij GEEN oplossing voor heeft vraagt
+     wel iets van jou, en houdt de aandachtskleur. Wie alles rood maakt,
+     maakt niets rood. */
+  const bdOpen = await page.evaluate(() => {
+    wizBd.uitslag = {
+      gezet: [], geweigerd: [], open: [],
+      conflicten: [{ what: 'premium plus korting', resolution: '' }],
+      samenvatting: ''
+    };
+    var d = document.createElement('div');
+    d.innerHTML = wizRenderBrainDump();
+    return { rood: !!d.querySelector('.wiz-bd-conflict'),
+             rustig: !!d.querySelector('.wiz-bd-spanning'),
+             kop: (d.querySelector('.wiz-bd-conflict strong') || {}).textContent || '' };
+  });
+  check('zonder oplossing blijft het rood', bdOpen.rood, true);
+  check('en niet rustig', bdOpen.rustig, false);
+  check('met een kop die om je besluit vraagt', bdOpen.kop, 'Needs your call.');
+
   /* Een stadium heet 's3' in de data en dat zegt niemand iets op het scherm. */
   check('het stadium leest als een naam, niet als een sleutel',
         /Stage 3/.test(bdUitslag.leesbaarStadium), true);
   check('de reden staat naast het besluit, niet in een voetnoot',
         /Iedereen claimt het al/.test(bdUitslag.redenErnaast), true);
-  check('een conflict staat er als conflict', bdUitslag.conflictBoven, true);
+  check('een spanning staat er bovenaan', bdUitslag.conflictBoven, true);
+  /* Een spanning die Rory al oploste is zijn redenering, geen gebrek. Die in
+     een rood kader zetten laat een briefing die klopt lezen als een lijst
+     fouten, en dan lees je een 10-uit-10-uitkomst als een mislukking. */
+  check('en omdat hij hem oploste is hij rustig', bdUitslag.opgelostRustig, true);
+  check('niet in de aandachtskleur', bdUitslag.opgelostNietRood, true);
+  check('met een kop die zegt dat het opgelost is',
+        bdUitslag.opgelostKop, 'Tension, resolved.');
   check('wat hij openliet staat er met de reden',
         /Ik weet niet wat dit kan tonen/.test(bdUitslag.openBlok), true);
   /* Geweigerd is iets anders dan opengelaten: het eerste is een fout, het
