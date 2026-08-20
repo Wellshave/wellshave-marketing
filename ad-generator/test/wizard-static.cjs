@@ -1369,16 +1369,56 @@ const VULLEN = `
         }
       });
     });
+    /* Ook het bibliotheek-zijpaneel, want de veeg langs de tabs kwam daar
+       nooit: dat opent pas als je een creative aanklikt. Het bleef daardoor
+       cremekleurig (243,241,235) terwijl de console zwart was, en sinds het
+       paneel het volledige dossier draagt is dat de plek waar je LEEST. */
+    var paneelLicht = [];
+    try {
+      var brief = wizBlankData();
+      brief.strategy.theme = 'X'; brief.strategy.destination = 'pdp';
+      state.library = [{ id: 'veeg', variant_index: 0, saved_at: Date.now(),
+        matrix: { hook: 'h' }, metadata: { product: 'P', wizardBrief: brief },
+        variation: { headline_nl: 'K', visual_nl: 'V', image_prompt_en: 'p' } }];
+      switchMainTab('library'); renderLibrary(); wgOpenLibraryItem('veeg');
+      [].slice.call(document.querySelectorAll('.wg-drill-overlay *')).forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.width < 60 || r.height < 40) return;
+        var bg = getComputedStyle(el).backgroundColor;
+        var m = bg.match(/rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/);
+        if (!m) return;
+        var aa = m[4] === undefined ? 1 : +m[4];
+        if (aa > 0.5 && (+m[1] + +m[2] + +m[3]) / 3 > 190) {
+          var naam = 'paneel/' + (String(el.className).split(' ')[0] || el.tagName);
+          if (paneelLicht.indexOf(naam) === -1) paneelLicht.push(naam);
+        }
+      });
+      var pan = document.querySelector('.wg-drill-panel');
+      var paneelDonker = pan ? lum(getComputedStyle(pan).backgroundColor) < 0.05 : false;
+      var kop = document.querySelector('.lib-matrix.open > h4');
+      var kopGoud = kop ? getComputedStyle(kop).color : '';
+      var drill = document.getElementById('wg-drill'); if (drill) drill.remove();
+    } catch (e) { var paneelDonker = false, kopGoud = 'fout: ' + e.message; }
+
     switchMainTab('generator');
     return {
       canvas: lum(getComputedStyle(document.body).backgroundColor) < 0.05,
       inkt: lum(getComputedStyle(document.body).color) > 0.5,
-      licht: licht.slice(0, 10)
+      licht: licht.slice(0, 10),
+      paneelDonker: paneelDonker,
+      paneelLicht: paneelLicht.slice(0, 6),
+      kopGoud: kopGoud
     };
   });
   check('het canvas is bijna zwart', nacht.canvas, true);
   check('de inkt is licht', nacht.inkt, true);
   check('en geen enkele tab heeft nog een licht vlak', nacht.licht, []);
+  check('het bibliotheek-zijpaneel is ook nacht', nacht.paneelDonker, true);
+  check('en heeft zelf geen licht vlak', nacht.paneelLicht, []);
+  /* De Daylight-skin zet h1 t/m h4 met !important op --ink. Zonder tegenkracht
+     komen de kopjes in het paneel cremekleurig uit en zijn ze niet van de
+     lopende tekst te onderscheiden. */
+  check('de kopjes in het paneel zijn goud, niet inkt', nacht.kopGoud, 'rgb(232, 186, 90)');
 
   /* ── Het donkere atelier ─────────────────────────────────────────────── */
   console.log('\n  de wizard is de donkere goudwerkbank, wat de console ook draagt');

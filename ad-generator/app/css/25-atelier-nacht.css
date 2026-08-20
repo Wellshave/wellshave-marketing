@@ -254,3 +254,46 @@ input:focus, select:focus, textarea:focus {
 /* 12: de checklistvakjes op Itereren -- gevonden door de bewakingstest, niet
    door de handmatige veeg. Precies waarvoor die test bestaat. */
 .ws9-check { background: var(--surface-2); }
+
+/* ── 13: het bibliotheek-zijpaneel ─────────────────────────────────────────
+   Gevonden met een meting, niet met het oog: de console was zwart en dit
+   paneel bleef crème (rgb 243,241,235). De veegtest liep alleen langs de
+   tabs en klikte nooit een creative aan, dus het paneel viel er structureel
+   buiten. Sinds het paneel het volledige dossier draagt is het geen randgeval
+   meer maar de plek waar je leest.
+
+   De veegtest opent hem nu wel, dus dit blijft staan. */
+.wg-drill-overlay { background: rgba(0, 0, 0, .62) !important; }
+.wg-drill-panel {
+  background: #100e0b !important;
+  border-left: 1px solid rgba(var(--gold-rgb), .22) !important;
+  color: var(--text) !important;
+}
+.wg-drill-img { border-color: rgba(var(--gold-rgb), .2) !important; }
+.wg-drill-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.wg-drill-sluit {
+  cursor: pointer; color: var(--text-faint); font-size: 24px; line-height: 1; padding: 0 6px;
+  transition: color var(--wg-t-snel, 150ms) ease;
+}
+.wg-drill-sluit:hover { color: var(--gold); }
+.wg-drill-kop {
+  font-family: var(--font-serif, Georgia, serif); font-size: 22px;
+  color: var(--gold); margin-top: 16px; line-height: 1.25;
+}
+.wg-drill-body { color: var(--text-soft); font-size: 14px; line-height: 1.6; margin-top: 10px; }
+.wg-drill-geenbeeld {
+  padding: 40px; text-align: center; color: var(--text-faint);
+  border: 1px dashed rgba(var(--gold-rgb), .25); border-radius: 12px;
+}
+.wg-drill-acties { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+/* De invoervelden van de scorekaart: hetzelfde relief als de rest, niet de
+   gitzwarte gaten die een kale textarea op deze ondergrond oplevert. */
+.wg-drill-panel textarea, .wg-drill-panel input[type="text"] {
+  background: rgba(var(--gold-rgb), .05) !important;
+  border: 1px solid rgba(var(--gold-rgb), .16) !important;
+  color: var(--text) !important;
+}
+.wg-drill-panel textarea:focus, .wg-drill-panel input[type="text"]:focus {
+  border-color: rgba(var(--gold-rgb), .45) !important;
+  background: rgba(var(--gold-rgb), .08) !important;
+}

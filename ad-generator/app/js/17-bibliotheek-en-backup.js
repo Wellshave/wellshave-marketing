@@ -600,7 +600,7 @@ function buildLibFilterBar(products, modes, shown, total, f) {
   return h;
 }
 
-function libExtraHtml(v){
+function libExtraHtml(v, open){
   v = v || {};
   const esc = s => escapeHtml(String(s || ''));
   const parts = [];
@@ -609,14 +609,21 @@ function libExtraHtml(v){
   const reasoning = v.reasoning_nl || v.reasoning || '';
   if (reasoning) parts.push(`<div><b>Rory&#39;s reasoning:</b> ${esc(reasoning)}</div>`);
   if (!parts.length) return '';
+  if (open) {
+    return `<section class="lib-extra open"><h4>Visual, hypothese &amp; reasoning</h4>`
+      + `<div class="lib-extra-body">${parts.join('')}</div></section>`;
+  }
   return `<details class="lib-extra"><summary>Visual, hypothese &amp; reasoning</summary><div class="lib-extra-body">${parts.join('')}</div></details>`;
 }
-function libMatrixHtml(id, mat, m){
+function libMatrixHtml(id, mat, m, open){
   mat = mat || {}; m = m || {};
   const va = x => escapeAttr(String(x == null ? '' : x));
   const tx = (field, label, val) => `<label>${label}<textarea data-matrix-id="${id}" data-matrix-field="${field}" rows="2">${escapeHtml(String(val || ''))}</textarea></label>`;
   const inp = (field, label, val) => `<label>${label}<input type="text" data-matrix-id="${id}" data-matrix-field="${field}" value="${va(val)}"></label>`;
-  return `<details class="lib-matrix"><summary>Static ad matrix (Theriot-scorecard)</summary><div class="lib-matrix-grid">`
+  const kop = open
+    ? `<section class="lib-matrix open"><h4>Static ad matrix (Theriot-scorecard)</h4><div class="lib-matrix-grid">`
+    : `<details class="lib-matrix"><summary>Static ad matrix (Theriot-scorecard)</summary><div class="lib-matrix-grid">`;
+  return kop
     + tx('hook', 'Hook', mat.hook)
     + tx('proof', 'Proof / bewijs', mat.proof)
     + tx('avatar', 'Avatar / Desire', mat.avatar)
@@ -625,7 +632,7 @@ function libMatrixHtml(id, mat, m){
     + inp('awareness', 'Customer awareness', mat.awareness != null && mat.awareness !== '' ? mat.awareness : (m.awareness || ''))
     + inp('score', 'Score (1-5)', mat.score)
     + tx('notes', 'Notities / resultaat', mat.notes)
-    + `</div></details>`;
+    + (open ? `</div></section>` : `</div></details>`);
 }
 function iterateFromLibrary(item){
   if (!item) return;
@@ -687,6 +694,41 @@ function libAdNaamHtml(item){
     + 'title="Copy this name into the Meta ad account">Copy ad name</button></div>';
 }
 
+/* Alles wat er over een creative te weten valt, in leesvolgorde. Dit is de
+   inhoud van het zijpaneel en de enige plek waar het volledige verhaal staat:
+   de kaart in de lijst is er om te KIEZEN, het paneel om te LEZEN. Dat scheelt
+   twee uitklappers per kaart in een lijst waar je doorheen scrolt.
+
+   Zonder eigen kop-elementen, want het paneel zet zijn eigen koppen. */
+function libVolledigHtml(item){
+  var v = item.variation || {}, m = item.metadata || {}, mat = item.matrix || {};
+  return buildRecipeChips(m)
+    + libAdNaamHtml(item)
+    + libDossierHtml(item)
+    + libExtraHtml(v, true)
+    + libMatrixHtml(item.id, mat, m, true);
+}
+
+/* De matrixvelden schrijven terug naar het bewaarde item. Dit stond als
+   losse lus in renderLibrary en gold dus alleen voor de kaart; nu het paneel
+   dezelfde velden toont, moeten die daar net zo goed opslaan. Eén functie,
+   twee plekken, anders bewerk je in het paneel iets wat nergens landt. */
+function libKoppelMatrix(root){
+  if (!root) return;
+  root.querySelectorAll('[data-matrix-id]').forEach(function (el) {
+    if (el._matrixAan) return;
+    el._matrixAan = true;
+    el.addEventListener('input', function () {
+      var it = (state.library || []).find(function (x) { return x.id === el.getAttribute('data-matrix-id'); });
+      if (!it) return;
+      it.matrix = it.matrix || {};
+      it.matrix[el.getAttribute('data-matrix-field')] = el.value;
+      clearTimeout(el._mt);
+      el._mt = setTimeout(function () { try { saveLibrary(); } catch (e) {} }, 500);
+    });
+  });
+}
+
 function libCardHtml(item){
   const d = new Date(item.saved_at);
   const dateStr = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -694,7 +736,6 @@ function libCardHtml(item){
   const imgMime = (item.image && item.image.mime) ? item.image.mime : 'image/png';
   const v = item.variation || {};
   const m = item.metadata || {};
-  const mat = item.matrix || {};
   const imgHtml = hasImage
     ? `<img class="lib-card-img" src="data:${imgMime};base64,${item.image.b64}" alt="Bewaarde afbeelding">`
     : `<div class="lib-card-img-empty">Geen afbeelding bewaard</div>`;
@@ -712,10 +753,6 @@ function libCardHtml(item){
           ${bodyHtml}
           <div class="lib-meta">${escapeHtml(m.product || '')} , ${escapeHtml(String(m.funnel || ''))} , ${escapeHtml(String(m.archetype || ''))}${ctaTxt}</div>
           ${buildRecipeChips(m)}
-          ${libAdNaamHtml(item)}
-          ${libDossierHtml(item)}
-          ${libExtraHtml(v)}
-          ${libMatrixHtml(item.id, mat, m)}
           <div class="lib-actions">
             <button class="btn btn-small" data-action="view" data-id="${item.id}">Bekijk in generator</button>
             <button class="btn btn-small" data-action="iterate" data-id="${item.id}">Itereer op deze</button>
@@ -808,15 +845,7 @@ function renderLibrary() {
     if (h) h.classList.add('open');
   });
 
-  lib.querySelectorAll('[data-matrix-id]').forEach(el => {
-    el.addEventListener('input', () => {
-      const it = state.library.find(x => x.id === el.getAttribute('data-matrix-id'));
-      if (!it) return;
-      it.matrix = it.matrix || {};
-      it.matrix[el.getAttribute('data-matrix-field')] = el.value;
-      clearTimeout(el._mt); el._mt = setTimeout(() => { try { saveLibrary(); } catch(e){} }, 500);
-    });
-  });
+  libKoppelMatrix(lib);
 
   lib.querySelectorAll('button[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {

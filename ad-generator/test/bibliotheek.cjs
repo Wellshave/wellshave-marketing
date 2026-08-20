@@ -123,12 +123,11 @@ function serve(root) {
   check('de kop draagt de open-stijl ook nog', groep.kopNa, true);
   check('een groep die dicht was blijft gewoon dicht', groep.dichtGebleven, true);
 
-  console.log('\n  de kaart toont waarvoor de creative gemaakt is');
-  /* Een bibliotheek die alleen laat zien DAT er een creative is, is een
-     plakboek. Om te itereren moet er naast het beeld staan welke beslissing
-     eronder lag: de hoek, het verschil, het verlangen en de twee assen. En de
-     naam waaronder hij in het advertentie-account komt, want zonder die naam
-     is de data straks niet aan de beslissing te koppelen. */
+  console.log('\n  de kaart blijft een keuzekaart');
+  /* Wat op de kaart hoort is genoeg om te KIEZEN: beeld, kop, en de chips die
+     in een oogopslag zeggen voor wie en op welk stadium hij gemaakt is. Het
+     volledige verhaal staat in het zijpaneel; twee uitklappers per kaart
+     midden in een scrollende lijst is de verkeerde plek om te lezen. */
   const kaart = await page.evaluate(() => {
     const brief = wizBlankData();
     brief.audience.awareness = 'solution';
@@ -147,24 +146,30 @@ function serve(root) {
     renderLibrary();
     const lib = document.getElementById('library');
     const tekst = lib.textContent;
+    wgOpenLibraryItem('x1');
+    const pan = document.querySelector('.wg-drill-panel');
     return {
-      naam: !!lib.querySelector('.lib-adnaam code'),
-      naamTekst: (lib.querySelector('.lib-adnaam code') || {}).textContent || '',
-      knop: !!lib.querySelector('button[data-action="copy-name"]'),
-      hoek: tekst.indexOf('De scheerbeurt zonder nabranden') !== -1,
-      verschil: tekst.indexOf('New mechanism') !== -1,
-      bestemming: tekst.indexOf('Listicle') !== -1,
-      sophChip: tekst.indexOf('Soph: s3') !== -1
+      kaartKop: tekst.indexOf('Kop') !== -1,
+      sophChip: tekst.indexOf('Soph: s3') !== -1,
+      awareChip: tekst.indexOf('Aware: solution') !== -1,
+      panNaam: (pan.querySelector('.lib-adnaam code') || {}).textContent || '',
+      panKnop: !!pan.querySelector('button[data-action="copy-name"]'),
+      panHoek: pan.textContent.indexOf('De scheerbeurt zonder nabranden') !== -1,
+      panVerschil: pan.textContent.indexOf('New mechanism') !== -1,
+      panBestemming: pan.textContent.indexOf('Listicle') !== -1
     };
   });
-  check('de advertentienaam staat op de kaart', kaart.naam, true);
-  check('en die naam is de opgeslagen naam',
-    kaart.naamTekst, 'trimmer_AW-SOLU_SO-S3_ANG-de-scheerbeurt_V1_2026-08-20');
-  check('met een knop om hem te kopieren', kaart.knop, true);
-  check('de hoek staat er', kaart.hoek, true);
-  check('het soort verschil als label', kaart.verschil, true);
-  check('en waar de klik landt', kaart.bestemming, true);
+  check('de kop staat op de kaart', kaart.kaartKop, true);
+  /* De sophistication stond hardgecodeerd op null in wizMetadata, dus deze
+     chip verscheen nooit. */
   check('de sophistication-chip verschijnt nu ook', kaart.sophChip, true);
+  check('en de awareness-chip', kaart.awareChip, true);
+  check('de advertentienaam staat in het paneel',
+    kaart.panNaam, 'trimmer_AW-SOLU_SO-S3_ANG-de-scheerbeurt_V1_2026-08-20');
+  check('met een knop om hem te kopieren', kaart.panKnop, true);
+  check('de hoek staat er', kaart.panHoek, true);
+  check('het soort verschil als label', kaart.panVerschil, true);
+  check('en waar de klik landt', kaart.panBestemming, true);
 
   console.log('\n  het opslaan legt de naam zelf vast');
   /* De kaart kan de naam ook berekenen, dus een test op de kaart alleen zegt
@@ -212,11 +217,122 @@ function serve(root) {
       variation: { headline_nl: 'Kop', image_prompt_en: 'p' }
     }];
     renderLibrary();
-    const c = document.getElementById('library').querySelector('.lib-adnaam code');
+    wgOpenLibraryItem('oud1');
+    const c = document.querySelector('.wg-drill-panel .lib-adnaam code');
     return c ? c.textContent : null;
   });
   check('het oude item toont een berekende naam met de hoek erin',
     /ANG-oude-hoek/.test(oud || ''), true);
+
+  console.log('\n  het zijpaneel draagt het hele verhaal, de kaart niet meer');
+  /* De kaart in de lijst is er om te KIEZEN, het paneel om te LEZEN. Twee
+     uitklappers per kaart, middenin een lijst waar je doorheen scrolt, is de
+     verkeerde plek: je klapt iets open, leest, en scrolt het weer kwijt. */
+  const paneel = await page.evaluate(() => {
+    const brief = wizBlankData();
+    brief.audience.awareness = 'problem';
+    brief.audience.sophistication = 's4';
+    brief.strategy.theme = 'Veilig daar beneden';
+    brief.strategy.differentiation = 'mechanism';
+    brief.strategy.desire = 'Geen wondjes';
+    brief.strategy.destination = 'advertorial';
+    state.library = [{
+      id: 'p1', batch_id: 'b-p', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+      ad_name: 'groom-guard_AW-PROB_SO-S4_ANG-veilig_V1_2026-08-20',
+      matrix: { hook: 'De bestaande hook' },
+      metadata: { product: 'Groom Guard', funnel: 'mof', archetype: 'premium',
+                  awareness: 'problem', sophistication: 's4', wizardBrief: brief },
+      variation: { headline_nl: 'Veilig daar beneden', body_copy_nl: 'Body',
+                   visual_nl: 'Een macro van de kop', hypothese_nl: 'Dit werkt omdat',
+                   image_prompt_en: 'p' }
+    }];
+    renderLibrary();
+    const kaart = document.querySelector('.library-item');
+    const kaartTekst = kaart.textContent;
+    const kaartUitklappers = kaart.querySelectorAll('details').length;
+
+    wgOpenLibraryItem('p1');
+    const pan = document.querySelector('.wg-drill-panel');
+    const panTekst = pan.textContent;
+    return {
+      kaartUitklappers: kaartUitklappers,
+      kaartHeeftDossier: kaartTekst.indexOf('Veilig daar beneden') !== -1
+                         && kaartTekst.indexOf('New mechanism') !== -1,
+      panHoek: panTekst.indexOf('Veilig daar beneden') !== -1,
+      panVerschil: panTekst.indexOf('New mechanism') !== -1,
+      panBestemming: panTekst.indexOf('Advertorial') !== -1,
+      panNaam: (pan.querySelector('.lib-adnaam code') || {}).textContent || '',
+      panVisual: panTekst.indexOf('Een macro van de kop') !== -1,
+      panHypothese: panTekst.indexOf('Dit werkt omdat') !== -1,
+      panMatrix: !!pan.querySelector('[data-matrix-field="hook"]'),
+      panMatrixWaarde: (pan.querySelector('[data-matrix-field="hook"]') || {}).value,
+      panUitklappers: pan.querySelectorAll('details').length,
+      panChips: pan.querySelectorAll('.lib-chip').length
+    };
+  });
+  check('de kaart heeft geen uitklappers meer', paneel.kaartUitklappers, 0);
+  check('en draagt het dossier niet meer', paneel.kaartHeeftDossier, false);
+  check('het paneel toont de hoek', paneel.panHoek, true);
+  check('het soort verschil', paneel.panVerschil, true);
+  check('waar de klik landt', paneel.panBestemming, true);
+  check('de advertentienaam', paneel.panNaam, 'groom-guard_AW-PROB_SO-S4_ANG-veilig_V1_2026-08-20');
+  check('de visual en de hypothese', [paneel.panVisual, paneel.panHypothese], [true, true]);
+  check('en de scorekaart-matrix met wat er al ingevuld was',
+    [paneel.panMatrix, paneel.panMatrixWaarde], [true, 'De bestaande hook']);
+  check('in het paneel staat alles open, niets weggeklapt', paneel.panUitklappers, 0);
+  check('de chips staan er ook', paneel.panChips > 0, true);
+
+  console.log('\n  een tweede creative vervangt het paneel, hij stapelt niet');
+  /* Gevonden doordat de test het verkeerde paneel las: het paneel werd
+     toegevoegd zonder het vorige weg te halen, dus het id wg-drill kwam twee
+     keer voor. Alles wat het paneel daarna opzoekt (matrixvelden, de
+     kopieerknop) landt dan op het OUDSTE exemplaar terwijl je naar het
+     nieuwste kijkt: je typt in het ene en bewerkt het andere. */
+  const stapel = await page.evaluate(() => {
+    state.library = [
+      { id: 's1', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+        metadata: { product: 'Eerste', wizardBrief: wizBlankData() },
+        variation: { headline_nl: 'Eerste kop', image_prompt_en: 'p' } },
+      { id: 's2', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+        metadata: { product: 'Tweede', wizardBrief: wizBlankData() },
+        variation: { headline_nl: 'Tweede kop', image_prompt_en: 'p' } }
+    ];
+    renderLibrary();
+    wgOpenLibraryItem('s1');
+    wgOpenLibraryItem('s2');
+    const panelen = document.querySelectorAll('.wg-drill-panel');
+    return { aantal: panelen.length,
+             tekst: panelen.length ? panelen[0].textContent.indexOf('Tweede kop') !== -1 : false };
+  });
+  check('er staat precies een paneel open', stapel.aantal, 1);
+  check('en dat is die van de laatst aangeklikte creative', stapel.tekst, true);
+
+  console.log('\n  en wat je in het paneel typt, wordt bewaard');
+  /* De matrixvelden zaten met een lus in renderLibrary aan de KAART vast.
+     Nu ze in het paneel staan moet dezelfde koppeling daar gelden, anders
+     typ je een notitie die verdwijnt zodra je het paneel sluit. */
+  const typen = await page.evaluate(async () => {
+    /* Eigen opzet: het stapelblok hierboven verving de bibliotheek, dus dit
+       blok mag niet op een eerdere fixture leunen. Een test die van de
+       volgorde van een ander blok afhangt, valt om zodra iemand er iets
+       tussen zet. */
+    state.library = [{
+      id: 'p1', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+      metadata: { product: 'Groom Guard', wizardBrief: wizBlankData() },
+      variation: { headline_nl: 'Kop', image_prompt_en: 'p' }
+    }];
+    renderLibrary();
+    wgOpenLibraryItem('p1');
+    const veld = document.querySelector('.wg-drill-panel [data-matrix-field="notes"]');
+    if (!veld) return { gelukt: false };
+    veld.value = 'Deze liep op 2,4 ROAS';
+    veld.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 700));
+    const it = state.library.find(x => x.id === 'p1');
+    return { gelukt: true, bewaard: (it.matrix || {}).notes };
+  });
+  check('het notitieveld staat in het paneel', typen.gelukt, true);
+  check('en wat je typt landt op het item', typen.bewaard, 'Deze liep op 2,4 ROAS');
 
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);

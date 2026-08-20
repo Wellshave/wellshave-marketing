@@ -70,18 +70,31 @@
     if(!item) return;
     var v=item.variation||{}, m=item.metadata||{};
     var hasImg = !!(item.image && item.image.b64);
-    var imgHtml = hasImg ? '<img class="wg-drill-img" src="data:'+((item.image.mime)||'image/png')+';base64,'+item.image.b64+'" alt="">' : '<div style="padding:40px;text-align:center;color:#7d7664;border:1px dashed rgba(215, 179, 89, .25);border-radius:12px;">Geen afbeelding bewaard</div>';
+    var imgHtml = hasImg ? '<img class="wg-drill-img" src="data:'+((item.image.mime)||'image/png')+';base64,'+item.image.b64+'" alt="">' : '<div class="wg-drill-geenbeeld">Geen afbeelding bewaard</div>';
+    /* Een eventueel openstaand paneel eerst weg. Zonder dit stapelen ze op:
+       het id wg-drill komt dan twee keer voor, en alles wat het paneel
+       opzoekt (de matrixvelden, de kopieerknop) landt op het OUDSTE exemplaar
+       terwijl je naar het nieuwste kijkt. */
+    var _oud=document.getElementById('wg-drill'); if(_oud) _oud.remove();
     var ov=document.createElement('div'); ov.className='wg-drill-overlay'; ov.id='wg-drill';
     ov.innerHTML = '<div class="wg-drill-panel">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+      + '<div class="wg-drill-top">'
       +   '<span class="var-hook-tag" style="font-size:10px;padding:4px 8px;">'+wgEsc(v.hook_type||'concept')+'</span>'
-      +   '<div id="wg-drill-close" style="cursor:pointer;color:#504b3f;font-size:24px;line-height:1;padding:0 6px;" aria-label="Sluiten">&times;</div>'
+      +   '<div id="wg-drill-close" class="wg-drill-sluit" aria-label="Sluiten">&times;</div>'
       + '</div>'
       + imgHtml
-      + '<div style="font-family:var(--font-serif,Georgia,serif);font-size:22px;color:#916f27;margin-top:16px;">'+wgEsc(v.headline_nl||'(geen headline)')+'</div>'
-      + (v.body_copy_nl ? '<div style="color:#63583e;font-size:14px;line-height:1.6;margin-top:10px;">'+wgEsc(v.body_copy_nl)+'</div>' : '')
-      + '<div style="color:#504b3f;font-size:12px;margin-top:12px;">'+wgEsc(m.product||'')+' &middot; '+wgEsc(String(m.funnel||''))+' &middot; '+wgEsc(String(m.archetype||''))+(v.cta_nl?(' &middot; CTA: '+wgEsc(v.cta_nl)):'')+'</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;">'
+      + '<div class="wg-drill-kop">'+wgEsc(v.headline_nl||'(geen headline)')+'</div>'
+      + (v.body_copy_nl ? '<div class="wg-drill-body">'+wgEsc(v.body_copy_nl)+'</div>' : '')
+      + '<div class="wg-drill-meta">'+wgEsc(m.product||'')+' &middot; '+wgEsc(String(m.funnel||''))+' &middot; '+wgEsc(String(m.archetype||''))+(v.cta_nl?(' &middot; CTA: '+wgEsc(v.cta_nl)):'')+'</div>'
+      /* Het volledige dossier. Dit stond in twee uitklappers op de kaart zelf,
+         middenin een lijst waar je doorheen scrolt, dus je klapte iets open,
+         las, en scrolde het weer kwijt. Hier is de ruimte er wel, en dit is
+         het moment waarop je het wilt lezen: je hebt net op deze creative
+         geklikt. De kaart is om te kiezen, dit paneel is om te lezen. */
+      + '<div class="wg-drill-dossier">'
+      +   ((typeof libVolledigHtml === 'function') ? libVolledigHtml(item) : '')
+      + '</div>'
+      + '<div class="wg-drill-acties">'
       +   '<button class="btn btn-small" data-proxy="view">Bekijk in generator</button>'
       +   '<button class="btn btn-small" data-proxy="iterate">Itereer op deze</button>'
       +   '<button class="btn btn-small btn-ghost" data-proxy="copy-prompt">Kopieer prompt</button>'
@@ -90,6 +103,18 @@
       + '</div>'
       + '</div>';
     document.body.appendChild(ov);
+    /* De matrixvelden in dit paneel moeten net zo goed opslaan als die op de
+       kaart deden. Zonder deze regel typ je een notitie in het paneel en is
+       hij weg zodra je het sluit. */
+    if (typeof libKoppelMatrix === 'function') libKoppelMatrix(ov);
+    /* De kopieerknop van de advertentienaam zit in het dossier en heeft geen
+       tegenhanger op de kaart om naar door te sturen, dus die bedienen we
+       hier zelf. */
+    var naamKnop = ov.querySelector('button[data-action="copy-name"]');
+    if (naamKnop) naamKnop.onclick = function(){
+      try { navigator.clipboard.writeText(libAdNaam(item)); } catch(e){}
+      if (typeof toast === 'function') toast('Ad name gekopieerd, plak hem in Meta');
+    };
     requestAnimationFrame(function(){ ov.classList.add('show'); });
     function close(){ ov.classList.remove('show'); setTimeout(function(){ if(ov.parentNode) ov.remove(); }, 320); }
     ov.querySelector('#wg-drill-close').onclick=close;
