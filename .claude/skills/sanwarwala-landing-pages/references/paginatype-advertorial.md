@@ -86,3 +86,72 @@ De gedeelde regels staan in de merklaag: 150 woorden per sectie, beeld per secti
   zwaarder dan elders, omdat je een verhaal over hem vertelt en hij zichzelf erin herkent.
 - **De byline maakt de vorm.** Leestijd, rubriek en de vermelding dat het gesponsord is. Zonder
   die signalen leest het als reclame in artikelvorm, en dan verlies je juist het voordeel.
+
+---
+
+## De redactionele vorm
+
+Een advertorial werkt niet omdat de lezer erin trapt, maar omdat de **vorm** zijn weerstand
+verlaagt. Wie een artikel leest staat anders in de wedstrijd dan wie een verkooppagina leest,
+en dat geeft je de ruimte om een mechanisme uit te leggen voordat je iets aanbiedt.
+
+Die vorm mag je ver doorvoeren:
+
+- **Auteursregel** met naam, korte bio en publicatiedatum. Een echte auteur, geen verzonnen
+  persoon.
+- **Leestijd en rubriek**, zoals elk artikel dat heeft.
+- **Zijbalk met gerelateerde artikelen**, mits het stukken zijn die werkelijk op de site staan
+  en de links werken.
+- **Redactionele typografie**: tussenkoppen, uitgelicht citaat, bijschriften onder beeld.
+
+## De grens, en waarom hij er is
+
+**De sponsorvermelding blijft zichtbaar boven de vouw.** Niet kleiner, niet naar beneden, niet
+weg omdat het beter converteert.
+
+Reclame moet als reclame herkenbaar zijn. Betaalde inhoud presenteren als onafhankelijke
+redactie staat op de Europese zwarte lijst van oneerlijke handelspraktijken: dat is geen
+afweging met een boete als risico, maar een categorie die per definitie verboden is. De
+vermelding is wat de hele constructie legaal houdt.
+
+Verder, en zonder uitzondering:
+
+- **Geen verzonnen artikelen, koppen of bronnen** in de zijbalk of elders.
+- **Geen verzonnen auteur, citaten of quotes** van mensen of media.
+- **Geen verzonnen concurrenten** of verzonnen prijzen.
+
+## Het rondje langs de opties
+
+Sluit een advertorial af met een eerlijk overzicht van de manieren waarop iemand dit probleem
+kan oplossen, met het eigen product als een van de opties. Drie tot vijf alternatieven werkt.
+
+**Waarom eerlijk beter werkt dan gestuurd:** het publiek van een advertorial is per definitie
+sceptisch, en toetst. Zet je alternatieven neer die allemaal toevallig verliezen, dan ruikt de
+lezer dat en verlies je de geloofwaardigheid die de hele pagina heeft opgebouwd. Zet je ze
+eerlijk neer en win je op een punt dat aantoonbaar is, dan heb je hem overtuigd op zijn eigen
+voorwaarden.
+
+Laat elk alternatief ergens op winnen. Een wegwerpmesje wint op prijs, een salonbehandeling op
+resultaat, een gewone tondeuse op snelheid. Jij wint op het mechanisme dat de hele pagina heeft
+uitgelegd. Dat is genoeg.
+
+### Prijzen van alternatieven noemen
+
+Prijsverankering met echte alternatieven is legitiem en vaak nodig: wie niet weet dat een
+laserkuur een paar honderd euro kost, kan jouw prijs ook niet plaatsen. Vergelijkende reclame
+mag, mits je objectief vergelijkbare kenmerken naast elkaar zet, niet misleidt en de ander niet
+zwartmaakt.
+
+Drie voorwaarden, en ze zijn hard:
+
+1. **De prijs is echt en actueel**, en je hebt hem zelf opgezocht. Niet geschat, niet
+   afgerond naar boven.
+2. **Je noemt een representatieve optie**, niet de duurste variant die je kon vinden om het
+   verschil groter te laten lijken. Dat is de vergelijking construeren in plaats van beschrijven.
+3. **Je zet de bron en de peildatum erbij.** Prijzen van anderen veranderen. Een bedrag dat
+   vandaag klopt is over een half jaar een onware claim op jouw pagina, en dan is het jouw
+   probleem.
+
+Neem prijzen daarom mee in de onderhoudsronde van de pagina, of laat ze weg en vergelijk op
+kenmerken. Een categorie noemen ("een salonbehandeling loopt al snel in de honderden euro's")
+is houdbaarder dan een bedrag dat je moet bijhouden.

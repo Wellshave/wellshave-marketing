@@ -324,6 +324,8 @@ a{color:inherit}
 }
 
 
+.bronregel{margin-top:12px;font-size:11.5px;color:var(--ink-40);text-align:right}
+
 /* ---------- listicle: genummerde items ---------- */
 .lijst{max-width:var(--rail);margin:0 auto;padding:0 24px;
   display:flex;flex-direction:column;gap:52px}
@@ -489,7 +491,8 @@ footer .logo{display:block;margin-bottom:8px;color:var(--ink)}
 <header class="hero">
   <div class="hero-in">
     <div class="hero-copy">
-      <span class="kicker">[Categorie &middot; Segment]</span>
+      <span class="kicker">Advertorial &middot; Gesponsord door Wellshave</span>
+      <!-- Deze vermelding blijft boven de vouw staan. Zie paginatype-advertorial.md. -->
       <h1 class="duo">[Eerste regel]<span class="b">[Tweede regel.]</span></h1>
       <p class="hero-lede">[Een of twee zinnen die de spanning vasthouden. Max 44 tekens breed.]</p>
       <div class="hero-acts">
@@ -626,6 +629,31 @@ footer .logo{display:block;margin-bottom:8px;color:var(--ink)}
     <dl class="speclist">
       <dt>[Kenmerk]</dt><dd>[Waarde]</dd>
     </dl>
+  </div>
+</section>
+
+
+<!-- ============ RONDJE LANGS DE OPTIES ============
+     Eerlijk overzicht van manieren om dit probleem op te lossen, eigen product als een ervan.
+     Laat elk alternatief ergens op winnen. Prijzen alleen als ze echt, actueel en
+     representatief zijn, met bron en peildatum. Zie paginatype-advertorial.md. -->
+<section class="kenmerken reveal">
+  <div class="kenmerk-kop">
+    <span class="kicker">[Label]</span>
+    <h2 class="duo">[Eerste regel]<span class="b">[tweede regel.]</span></h2>
+    <p class="lead">[Een zin die zegt dat dit een overzicht is, niet een verkooppraatje.]</p>
+  </div>
+  <div class="vergelijk">
+    <table class="vgl">
+      <thead>
+        <tr><th>Oplossing</th><th>Sterk in</th><th>Zwak in</th><th>Prijsklasse</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">[Alternatief]</th><td>[Waar het echt in wint]</td><td>[Waar het tekortschiet]</td><td>[Categorie of bedrag]</td></tr>
+        <tr class="ons"><th scope="row">[Ons product]</th><td class="ons">[Het mechanisme uit dit artikel]</td><td>[Waar wij niet in uitblinken]</td><td>[Prijs]</td></tr>
+      </tbody>
+    </table>
+    <p class="bronregel">[Prijzen gecontroleerd op [datum], bron: [waar].]</p>
   </div>
 </section>
 
