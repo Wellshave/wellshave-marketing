@@ -153,7 +153,11 @@ function serve(root) {
   const herkansing = await page.evaluate(() => {
     wizState.advice.audience = { error: 'Rory could not be reached (te lang).' };
     wizState.current = 'audience';
+    /* Het vorige blok stapte naar een stap, en daarmee ging Rory zelf denken;
+       die aanroep hangt hier nog. Beide vlaggen los, anders meet dit blok een
+       bezige Rory in plaats van een mislukte aanroep. */
     wizState.busy = false;
+    wizState.roryBezig = false;
     wizRenderRoryBalk();
     const balk = document.getElementById('wiz-rorybalk');
     /* wizRenderRory schrijft in het paneel en geeft niets terug, dus lezen we

@@ -111,7 +111,7 @@ function wizRender_review() {
       '<div class="wiz-vizdesc">' + wizEsc(d.review.visualDescription) + '</div>' +
       '<div class="wiz-actions"><button type="button" class="wiz-btn ghost small" ' +
       'onclick="wizDescribeVisual()">Describe it again</button></div>');
-  } else if (wizState.busy) {
+  } else if (wizRoryBezig()) {
     rechts += wizDenkt('Rory is writing out what the ad will look like.');
   } else {
     rechts += '<div class="wiz-leegzij">Rory has not described the ad yet. ' +
@@ -148,7 +148,7 @@ function wizBriefGroep(titel, stap, regels) {
    stappen uit zichzelf kijkt. Dat is tekst, geen beeld -- dus geen geld. */
 function wizAfter_review() {
   if (wizState.data.review.visualDescription) return;
-  if (wizState.busy) return;
+  if (wizRoryBezig()) return;
   if (wizState.beschreven) return;
   if (typeof wizSleutelAanwezig === 'function' && !wizSleutelAanwezig()) return;
   wizState.beschreven = true;
@@ -184,8 +184,10 @@ function wizNaarGat(stap, veld) {
 }
 
 function wizDescribeVisual() {
-  if (wizState.busy) return;
-  wizState.busy = true;
+  /* Ook dit doet Rory uit zichzelf zodra je de blueprint opent. Met de
+     gedeelde vlag lag de hele stap stil zolang die beschrijving liep. */
+  if (wizRoryBezig()) return;
+  wizState.roryBezig = true;
   wizRender();
   var ctx = wizContext();
   var sys = 'You are Rory Sutherland. Describe, in two or three plain English sentences, what the static ad that follows from these decisions will actually look like: ' +
@@ -201,7 +203,7 @@ function wizDescribeVisual() {
     .catch(function (err) {
       if (typeof toast === 'function') toast('Could not describe the ad: ' + err.message, true);
     })
-    .finally(function () { wizState.busy = false; wizRender(); });
+    .finally(function () { wizState.roryBezig = false; wizRender(); });
 }
 
 function wizApproveBlueprint() {
@@ -295,7 +297,13 @@ function wizBuildBrief(aantal) {
          'meegestuurd wordt (' + (d.visual.basisFoto.naam || 'basisfoto') + '). Compositie, licht, ' +
          'omgeving en de persoon daarin blijven staan. Beschrijf wat er MET die foto gebeurt: ' +
          'waar het product komt, waar de tekst staat, wat er weg moet. Verzin geen andere scene ' +
-         'en geen andere persoon.\n';
+         'en geen andere persoon.\n' +
+         /* En expliciet over het gezicht, want dat is wat er in de praktijk
+            misgaat: het model maakt er een gladdere, jongere versie van en dan
+            staat er een vreemde die op de founder lijkt. */
+         'Het gezicht van de persoon op die foto is van een echt mens en blijft exact zoals ' +
+         'het is: dezelfde trekken, dezelfde leeftijd, dezelfde huid. Beschrijf nooit een ' +
+         'ander gezicht, een andere uitstraling of een "verzorgde versie" van hem.\n';
   }
   t += 'Deze visuele richting is door de gebruiker goedgekeurd en gaat VOOR op de standaardlook van het format. ' +
     'Wijk er niet van af voor de afwisseling.\n';

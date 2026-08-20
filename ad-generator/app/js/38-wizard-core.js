@@ -144,6 +144,11 @@ var wizState = {
      onleesbaar. */
   chat: {},
   busy: false,
+  /* Rory's eigen werk: het advies dat hij bij het openen van een stap uit
+     zichzelf ophaalt, de beeldbeschrijving, en het sparren. Apart van busy,
+     want anders blokkeert zijn achtergrondwerk jouw knoppen -- en sinds een
+     drukke API netjes wordt uitgezeten duurt dat tot ruim veertig seconden. */
+  roryBezig: false,
   /* Vragen die Rory uit zichzelf gesteld heeft, per stap. */
   asked: {},
   /* Stappen waarop Rory al uit zichzelf gekeken heeft. Zonder dit blijft hij
@@ -500,31 +505,46 @@ window.addEventListener('resize', function () { wizPasProgressAan(); });
 /* De adviesregel onder de stappenbalk: één zin over wat Rory op deze stap doet
    of gedaan heeft. In het ontwerp is dit de enige plek waar hij het woord
    neemt vóór je iets ziet; de onderbouwing staat rechts in de kolom. */
+/* Doet Rory op dit moment iets? Bewust een eigen vraag.
+ *
+ * wizState.busy was EEN vlag voor alles: de generatie die jij start, en het
+ * advies dat Rory uit zichzelf ophaalt bij het openen van een stap. Dat ging
+ * goed zolang zo'n advies een seconde duurde. Sinds een drukke API netjes
+ * wordt uitgezeten (vier herkansingen, oplopend tot ruim veertig seconden)
+ * betekende het dat de hele stap al die tijd op slot zat: elke knop
+ * uitgeschakeld, elke klik genegeerd, en geen woord waarom. "Hij werkt niet."
+ *
+ * Rory's eigen werk zit nu in roryBezig. Dat blokkeert jouw knoppen niet meer;
+ * het laat alleen zien dat hij nadenkt. */
+function wizRoryBezig() {
+  return !!(wizState.roryBezig || wizState.busy);
+}
+
 function wizRenderRoryBalk() {
   var el = document.getElementById('wiz-rorybalk');
   if (!el) return;
   var k = wizState.current;
   var adv = wizState.advice[k] || {};
   var tekst = '';
-  if (wizState.busy) tekst = WIZ_BEZIG[k] || 'Rory is working on this step.';
+  if (wizRoryBezig()) tekst = WIZ_BEZIG[k] || 'Rory is working on this step.';
   else if (adv.error) tekst = adv.error;
   else if (adv.why) tekst = adv.why;
   else tekst = WIZ_OPENING[k] || '';
   el.innerHTML = tekst
-    ? '<span class="wiz-rorybalk-punt' + (wizState.busy ? ' bezig' : '') + '"></span>' +
+    ? '<span class="wiz-rorybalk-punt' + (wizRoryBezig() ? ' bezig' : '') + '"></span>' +
       '<span>' + wizEsc(tekst) + '</span>' +
       /* Een mislukte aanroep is bijna altijd tijdelijk: druk, een afgekapte
          verbinding. Zonder knop staat er een mededeling die je alleen kunt
          wegkijken, en dan vul je de stap zelf in terwijl een tweede poging
          het gedaan had. */
-      (!wizState.busy && adv.error
+      (!wizRoryBezig() && adv.error
         ? ' <button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'' + k + '\')">Try again</button>'
         : '') +
       /* De lichtlijn bestaat alleen terwijl er echt iets draait: beweging die
          niets betekent is decoratie, en decoratie went binnen een dag. */
-      (wizState.busy ? '<span class="wiz-lichtlijn" aria-hidden="true"></span>' : '')
+      (wizRoryBezig() ? '<span class="wiz-lichtlijn" aria-hidden="true"></span>' : '')
     : '';
-  el.classList.toggle('bezig', !!(tekst && wizState.busy));
+  el.classList.toggle('bezig', !!(tekst && wizRoryBezig()));
   el.style.display = tekst ? '' : 'none';
 }
 
@@ -858,4 +878,4 @@ window.wizRenderFooter = wizRenderFooter; window.wizInvalidate = wizInvalidate;
 window.wizStepIndex = wizStepIndex; window.wizBlankData = wizBlankData;
 window.wizMisschienAdviseren = wizMisschienAdviseren;
 window.wizVoorwaardenGehaald = wizVoorwaardenGehaald;
-window.wizSleutelAanwezig = wizSleutelAanwezig;
+window.wizSleutelAanwezig = wizSleutelAanwezig; window.wizRoryBezig = wizRoryBezig;

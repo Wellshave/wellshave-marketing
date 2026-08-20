@@ -437,6 +437,179 @@ const OPZET = () => {
   /* Een keer tekenen na het antwoord, niet per beeld. */
   check('met een enkele herteken erna', nieuweBeelden.hertekensNa, 1);
 
+  console.log('\n  Rory\'s eigen werk blokkeert jouw knoppen niet meer');
+  /* DIT was waarom "hij werkt niet". wizState.busy was EEN vlag voor alles:
+     de generatie die jij start, en het advies dat Rory uit zichzelf ophaalt
+     bij het openen van een stap. Zolang zo'n advies een seconde duurde viel
+     dat niet op. Sinds een drukke API netjes wordt uitgezeten (vier
+     herkansingen, oplopend tot ruim veertig seconden) betekende het dat de
+     hele stap al die tijd op slot zat: elke knop uit, elke klik genegeerd,
+     en geen woord waarom. */
+  const vlaggen = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.concepts.selected = 0;
+    wizState.data.strategy.messaging = 'Kern';
+    window.__WG_TEAMSERVER = true;
+
+    /* Rory denkt na, jij drukt op de knop. */
+    wizState.busy = false;
+    wizState.roryBezig = true;
+    let gestart = false;
+    const echt = window.wizCall;
+    window.wizCall = () => { gestart = true; return new Promise(() => {}); };
+    wizGenerateTakes();
+    const tijdensRory = { gestart: gestart, busy: wizState.busy };
+
+    /* En andersom: jouw generatie loopt, dan blijft de knop wel dicht. */
+    gestart = false;
+    wizState.roryBezig = false;
+    wizState.busy = true;
+    const meldingen = []; const echteToast = window.toast;
+    window.toast = m => meldingen.push(String(m));
+    wizGenerateTakes();
+    const tijdensEigen = { gestart: gestart, meldingen: meldingen.slice() };
+    window.toast = echteToast; window.wizCall = echt;
+    wizState.busy = false; wizState.roryBezig = false;
+    return { tijdensRory, tijdensEigen };
+  }, OPZET.toString());
+  check('terwijl Rory nadenkt start jouw ronde gewoon', vlaggen.tijdensRory.gestart, true);
+  /* En dan het echte pad: niet de vlaggen zelf zetten, maar Rory daadwerkelijk
+     laten nadenken. Zet hij zijn advies alsnog op de gedeelde vlag, dan valt
+     jouw knop stil zonder dat de bron er verdacht uitziet. */
+  const echtePoging = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.concepts.selected = 0;
+    wizState.data.strategy.messaging = 'Kern';
+    window.__WG_TEAMSERVER = true;
+    wizState.busy = false; wizState.roryBezig = false;
+
+    let gestart = false;
+    const echt = window.wizCall;
+    window.wizCall = () => { gestart = true; return new Promise(() => {}); };
+    wizAdvise('strategy');            // Rory begint, en blijft hangen
+    const roryLoopt = gestart;
+    /* Meten vóór de generatie: die zet de gedeelde vlag zelf, en terecht. */
+    const busyTijdensRory = wizState.busy;
+    gestart = false;
+    wizGenerateTakes();               // jij drukt op de knop terwijl hij denkt
+    const uit = { roryLoopt: roryLoopt, jouwRondeStartte: gestart, busy: busyTijdensRory };
+    window.wizCall = echt;
+    wizState.busy = false; wizState.roryBezig = false;
+    return uit;
+  }, OPZET.toString());
+  check('Rory is werkelijk aan het werk', echtePoging.roryLoopt, true);
+  check('en laat de gedeelde vlag met rust', echtePoging.busy, false);
+  check('zodat jouw ronde er dwars doorheen start', echtePoging.jouwRondeStartte, true);
+
+  check('en zet zijn eigen bezig-vlag', vlaggen.tijdensRory.busy, true);
+  /* Twee ronden tegelijk hoort wel geweigerd te worden: die schrijven elkaars
+     variaties over. */
+  check('maar een tweede eigen ronde wordt geweigerd', vlaggen.tijdensEigen.gestart, false);
+  check('met de reden erbij',
+    vlaggen.tijdensEigen.meldingen.some(m => /still working on the previous round/.test(m)), true);
+
+  console.log('\n  en de twee vlaggen zijn werkelijk uit elkaar getrokken');
+  const bronnen = await page.evaluate(() => {
+    return { rory: (typeof wizRoryBezig === 'function') ? wizRoryBezig() : null,
+             heeftVeld: 'roryBezig' in wizState };
+  });
+  check('wizState kent een eigen vlag voor Rory', bronnen.heeftVeld, true);
+  check('en in rust staat die op nee', bronnen.rory, false);
+  /* De advieslaag mag de gedeelde vlag niet meer aanraken: zolang die er nog
+     ergens staat, komt de klacht terug op de plek die vergeten werd. */
+  const roryBron = fs.readFileSync(path.join(APP, 'js', '39-wizard-rory.js'), 'utf8');
+  check('de advieslaag raakt wizState.busy nergens meer aan',
+    /wizState\.busy/.test(roryBron), false);
+
+  console.log('\n  een beeld gaat open op ware grootte');
+  /* Op een kaart van een paar honderd pixels is niet te zien of de tekst
+     binnen de marge valt of het gezicht klopt. */
+  const loep = await page.evaluate(() => {
+    wizLoepDicht();
+    const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    wizLoepOpen(px, 'Vanuit Helmond');
+    const ov = document.getElementById('wiz-loep');
+    const uit = { open: !!ov,
+                  beeld: !!(ov && ov.querySelector('img')),
+                  bijschrift: (ov && ov.querySelector('.wiz-loep-bij') || {}).textContent || '',
+                  sluitknop: !!(ov && ov.querySelector('.wiz-loep-sluit')) };
+    /* Escape hoort hem te sluiten: dat is wat iedereen als eerste probeert. */
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    uit.naEscape = !!document.getElementById('wiz-loep');
+    /* En twee keer openen stapelt niet. */
+    wizLoepOpen(px, 'een'); wizLoepOpen(px, 'twee');
+    uit.aantal = document.querySelectorAll('.wiz-loep').length;
+    uit.laatste = (document.querySelector('.wiz-loep-bij') || {}).textContent || '';
+    wizLoepDicht();
+    uit.naSluiten = !!document.getElementById('wiz-loep');
+    return uit;
+  });
+  check('hij gaat open', loep.open, true);
+  check('met het beeld erin', loep.beeld, true);
+  check('en de kop eronder', loep.bijschrift, 'Vanuit Helmond');
+  check('er is een sluitknop', loep.sluitknop, true);
+  check('Escape sluit hem', loep.naEscape, false);
+  check('twee keer openen stapelt niet', loep.aantal, 1);
+  check('en toont de laatste', loep.laatste, 'twee');
+  check('sluiten ruimt hem op', loep.naSluiten, false);
+
+  /* En dan de klik zoals hij werkelijk valt: het beeld zit ín de conceptkaart,
+     en die kaart is zelf de knop die het concept kiest. Vangt de loep de klik
+     niet af, dan kies je iets anders zodra je alleen maar wilt kijken -- en dat
+     merk je pas als je variaties opeens bij een ander concept horen. */
+  const doorklik = await page.evaluate(() => {
+    wizLoepDicht();
+    const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const proef = document.createElement('div');
+    proef.innerHTML = '<button type="button" class="wiz-concept">' +
+      '<span class="wiz-concept-preview"><img src="' + px + '"></span>' +
+      '<span class="wiz-concept-body"><span class="wiz-concept-h">Vanuit Helmond</span></span>' +
+      '</button>';
+    document.body.appendChild(proef);
+    let gekozen = 0;
+    proef.querySelector('.wiz-concept').addEventListener('click', () => { gekozen++; });
+    proef.querySelector('img').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const uit = { open: !!document.getElementById('wiz-loep'),
+                  bijschrift: (document.querySelector('.wiz-loep-bij') || {}).textContent || '',
+                  gekozen: gekozen };
+    wizLoepDicht(); proef.remove();
+    return uit;
+  });
+  check('klikken op het beeld in een kaart vergroot het', doorklik.open, true);
+  check('met de kop van die kaart erbij', doorklik.bijschrift, 'Vanuit Helmond');
+  check('en kiest het concept niet ongemerkt', doorklik.gekozen, 0);
+
+  console.log('\n  het gezicht van een echte founder blijft het zijne');
+  /* Wat er in de praktijk misgaat: het model maakt er een gladdere, jongere,
+     symmetrischere versie van, en dan staat er een vreemde die op de founder
+     lijkt. Voor een founder-ad is dat het enige wat niet mag. */
+  const gezicht = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    wizState.data.visual.basisFoto = { naam: 'founder.jpg', b64: 'AAA', mimeType: 'image/png' };
+    const brief = wizBuildBrief(3);
+    wizState.data.visual.basisFoto = null;
+    return { brief: brief };
+  }, OPZET.toString());
+  check('de brief zegt dat het gezicht blijft zoals het is',
+    /gezicht van de persoon op die foto is van een echt mens en blijft exact/.test(gezicht.brief), true);
+  check('en verbiedt een "verzorgde versie"',
+    /verzorgde versie/.test(gezicht.brief), true);
+  /* En de beeldpijplijn zelf, want dat is de opdracht die het model werkelijk
+     leest. De brief beschrijft; deze regel bepaalt. */
+  const beeldBron = fs.readFileSync(path.join(APP, 'js', '11-beeldgeneratie.js'), 'utf8');
+  /* De regel staat in de bron over meerdere JS-strings verdeeld ('...' + '...').
+     Die lasnaden eerst wegnemen, anders zoek je naar een zin die zo in het
+     bestand nergens achter elkaar staat en faalt de test op zijn eigen vorm. */
+  const beeldZin = beeldBron.replace(/'\s*\+\s*\n?\s*'/g, '').replace(/\s+/g, ' ');
+  check('de beeldopdracht draagt een identiteitsslot',
+    /IDENTITY LOCK/.test(beeldZin), true);
+  check('dat het hertekenen van het gezicht verbiedt',
+    /Do not beautify, slim, smooth, symmetrise, restyle or re-draw the face/.test(
+      beeldZin), true);
+  check('en een gelijkende versie als mislukt bestempelt',
+    /A face that merely resembles this person is a failed render/.test(
+      beeldZin), true);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();

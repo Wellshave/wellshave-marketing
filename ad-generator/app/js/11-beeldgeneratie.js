@@ -358,7 +358,21 @@ async function generateImage(varIndex) {
       // Build prompt: als basis-foto, wrap met edit-instructie
       let finalPrompt = variation.image_prompt_en;
       if (useBasePhoto) {
-        finalPrompt = `Take the FIRST provided image as the visual foundation for this advertisement for the brand. Preserve its composition, lighting, setting, atmosphere, and key visual elements. Transform it into a polished Wellshave creative by applying these instructions on top: ${variation.image_prompt_en}${hasRefs ? ' Important: the Wellshave product appearance must come from the ADDITIONAL reference images (the 2nd onward), not from the base image. If the base image already shows a product, replace it with the Wellshave product as shown in the references.' : ''}`;
+        /* De gezichtsregel is geen extraatje. Zonder deze zin hertekent het
+           model het gezicht standaard: het maakt er een gladdere, jongere,
+           symmetrischere versie van, en dan staat er een vreemde die op de
+           founder lijkt. Voor een founder-ad is dat precies het enige wat
+           niet mag -- de hele reden om een echt mens te gebruiken is dat hij
+           echt is, en dat een klant hem herkent. */
+        const gezichtsregel = ' IDENTITY LOCK: the person in the base image is a real, ' +
+          'identifiable human being. Reproduce their face EXACTLY as it appears in the base ' +
+          'image: the same bone structure, the same nose, eyes, mouth and jaw, the same hairline ' +
+          'and beard, the same skin texture including marks and lines, the same age. Do not ' +
+          'beautify, slim, smooth, symmetrise, restyle or re-draw the face, and do not replace ' +
+          'them with a lookalike. If the crop or the pose has to change, move the camera and the ' +
+          'body, never the face itself. A face that merely resembles this person is a failed ' +
+          'render.';
+        finalPrompt = `Take the FIRST provided image as the visual foundation for this advertisement for the brand. Preserve its composition, lighting, setting, atmosphere, and key visual elements.${gezichtsregel} Transform it into a polished Wellshave creative by applying these instructions on top: ${variation.image_prompt_en}${hasRefs ? ' Important: the Wellshave product appearance must come from the ADDITIONAL reference images (the 2nd onward), not from the base image. If the base image already shows a product, replace it with the Wellshave product as shown in the references.' : ''}`;
       }
       finalPrompt = layoutPriority + finalPrompt + textOverlay + safeZone;
       formData.append('prompt', finalPrompt);

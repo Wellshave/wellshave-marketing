@@ -287,8 +287,12 @@ var WIZ_RORY_SYSTEM =
 function wizAdvise(stepKey, extra) {
   var spec = WIZ_ADVICE_SPEC[stepKey];
   if (!spec) return Promise.resolve(null);
-  if (wizState.busy) return Promise.resolve(null);
-  wizState.busy = true;
+  /* Rory's eigen vlag. Dit advies haalt hij uit zichzelf op bij het openen van
+     een stap; zet hij daarmee de gedeelde bezig-vlag, dan staat de hele stap
+     stil zolang die aanroep loopt -- en dat is sinds de herkansingen bij drukte
+     ruim veertig seconden, met elke knop uit en geen woord waarom. */
+  if (wizState.roryBezig) return Promise.resolve(null);
+  wizState.roryBezig = true;
   wizRenderRory();
 
   var ctx = wizContext();
@@ -324,7 +328,7 @@ function wizAdvise(stepKey, extra) {
       return wizState.advice[stepKey];
     })
     .finally(function () {
-      wizState.busy = false;
+      wizState.roryBezig = false;
       wizRender();
     });
 }
@@ -363,11 +367,11 @@ function wizRenderRory() {
   var h = '';
 
   h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar' +
-       (wizState.busy ? ' denkt' : '') + '">' +
+       (wizRoryBezig() ? ' denkt' : '') + '">' +
        '<img src="img/rory.jpg" alt="" onerror="this.remove()"><i>R</i></span>' +
        '<div><div class="wiz-rory-name">Rory</div><div class="wiz-rory-role">Creative strategist</div></div></div>';
 
-  if (wizState.busy) {
+  if (wizRoryBezig()) {
     h += '<div class="wiz-rory-thinking">Rory is thinking…</div>';
   } else if (adv && adv.error) {
     h += '<div class="wiz-rory-error">' + wizEsc(adv.error) +
@@ -479,10 +483,10 @@ var WIZ_CHAT_SYSTEM =
 function wizChatSend(vast) {
   var el = document.getElementById('wiz-chat-in');
   var tekst = vast || (el ? el.value.trim() : '');
-  if (!tekst || wizState.busy) return;
+  if (!tekst || wizState.roryBezig) return;
   if (el && !vast) el.value = '';
   wizChatVan().push({ role: 'user', content: tekst });
-  wizState.busy = true;
+  wizState.roryBezig = true;
   wizRenderRory();
 
   var stap = wizState.current;
@@ -513,7 +517,7 @@ function wizChatSend(vast) {
       wizChatVan().push({ role: 'assistant', content: 'I could not reach the server (' + err.message + '). Try again in a moment.' });
     })
     .finally(function () {
-      wizState.busy = false;
+      wizState.roryBezig = false;
       wizSave();
       wizRender();
     });

@@ -161,7 +161,7 @@ function wizAskFor(stepKey) {
 
 function wizHerzie(stepKey, label) {
   return '<button type="button" class="wiz-btn ghost small" onclick="wizAskFor(\'' + stepKey + '\')"' +
-    (wizState.busy ? ' disabled' : '') + '>' + wizEsc(label || 'Have Rory rethink this') + '</button>';
+    (wizRoryBezig() ? ' disabled' : '') + '>' + wizEsc(label || 'Have Rory rethink this') + '</button>';
 }
 
 /* Alternatieven, als stille rij onder de zin. */
@@ -504,7 +504,7 @@ function wizRender_strategy() {
   var s = wizState.data.strategy;
 
   if (!s.marketingAngle) {
-    return wizState.busy
+    return wizRoryBezig()
       ? wizDenkt('Rory is building the argument from the research and what already ran.')
       : '<div class="wiz-empty">Rory has not built the strategy yet. ' +
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'strategy\')">Build it now</button></div>';
@@ -589,7 +589,7 @@ function wizRender_format() {
   var alles = !!wizState.showAllFormats;
   var h = '';
 
-  if (!sel && wizState.busy) return wizDenkt('Rory is narrowing 42 formats down to the ones that carry this angle.');
+  if (!sel && wizRoryBezig()) return wizDenkt('Rory is narrowing 42 formats down to the ones that carry this angle.');
 
   var aanbevolen = [rec.formatId].concat(rec.runnersUp || []).filter(Boolean);
   var tonen = alles ? AD_FORMATS : AD_FORMATS.filter(function (x) { return aanbevolen.indexOf(x.id) !== -1; });
@@ -727,7 +727,7 @@ function wizVisueelDeel(g) {
 function wizRender_visual() {
   var v = wizState.data.visual;
   if (!v.composition) {
-    return wizState.busy
+    return wizRoryBezig()
       ? wizDenkt('Rory is turning the strategy into a picture.')
       : '<div class="wiz-empty">Rory has not proposed a visual direction yet. ' +
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'visual\')">Propose one</button></div>';
@@ -787,7 +787,7 @@ function wizRender_visual() {
 function wizRender_copy() {
   var c = wizState.data.copy;
   if (!c.headline) {
-    return wizState.busy
+    return wizRoryBezig()
       ? wizDenkt('Rory is writing the copy in the brand\'s own language.')
       : '<div class="wiz-empty">Rory has not written the copy yet. ' +
         '<button type="button" class="wiz-linkbtn" onclick="wizAskFor(\'copy\')">Write it</button></div>';

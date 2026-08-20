@@ -371,6 +371,50 @@ const OPZET = `
      mee, dan drie. */
   check('met precies de gekozen beelden erin', echt.gezien[0] && echt.gezien[0].aantal, 4);
 
+  console.log('\n  en bij een echte founder gaat het gezicht op slot');
+  /* De zin kan keurig in de bron staan en toch nooit verstuurd worden -- een
+     tak die niet gelopen wordt, of een variabele die verderop overschreven
+     raakt. Wat telt is wat het model werkelijk leest. Dus: een basis-foto
+     erbij, en de prompt uitlezen die de deur uit gaat. */
+  const slot = await page.evaluate(async (pixel) => {
+    window.__WG_TEAMSERVER = true;
+    let prompt = null, zonderFoto = null;
+    const echteFetch = window.fetch;
+    window.fetch = async (url, opties) => {
+      if (!/\/v1\/images\//.test(String(url))) return echteFetch(url, opties);
+      const p = (opties && opties.body && opties.body.get) ? opties.body.get('prompt') : '';
+      if (prompt === null) prompt = String(p || ''); else zonderFoto = String(p || '');
+      return { ok: true, json: async () => ({ data: [{ b64_json: 'AAA' }] }) };
+    };
+    wizState.data.visual.refsUit = []; wizState.data.visual.extraRefs = [pixel];
+    state.lastGenerated = {
+      variations: [{ headline_nl: 'K', image_prompt_en: 'iets', cta_nl: 'Nu' }],
+      metadata: wizMetadata()
+    };
+    state.generatedImages = {};
+    /* Zo levert het interview de foto van de founder aan. */
+    state.basePhotos = { 0: { mimeType: 'image/png', b64: pixel.split(',')[1] } };
+    if (!document.getElementById('gen-image-0')) {
+      const vak = document.createElement('div'); vak.id = 'gen-image-0';
+      document.body.appendChild(vak);
+    }
+    try { await generateImage(0); } catch (e) {}
+    /* En zonder eigen foto hoort hij er juist niet te staan: dan is er geen
+       echt gezicht om te beschermen en kost de zin alleen maar ruimte. */
+    state.basePhotos = {}; state.generatedImages = {};
+    try { await generateImage(0); } catch (e) {}
+    window.fetch = echteFetch;
+    return { prompt: prompt || '', zonderFoto: zonderFoto || '' };
+  }, PIXEL);
+  check('de verstuurde opdracht draagt het identiteitsslot',
+    /IDENTITY LOCK/.test(slot.prompt), true);
+  check('en verbiedt het gezicht te verfraaien',
+    /Do not beautify, slim, smooth, symmetrise, restyle or re-draw the face/.test(slot.prompt), true);
+  check('een gelijkende versie geldt als mislukt',
+    /A face that merely resembles this person is a failed render/.test(slot.prompt), true);
+  check('zonder eigen foto blijft de zin achterwege',
+    /IDENTITY LOCK/.test(slot.zonderFoto), false);
+
   console.log('\n  een nieuwe ad begint met een schone keuze');
   const schoon = await page.evaluate(() => {
     const d = wizBlankData();

@@ -709,3 +709,40 @@
   color: var(--text-faint); margin-bottom: 6px;
 }
 #wiz-inline .wiz-tweakfotos-rij { display: flex; flex-wrap: wrap; gap: 7px; }
+
+/* ── Een beeld op ware grootte ─────────────────────────────────────────────
+   De kaarten zijn een paar honderd pixels breed, en daarop kun je niet zien
+   of de tekst binnen de marge valt of het gezicht klopt. Klikken vergroot.
+   Bewust zonder zoom of galerij: dit is om te kijken voordat je verder gaat,
+   niet om in te werken. */
+.wiz-loep {
+  position: fixed; inset: 0; z-index: 999998;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; padding: 32px;
+  background: rgba(0, 0, 0, .86);
+  opacity: 0; transition: opacity 180ms ease;
+  cursor: zoom-out;
+}
+.wiz-loep.open { opacity: 1; }
+.wiz-loep img {
+  max-width: min(94vw, 1100px); max-height: 84vh;
+  object-fit: contain; border-radius: 10px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .7);
+  cursor: default;
+}
+.wiz-loep-bij {
+  font-size: 13px; color: var(--text-soft, #bdb19c); text-align: center;
+  max-width: 70ch; line-height: 1.5;
+}
+.wiz-loep-sluit {
+  position: absolute; top: 16px; right: 20px;
+  width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(0, 0, 0, .45); color: #fff;
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.wiz-loep-sluit:hover { background: rgba(255, 255, 255, .14); }
+/* Het beeldvak zelf laat zien dat er iets te vergroten valt. */
+#wiz-inline .wiz-concept-preview:has(img),
+#wiz-inline .wiz-final-preview:has(img) { cursor: zoom-in; }
+@media (prefers-reduced-motion: reduce) { .wiz-loep { transition: none; } }
