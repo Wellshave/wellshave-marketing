@@ -107,14 +107,22 @@
        kaart deden. Zonder deze regel typ je een notitie in het paneel en is
        hij weg zodra je het sluit. */
     if (typeof libKoppelMatrix === 'function') libKoppelMatrix(ov);
-    /* De kopieerknop van de advertentienaam zit in het dossier en heeft geen
-       tegenhanger op de kaart om naar door te sturen, dus die bedienen we
-       hier zelf. */
-    var naamKnop = ov.querySelector('button[data-action="copy-name"]');
-    if (naamKnop) naamKnop.onclick = function(){
-      try { navigator.clipboard.writeText(libAdNaam(item)); } catch(e){}
-      if (typeof toast === 'function') toast('Ad name gekopieerd, plak hem in Meta');
-    };
+    /* De knoppen die alleen in dit paneel bestaan en dus geen tegenhanger op
+       de kaart hebben om naar door te sturen. Via delegatie op het paneel,
+       niet met een handler per knop: het matrixblok wordt na een analyse
+       opnieuw getekend, en dan zou een vastgeklikte handler op een element
+       zitten dat er niet meer is. */
+    ov.addEventListener('click', function(e){
+      var knop = e.target.closest('button[data-action]');
+      if (!knop || !ov.contains(knop)) return;
+      var act = knop.getAttribute('data-action');
+      if (act === 'copy-name') {
+        try { navigator.clipboard.writeText(libAdNaam(item)); } catch(err){}
+        if (typeof toast === 'function') toast('Ad name gekopieerd, plak hem in Meta');
+      } else if (act === 'nick-analyse') {
+        if (typeof nickAnalyseer === 'function') nickAnalyseer(item.id);
+      }
+    });
     requestAnimationFrame(function(){ ov.classList.add('show'); });
     function close(){ ov.classList.remove('show'); setTimeout(function(){ if(ov.parentNode) ov.remove(); }, 320); }
     ov.querySelector('#wg-drill-close').onclick=close;

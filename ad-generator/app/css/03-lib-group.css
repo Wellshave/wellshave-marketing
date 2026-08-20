@@ -76,3 +76,33 @@
 .lib-extra.open .lib-extra-body { font-size: 12.5px; line-height: 1.6; color: var(--text-soft); }
 .lib-extra.open .lib-extra-body > div + div { margin-top: 7px; }
 .lib-extra.open .lib-extra-body b { color: var(--gold); font-weight: 600; }
+
+/* ── De matrix: afgeleid versus bevestigd ──────────────────────────────────
+   Een waarde die uit de brief van deze creative komt staat er wel, maar
+   niemand heeft hem bevestigd. Dat verschil hoort zichtbaar te zijn, anders
+   lijkt een aanname net zo hard als een aantekening. Zodra je hem aanraakt is
+   het gewoon tekst. */
+.lib-matrix-grid label.af textarea,
+.lib-matrix-grid label.af input {
+  color: var(--text-soft);
+  font-style: italic;
+  border-style: dashed;
+}
+.lib-matrix-grid label.af textarea:focus,
+.lib-matrix-grid label.af input:focus {
+  color: var(--text); font-style: normal; border-style: solid;
+}
+.lib-nick {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(var(--gold-rgb), .12);
+}
+.lib-nick-wat {
+  font-size: 11px; color: var(--text-faint);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* In het paneel is er ruimte, dus de matrixvelden zijn hoog genoeg om een
+   afgeleide waarde in één keer te lezen. Twee regels was genoeg toen ze leeg
+   waren; nu staat er iets in dat je wilt kunnen controleren. */
+.wg-drill-panel .lib-matrix-grid textarea { min-height: 84px; }

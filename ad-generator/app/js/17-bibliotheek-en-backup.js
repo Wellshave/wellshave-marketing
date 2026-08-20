@@ -618,21 +618,57 @@ function libExtraHtml(v, open){
 function libMatrixHtml(id, mat, m, open){
   mat = mat || {}; m = m || {};
   const va = x => escapeAttr(String(x == null ? '' : x));
-  const tx = (field, label, val) => `<label>${label}<textarea data-matrix-id="${id}" data-matrix-field="${field}" rows="2">${escapeHtml(String(val || ''))}</textarea></label>`;
-  const inp = (field, label, val) => `<label>${label}<input type="text" data-matrix-id="${id}" data-matrix-field="${field}" value="${va(val)}"></label>`;
+  /* De waarde per veld komt uit nickVeld: wat iemand typte wint, anders het
+     afgeleide uit de brief van deze creative. Een matrix die je zelf uit je
+     eigen briefing moet overtypen wordt niet ingevuld, en dan staat er een
+     leeg testlog terwijl de beslissingen wel genomen zijn.
+
+     Een afgeleide waarde draagt de klasse 'af': hij staat er wel, maar
+     niemand heeft hem bevestigd. Dat verschil hoort zichtbaar te zijn. */
+  const item = ((typeof state !== 'undefined' && state.library) || []).filter(x => x.id === id)[0];
+  const lees = (field) => {
+    if (item && typeof nickVeld === 'function') return nickVeld(item, field);
+    return { waarde: String(mat[field] == null ? '' : mat[field]), afgeleid: false };
+  };
+  const tx = (field, label) => { const r = lees(field);
+    return `<label class="${r.afgeleid ? 'af' : ''}">${label}<textarea data-matrix-id="${id}" data-matrix-field="${field}" rows="2">${escapeHtml(r.waarde)}</textarea></label>`; };
+  const inp = (field, label) => { const r = lees(field);
+    return `<label class="${r.afgeleid ? 'af' : ''}">${label}<input type="text" data-matrix-id="${id}" data-matrix-field="${field}" value="${va(r.waarde)}"></label>`; };
   const kop = open
     ? `<section class="lib-matrix open"><h4>Static ad matrix (Theriot-scorecard)</h4><div class="lib-matrix-grid">`
     : `<details class="lib-matrix"><summary>Static ad matrix (Theriot-scorecard)</summary><div class="lib-matrix-grid">`;
   return kop
-    + tx('hook', 'Hook', mat.hook)
-    + tx('proof', 'Proof / bewijs', mat.proof)
-    + tx('avatar', 'Avatar / Desire', mat.avatar)
-    + tx('purplecow', 'Purple Cow', mat.purplecow)
-    + inp('sophistication', 'Market sophistication', mat.sophistication != null && mat.sophistication !== '' ? mat.sophistication : (m.sophistication || ''))
-    + inp('awareness', 'Customer awareness', mat.awareness != null && mat.awareness !== '' ? mat.awareness : (m.awareness || ''))
-    + inp('score', 'Score (1-5)', mat.score)
-    + tx('notes', 'Notities / resultaat', mat.notes)
-    + (open ? `</div></section>` : `</div></details>`);
+    + tx('hook', 'Hook')
+    + tx('proof', 'Proof / bewijs')
+    + tx('avatar', 'Avatar / Desire')
+    + tx('purplecow', 'Purple Cow')
+    + inp('sophistication', 'Market sophistication')
+    + inp('awareness', 'Customer awareness')
+    + inp('score', 'Score (1-5)')
+    + tx('notes', 'Notities / resultaat')
+    + `</div>`
+    + (open ? libNickKnopHtml(item) : '')
+    + (open ? `</section>` : `</details>`);
+}
+
+/* De knop die Nick ernaar laat kijken. Hij staat er alleen als er werkelijk
+   nog iets leeg is: een knop die niets te doen heeft, leert je af om op
+   knoppen te drukken. Het cijfer telt daarin mee, want dat valt nergens uit
+   af te leiden -- dat is een oordeel tegen de acht eigenschappen. */
+function libNickKnopHtml(item){
+  if (!item || typeof nickGaten !== 'function') return '';
+  const bezig = !!(typeof nickBezig !== 'undefined' && nickBezig[item.id]);
+  const gaten = nickGaten(item);
+  if (!gaten.length && !bezig) return '';
+  const wat = gaten.map(k => {
+    const r = (typeof NICK_MATRIX !== 'undefined' ? NICK_MATRIX : []).filter(x => x.key === k)[0];
+    return r ? r.label : k;
+  }).join(', ');
+  return `<div class="lib-nick">`
+    + `<button class="btn btn-small" data-action="nick-analyse" data-id="${item.id}"${bezig ? ' disabled' : ''}>`
+    + (bezig ? 'Nick kijkt ernaar…' : 'Laat Nick Theriot deze creative analyseren') + `</button>`
+    + (bezig ? '' : `<span class="lib-nick-wat">Nog leeg: ${escapeHtml(wat)}</span>`)
+    + `</div>`;
 }
 function iterateFromLibrary(item){
   if (!item) return;

@@ -334,6 +334,126 @@ function serve(root) {
   check('het notitieveld staat in het paneel', typen.gelukt, true);
   check('en wat je typt landt op het item', typen.bewaard, 'Deze liep op 2,4 ROAS');
 
+  console.log('\n  de scorekaart staat al ingevuld waar het systeem het weet');
+  /* Een matrix die je uit je eigen briefing moet overtypen wordt niet
+     ingevuld, en dan staat er een leeg testlog terwijl de beslissingen wel
+     genomen zijn. Wat in de brief staat wordt afgeleid, niet verzonnen. */
+  const matrix = await page.evaluate(() => {
+    const brief = wizBlankData();
+    brief.audience.awareness = 'solution';
+    brief.audience.sophistication = 's4';
+    brief.strategy.differentiation = 'mechanism';
+    brief.strategy.mechanism = 'Keramische kop, geen huidcontact';
+    brief.strategy.desire = 'Geen wondjes';
+    brief.strategy.ultimateDesire = 'Er niet meer over nadenken';
+    brief.strategy.proof = 'LED maakt zichtbaar wat je doet';
+    state.library = [{
+      id: 'mx', variant_index: 0, saved_at: Date.UTC(2026, 7, 20),
+      metadata: { product: 'Groom Guard', personaName: 'Mark de Vries', wizardBrief: brief },
+      variation: { headline_nl: 'Veilig daar beneden', hook_label_nl: 'contraire stelling',
+                   image_prompt_en: 'p' }
+    }];
+    const it = state.library[0];
+    const af = nickAfgeleid(it);
+    renderLibrary(); wgOpenLibraryItem('mx');
+    const pan = document.querySelector('.wg-drill-panel');
+    const veld = k => (pan.querySelector('[data-matrix-field="' + k + '"]') || {}).value;
+    return {
+      af: af,
+      gaten: nickGaten(it),
+      hook: veld('hook'), proof: veld('proof'), avatar: veld('avatar'),
+      cow: veld('purplecow'), soph: veld('sophistication'), aware: veld('awareness'),
+      score: veld('score'), notes: veld('notes'),
+      afgeleideLabels: pan.querySelectorAll('.lib-matrix-grid label.af').length,
+      knop: !!pan.querySelector('button[data-action="nick-analyse"]'),
+      knopTekst: (pan.querySelector('button[data-action="nick-analyse"]') || {}).textContent
+    };
+  });
+  check('de hook komt uit de kop van deze creative',
+    matrix.hook, 'Veilig daar beneden (contraire stelling)');
+  check('het bewijs uit de strategie', matrix.proof, 'LED maakt zichtbaar wat je doet');
+  check('avatar en verlangen staan samen, met het uiteindelijke erachter',
+    matrix.avatar, 'Mark de Vries · Geen wondjes · → Er niet meer over nadenken');
+  check('Purple Cow is de differentiatie plus het mechanisme',
+    matrix.cow, 'New mechanism · Keramische kop, geen huidcontact');
+  check('en beide assen staan er', [matrix.soph, matrix.aware], ['s4', 'solution']);
+  /* Het resultaat is wat er NA de test gebeurde. Daar iets in schrijven zou
+     een uitkomst verzinnen die er nog niet is. */
+  check('het notitieveld blijft leeg', matrix.notes, '');
+  check('en het cijfer ook, want dat valt nergens uit af te leiden', matrix.score, '');
+  check('alleen het cijfer is nog een gat', matrix.gaten, ['score']);
+  check('de afgeleide velden zijn als afgeleid gemarkeerd', matrix.afgeleideLabels, 6);
+  check('en er staat een knop om Nick ernaar te laten kijken', matrix.knop, true);
+  check('met de tekst die je verwacht',
+    (matrix.knopTekst || '').indexOf('Laat Nick Theriot deze creative analyseren') !== -1, true);
+
+  console.log('\n  wat iemand zelf typte wint van het afgeleide');
+  const eigen = await page.evaluate(() => {
+    const it = state.library.find(x => x.id === 'mx');
+    it.matrix = { proof: 'Dit heb ik zelf nagekeken' };
+    renderLibrary(); wgOpenLibraryItem('mx');
+    const pan = document.querySelector('.wg-drill-panel');
+    const lab = pan.querySelector('[data-matrix-field="proof"]').closest('label');
+    return { waarde: pan.querySelector('[data-matrix-field="proof"]').value,
+             afgeleid: lab.classList.contains('af') };
+  });
+  check('het eigen bewijs staat er', eigen.waarde, 'Dit heb ik zelf nagekeken');
+  check('en is niet langer als afgeleid gemarkeerd', eigen.afgeleid, false);
+
+  console.log('\n  zonder gaten geen knop');
+  /* Een knop die niets te doen heeft, leert je af om op knoppen te drukken. */
+  const zonderGaten = await page.evaluate(() => {
+    const it = state.library.find(x => x.id === 'mx');
+    it.matrix = { hook: 'a', proof: 'b', avatar: 'c', purplecow: 'd',
+                  sophistication: 's4', awareness: 'solution', score: '4' };
+    renderLibrary(); wgOpenLibraryItem('mx');
+    const pan = document.querySelector('.wg-drill-panel');
+    return { gaten: nickGaten(it), knop: !!pan.querySelector('button[data-action="nick-analyse"]') };
+  });
+  check('er is niets meer leeg', zonderGaten.gaten, []);
+  check('dus de knop is weg', zonderGaten.knop, false);
+
+  console.log('\n  Nick vult de gaten en niets anders');
+  const nick = await page.evaluate(async () => {
+    const it = state.library.find(x => x.id === 'mx');
+    /* Terug naar alleen een cijfer als gat, plus een eigen bewijs dat hij
+       niet mag overschrijven. */
+    it.matrix = { proof: 'Dit heb ik zelf nagekeken' };
+    renderLibrary(); wgOpenLibraryItem('mx');
+
+    window.__WG_TEAMSERVER = true;
+    const gezien = {};
+    const echt = window.wizCall;
+    window.wizCall = function (sys, msgs) {
+      gezien.sys = sys; gezien.opdracht = msgs[0].content;
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        score: '4', proof: 'DIT MAG NIET OVERSCHRIJVEN', notes: 'EN DIT AL HELEMAAL NIET'
+      }) }] });
+    };
+    await nickAnalyseer('mx');
+    window.wizCall = echt;
+    const na = state.library.find(x => x.id === 'mx').matrix;
+    const pan = document.querySelector('.wg-drill-panel');
+    return { score: na.score, proof: na.proof, notes: na.notes, door: na._door,
+             gevraagd: /FILL THESE KEYS: score/.test(gezien.opdracht || ''),
+             sysAcht: /eight traits of ads that spend/.test(gezien.sys || ''),
+             sysGeenResultaat: /Never invent a result/.test(gezien.sys || ''),
+             knopWeg: !pan.querySelector('button[data-action="nick-analyse"]'),
+             veldNa: (pan.querySelector('[data-matrix-field="score"]') || {}).value };
+  });
+  check('hij vult het cijfer in', nick.score, '4');
+  /* Hij krijgt alleen de gaten te vullen. Zou hij toch meer terugsturen, dan
+     hoort dat genegeerd te worden: een veld dat iemand zelf invulde is een
+     besluit, geen suggestie. */
+  check('en overschrijft het eigen bewijs niet', nick.proof, 'Dit heb ik zelf nagekeken');
+  check('en raakt het resultaatveld niet aan', nick.notes, undefined);
+  check('er staat bij dat het zijn oordeel was', nick.door, 'nick');
+  check('de opdracht vroeg alleen om het cijfer', nick.gevraagd, true);
+  check('de opdracht draagt de acht eigenschappen', nick.sysAcht, true);
+  check('en verbiedt een verzonnen resultaat', nick.sysGeenResultaat, true);
+  check('het veld in het paneel toont het meteen', nick.veldNa, '4');
+  check('en de knop is verdwenen want er is niets meer leeg', nick.knopWeg, true);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();
