@@ -689,3 +689,23 @@
 @media (prefers-reduced-motion: reduce) {
   #wiz-inline .wiz-concept-spin { animation: none; border-top-color: rgba(var(--gold-rgb), .5); }
 }
+
+/* ── De lopende bewerking op een variatie ──────────────────────────────────
+   Onder het beeld en niet erin: je wilt het huidige beeld naast de uitkomst
+   kunnen leggen, en een laadvlak eroverheen neemt je precies dat af. */
+#wiz-inline .wiz-take-bewerkt {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding: 7px 10px; border-radius: 8px;
+  background: rgba(var(--gold-rgb), .07);
+  border: 1px solid rgba(var(--gold-rgb), .2);
+  font-size: 11.5px; color: var(--text-soft);
+}
+#wiz-inline .wiz-final-preview.bewerkt { outline: 1px solid rgba(var(--gold-rgb), .35); }
+
+/* Het fotovak in het bewerkpaneel: laten zien in plaats van beschrijven. */
+#wiz-inline .wiz-tweakfotos { margin-top: 11px; }
+#wiz-inline .wiz-tweakfotos-k {
+  font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+#wiz-inline .wiz-tweakfotos-rij { display: flex; flex-wrap: wrap; gap: 7px; }

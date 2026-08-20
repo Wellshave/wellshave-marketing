@@ -725,6 +725,49 @@ function wizZetPass(key) {
   wizRender();
 }
 
+/* De spreiding over de drie takes, en waarom die niet vast kan staan.
+ *
+ * Er stond een vaste verdeling: take 1 een mens, take 2 een macro zonder
+ * mens, take 3 het product met labels. Prima voor een productadvertentie, en
+ * verwoestend voor een founder-ad: twee van de drie takes gooien dan precies
+ * datgene uit beeld waar het concept om draait. Je koos een oprichter in een
+ * magazijn en kreeg een macro van een scheerkop terug.
+ *
+ * De spreiding hoort dus te volgen wat er vastligt. Staat er een mens in de
+ * visuele richting, dan blijft die mens in alle drie -- wat varieert is zijn
+ * houding, blik, afstand en omgeving. Het formaat (redactioneel, nieuws)
+ * blijft ook staan: dat is de reden dat het concept werkte. */
+function wizTakeSpreiding() {
+  var d = wizState.data;
+  var mens = d.visual.humanPresence;
+  var f = wizFormat();
+  var formaat = f ? f.name : '';
+  var persoon = (typeof WIZ_PERSONEN !== 'undefined' && WIZ_PERSONEN[mens])
+    ? WIZ_PERSONEN[mens].wie : null;
+
+  if (!persoon) {
+    return 'Default spread: take 1 a credible person holding or using the product, looking at ' +
+      'camera, editorial framing; take 2 an extreme macro of the area or the mechanism ' +
+      'the claim is about, no person; take 3 the product itself with callouts or labels ' +
+      'pointing at what matters.\n';
+  }
+
+  return 'LOCKED, because it is the reason this concept works: ' + persoon +
+    ' is in frame in ALL THREE takes' +
+    (formaat ? ', and all three keep the ' + formaat + ' treatment' : '') +
+    '. Do not drop the person for a macro or a packshot in one of them: that is not a ' +
+    'variation of this idea, it is a different ad.\n' +
+    'What varies instead: the pose, the expression, the distance and the setting.\n' +
+    'Default spread: take 1 ' + persoon + ' facing camera, holding the product, mid-shot, ' +
+    'the setting doing the talking; take 2 the same person mid-gesture or mid-sentence, ' +
+    'looking away from camera, closer in, as if caught during the interview; take 3 the ' +
+    'same person wider in their own environment, the product smaller in frame but still ' +
+    'clearly held, more of the place around them.\n' +
+    'Same person throughout: same face, same build, same clothing register. A different ' +
+    'man in take 2 reads as a stock photo and undoes the whole reason for using a real ' +
+    'founder.\n';
+}
+
 function wizBuildTakeBrief() {
   var d = wizState.data, p = wizProduct(), pers = wizPersona(), f = wizFormat();
   var c = (d.concepts.list || [])[d.concepts.selected] || {};
@@ -763,10 +806,7 @@ function wizBuildTakeBrief() {
          '1. A different composition and a different subject in frame.\n' +
          '2. A different place for the proof to be visible.\n' +
          '3. A different setting, light and distance.\n' +
-         'Default spread: take 1 a credible person holding or using the product, looking at ' +
-         'camera, editorial framing; take 2 an extreme macro of the area or the mechanism ' +
-         'the claim is about, no person; take 3 the product itself with callouts or labels ' +
-         'pointing at what matters.\n' +
+         wizTakeSpreiding() +
          'Three colourways of the same shot is not a test, it is a mood board. If two takes ' +
          'would look alike in a feed, change one of them.\n\n';
     if (typeof wizLeerBrief === 'function') t += wizLeerBrief();
@@ -786,12 +826,8 @@ function wizBuildTakeBrief() {
        'communicating it. Default spread, adapt to the format but keep them apart: ' +
        'take 1 speaks with authority (expert, editorial, news), take 2 opens with ' +
        'curiosity (a question, a surprising fact), take 3 simply demonstrates.\n' +
-       '2. The visual: a different scene, different framing, a different subject in ' +
-       'frame, and a different text layout. Default spread: take 1 a credible person ' +
-       'holding or using the product, looking at camera, editorial framing; take 2 an ' +
-       'extreme macro of the area or the mechanism the claim is about, no person; ' +
-       'take 3 the product itself with callouts, icons or labels pointing at what ' +
-       'matters.\n' +
+       '2. The visual: a different scene, different framing and a different text layout. ' +
+       wizTakeSpreiding() +
        '3. The call to action, when the wording genuinely follows from the headline. ' +
        'Same offer and same destination, different words on the button.\n' +
        '4. The vibe: three takes that could not be mistaken for each other in a feed.\n\n' +
@@ -964,20 +1000,31 @@ function wizRender_generate() {
       '<div class="wiz-take-kop">Variation ' + (n + 1) +
       (v.hook_label_nl ? '<span class="wiz-take-hook">' + wizEsc(v.hook_label_nl) + '</span>' : '') +
       '</div>' +
-      '<div class="wiz-final-preview" id="gen-image-' + i + '">' +
+      '<div class="wiz-final-preview' + (wizBewerkBezig === i ? ' bewerkt' : '') + '" ' +
+      'id="gen-image-' + i + '">' +
         (heeft ? '' :
           '<span class="wiz-take-leeg">' +
           (wizBeeldBezig[i] ? 'Drawing this one…' : (wizState.busy ? 'Working…' : 'No image yet')) +
           '</span>') +
       '</div>' +
+      /* De lopende bewerking als eigen regel onder het beeld. In het vak zelf
+         zou hij het beeld overschrijven dat je juist wilt vergelijken met wat
+         eruit komt. */
+      (wizBewerkBezig === i
+        ? '<div class="wiz-take-bewerkt"><span class="wiz-concept-spin"></span>' +
+          '<span>Applying your change…</span></div>'
+        : '') +
       (heeft || wizBeeldBezig[i] ? '' :
         '<button type="button" class="wiz-linkbtn wiz-take-opnieuwbeeld" ' +
         'onclick="wizPreview(' + i + ')">Generate this picture</button>') +
       (v.headline_nl ? '<div class="wiz-take-h">' + wizEsc(v.headline_nl) + '</div>' : '') +
       (v.cta_nl ? '<div class="wiz-take-cta">' + wizEsc(v.cta_nl) + '</div>' : '') +
       (v.visual_nl ? '<div class="wiz-take-v">' + wizEsc(v.visual_nl) + '</div>' : '') +
+      /* "Choose this one" suggereerde dat de andere twee afvallen, en dat is
+         niet hoe je ze inzet: alle drie gaan als ad set mee. Deze knop kiest
+         alleen welke je nu verfijnt. */
       '<button type="button" class="wiz-take-kies' + (aan ? ' on' : '') + '" ' +
-      'onclick="wizPickTake(' + i + ')">' + (aan ? 'Chosen' : 'Choose this one') + '</button>' +
+      'onclick="wizPickTake(' + i + ')">' + (aan ? 'Refining this one' : 'Refine this one') + '</button>' +
       /* De tweede lens, en alleen op een beeld dat bestaat: Nick oordeelt over
          de foto, niet over het idee. */
       (heeft ? '<button type="button" class="wiz-linkbtn wiz-take-nick" ' +
@@ -1044,14 +1091,64 @@ function wizAfter_generate() { wizToonBewaardeBeelden(); }
 
 /* Geen prompt()-venster meer. Dat blokkeert de pagina, is niet te testen en
    past bij geen enkel ander scherm hier. */
+/* Foto's die bij DEZE aanpassing horen. "Change model" met alleen een
+   beschrijving is een gok: hoe iemand eruit moet zien is nu juist iets wat je
+   laat zien in plaats van uitschrijft. Deze leven per bewerking en niet op de
+   ad, want ze horen bij die ene wijziging. */
+var wizTweakFotos = [];
+
+function wizTweakFotoToe(dataUrls) {
+  var nieuw = (dataUrls || []).filter(Boolean).slice(0, 4 - wizTweakFotos.length);
+  if (!nieuw.length) return;
+  wizTweakFotos = wizTweakFotos.concat(nieuw);
+  wizRender();
+}
+function wizTweakFotoWeg(i) { wizTweakFotos.splice(i, 1); wizRender(); }
+function wizTweakFotoLees(files) {
+  var lijst = [].slice.call(files || []).filter(function (f) { return /^image\//.test(f.type); });
+  return Promise.all(lijst.map(function (f) {
+    return new Promise(function (res) {
+      var r = new FileReader();
+      r.onload = function () { res(r.result); };
+      r.onerror = function () { res(null); };
+      r.readAsDataURL(f);
+    });
+  })).then(function (urls) { wizTweakFotoToe(urls); return urls.filter(Boolean).length; });
+}
+function wizTweakDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  if (e.currentTarget) e.currentTarget.classList.remove('over');
+  if (e.dataTransfer) wizTweakFotoLees(e.dataTransfer.files);
+}
+function wizTweakKies(e) { wizTweakFotoLees(e.target.files); e.target.value = ''; }
+
 function wizTweakPaneel() {
   var t = WIZ_TWEAKS.filter(function (x) { return x.key === wizState.tweakOpen; })[0];
   if (!t) return '';
   return '<div class="wiz-veldpaneel">' +
     '<div class="wiz-veldpaneel-t">' + wizEsc(t.vraag) + '</div>' +
     '<textarea id="wiz-tweak-in" rows="2" placeholder="Leave empty to let Rory decide."></textarea>' +
+    /* En de andere helft van het antwoord: laten zien in plaats van
+       beschrijven. "Change model" met alleen woorden is een gok. */
+    '<div class="wiz-tweakfotos"><div class="wiz-tweakfotos-k">Or show it</div>' +
+    '<div class="wiz-tweakfotos-rij">' +
+    wizTweakFotos.map(function (src, i) {
+      return '<div class="wiz-ref aan eigen"><img src="' + wizEsc(src) + '" alt="">' +
+        '<button type="button" class="wiz-ref-weg" onclick="wizTweakFotoWeg(' + i + ')" ' +
+        'aria-label="Verwijderen">×</button></div>';
+    }).join('') +
+    (wizTweakFotos.length < 4
+      ? '<label class="wiz-refdrop" ondrop="wizTweakDrop(event)" ' +
+        'ondragover="wizRefOver(event)" ondragleave="wizRefUit(event)">' +
+        '<input type="file" accept="image/*" multiple onchange="wizTweakKies(event)" hidden>' +
+        '<span class="wiz-refdrop-plus">+</span>' +
+        '<span class="wiz-refdrop-tekst">Drop a photo<br>or click</span></label>'
+      : '') +
+    '</div></div>' +
     '<div class="wiz-actions">' +
-    '<button type="button" class="wiz-btn primary small" onclick="wizTweak()">Apply this change</button>' +
+    '<button type="button" class="wiz-btn primary small" onclick="wizTweak()"' +
+    (wizBewerkBezig ? ' disabled' : '') + '>' +
+    (wizBewerkBezig ? 'Applying…' : 'Apply this change') + '</button>' +
     '<button type="button" class="wiz-btn ghost small" onclick="wizOpenTweak(null)">Cancel</button>' +
     '</div></div>';
 }
@@ -1061,13 +1158,23 @@ function wizOpenTweak(key) {
   wizRender();
 }
 
+/* Loopt er een bewerking, en op welke take. Zonder dit gebeurde er na
+   "Apply this change" zichtbaar niets: de bewerking startte wel, maar de
+   wizard hertekende meteen daarna en veegde de laadstatus weg die het
+   bewerkpaneel in het beeldvak had gezet -- en er kwam pas weer iets in beeld
+   als je toevallig zelf iets aanklikte. Precies dezelfde fout als bij de drie
+   previews. */
+var wizBewerkBezig = null;
+
 function wizTweak() {
   /* Bewerken gaat over de take die je gekozen hebt, niet over het concept:
      er staan er drie, en zonder die keuze zou de wizard er zelf een aanwijzen. */
   var sel = wizHuidigeTake();
   var t = WIZ_TWEAKS.filter(function (x) { return x.key === wizState.tweakOpen; })[0];
   if (sel == null || !t) return;
-  if (!state.generatedImages || !state.generatedImages[sel]) {
+  if (wizBewerkBezig != null) return;
+  var st = (state.generatedImages || {})[sel];
+  if (!st || !st.versions || !st.versions.length) {
     if (typeof toast === 'function') toast('Generate the takes first, then adjust one', true);
     return;
   }
@@ -1076,13 +1183,46 @@ function wizTweak() {
   var instructie = t.instructie + (extra ? (' Requested change: ' + extra) : '');
   if (!state.pendingEdits || typeof state.pendingEdits !== 'object') state.pendingEdits = {};
   state.pendingEdits[sel] = [{ type: 'adjust', text: instructie }];
-  wizState.tweakOpen = null;
-  if (typeof applyCombinedEdits === 'function') {
-    applyCombinedEdits(sel);
-  } else if (typeof toast === 'function') {
-    toast('The edit panel is not available', true);
+
+  /* De foto's bij deze wijziging doorgeven aan het bewerkpaneel, dat ze als
+     visuele referentie meestuurt. */
+  if (wizTweakFotos.length) {
+    if (!state.pendingEditRefs || typeof state.pendingEditRefs !== 'object') state.pendingEditRefs = {};
+    state.pendingEditRefs[sel] = wizTweakFotos.map(function (src) {
+      var m = String(src).match(/^data:([^;]+);base64,(.+)$/);
+      return m ? { mimeType: m[1], b64: m[2] } : null;
+    }).filter(Boolean);
   }
+
+  wizState.tweakOpen = null;
+  if (typeof applyCombinedEdits !== 'function') {
+    if (typeof toast === 'function') toast('The edit panel is not available', true);
+    wizRender();
+    return;
+  }
+  /* Hoeveel versies er nu zijn: aan de groei daarvan zien we dat de bewerking
+     klaar is. Wachten op de belofte kan niet -- applyCombinedEdits geeft er
+     geen terug die iets zegt over het resultaat. */
+  var voor = st.versions.length;
+  wizBewerkBezig = sel;
+  wizTweakFotos = [];
   wizRender();
+  applyCombinedEdits(sel);
+  wizWachtOpBewerking(sel, voor, 0);
+}
+
+/* Wachten tot er een versie bij is gekomen, en dan pas hertekenen. */
+function wizWachtOpBewerking(sel, voor, n) {
+  if (wizBewerkBezig !== sel) return;
+  var st = (state.generatedImages || {})[sel] || {};
+  var nu = (st.versions || []).length;
+  if (nu > voor || n > 150) {
+    wizBewerkBezig = null;
+    wizRender();
+    if (nu > voor && typeof toast === 'function') toast('Change applied');
+    return;
+  }
+  setTimeout(function () { wizWachtOpBewerking(sel, voor, n + 1); }, 1000);
 }
 
 /* Einde van de negen stappen: de ad gaat naar de bibliotheek, waar bewaarde
@@ -1093,26 +1233,46 @@ function wizTweak() {
    hetzelfde bewerkpaneel en de versiegeschiedenis eromheen. */
 function wizHandOff() {
   if (!state.lastGenerated) { if (typeof toast === 'function') toast('Nothing to save yet', true); return; }
-  /* De gekozen take gaat de bibliotheek in, niet het concept: die drie zijn
-     verschillende ads en er kan er maar één lopen. */
+  /* ALLE DRIE gaan de bibliotheek in, niet alleen de gekozen.
+     Dit sloeg er eerst één op, met als redenering dat er maar één kan lopen.
+     Dat klopt niet met hoe je ze inzet: een concept is een ad set, en die
+     krijgt drie variaties die naast elkaar draaien. Sla je er één op, dan
+     gooi je twee gegenereerde beelden weg die je zelf hebt betaald, en je
+     kunt achteraf niet meer zien welke drie bij elkaar hoorden.
+
+     De gekozen blijft wel bijzonder: die staat vooraan en is degene die je
+     aan het verfijnen bent. */
+  var idx = wizTakeIndexen();
+  var metBeeld = idx.filter(function (i) {
+    var st = (state.generatedImages || {})[i];
+    return !!(st && st.versions && st.versions.length);
+  });
+  if (!metBeeld.length) { if (typeof toast === 'function') toast('Generate the takes first', true); return; }
+  /* De gekozen vooraan, zodat hij in de bibliotheek de eerste van de groep is. */
   var sel = wizHuidigeTake();
-  if (sel == null) { if (typeof toast === 'function') toast('Generate the takes first', true); return; }
+  if (sel != null && metBeeld.indexOf(sel) > 0) {
+    metBeeld = [sel].concat(metBeeld.filter(function (i) { return i !== sel; }));
+  }
   wizState.done.generate = true;
   wizSave();
   var klaar = function () {
     if (typeof switchMainTab === 'function') switchMainTab('library');
-    if (typeof toast === 'function') toast('Saved to the library, your wizard decisions are kept');
+    if (typeof toast === 'function') {
+      toast(metBeeld.length === 1
+        ? 'Saved to the library, your wizard decisions are kept'
+        : 'All ' + metBeeld.length + ' variations saved as one ad set');
+    }
   };
-  if (typeof saveToLibraryFromCard === 'function') {
-    var r = saveToLibraryFromCard(sel);
-    /* saveToLibraryFromCard is async en comprimeert het beeld; pas daarna staat
-       het er echt, dus pas daarna wisselen we van scherm. De belofte gaat terug
-       naar de aanroeper zodat een test op het einde kan wachten in plaats van
-       op een timer te gokken. */
-    if (r && typeof r.then === 'function') return r.then(klaar, klaar);
-  }
-  klaar();
-  return Promise.resolve();
+  if (typeof saveToLibraryFromCard !== 'function') { klaar(); return Promise.resolve(); }
+  /* Achter elkaar en niet tegelijk: saveToLibraryFromCard zet de batch-id op
+     de eerste die binnenkomt, en die id moet voor alle drie dezelfde zijn --
+     dat is wat ze in de bibliotheek tot één ad set maakt. */
+  return metBeeld.reduce(function (keten, i) {
+    return keten.then(function () {
+      var r = saveToLibraryFromCard(i);
+      return (r && typeof r.then === 'function') ? r : Promise.resolve();
+    });
+  }, Promise.resolve()).then(klaar, klaar);
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
@@ -1122,7 +1282,11 @@ window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll; window.wizHerstelGeneratie = wizHerstelGeneratie;
-window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak; window.wizHandOff = wizHandOff;
+window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak;
+window.wizTweakFotoToe = wizTweakFotoToe;
+window.wizTweakFotoWeg = wizTweakFotoWeg; window.wizTweakFotoLees = wizTweakFotoLees;
+window.wizTweakDrop = wizTweakDrop; window.wizTweakKies = wizTweakKies;
+window.wizWachtOpBewerking = wizWachtOpBewerking; window.wizHandOff = wizHandOff;
 window.wizBuildBrief = wizBuildBrief; window.wizMetadata = wizMetadata; window.wizBriefZonderBeeld = wizBriefZonderBeeld;
 window.wizBlueprintGaps = wizBlueprintGaps; window.wizNaarGat = wizNaarGat; window.wizVisualLabel = wizVisualLabel;
 window.wizLabel = wizLabel; window.WIZ_TWEAKS = WIZ_TWEAKS;

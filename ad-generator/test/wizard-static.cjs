@@ -502,7 +502,10 @@ const VULLEN = `
   check('op een gewone stap staat Continue', knoppen.product, 'Continue →');
   check('op de blueprint staat wat er gaat gebeuren', knoppen.review, 'Generate concepts →');
   check('op de concepten ook', knoppen.concepts, 'Generate final ad →');
-  check('en op het eindbeeld Save ad', knoppen.generate, 'Save ad →');
+  /* Enkelvoud verzweeg dat er drie meegaan. Een concept is een ad set en die
+     krijgt drie variaties; de knop hoort te zeggen wat hij doet, want anders
+     denk je dat je twee gegenereerde beelden weggooit door te drukken. */
+  check('en op het eindbeeld dat alle drie meegaan', knoppen.generate, 'Save all 3 →');
 
   /* Beeld kost geld. Dat mag nooit vanzelf gebeuren, hoe graag de wizard ook
      wil leiden -- de menselijke goedkeuring is de enige rem op uitgaven. */

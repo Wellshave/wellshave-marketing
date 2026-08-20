@@ -711,7 +711,9 @@ function wizVoorwaardenGehaald(stepKey) {
 var WIZ_KNOP = {
   review:   { label: 'Generate concepts →', fn: 'wizApproveBlueprint()' },
   concepts: { label: 'Generate final ad →', fn: 'wizNaarEindbeeld()' },
-  generate: { label: 'Save ad →',           fn: 'wizHandOff()' }
+  /* "Save ad" enkelvoud verzweeg dat er drie meegaan. Een concept is een ad
+     set en die krijgt drie variaties; alle drie gaan de bibliotheek in. */
+  generate: { label: 'Save all 3 →',        fn: 'wizHandOff()' }
 };
 
 function wizRenderFooter() {
