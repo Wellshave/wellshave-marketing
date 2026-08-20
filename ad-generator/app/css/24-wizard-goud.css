@@ -670,3 +670,22 @@
   font-size: 11px; color: var(--gold); padding: 4px 10px;
   border: 1px solid rgba(var(--gold-rgb), .4); border-radius: 99px;
 }
+
+/* De laadstatus op een conceptkaart. Zonder deze toestand stond er "no
+   preview yet" terwijl er een beeld werd gemaakt, en veegde elke herteken de
+   status weg die de beeldgenerator er zelf in had gezet. */
+#wiz-inline .wiz-concept-bezig {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 9px; width: 100%; height: 100%;
+  color: var(--text-faint); font-size: 11.5px; letter-spacing: .02em;
+}
+#wiz-inline .wiz-concept-spin {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(var(--gold-rgb), .2);
+  border-top-color: var(--gold);
+  animation: wizConceptDraait .85s linear infinite;
+}
+@keyframes wizConceptDraait { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .wiz-concept-spin { animation: none; border-top-color: rgba(var(--gold-rgb), .5); }
+}

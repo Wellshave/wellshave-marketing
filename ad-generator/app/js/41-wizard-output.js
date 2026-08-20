@@ -393,8 +393,17 @@ function wizRender_concepts() {
     var aan = (sel === i);
     return '<button type="button" class="wiz-concept' + (aan ? ' on' : '') + '" ' +
       'aria-pressed="' + (aan ? 'true' : 'false') + '" onclick="wizPickConcept(' + i + ')">' +
+      /* Drie toestanden, en dat waren er twee te weinig. De kaart toonde
+         altijd "no preview yet", ook terwijl er een beeld werd gemaakt. En
+         omdat elke wizRender de kaart opnieuw opbouwt, veegde hij de
+         laadstatus weg die generateImage er zelf in had gezet: van drie
+         gestarte previews bleef er zichtbaar één over, namelijk de laatste,
+         omdat daarna niets meer hertekende. */
       '<span class="wiz-concept-preview" id="gen-image-' + i + '">' +
-        '<span class="wiz-concept-geenbeeld">no preview yet</span></span>' +
+        (wizBeeldBezig[i]
+          ? '<span class="wiz-concept-bezig"><span class="wiz-concept-spin"></span>' +
+            '<span>Rendering…</span></span>'
+          : '<span class="wiz-concept-geenbeeld">no preview yet</span>') + '</span>' +
       '<span class="wiz-concept-body">' +
         '<span class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</span>' +
         (c.hook_label_nl ? '<span class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</span>' : '') +
@@ -571,6 +580,7 @@ function wizPreview(i) {
   wizWachtOpBeeld(i);
 }
 
+
 /* De beeldgenerator meldt zichzelf niet af, dus kijken we of het beeld er is.
    Elke seconde, en na twee minuten geven we het op en zeggen dat ook: eeuwig
    "bezig" tonen is net zo misleidend als niets tonen. */
@@ -586,10 +596,23 @@ function wizWachtOpBeeld(i, pogingen) {
   setTimeout(function () { wizWachtOpBeeld(i, n + 1); }, 1000);
 }
 
+/* Alle ontbrekende previews tegelijk. Niet door wizPreview drie keer aan te
+   roepen: die tekent zelf, en elke herteken bouwt de kaarten opnieuw op --
+   waarmee de laadstatus van de vorige twee verdween. Dus: eerst alle vlaggen
+   zetten, EEN keer tekenen, en dan pas starten. */
 function wizPreviewAll() {
+  if (!wizHerstelGeneratie()) {
+    if (typeof toast === 'function') toast('Work out the concepts first', true);
+    return;
+  }
+  if (typeof generateImage !== 'function') return;
   var n = (wizState.data.concepts.list || []).length;
   var beelden = (state && state.generatedImages) || {};
-  for (var i = 0; i < n; i++) if (!beelden[i]) wizPreview(i);
+  var todo = [];
+  for (var i = 0; i < n; i++) if (!beelden[i]) { wizBeeldBezig[i] = true; todo.push(i); }
+  if (!todo.length) return;
+  wizRender();
+  todo.forEach(function (i) { generateImage(i); wizWachtOpBeeld(i); });
 }
 
 /* ── Stap 9: De uiteindelijke static ──────────────────────────────────────

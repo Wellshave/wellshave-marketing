@@ -138,6 +138,55 @@ const OPZET = () => {
   check('en er komt geen "werk eerst de concepten uit"',
     knop.meldingen.filter(m => /Work out the concepts first/.test(m)), []);
 
+  console.log('\n  drie previews starten er ook echt drie');
+  /* De knop riep wizPreview drie keer aan, en die tekent zelf. Elke herteken
+     bouwt de kaarten opnieuw op en veegde daarmee de laadstatus van de vorige
+     twee weg: van drie gestarte previews bleef er zichtbaar een over, de
+     laatste, omdat daarna niets meer hertekende. */
+  const drie = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    const gevraagd = [];
+    let hertekens = 0;
+    const echteGen = window.generateImage;
+    const echteRender = window.wizRender;
+    window.generateImage = i => { gevraagd.push(i); return Promise.resolve(); };
+    window.wizRender = function () { hertekens++; return echteRender.apply(this, arguments); };
+    wizPreviewAll();
+    window.generateImage = echteGen;
+    window.wizRender = echteRender;
+    return { gevraagd: gevraagd, hertekens: hertekens,
+             bezig: Object.keys(wizBeeldBezig).sort() };
+  }, OPZET.toString());
+  check('alle drie worden gestart', drie.gevraagd, [0, 1, 2]);
+  check('en alle drie staan als bezig gemerkt', drie.bezig, ['0', '1', '2']);
+  /* Een keer tekenen, niet per preview: dat is wat de vorige twee wegvaagde. */
+  check('er wordt maar een keer hertekend', drie.hertekens, 1);
+
+  console.log('\n  en een bezige kaart zegt dat ook');
+  const kaart = await page.evaluate(opzet => {
+    eval('(' + opzet + ')()');
+    Object.keys(wizBeeldBezig).forEach(k => { delete wizBeeldBezig[k]; });
+    const leeg = (() => {
+      const d = document.createElement('div');
+      d.innerHTML = wizRender_concepts();
+      return { geen: d.querySelectorAll('.wiz-concept-geenbeeld').length,
+               bezig: d.querySelectorAll('.wiz-concept-bezig').length };
+    })();
+    wizBeeldBezig[0] = true; wizBeeldBezig[2] = true;
+    const d2 = document.createElement('div');
+    d2.innerHTML = wizRender_concepts();
+    const uit = { geen: d2.querySelectorAll('.wiz-concept-geenbeeld').length,
+                  bezig: d2.querySelectorAll('.wiz-concept-bezig').length,
+                  spinner: d2.querySelectorAll('.wiz-concept-spin').length };
+    Object.keys(wizBeeldBezig).forEach(k => { delete wizBeeldBezig[k]; });
+    return { leeg: leeg, bezig: uit };
+  }, OPZET.toString());
+  check('zonder beelden staan er drie lege kaarten', drie.gevraagd.length && kaart.leeg.geen, 3);
+  check('en geen enkele bezig', kaart.leeg.bezig, 0);
+  check('met twee lopende previews staan er twee bezig', kaart.bezig.bezig, 2);
+  check('en nog een lege ernaast', kaart.bezig.geen, 1);
+  check('met een draaiend teken erin', kaart.bezig.spinner, 2);
+
   console.log('\n  stap 9 vindt zijn takes ook terug');
   const takes = await page.evaluate(opzet => {
     eval('(' + opzet + ')()');
