@@ -285,7 +285,10 @@ input:focus, select:focus, textarea:focus {
   padding: 40px; text-align: center; color: var(--text-faint);
   border: 1px dashed rgba(var(--gold-rgb), .25); border-radius: 12px;
 }
-.wg-drill-acties { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.wg-drill-acties { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 20px; }
+/* Zelfde regel als op de kaart: de rij breekt, het woord niet. */
+.wg-drill-acties .btn { white-space: nowrap; }
+.wg-drill-acties .btn-danger { margin-left: auto; }
 /* De invoervelden van de scorekaart: hetzelfde relief als de rest, niet de
    gitzwarte gaten die een kale textarea op deze ondergrond oplevert. */
 .wg-drill-panel textarea, .wg-drill-panel input[type="text"] {

@@ -204,6 +204,97 @@ function serve(root) {
   check('en de sophistication die de wizard verzamelde',
     /SO-S2/.test(opgeslagen.naam || ''), true);
 
+  console.log('\n  drie variaties met dezelfde kop blijven drie items');
+  /* De visuele pass is per definitie een idee met DEZELFDE woorden en drie
+     verschillende beelden. De ontdubbeling keek naar kop + product + funnel +
+     archetype, en die vier zijn dan voor alle drie gelijk: take 2 herkende
+     zichzelf als take 1 en schreef eroverheen, take 3 daarna weer. Er bleef
+     één item over en twee betaalde beelden waren weg.
+     Dus: drie keer opslaan met dezelfde kop, en er moeten er drie staan. */
+  const driemaal = await page.evaluate(async () => {
+    state.library = [];
+    wizState.data = wizBlankData();
+    state.lastGenerated = {
+      variations: [
+        { headline_nl: 'Bij hen betaal je de reclame mee', image_prompt_en: 'a' },
+        { headline_nl: 'Bij hen betaal je de reclame mee', image_prompt_en: 'b' },
+        { headline_nl: 'Bij hen betaal je de reclame mee', image_prompt_en: 'c' }
+      ],
+      metadata: wizMetadata()
+    };
+    state.generatedImages = {};
+    const echteConfirm = window.confirm; window.confirm = () => true;
+    await saveToLibraryFromCard(0);
+    await saveToLibraryFromCard(1);
+    await saveToLibraryFromCard(2);
+    /* En nog een keer dezelfde take: dát hoort wél bij te werken in plaats
+       van een vierde rij te maken -- dat is waar de ontdubbeling voor is. */
+    await saveToLibraryFromCard(1);
+    window.confirm = echteConfirm;
+    const uit = {
+      aantal: state.library.length,
+      indexen: state.library.map(i => i.variant_index).sort(),
+      batches: [...new Set(state.library.map(i => i.batch_id))].length,
+      prompts: state.library.map(i => i.variation.image_prompt_en).sort()
+    };
+    /* Een tweede generatie is een nieuwe creative en hoort niet over de
+       eerste heen te schrijven, ook al is de kop hetzelfde. */
+    state.lastGenerated = {
+      variations: [{ headline_nl: 'Bij hen betaal je de reclame mee', image_prompt_en: 'd' }],
+      metadata: wizMetadata()
+    };
+    window.confirm = () => true;
+    await saveToLibraryFromCard(0);
+    window.confirm = echteConfirm;
+    uit.naTweedeRonde = state.library.length;
+    return uit;
+  });
+  check('alle drie de variaties staan er', driemaal.aantal, 3);
+  check('elk met zijn eigen plek in de batch', driemaal.indexen, [0, 1, 2]);
+  /* Eén batch-id maakt ze in de bibliotheek tot één ad set. Drie losse
+     id's zou drie ongerelateerde creatives zijn. */
+  check('onder één gedeelde batch', driemaal.batches, 1);
+  /* De harde controle: het beeld van take 1 en 3 mag niet overschreven zijn
+     door dat van take 2. */
+  check('en elk beeld is bewaard, niet overschreven', driemaal.prompts, ['a', 'b', 'c']);
+  check('dezelfde take nog eens opslaan werkt hem bij', driemaal.aantal, 3);
+  check('een nieuwe generatie komt er los bij', driemaal.naTweedeRonde, 4);
+
+  console.log('\n  en de knoppenrij breekt de rij, niet het woord');
+  /* Vijf knoppen in een flexrij zonder wrap werden samengeknepen tot ze hun
+     eigen tekst over drie regels braken: vijf knoppen met vijf hoogtes. */
+  const knoppen = await page.evaluate(() => {
+    const rij = document.createElement('div');
+    rij.className = 'library-item';
+    rij.style.width = '360px';
+    rij.innerHTML = '<div class="lib-actions">' +
+      '<button class="btn btn-small">Bekijk in generator</button>' +
+      '<button class="btn btn-small">Itereer op deze</button>' +
+      '<button class="btn btn-small btn-ghost">Kopieer prompt</button>' +
+      '<button class="btn btn-small btn-ghost">Download beeld</button>' +
+      '<button class="btn btn-small btn-ghost btn-danger">×</button></div>';
+    document.body.appendChild(rij);
+    const el = rij.querySelector('.lib-actions');
+    const cs = getComputedStyle(el);
+    const knop = [].slice.call(el.querySelectorAll('.btn'));
+    const hoogtes = [...new Set(knop.map(b => Math.round(b.getBoundingClientRect().height)))];
+    const uit = {
+      wrap: cs.flexWrap,
+      nowrap: getComputedStyle(knop[0]).whiteSpace,
+      hoogtes: hoogtes.length,
+      /* Verwijderen hoort rechts, weg van wat je wél wilt doen. */
+      deleteRechts: getComputedStyle(knop[4]).marginLeft === 'auto' ||
+        Math.round(knop[4].getBoundingClientRect().right) >=
+        Math.round(el.getBoundingClientRect().right) - 2
+    };
+    rij.remove();
+    return uit;
+  });
+  check('de rij mag breken', knoppen.wrap, 'wrap');
+  check('de knoptekst niet', knoppen.nowrap, 'nowrap');
+  check('dus alle knoppen zijn even hoog', knoppen.hoogtes, 1);
+  check('en verwijderen staat apart, rechts', knoppen.deleteRechts, true);
+
   console.log('\n  een oud item zonder opgeslagen naam krijgt er alsnog een');
   /* De bibliotheek mag niet in twee soorten uiteenvallen: items van voor deze
      wijziging hebben geen ad_name, en die moeten hem berekend krijgen in

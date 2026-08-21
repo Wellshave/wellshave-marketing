@@ -179,6 +179,43 @@ var NIEUWS_OPVAL = [
   'The product is small or absent. Of the 26 advertorial statics, three showed the product as the subject.'
 ];
 
+/* ── De koppen, uitgekleed tot formules ────────────────────────────────── */
+
+/* Tien zinsbouwen die in de swipe file uit levende campagnes zijn gehaald en
+ * daarna leeggeschraapt: er staat geen claim in, alleen de vorm. Je vult ze
+ * met je eigen waarheid.
+ *
+ * Waarom dit hier staat en niet in een document dat niemand opent: de
+ * copystap krijgt anders de opdracht "schrijf een kop in nieuwsstijl", en dan
+ * schrijft het model de kop die iedereen schrijft -- een belofte over het
+ * product. De sterkste vormen doen iets anders: ze halen de verklaring weg
+ * die de lezer al had, en dat gat moet gevuld worden.
+ *
+ * De vorm is een startpunt en geen mal. Een kop die alleen maar ingevuld is
+ * leest ook als ingevuld. */
+var NIEUWS_KOPFORMULES = [
+  { vorm: 'Dit is waarom [symptoom], en het heeft niets te maken met [de verklaring die ze al hadden].',
+    waarom: 'Takes away the explanation they were using. The strongest of the ten: it opens a gap that has to be filled.' },
+  { vorm: '[Probleem] is geen [categorie waar ze het in stoppen]. Het komt uit [andere plek]. En de meesten weten dat niet.',
+    waarom: 'The categorical denial. Re-files the problem in a drawer they have not looked in.' },
+  { vorm: 'De grootste denkfout bij [probleem].',
+    waarom: 'Short, no claim at all, works in any category. One advertiser ran it twice for two different products.' },
+  { vorm: 'Als je [heel specifiek waarneembaar detail], dan is dat geen [wat ze denken].',
+    waarom: 'The self-check. The reader looks at their own ankle, their own label, their own face — and the ad has already happened.' },
+  { vorm: 'Wat [symptoom] na je [leeftijd] je écht probeert te vertellen.',
+    waarom: 'An age in the headline is targeting done inside the creative. It filters and it flatters at once.' },
+  { vorm: '[Autoriteit] had [ingrijpende afspraak] al ingepland. Vorige maand hebben we hem geschrapt.',
+    waarom: 'A concrete event instead of a result. Events are believable in a way that outcomes are not.' },
+  { vorm: 'Een negatieve uitslag betekent niet dat alles in orde is.',
+    waarom: 'Aimed at the people who already went looking and found nothing. Small audience, almost no competition for it.' },
+  { vorm: 'Wij hebben [aantal] [producten] getest. Dit is de verrassende winnaar.',
+    waarom: 'Only if you actually ran the test and can show the method. Otherwise it is the sentence that draws the complaint.' },
+  { vorm: 'Waarom kiezen mensen in [ver land] voor [methode] die al [aantal] jaar oud is?',
+    waarom: 'Two authorities that normally cancel each other out — distance and age — put in one sentence.' },
+  { vorm: '[Groep] eet meer [slechte ding] dan wij en heeft [percentage] minder [probleem].',
+    waarom: 'The paradox. Only works on a phenomenon that is genuinely documented.' }
+];
+
 /* ── De grens ──────────────────────────────────────────────────────────── */
 
 /* Alles wat in beide swipe files misging, ging mis op de afzender. Elke regel
@@ -287,6 +324,14 @@ function wizNieuwsBrief() {
   t += '\nWhat makes this genre stop a scroll:\n' +
     NIEUWS_OPVAL.map(function (r) { return ' - ' + r; }).join('\n') + '\n';
 
+  /* De vormen erbij, want zonder deze schrijft het model de kop die iedereen
+     schrijft: een belofte over het product. Uitdrukkelijk als startpunt --
+     een kop die alleen maar ingevuld is, leest ook als ingevuld. */
+  t += '\nHeadline shapes that carry this genre. They contain no claim of their own; ' +
+    'fill them with what is actually true here, and depart from the shape wherever ' +
+    'the truth reads better than the template:\n' +
+    NIEUWS_KOPFORMULES.map(function (k) { return ' - "' + k.vorm + '" ' + k.waarom; }).join('\n') + '\n';
+
   var afz = wizNieuwsAfzender();
   if (afz) {
     t += '\nThe sender under this article is REAL and it is: ' + afz.label + ' — ' + afz.uitleg + '\n' +
@@ -382,7 +427,7 @@ function wizRenderNieuwsstijl() {
 }
 
 window.NIEUWS_ARCHETYPEN = NIEUWS_ARCHETYPEN; window.NIEUWS_FORMATS = NIEUWS_FORMATS;
-window.NIEUWS_OPVAL = NIEUWS_OPVAL; window.NIEUWS_GRENS = NIEUWS_GRENS;
+window.NIEUWS_OPVAL = NIEUWS_OPVAL; window.NIEUWS_KOPFORMULES = NIEUWS_KOPFORMULES; window.NIEUWS_GRENS = NIEUWS_GRENS;
 window.NIEUWS_AFZENDERS = NIEUWS_AFZENDERS; window.NIEUWS_STANDAARD = NIEUWS_STANDAARD;
 window.wizNieuwsActief = wizNieuwsActief; window.wizNieuwsArchetype = wizNieuwsArchetype;
 window.wizNieuwsAfzender = wizNieuwsAfzender; window.wizNieuwsGaten = wizNieuwsGaten;

@@ -51,30 +51,51 @@ async function saveToLibraryFromCard(varIndex) {
     } catch (e) { console.error('compress lib image fail', e); }
   }
 
-  // Check of er al een library-item bestaat voor exact deze variatie (zelfde headline + funnel + product)
-  // Zo ja, update dat item in plaats van een duplicaat aan te maken
-  const existingIdx = (state.library || []).findIndex(libItem =>
-    libItem.variation &&
-    libItem.variation.headline_nl === v.headline_nl &&
-    libItem.metadata &&
-    libItem.metadata.product === metadata.product &&
-    libItem.metadata.funnel === metadata.funnel &&
-    libItem.metadata.archetype === metadata.archetype
-  );
-
+  /* De batch-id eerst, want hij bepaalt hieronder mede of dit een bestaand
+     item is. Stond dit ná de zoekopdracht, dan kon die zoekopdracht er nog
+     niets mee. */
   if (state.lastGenerated && !state.lastGenerated._batch_id) {
     state.lastGenerated._batch_id = 'batch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     var _mc = (metadata && metadata.concept) ? String(metadata.concept) : '';
     var _t = _mc ? _mc.replace(/^HOEK[^:]*:\s*/i, '').split('\n')[0].slice(0, 90) : ((v && v.headline_nl) ? v.headline_nl : ((metadata && metadata.product) ? (metadata.product + ' , concept') : 'Concept'));
     state.lastGenerated._batch_title = _t;
   }
+  const batchId = (state.lastGenerated && state.lastGenerated._batch_id) || null;
+
+  /* Bestaat er al een item voor precies DEZE variatie? Zo ja bijwerken, zo
+     nee erbij.
+     
+     Dit keek op headline + product + funnel + archetype, en dat ging stuk op
+     de dag dat "Save all 3" de drie takes achter elkaar wegschreef. De
+     visuele pass is één idee met DEZELFDE woorden en drie verschillende
+     beelden -- dus zijn die vier velden voor alle drie identiek, herkende
+     take 2 zichzelf als take 1, en schreef eroverheen. Take 3 daarna weer.
+     Van de drie variaties bleef er één in de bibliotheek staan, en de andere
+     twee beelden waren weg terwijl je ze wel had laten maken.
+     
+     Wat een variatie uniek maakt is niet de kop maar zijn plek in de batch.
+     Zit er een batch-id op allebei, dan is dat het hele antwoord. Anders
+     valt hij terug op de oude vergelijking, met het variatienummer erbij --
+     en items van vóór dit veld (variant_index ontbreekt) blijven zich
+     gedragen zoals ze deden. */
+  const existingIdx = (state.library || []).findIndex(function (libItem) {
+    if (!libItem.variation || !libItem.metadata) return false;
+    if (batchId && libItem.batch_id) {
+      return libItem.batch_id === batchId && libItem.variant_index === varIndex;
+    }
+    return libItem.variation.headline_nl === v.headline_nl &&
+      libItem.metadata.product === metadata.product &&
+      libItem.metadata.funnel === metadata.funnel &&
+      libItem.metadata.archetype === metadata.archetype &&
+      (libItem.variant_index == null || libItem.variant_index === varIndex);
+  });
   const item = {
     id: existingIdx >= 0 ? state.library[existingIdx].id : ('lib-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)),
     variation: v,
     metadata,
     image: imageSnapshot,
     saved_at: Date.now(),
-    batch_id: (state.lastGenerated && state.lastGenerated._batch_id) || null,
+    batch_id: batchId,
     batch_title: (state.lastGenerated && state.lastGenerated._batch_title) || '',
     variant_index: varIndex,
     /* De naam waaronder deze creative in het advertentie-account komt te
@@ -794,7 +815,7 @@ function libCardHtml(item){
             <button class="btn btn-small" data-action="iterate" data-id="${item.id}">Itereer op deze</button>
             <button class="btn btn-small btn-ghost" data-action="copy-prompt" data-id="${item.id}">Kopieer prompt</button>
             ${hasImage ? `<button class="btn btn-small btn-ghost" data-action="download" data-id="${item.id}">Download beeld</button>` : ''}
-            <button class="btn btn-small btn-ghost btn-danger" data-action="delete" data-id="${item.id}">×</button>
+            <button class="btn btn-small btn-ghost btn-danger" data-action="delete" data-id="${item.id}" title="Verwijder" aria-label="Verwijder">×</button>
           </div>
         </div>
       </div>

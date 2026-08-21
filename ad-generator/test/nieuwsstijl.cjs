@@ -143,6 +143,39 @@ function OPZET() {
      genegeerd, en dan staat er alsnog een verzonnen keurmerk. */
   check('en de grens, elke regel met zijn alternatief', brief.grens, 0);
 
+  console.log('\n  en de kopvormen bereiken de plek waar de kop geschreven wordt');
+  /* Deze tien zijn uit levende campagnes gehaald en leeggeschraapt: er staat
+     geen claim in, alleen de vorm. Zonder ze schrijft het model de kop die
+     iedereen schrijft -- een belofte over het product -- terwijl de sterkste
+     vormen juist de verklaring wegnemen die de lezer al had. */
+  const koppen = await page.evaluate(() => {
+    const t = wizNieuwsBrief();
+    /* De copystap is waar de kop ontstaat, dus daar moeten ze staan en niet
+       pas in de conceptbrief -- daar is de kop al goedgekeurd. */
+    const vraagCopy = wizAdviesVraag('copy', WIZ_ADVICE_SPEC.copy, '');
+    const vraagProduct = wizAdviesVraag('product', WIZ_ADVICE_SPEC.product, '');
+    return {
+      aantal: NIEUWS_KOPFORMULES.length,
+      inBrief: NIEUWS_KOPFORMULES.filter(k => t.indexOf(k.vorm) === -1).length,
+      metWaarom: NIEUWS_KOPFORMULES.filter(k => t.indexOf(k.waarom) === -1).length,
+      inCopy: NIEUWS_KOPFORMULES.filter(k => vraagCopy.indexOf(k.vorm) === -1).length,
+      /* En niet overal: een productstap heeft niets met kopvormen te maken. */
+      inProduct: NIEUWS_KOPFORMULES.filter(k => vraagProduct.indexOf(k.vorm) !== -1).length,
+      /* Geen enkele vorm mag zelf al een claim of een productnaam dragen --
+         dan zou het systeem een bewering aanreiken in plaats van een vorm. */
+      metHaakjes: NIEUWS_KOPFORMULES.filter(k => !/\[[^\]]+\]/.test(k.vorm)).length
+    };
+  });
+  check('alle tien vormen staan er', koppen.aantal, 10);
+  check('en gaan mee in de brief', koppen.inBrief, 0);
+  check('met de reden waarom ze werken', koppen.metWaarom, 0);
+  check('ze staan in de vraag aan de copystap', koppen.inCopy, 0);
+  check('en niet in een stap die er niets mee te maken heeft', koppen.inProduct, 0);
+  /* Op twee na is elke vorm een mal met open plekken. De twee zonder haakjes
+     zijn volledige zinnen zonder claim ("De grootste denkfout bij..." heeft er
+     wel een; "Een negatieve uitslag..." niet). */
+  check('en op een na draagt elke vorm open plekken', koppen.metHaakjes, 1);
+
   console.log('\n  zonder echte afzender blijft de masthead leeg');
   const afzender = await page.evaluate(() => {
     /* Eigen archetype zetten: de redactietest uit het vorige blok stelt een

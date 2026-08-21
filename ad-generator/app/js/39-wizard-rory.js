@@ -284,6 +284,41 @@ var WIZ_RORY_SYSTEM =
 
 /* ── Advies ophalen ─────────────────────────────────────────────────────── */
 
+/* De vraag aan Rory, los van het versturen ervan.
+ *
+ * Dit stond inline in wizAdvise, verweven met de bezig-vlag en de netwerklus.
+ * Daardoor viel er niet vast te stellen wat een stap werkelijk meekrijgt
+ * zonder een echte aanroep te doen -- en juist die catalogi zijn het deel dat
+ * stilletjes kan verdwijnen zonder dat iets omvalt: het advies komt dan gewoon
+ * terug, alleen dommer. */
+function wizAdviesVraag(stepKey, spec, extra) {
+  return 'STEP: ' + stepKey + '\n\n' + spec.opdracht +
+    '\n\nReturn "recommendation" with exactly these keys: {' + spec.velden + '}\n' +
+    (extra ? ('\nExtra instruction from the user: ' + extra + '\n') : '') +
+    (stepKey === 'format' && typeof AD_FORMATS !== 'undefined'
+      ? ('\n\n# FORMATS (use an exact id)\n' + AD_FORMATS.map(function (f) { return f.id + ' — ' + f.name + ': ' + f.desc; }).join('\n'))
+      : '') +
+    (stepKey === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
+    /* De kopvormen bij de copystap, want dáár wordt de kop geschreven. Zonder
+       deze schrijft het model de kop die iedereen schrijft: een belofte over
+       het product, terwijl de sterkste vormen juist de verklaring wegnemen
+       die de lezer al had. */
+    (stepKey === 'copy' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
+      ? ('\n\n# EDITORIAL HEADLINE SHAPES (this is a news/article format)\n' +
+         'These carry no claim of their own. Fill one with what is true here, or depart ' +
+         'from it where the truth reads better than the template. The headline is about ' +
+         'the world, never about the product, and it does not name the product.\n' +
+         NIEUWS_KOPFORMULES.map(function (k) { return '- "' + k.vorm + '" ' + k.waarom; }).join('\n')) : '') +
+    /* En de archetypes bij de visuele stap, alleen bij een redactioneel
+       formaat: op een productposter is een krantenkop geen keuze maar ruis,
+       en een lijst die er staat wordt gekozen. */
+    (stepKey === 'visual' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
+      ? ('\n\n# EDITORIAL ARCHETYPES (this is a news/article format — pick one id for newsArchetype)\n' +
+         NIEUWS_ARCHETYPEN.map(function (a) {
+           return a.id + ' — ' + a.label + ': ' + a.kort + ' When: ' + a.wanneer;
+         }).join('\n')) : '');
+}
+
 function wizAdvise(stepKey, extra) {
   var spec = WIZ_ADVICE_SPEC[stepKey];
   if (!spec) return Promise.resolve(null);
@@ -296,22 +331,7 @@ function wizAdvise(stepKey, extra) {
   wizRenderRory();
 
   var ctx = wizContext();
-  var vraag = 'STEP: ' + stepKey + '\n\n' + spec.opdracht +
-    '\n\nReturn "recommendation" with exactly these keys: {' + spec.velden + '}\n' +
-    (extra ? ('\nExtra instruction from the user: ' + extra + '\n') : '') +
-    (stepKey === 'format' && typeof AD_FORMATS !== 'undefined'
-      ? ('\n\n# FORMATS (use an exact id)\n' + AD_FORMATS.map(function (f) { return f.id + ' — ' + f.name + ': ' + f.desc; }).join('\n'))
-      : '') +
-    (stepKey === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
-    /* De archetypes alleen bij een redactioneel formaat: op een productposter
-       is een krantenkop geen keuze maar ruis, en een lijst die er staat wordt
-       gekozen. */
-    (stepKey === 'visual' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
-      ? ('\n\n# EDITORIAL ARCHETYPES (this is a news/article format — pick one id for newsArchetype)\n' +
-         NIEUWS_ARCHETYPEN.map(function (a) {
-           return a.id + ' — ' + a.label + ': ' + a.kort + ' When: ' + a.wanneer;
-         }).join('\n')) : '') +
-    '\n\n' + ctx.text;
+  var vraag = wizAdviesVraag(stepKey, spec, extra) + '\n\n' + ctx.text;
 
   return wizCall(WIZ_RORY_SYSTEM, [{ role: 'user', content: vraag }], 2500)
     .then(function (data) {
@@ -533,7 +553,7 @@ function wizChatSend(vast) {
     });
 }
 
-window.wizAdvise = wizAdvise; window.wizApplyAdvice = wizApplyAdvice;
+window.wizAdvise = wizAdvise; window.wizAdviesVraag = wizAdviesVraag; window.WIZ_ADVICE_SPEC = WIZ_ADVICE_SPEC; window.wizApplyAdvice = wizApplyAdvice;
 window.wizRefreshStep = wizRefreshStep; window.wizChatVan = wizChatVan; window.wizRenderRory = wizRenderRory;
 window.wizChatSend = wizChatSend; window.wizChatQuick = wizChatQuick;
 window.wizAnswerQuestion = wizAnswerQuestion; window.wizDismissQuestion = wizDismissQuestion;
