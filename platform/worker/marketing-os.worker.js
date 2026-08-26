@@ -160,6 +160,205 @@ async function sbPublic(env, table, query) {
 }
 
 /* ============================================================
+ * 3. Sleutelbeheer — de API-sleutels, versleuteld in de database
+ * ============================================================
+ *
+ * Waarom dit bestaat: een sleutel wisselen vroeg een terminal met wrangler
+ * erin, en dat heeft niet iedereen die het wel mag beslissen. Nu kan het via
+ * het adminmenu in de console.
+ *
+ * Waarom het niet gewoon een tabel met tekst is: dan verplaatst het probleem
+ * zich van de broncode naar de database, en leest iedereen met een dump of
+ * een gelekte Supabase-sleutel je API-sleutels mee. Dus staat de waarde
+ * versleuteld met AES-GCM, en staat de hoofdsleutel waarmee dat gebeurt als
+ * Worker secret (SLEUTEL_MASTER). Twee dingen op twee plekken; je hebt ze
+ * allebei nodig.
+ *
+ * De leesvolgorde is expres deze:
+ *   1. de database, want dat is wat je via het scherm zet;
+ *   2. het Worker secret, als daar niets staat.
+ * Zo blijft een bestaande opzet werken en is dit een toevoeging in plaats van
+ * een omschakeling met een moment waarop niets het doet.
+ */
+
+/* De waarde kort bijhouden. De worker leeft per aanroep, maar binnen een
+   aanroep kan dezelfde sleutel meerdere keren gevraagd worden en dan is een
+   tweede databaseronde weggegooid werk. Zestig seconden is lang genoeg om dat
+   te schelen en kort genoeg dat een wissel meteen aankomt. */
+const _sleutelCache = new Map(); // naam -> { exp, waarde, bron }
+
+function b64naarBytes(b64) {
+  const bin = atob(b64);
+  const uit = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) uit[i] = bin.charCodeAt(i);
+  return uit;
+}
+function bytesNaarB64(bytes) {
+  let bin = '';
+  const b = new Uint8Array(bytes);
+  for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+  return btoa(bin);
+}
+
+/* De hoofdsleutel als AES-GCM-sleutel. SLEUTEL_MASTER is willekeurige tekst;
+   die wordt gehasht naar precies 256 bits, zodat elke lengte werkt en niemand
+   een wachtwoord van exact 32 tekens hoeft te verzinnen. */
+async function masterSleutel(env) {
+  if (!env.SLEUTEL_MASTER) return null;
+  const ruw = new TextEncoder().encode(env.SLEUTEL_MASTER);
+  const hash = await crypto.subtle.digest('SHA-256', ruw);
+  return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function versleutel(env, tekst) {
+  const k = await masterSleutel(env);
+  if (!k) throw new Error('SLEUTEL_MASTER ontbreekt op deze worker');
+  /* Een nieuwe nonce per keer. Twee keer dezelfde nonce met dezelfde sleutel
+     is de ene fout die AES-GCM echt breekt, dus hij wordt nooit hergebruikt
+     en nooit afgeleid van de inhoud. */
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce }, k, new TextEncoder().encode(tekst));
+  return { cipher: bytesNaarB64(cipher), nonce: bytesNaarB64(nonce) };
+}
+
+async function ontsleutel(env, cipherB64, nonceB64) {
+  const k = await masterSleutel(env);
+  if (!k) return null;
+  try {
+    const plat = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: b64naarBytes(nonceB64) }, k, b64naarBytes(cipherB64));
+    return new TextDecoder().decode(plat);
+  } catch (e) {
+    /* Mislukt ontsleutelen betekent bijna altijd: SLEUTEL_MASTER is gewisseld
+       nadat deze rij geschreven werd. De rij is dan niet stuk maar onleesbaar,
+       en de sleutel moet opnieuw gezet worden. Null teruggeven en laten
+       terugvallen op het Worker secret -- een uitzondering hier zou de hele
+       console platleggen om iets wat op te lossen is. */
+    return null;
+  }
+}
+
+/* De sleutel die de worker werkelijk moet gebruiken. */
+async function sleutelVan(env, naam) {
+  const nu = Date.now();
+  const c = _sleutelCache.get(naam);
+  if (c && c.exp > nu) return c.waarde;
+
+  let waarde = null, bron = null;
+  if (env.SUPABASE_SERVICE_KEY && env.SLEUTEL_MASTER) {
+    try {
+      const rijen = await sbSelect(env, 'systeem_geheimen',
+        'naam=eq.' + encodeURIComponent(naam) + '&select=cipher,nonce');
+      if (rijen && rijen[0]) {
+        waarde = await ontsleutel(env, rijen[0].cipher, rijen[0].nonce);
+        if (waarde) bron = 'database';
+      }
+    } catch (e) { /* database onbereikbaar: dan het secret, niet niets */ }
+  }
+  if (!waarde && env[naam]) { waarde = env[naam]; bron = 'worker secret'; }
+
+  _sleutelCache.set(naam, { exp: nu + 60000, waarde: waarde, bron: bron });
+  return waarde;
+}
+
+/* Waar een sleutel vandaan komt, zonder hem te lezen. Voor het scherm. */
+async function sleutelHerkomst(env, naam) {
+  await sleutelVan(env, naam); // vult de cache, inclusief bron
+  const c = _sleutelCache.get(naam);
+  return (c && c.bron) || 'ontbreekt';
+}
+
+/* Ziet dit eruit als een sleutel van deze dienst? Niet om slim te zijn, maar
+   omdat de meest voorkomende fout een meegeplakte spatie of een half
+   gekopieerde sleutel is. Die sla je liever niet op om er een dag later
+   achter te komen dat de console "invalid" zegt. */
+function sleutelVormKlopt(naam, waarde) {
+  const w = String(waarde || '').trim();
+  if (naam === 'ANTHROPIC_KEY') return /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(w);
+  if (naam === 'OPENAI_KEY') return /^sk-[A-Za-z0-9_-]{20,}$/.test(w);
+  return false;
+}
+
+/* De foutmelding van de dienst inkorten tot iets bruikbaars. Voluit
+   doorgeven kan de sleutel bevatten die je net probeerde: sommige diensten
+   echoen hem terug in hun melding, en dan staat hij alsnog in beeld. */
+function kortDeFout(tekst, status) {
+  let bericht = '';
+  try { const o = JSON.parse(tekst); bericht = (o.error && (o.error.message || o.error.type)) || ''; } catch (e) { }
+  bericht = String(bericht).replace(/sk-[A-Za-z0-9_-]{8,}/g, '<sleutel>').slice(0, 140);
+  return bericht || ('de dienst antwoordde met ' + status);
+}
+
+/* Werkt hij ook echt? Dit is de vraag die /health niet beantwoordde, en dat
+   heeft een halve dag gekost: het veld was gevuld, dus alles stond groen,
+   terwijl de sleutel al ingetrokken was. Een zo klein mogelijke aanroep. */
+async function sleutelWerkt(env, naam) {
+  const sleutel = await sleutelVan(env, naam);
+  if (!sleutel) return { geldig: false, reden: 'er staat geen sleutel' };
+  try {
+    if (naam === 'ANTHROPIC_KEY') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': sleutel, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'x' }] })
+      });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+    }
+    const r = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': 'Bearer ' + sleutel } });
+    if (r.ok) return { geldig: true, reden: null };
+    return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+  } catch (e) {
+    return { geldig: false, reden: 'de dienst was niet bereikbaar' };
+  }
+}
+
+/* Zetten. Geeft terug wat het scherm mag weten -- nooit de waarde zelf. */
+async function sleutelZet(env, naam, waarde, wie) {
+  const w = String(waarde || '').trim();
+  if (!sleutelVormKlopt(naam, w)) {
+    return { error: 'dat ziet er niet uit als een ' + naam + '. Controleer of de hele sleutel geplakt is.', status: 400 };
+  }
+  if (!env.SLEUTEL_MASTER) {
+    return { error: 'SLEUTEL_MASTER ontbreekt op deze worker. Zet hem eenmalig met: npx wrangler secret put SLEUTEL_MASTER', status: 500 };
+  }
+  const enc = await versleutel(env, w);
+  await sbInsert(env, 'systeem_geheimen', [{
+    naam: naam, cipher: enc.cipher, nonce: enc.nonce,
+    staart: w.slice(-4), gezet_door: wie, gezet_op: new Date().toISOString()
+  }], { onConflict: 'naam' });
+  /* De cache meteen leeg, anders blijft de oude sleutel nog een minuut in
+     gebruik en denkt de beheerder dat het niet gewerkt heeft. */
+  _sleutelCache.delete(naam);
+  return { ok: true, naam: naam, staart: w.slice(-4) };
+}
+
+/* Wat er over de sleutels te vertellen valt zonder er iets van prijs te
+   geven: waar hij vandaan komt, aan welke staart je hem herkent, wie hem
+   wanneer heeft gezet. */
+async function sleutelOverzicht(env) {
+  let rijen = [];
+  try {
+    rijen = await sbSelect(env, 'systeem_geheimen', 'select=naam,staart,gezet_door,gezet_op');
+  } catch (e) { rijen = []; }
+  const perNaam = {};
+  rijen.forEach(function (r) { perNaam[r.naam] = r; });
+  const uit = [];
+  for (const naam of ['ANTHROPIC_KEY', 'OPENAI_KEY']) {
+    const r = perNaam[naam] || {};
+    uit.push({
+      naam: naam,
+      bron: await sleutelHerkomst(env, naam),
+      staart: r.staart || null,
+      gezet_door: r.gezet_door || null,
+      gezet_op: r.gezet_op || null
+    });
+  }
+  return { sleutels: uit, master: !!env.SLEUTEL_MASTER };
+}
+
+/* ============================================================
  * 4. Meta Ads
  * ============================================================ */
 
@@ -858,11 +1057,16 @@ function claudeText(data) {
 }
 
 async function claude(env, body) {
+  /* Ook het werk dat de worker zelf doet loopt via de beheerde sleutel. Zou
+     deze env.ANTHROPIC_KEY blijven lezen, dan wisselt het adminmenu wel de
+     sleutel van de console maar niet die van de nachtelijke lus -- en dan
+     werkt de helft. */
+  const sleutel = await sleutelVan(env, 'ANTHROPIC_KEY');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': env.ANTHROPIC_KEY,
+      'x-api-key': sleutel,
       'anthropic-version': '2023-06-01',
       'anthropic-beta': 'server-side-fallback-2026-06-01'
     },
@@ -1513,9 +1717,15 @@ export default {
         versie_datum: VERSIE_DATUM,
         versie_wat: VERSIE_WAT,
         runtime: env.SUPABASE_SERVICE_KEY ? 'actief' : 'uit (SUPABASE_SERVICE_KEY ontbreekt)',
+        /* Let op wat dit wel en niet zegt: of er EEN sleutel is, niet of hij
+           nog geldig is. Dat onderscheid heeft een halve dag gekost -- het
+           veld was gevuld, dus alles stond groen, terwijl de sleutel al
+           ingetrokken was. Geldigheid vraag je op met /systeem/sleutels/proef,
+           en dat is met opzet admin-only: het kost een echte aanroep bij de
+           dienst, en dat is niets wat een openbaar endpoint hoort te doen. */
         koppelingen: {
-          claude: !!env.ANTHROPIC_KEY,
-          openai: !!env.OPENAI_KEY,
+          claude: !!(await sleutelVan(env, 'ANTHROPIC_KEY')),
+          openai: !!(await sleutelVan(env, 'OPENAI_KEY')),
           meta: !!env.META_ACCESS_TOKEN,
           klaviyo: !!env.KLAVIYO_API_KEY
         },
@@ -1540,7 +1750,9 @@ export default {
        AI leest, en die twee horen naast elkaar te staan. */
     if (path === '/creative/deconstruct' && request.method === 'POST') {
       if (!env.SUPABASE_SERVICE_KEY) return json({ error: 'SUPABASE_SERVICE_KEY ontbreekt op deze worker' }, 500);
-      if (!env.ANTHROPIC_KEY)        return json({ error: 'ANTHROPIC_KEY ontbreekt op deze worker' }, 500);
+      if (!(await sleutelVan(env, 'ANTHROPIC_KEY'))) {
+        return json({ error: 'er staat geen ANTHROPIC_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
+      }
 
       const body = await request.json().catch(() => ({}));
       const creativeId = Number(body.creative_id);
@@ -1693,18 +1905,62 @@ export default {
         return json(await tick(env, 'handmatig-' + gebruiker.email));
       }
 
+      /* ---- Sleutelbeheer, alleen admin ----
+         Lezen geeft NOOIT een waarde terug, ook niet aan een admin. Er is geen
+         reden om een sleutel op een scherm te zetten: je zet hem, of je
+         vervangt hem. Kunnen lezen levert alleen maar plekken op waar hij
+         terechtkomt -- een screenshot, een logboek, een gesprek. */
+      if (path === '/systeem/sleutels' && request.method === 'GET') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        return json(await sleutelOverzicht(env));
+      }
+
+      if (path === '/systeem/sleutels' && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        const body = await request.json().catch(() => ({}));
+        const naam = String(body.naam || '');
+        if (naam !== 'ANTHROPIC_KEY' && naam !== 'OPENAI_KEY') {
+          return json({ error: 'naam moet ANTHROPIC_KEY of OPENAI_KEY zijn' }, 400);
+        }
+        const uit = await sleutelZet(env, naam, body.waarde, gebruiker.email);
+        if (uit.error) return json({ error: uit.error }, uit.status || 400);
+        /* Meteen uitproberen. Een sleutel die opgeslagen is maar niet werkt,
+           merk je anders pas als iemand midden in zijn werk vastloopt -- en
+           dan zoekt hij het bij de worker in plaats van bij de sleutel. */
+        const proef = await sleutelWerkt(env, naam);
+        return json(Object.assign(uit, { proef: proef }));
+      }
+
+      if (path === '/systeem/sleutels/proef' && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        return json({
+          ANTHROPIC_KEY: await sleutelWerkt(env, 'ANTHROPIC_KEY'),
+          OPENAI_KEY: await sleutelWerkt(env, 'OPENAI_KEY')
+        });
+      }
+
       return json({ error: 'onbekend systeem-endpoint' }, 404);
     }
 
     /* ---- Anthropic (ongewijzigd) ---- */
     if (path === '/anthropic' && request.method === 'POST') {
-      if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
+      /* Niet meer rechtstreeks env.ANTHROPIC_KEY: sleutelVan kijkt eerst in de
+         database (wat je via het adminmenu zet) en valt daarna terug op het
+         Worker secret. */
+      const anthropicSleutel = await sleutelVan(env, 'ANTHROPIC_KEY');
+      if (!anthropicSleutel) return json({ error: 'er staat geen ANTHROPIC_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
       const body = await request.text();
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': env.ANTHROPIC_KEY,
+          'x-api-key': anthropicSleutel,
           'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01',
           ...(request.headers.get('anthropic-beta') ? { 'anthropic-beta': request.headers.get('anthropic-beta') } : {})
         },
@@ -1718,9 +1974,10 @@ export default {
     if (path.startsWith('/v1/')) oaPath = path.slice(1);
     else if (path.startsWith('/openai/')) oaPath = path.slice('/openai/'.length);
     if (oaPath !== null) {
-      if (!env.OPENAI_KEY) return json({ error: 'OPENAI_KEY secret ontbreekt op deze worker' }, 500);
+      const openaiSleutel = await sleutelVan(env, 'OPENAI_KEY');
+      if (!openaiSleutel) return json({ error: 'er staat geen OPENAI_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
       const target = oaPath.startsWith('v1/') ? ('https://api.openai.com/' + oaPath) : ('https://api.openai.com/v1/' + oaPath);
-      const headers = { 'Authorization': 'Bearer ' + env.OPENAI_KEY };
+      const headers = { 'Authorization': 'Bearer ' + openaiSleutel };
       const ct = request.headers.get('content-type');
       if (ct) headers['Content-Type'] = ct;
       let body;

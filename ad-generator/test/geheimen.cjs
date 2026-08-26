@@ -80,6 +80,13 @@ function zonderBase64(t) {
   return t.replace(/data:[a-z0-9.+/-]+;base64,[A-Za-z0-9+/=\s]+/gi, 'data:<beeld>');
 }
 
+/* Commentaar weg, regelaantal intact. Een controle die naar code zoekt hoort
+   niet te struikelen over een zin die uitlegt waarom die code er niet staat. */
+function zonderCommentaar(t) {
+  return t.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
+          .replace(/\/\/[^\n]*/g, '');
+}
+
 function bestanden(dir, uit) {
   uit = uit || [];
   let namen;
@@ -149,6 +156,40 @@ check('en geen kluispaneel in de interface', /id="vault-(pw|open|locked|openai|a
    en de kwaliteit. Alleen de sleutels zijn eruit. */
 check('het instellingenpaneel staat er nog wel',
   /id="settings-panel"/.test(html) && /Anthropic \(concept-generatie\)/.test(html), true);
+
+console.log('\n  en het nieuwe sleutelmenu slaat niets op in de browser');
+/* Het adminmenu vervangt de kluis, en de verleiding is dezelfde: even
+   onthouden wat er getypt is, "voor het gemak". Dat is precies hoe de vorige
+   kluis ontstond. Dus: geen opslag, geen globale variabele, geen dataset. */
+const menu = fs.readFileSync(
+  path.join(WORTEL, 'ad-generator', 'app', 'js', '53-sleutelbeheer.js'), 'utf8');
+/* Naar de code kijken en niet naar de uitleg erboven. Zonder dit valt deze
+   controle over de zin waarin staat dat er niets naar localStorage gaat --
+   rood op je eigen documentatie is de snelste manier om een test te leren
+   negeren. */
+const menuCode = zonderCommentaar(menu);
+check('geen localStorage of sessionStorage',
+  /(local|session)Storage/.test(menuCode), false);
+/* De waarde mag alleen in de body van de POST staan en nergens anders heen. */
+check('de waarde gaat alleen naar de worker',
+  (menu.match(/waarde/g) || []).length > 0 && /body: JSON\.stringify\(\{ naam: naam, waarde: waarde \}\)/.test(menu), true);
+/* En het veld wordt leeggemaakt, in beide takken -- ook als het misging. */
+check('het invoerveld wordt na verzending leeggemaakt',
+  (menu.match(/invoer\.value = '';/g) || []).length >= 2, true);
+/* De worker mag de waarde nooit terugsturen, dus het scherm hoort er ook
+   nergens een te verwachten. Een veld met die naam in het antwoord zou
+   betekenen dat iemand het aan die kant heeft toegevoegd. */
+check('het scherm leest geen waarde uit het antwoord',
+  /uit\.waarde|data\.waarde|\.sleutel\b/.test(menu), false);
+
+const werker = fs.readFileSync(
+  path.join(WORTEL, 'platform', 'worker', 'marketing-os.worker.js'), 'utf8');
+/* Het overzicht bouwt op met vaste velden. Zou daar ooit cipher of nonce bij
+   komen "om te debuggen", dan staat de versleutelde sleutel in een browser en
+   is de helft van de bescherming weg. */
+const overzicht = (werker.match(/async function sleutelOverzicht[\s\S]*?\n}/) || [''])[0];
+check('het overzicht geeft geen cipher of nonce terug',
+  /cipher|nonce/.test(overzicht), false);
 
 console.log('\n  en er staat waar ze dan WEL horen');
 /* Een verbod zonder alternatief levert over een half jaar gewoon een nieuwe

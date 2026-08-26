@@ -354,20 +354,33 @@
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
         + '<div style="display:flex;gap:6px;background:#f4f2eb;border:1px solid rgba(215, 179, 89, .18);border-radius:9px;padding:4px;">'
         + '<div id="adm-tab-members" style="padding:7px 14px;cursor:pointer;font-size:12px;border-radius:7px;">Teamleden</div>'
-        + '<div id="adm-tab-log" style="padding:7px 14px;cursor:pointer;font-size:12px;border-radius:7px;">Logboek</div></div>'
+        + '<div id="adm-tab-log" style="padding:7px 14px;cursor:pointer;font-size:12px;border-radius:7px;">Logboek</div>'
+        + '<div id="adm-tab-sleutels" style="padding:7px 14px;cursor:pointer;font-size:12px;border-radius:7px;">Sleutels</div></div>'
         + '<div id="ws-admin-close" style="cursor:pointer;color:#504b3f;font-size:22px;line-height:1;padding:2px 6px;">&times;</div></div>'
         + '<div id="ws-admin-body" style="font-size:13px;color:#63583e;max-height:62vh;overflow:auto;">Laden...</div></div>';
       document.body.appendChild(o);
       document.getElementById('ws-admin-close').onclick=function(){ _rm('ws-admin'); };
       o.addEventListener('click',function(e){ if(e.target===o) _rm('ws-admin'); });
       var tm=document.getElementById('adm-tab-members'), tl=document.getElementById('adm-tab-log');
+      var ts=document.getElementById('adm-tab-sleutels');
       function setTab(which){
-        tm.style.background=which==='members'?'#c08a4a':'transparent'; tm.style.color=which==='members'?'#1c1109':'#9a9283';
-        tl.style.background=which==='log'?'#c08a4a':'transparent'; tl.style.color=which==='log'?'#1c1109':'#9a9283';
-        if(which==='members') renderAdminList(); else renderActivityLog();
+        [[tm,'members'],[tl,'log'],[ts,'sleutels']].forEach(function(paar){
+          if(!paar[0]) return;
+          var aan = which===paar[1];
+          paar[0].style.background = aan?'#c08a4a':'transparent';
+          paar[0].style.color = aan?'#1c1109':'#9a9283';
+        });
+        if(which==='members') renderAdminList();
+        else if(which==='log') renderActivityLog();
+        /* De sleutels staan in js/53. Bestaat dat bestand om wat voor reden
+           dan ook niet, dan hoort er een zin te staan in plaats van een leeg
+           vak dat eruitziet alsof hij nog laadt. */
+        else if(typeof window.sleutelPaneel==='function') window.sleutelPaneel(document.getElementById('ws-admin-body'));
+        else document.getElementById('ws-admin-body').textContent='Sleutelbeheer is niet geladen.';
       }
       tm.onclick=function(){ setTab('members'); };
       tl.onclick=function(){ setTab('log'); };
+      if(ts) ts.onclick=function(){ setTab('sleutels'); };
       setTab('members');
     }
     function _escAdm(s){ return (s||'').replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
