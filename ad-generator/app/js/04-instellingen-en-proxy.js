@@ -43,41 +43,23 @@ async function copyProxyCmd(elId, btn) {
   });
 });
 
-const VAULT_PASSWORD = 'WellgroupADS';
-const VAULT_KEYS = { openai: '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', anthropic: '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' };
-function toggleVaultPw(btn){
-  const i = document.getElementById('vault-pw'); if (!i) return;
-  const show = i.type === 'password';
-  i.type = show ? 'text' : 'password';
-  if (btn) btn.classList.toggle('on', show);
-  i.focus();
-}
-function unlockVault(){
-  const pw = (document.getElementById('vault-pw').value || '');
-  if (pw !== VAULT_PASSWORD) { toast('Onjuist wachtwoord', true); return; }
-  document.getElementById('vault-openai').textContent = VAULT_KEYS.openai;
-  document.getElementById('vault-anthropic').textContent = VAULT_KEYS.anthropic;
-  document.getElementById('vault-locked').style.display = 'none';
-  document.getElementById('vault-open').style.display = 'block';
-  document.getElementById('vault-pw').value = '';
-}
-function lockVault(){
-  document.getElementById('vault-open').style.display = 'none';
-  document.getElementById('vault-locked').style.display = 'block';
-  document.getElementById('vault-openai').textContent = '';
-  document.getElementById('vault-anthropic').textContent = '';
-}
-function copyVaultKey(which, btn){
-  navigator.clipboard.writeText(VAULT_KEYS[which]);
-  if (btn){ const o = btn.textContent; btn.textContent = 'Gekopieerd'; setTimeout(function(){ btn.textContent = o; }, 1500); }
-}
-function useVaultKeys(){
-  [['anthropic-key', VAULT_KEYS.anthropic], ['openai-key', VAULT_KEYS.openai]].forEach(function(pair){
-    const el = document.getElementById(pair[0]);
-    if (el){ el.value = pair[1]; el.dispatchEvent(new Event('input', { bubbles: true })); }
-  });
-  toast('API-keys ingevuld en bewaard');
-}
+/* Hier stond een "kluis": beide team-API-sleutels letterlijk in deze
+   broncode, achter een wachtwoord dat er drie regels boven ook in stond.
+   Dat wachtwoord beschermde niets -- dit bestand gaat naar elke browser die
+   de console opent, dus iedereen die de bron bekijkt las beide sleutels mee.
+
+   Zo zijn ze ook weggelekt: toen de repo gedeeld werd vonden de scanners van
+   Anthropic en OpenAI ze en trokken ze allebei automatisch in. De console
+   meldde daarna "API key is invalid" terwijl er ogenschijnlijk niets mis was.
+
+   De sleutels horen op de proxy en nergens anders: als Cloudflare Worker
+   secret op marketing-ads (npx wrangler secret put ANTHROPIC_KEY / OPENAI_KEY).
+   De browser krijgt ze nooit te zien -- hij praat met de worker, en die zet
+   de sleutel er aan de andere kant pas op. Vandaar "Anthropic via teamserver"
+   in de statusbalk in plaats van een sleutelveld.
+
+   Zet hier dus nooit opnieuw een sleutel neer. test/geheimen.cjs faalt als
+   het toch gebeurt. */
 
 function updateApiStatus() {
   // Teamserver-modus: de sleutels staan op de proxy (Cloudflare Worker), niet in

@@ -136,37 +136,6 @@
       <span class="chevron">▾</span>
     </div>
     <div class="settings-body">
-      <div class="settings-section vault-section">
-        <h4>Team API-keys <span class="label-hint">wachtwoord vereist</span></h4>
-        <div id="vault-locked">
-          <div class="field">
-            <label class="label">Wachtwoord</label>
-            <div class="pw-wrap">
-              <input type="password" id="vault-pw" placeholder="Wachtwoord" autocomplete="off" onkeydown="if(event.key==='Enter')unlockVault()">
-              <button type="button" class="pw-eye" id="vault-pw-eye" onclick="toggleVaultPw(this)" title="Toon of verberg wachtwoord" aria-label="Toon of verberg wachtwoord">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </div>
-          <button class="btn btn-small" onclick="unlockVault()">Ontgrendel</button>
-        </div>
-        <div id="vault-open" style="display:none;">
-          <div class="field">
-            <label class="label">ChatGPT / OpenAI</label>
-            <div class="vault-key" id="vault-openai"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('openai', this)">Kopieer</button>
-          </div>
-          <div class="field">
-            <label class="label">Claude / Anthropic</label>
-            <div class="vault-key" id="vault-anthropic"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('anthropic', this)">Kopieer</button>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-            <button class="btn btn-small" onclick="useVaultKeys()">Vul deze keys in &amp; bewaar</button>
-            <button class="btn btn-small btn-ghost" onclick="lockVault()">Vergrendel</button>
-          </div>
-        </div>
-      </div>
       <div class="settings-section">
         <h4>Anthropic (concept-generatie)</h4>
         <div class="field">
