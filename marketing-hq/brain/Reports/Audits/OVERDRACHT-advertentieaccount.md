@@ -108,6 +108,56 @@ Laatste 30 dagen, op advertentieniveau:
 de spend. Dat is het bezit dat hier op het spel staat, niet de campagnehuls.
 `WS-034 - 3 - ASC+` deed €90 zonder één aankoop.
 
+### Herstelgegevens: de creatives leven nog
+
+*Vastgelegd 28 augustus, nadat bleek dat dearchiveren niet kan.*
+
+Ads Manager toont de campagne onder het filter **"Verwijderd"**, niet
+"Gearchiveerd". Bewerken is geblokkeerd. Een kopie op campagneniveau levert een
+**lege huls**: Meta neemt verwijderde advertentiesets en advertenties niet mee.
+
+**Maar de creatives zelf staan nog op `ACTIVE`.** Die zijn niet verwijderd en
+kunnen worden hergebruikt. Bouw de winnaars terug via **"Bestaande post
+gebruiken"** met onderstaande post-ID's, dan komen de opgebouwde likes, reacties
+en shares mee. Bouw je op vanaf de losse video, dan begin je op nul social proof.
+
+| Advertentie | Spend | ROAS | Aank. | Post-ID (gebruik deze) | Creative-ID | Video-ID |
+|---|---|---|---|---|---|---|
+| **WS - 103 - 2 - New Vid** | €509,50 | **2,91** | **23** | `100135282880333_862711533277634` | `856554463639690` | `786875607744514` |
+| WS - 138 - 2 - Copy | €74,87 | 2,74 | 4 | `100135282880333_903085635906890` | `915611068263880` | `756311050569792` |
+| WS - 110 - 2 - New Vid | €15,43 | 2,79 | 1 | `100135282880333_866988839516570` | `2432295177213391` | `4173843352945712` |
+
+Alle drie draaien dezelfde boodschap in een andere montage:
+
+- **Koptekst:** Geen sneetjes. Geen stress.
+- **Knop:** `SHOP_NOW`
+- **Primaire tekst:** "Je groom routine zou geen risico mogen voelen. Heb je ooit
+  spanning gevoeld bij het trimmen van gevoelige zones? Met de Groom Guard is die
+  angst verleden tijd. Dankzij de Skin Safe mesjes trim je zonder snijwondjes of
+  irritatie. Gewoon comfortabel, elke keer weer! 😌"
+
+Instagram-media-ID's, voor als de plaatsing apart gezet moet worden:
+`18109317439653197`, `18411776020127410`, `18013654529813187`.
+
+Begin met alleen WS - 103. Die leverde 74% van de aankopen, dus de andere vijftien
+advertenties zijn niet nodig om weer te draaien.
+
+### Opbouw van de vervangende campagne
+
+Vul de lege kopie in plaats van hem weg te gooien:
+
+| | |
+|---|---|
+| Budget | **€70 per dag**, CBO, niet €100 |
+| Doel | `OUTCOME_SALES` |
+| Optimalisatie | **aankoop via de pixel**, niet `VALUE` |
+| Attributie | **`1d_view_7d_click_1d_ev`** |
+| Targeting | Breed NL/BE, geen interesses |
+| Advertentie | Bestaande post `100135282880333_862711533277634` |
+
+De laatste zeven dagen vóór het archiveren deed de campagne €395,08 op **ROAS
+2,82** met 17 aankopen en een CPA van €23,24. Dat is de lat.
+
 ### Advies bij heractiveren
 
 De campagne is gearchiveerd, niet vernietigd. Alles staat er nog: vijf adsets,
