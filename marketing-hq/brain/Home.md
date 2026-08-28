@@ -4,6 +4,13 @@
 > Obsidian. De agents werken deze notities zelf bij; de operationele staat
 > leeft in Supabase (`marketing_hq`).
 
+> [!important] Werk je aan het advertentieaccount?
+> Lees eerst
+> [[Reports/Audits/OVERDRACHT-advertentieaccount|de overdracht]]
+> (bijgewerkt 24 aug 2026). Daarin staan de actuele stand, de bevestigde
+> break-even-cijfers, de openstaande acties met campagne- en adset-ID's, en
+> de afspraken over wat je wel en niet mag aanraken.
+
 ## Vandaag — 27 juli 2026
 - ↗ **GroomGuard-test hersteld:** `001 – CBO – GroomGuard – 23-07` deed
   gisteren **1,39** (was 0,56). Acute bloeden gestopt; approval #3 gaat van
