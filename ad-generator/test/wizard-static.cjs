@@ -1404,7 +1404,7 @@ const VULLEN = `
       });
       var pan = document.querySelector('.wg-drill-panel');
       var paneelDonker = pan ? lum(getComputedStyle(pan).backgroundColor) < 0.05 : false;
-      var kop = document.querySelector('.lib-matrix.open > h4');
+      var kop = document.querySelector('.dos-kaart > h4');
       var kopGoud = kop ? getComputedStyle(kop).color : '';
       var drill = document.getElementById('wg-drill'); if (drill) drill.remove();
     } catch (e) { var paneelDonker = false, kopGoud = 'fout: ' + e.message; }

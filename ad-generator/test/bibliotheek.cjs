@@ -152,7 +152,14 @@ function serve(root) {
       kaartKop: tekst.indexOf('Kop') !== -1,
       sophChip: tekst.indexOf('Soph: s3') !== -1,
       awareChip: tekst.indexOf('Aware: solution') !== -1,
-      panNaam: (pan.querySelector('.lib-adnaam code') || {}).textContent || '',
+      /* De naam staat nu op het matrix-tabblad van het dossier in plaats van
+         los in het paneel. Zelfde informatie, andere plek: het paneel is
+         herbouwd rond kop, oordeel, kerninformatie en drie tabbladen. */
+      panNaam: (function () {
+        var t = pan.querySelector('.dos-tabs button[data-tab="matrix"]');
+        if (t) t.click();
+        return (pan.querySelector('.dos-adnaam') || {}).textContent || '';
+      })(),
       panKnop: !!pan.querySelector('button[data-action="copy-name"]'),
       panHoek: pan.textContent.indexOf('De scheerbeurt zonder nabranden') !== -1,
       panVerschil: pan.textContent.indexOf('New mechanism') !== -1,
@@ -309,7 +316,9 @@ function serve(root) {
     }];
     renderLibrary();
     wgOpenLibraryItem('oud1');
-    const c = document.querySelector('.wg-drill-panel .lib-adnaam code');
+    var t = document.querySelector('.wg-drill-panel .dos-tabs button[data-tab="matrix"]');
+    if (t) t.click();
+    const c = document.querySelector('.wg-drill-panel .dos-adnaam');
     return c ? c.textContent : null;
   });
   check('het oude item toont een berekende naam met de hoek erin',
@@ -352,13 +361,23 @@ function serve(root) {
       panHoek: panTekst.indexOf('Veilig daar beneden') !== -1,
       panVerschil: panTekst.indexOf('New mechanism') !== -1,
       panBestemming: panTekst.indexOf('Advertorial') !== -1,
-      panNaam: (pan.querySelector('.lib-adnaam code') || {}).textContent || '',
+      /* Rory's redenering staat op het overzichtstabblad, de matrix en de
+         advertentienaam op het matrixtabblad. Dat is de herbouw: alles staat
+         er nog, verdeeld over drie tabbladen in plaats van onder elkaar. */
       panVisual: panTekst.indexOf('Een macro van de kop') !== -1,
       panHypothese: panTekst.indexOf('Dit werkt omdat') !== -1,
-      panMatrix: !!pan.querySelector('[data-matrix-field="hook"]'),
-      panMatrixWaarde: (pan.querySelector('[data-matrix-field="hook"]') || {}).value,
       panUitklappers: pan.querySelectorAll('details').length,
-      panChips: pan.querySelectorAll('.lib-chip').length
+      panKern: pan.querySelectorAll('.dos-kern > div').length,
+      matrix: (function () {
+        var t = pan.querySelector('.dos-tabs button[data-tab="matrix"]');
+        if (t) t.click();
+        var blok = pan.querySelector('.dos-veld[data-veld="hook"] p');
+        return {
+          naam: (pan.querySelector('.dos-adnaam') || {}).textContent || '',
+          er: !!blok,
+          waarde: blok ? blok.textContent : ''
+        };
+      })()
     };
   });
   check('de kaart heeft geen uitklappers meer', paneel.kaartUitklappers, 0);
@@ -366,12 +385,15 @@ function serve(root) {
   check('het paneel toont de hoek', paneel.panHoek, true);
   check('het soort verschil', paneel.panVerschil, true);
   check('waar de klik landt', paneel.panBestemming, true);
-  check('de advertentienaam', paneel.panNaam, 'groom-guard_AW-PROB_SO-S4_ANG-veilig_V1_2026-08-20');
+  check('de advertentienaam', paneel.matrix.naam, 'groom-guard_AW-PROB_SO-S4_ANG-veilig_V1_2026-08-20');
   check('de visual en de hypothese', [paneel.panVisual, paneel.panHypothese], [true, true]);
   check('en de scorekaart-matrix met wat er al ingevuld was',
-    [paneel.panMatrix, paneel.panMatrixWaarde], [true, 'De bestaande hook']);
+    [paneel.matrix.er, paneel.matrix.waarde], [true, 'De bestaande hook']);
   check('in het paneel staat alles open, niets weggeklapt', paneel.panUitklappers, 0);
-  check('de chips staan er ook', paneel.panChips > 0, true);
+  /* De chips zijn vervangen door de kerninformatie: een sleutel-waardelijst
+     leest sneller dan een rij chips, en een leeg veld valt op in plaats van
+     weg. Dezelfde velden, andere vorm. */
+  check('de kerninformatie staat er', paneel.panKern > 0, true);
 
   console.log('\n  een tweede creative vervangt het paneel, hij stapelt niet');
   /* Gevonden doordat de test het verkeerde paneel las: het paneel werd
@@ -414,9 +436,17 @@ function serve(root) {
     }];
     renderLibrary();
     wgOpenLibraryItem('p1');
-    const veld = document.querySelector('.wg-drill-panel [data-matrix-field="notes"]');
+    /* Het notitieveld staat op het matrixtabblad, en het is een blok waarin je
+       typt in plaats van een tekstvak met een schuifbalk -- dat laatste was
+       precies het probleem: je scrolde binnen een vakje om een zin te lezen. */
+    const mtab = document.querySelector('.wg-drill-panel .dos-tabs button[data-tab="matrix"]');
+    if (mtab) mtab.click();
+    const veld = document.querySelector('.wg-drill-panel p[data-matrix-field="notes"]');
     if (!veld) return { gelukt: false };
-    veld.value = 'Deze liep op 2,4 ROAS';
+    /* Eerst focus: een leeg blok toont een uitnodiging, en die hoort weg te
+       zijn zodra je begint te typen. */
+    veld.dispatchEvent(new Event('focus', { bubbles: true }));
+    veld.textContent = 'Deze liep op 2,4 ROAS';
     veld.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 700));
     const it = state.library.find(x => x.id === 'p1');
@@ -448,14 +478,34 @@ function serve(root) {
     const af = nickAfgeleid(it);
     renderLibrary(); wgOpenLibraryItem('mx');
     const pan = document.querySelector('.wg-drill-panel');
-    const veld = k => (pan.querySelector('[data-matrix-field="' + k + '"]') || {}).value;
+    /* De waarde bij de bron: nickVeld is wat de matrix toont, ongeacht in
+       welke vorm het paneel hem laat zien. Zo blijft deze controle over het
+       AFLEIDEN gaan en niet over de opmaak eromheen. */
+    const veld = k => nickVeld(it, k).waarde;
+    /* En hoe hij in het paneel terechtkomt. De vier tekstvelden staan op het
+       matrixtabblad als leesbare blokken; sophistication en awareness staan
+       in de kerninformatie, want dat zijn posities die je leest en niet
+       velden die je typt. */
+    const mtab = pan.querySelector('.dos-tabs button[data-tab="matrix"]');
+    if (mtab) mtab.click();
+    const blok = k => {
+      const el = pan.querySelector('.dos-veld[data-veld="' + k + '"] p');
+      return el ? el.textContent : undefined;
+    };
+    const kern = label => {
+      const rijen = [].slice.call(pan.querySelectorAll('.dos-kern > div'));
+      const r = rijen.filter(x => x.querySelector('dt').textContent === label)[0];
+      return r ? r.querySelector('dd').textContent : undefined;
+    };
     return {
       af: af,
       gaten: nickGaten(it),
       hook: veld('hook'), proof: veld('proof'), avatar: veld('avatar'),
       cow: veld('purplecow'), soph: veld('sophistication'), aware: veld('awareness'),
       score: veld('score'), notes: veld('notes'),
-      afgeleideLabels: pan.querySelectorAll('.lib-matrix-grid label.af').length,
+      blokHook: blok('hook'), blokNotes: blok('notes'),
+      kernSoph: kern('Sophistication'), kernAware: kern('Awareness'),
+      afgeleideLabels: pan.querySelectorAll('.dos-veld.af').length,
       knop: !!pan.querySelector('button[data-action="nick-analyse"]'),
       knopTekst: (pan.querySelector('button[data-action="nick-analyse"]') || {}).textContent
     };
@@ -468,15 +518,28 @@ function serve(root) {
   check('Purple Cow is de differentiatie plus het mechanisme',
     matrix.cow, 'New mechanism · Keramische kop, geen huidcontact');
   check('en beide assen staan er', [matrix.soph, matrix.aware], ['s4', 'solution']);
+  /* In het paneel staan die twee bij de kerninformatie, met hun label en niet
+     hun sleutel: "s4" zegt niemand iets. */
+  check('in het paneel met hun label', [matrix.kernSoph, matrix.kernAware],
+    ['Stage 4 — better mechanism', 'Solution aware']);
+  check('en de hook staat als leesbaar blok in de matrix',
+    matrix.blokHook, 'Veilig daar beneden (contraire stelling)');
   /* Het resultaat is wat er NA de test gebeurde. Daar iets in schrijven zou
      een uitkomst verzinnen die er nog niet is. */
   check('het notitieveld blijft leeg', matrix.notes, '');
   check('en het cijfer ook, want dat valt nergens uit af te leiden', matrix.score, '');
   check('alleen het cijfer is nog een gat', matrix.gaten, ['score']);
-  check('de afgeleide velden zijn als afgeleid gemarkeerd', matrix.afgeleideLabels, 6);
+  /* Vier van de vijf blokken op het matrixtabblad zijn afgeleid; het
+     notitieveld niet, want dat hoort leeg te blijven tot er een resultaat is.
+     Sophistication en awareness staan niet meer als invoerveld maar in de
+     kerninformatie -- die typ je niet, die volgen uit de brief. */
+  check('de afgeleide blokken zijn gemarkeerd', matrix.afgeleideLabels, 4);
   check('en er staat een knop om Nick ernaar te laten kijken', matrix.knop, true);
-  check('met de tekst die je verwacht',
-    (matrix.knopTekst || '').indexOf('Laat Nick Theriot deze creative analyseren') !== -1, true);
+  /* In het dossier heet hij korter: hij staat naast Nicks naam en een knop
+     die zijn eigen context herhaalt leest als een formulier. Op de kaart in
+     de bibliotheek staat de lange tekst nog wel, want daar is geen context. */
+  check('met een tekst die zegt wat hij doet',
+    (matrix.knopTekst || '').indexOf('Laat Nick') !== -1, true);
 
   console.log('\n  wat iemand zelf typte wint van het afgeleide');
   const eigen = await page.evaluate(() => {
@@ -484,8 +547,10 @@ function serve(root) {
     it.matrix = { proof: 'Dit heb ik zelf nagekeken' };
     renderLibrary(); wgOpenLibraryItem('mx');
     const pan = document.querySelector('.wg-drill-panel');
-    const lab = pan.querySelector('[data-matrix-field="proof"]').closest('label');
-    return { waarde: pan.querySelector('[data-matrix-field="proof"]').value,
+    const mtab = pan.querySelector('.dos-tabs button[data-tab="matrix"]');
+    if (mtab) mtab.click();
+    const lab = pan.querySelector('.dos-veld[data-veld="proof"]');
+    return { waarde: pan.querySelector('.dos-veld[data-veld="proof"] p').textContent,
              afgeleid: lab.classList.contains('af') };
   });
   check('het eigen bewijs staat er', eigen.waarde, 'Dit heb ik zelf nagekeken');
@@ -499,10 +564,22 @@ function serve(root) {
                   sophistication: 's4', awareness: 'solution', score: '4' };
     renderLibrary(); wgOpenLibraryItem('mx');
     const pan = document.querySelector('.wg-drill-panel');
-    return { gaten: nickGaten(it), knop: !!pan.querySelector('button[data-action="nick-analyse"]') };
+    const uit = { gaten: nickGaten(it),
+                  metGaten: !!pan.querySelector('button[data-action="nick-analyse"]') };
+    /* De velden zijn vol maar de vier assen zijn nog niet geveld, en dat is
+       een tweede reden om Nick te laten kijken: de matrix beschrijft de
+       creative, het oordeel zegt of hij gaat spenden. Pas als beide er zijn
+       heeft de knop niets meer te doen. */
+    it.matrix.as_strategie = 'sterk'; it.matrix.as_executie = 'sterk';
+    it.matrix.as_bewijs = 'gemiddeld'; it.matrix.as_test = 'sterk';
+    wgOpenLibraryItem('mx');
+    const pan2 = document.querySelector('.wg-drill-panel');
+    uit.metOordeel = !!pan2.querySelector('button[data-action="nick-analyse"]');
+    return uit;
   });
   check('er is niets meer leeg', zonderGaten.gaten, []);
-  check('dus de knop is weg', zonderGaten.knop, false);
+  check('maar zonder oordeel staat de knop er nog', zonderGaten.metGaten, true);
+  check('en met een oordeel erbij is hij weg', zonderGaten.metOordeel, false);
 
   console.log('\n  Nick vult de gaten en niets anders');
   const nick = await page.evaluate(async () => {
@@ -517,8 +594,12 @@ function serve(root) {
     const echt = window.wizCall;
     window.wizCall = function (sys, msgs) {
       gezien.sys = sys; gezien.opdracht = msgs[0].content;
+      /* Nick antwoordt sinds het dossier ook met de vier assen: die worden
+         elke ronde opnieuw geveld, ook als er al een oordeel stond. Een
+         creative die je hebt aangepast verdient een nieuw oordeel. */
       return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
-        score: '4', proof: 'DIT MAG NIET OVERSCHRIJVEN', notes: 'EN DIT AL HELEMAAL NIET'
+        score: '4', proof: 'DIT MAG NIET OVERSCHRIJVEN', notes: 'EN DIT AL HELEMAAL NIET',
+        as_strategie: 'sterk', as_executie: 'sterk', as_bewijs: 'gemiddeld', as_test: 'sterk'
       }) }] });
     };
     await nickAnalyseer('mx');
@@ -526,11 +607,13 @@ function serve(root) {
     const na = state.library.find(x => x.id === 'mx').matrix;
     const pan = document.querySelector('.wg-drill-panel');
     return { score: na.score, proof: na.proof, notes: na.notes, door: na._door,
+             assen: NICK_ASSEN.map(a => na[a.key]),
+             vroegAssen: /ALSO JUDGE THESE FOUR AXES/.test(gezien.opdracht || ''),
              gevraagd: /FILL THESE KEYS: score/.test(gezien.opdracht || ''),
              sysAcht: /eight traits of ads that spend/.test(gezien.sys || ''),
              sysGeenResultaat: /Never invent a result/.test(gezien.sys || ''),
              knopWeg: !pan.querySelector('button[data-action="nick-analyse"]'),
-             veldNa: (pan.querySelector('[data-matrix-field="score"]') || {}).value };
+             veldNa: (pan.querySelector('.dos-cijfer') || {}).textContent };
   });
   check('hij vult het cijfer in', nick.score, '4');
   /* Hij krijgt alleen de gaten te vullen. Zou hij toch meer terugsturen, dan
@@ -540,9 +623,13 @@ function serve(root) {
   check('en raakt het resultaatveld niet aan', nick.notes, undefined);
   check('er staat bij dat het zijn oordeel was', nick.door, 'nick');
   check('de opdracht vroeg alleen om het cijfer', nick.gevraagd, true);
+  check('en vroeg om de vier assen erbij', nick.vroegAssen, true);
+  check('de assen staan in de matrix', nick.assen, ['sterk', 'sterk', 'gemiddeld', 'sterk']);
   check('de opdracht draagt de acht eigenschappen', nick.sysAcht, true);
   check('en verbiedt een verzonnen resultaat', nick.sysGeenResultaat, true);
-  check('het veld in het paneel toont het meteen', nick.veldNa, '4');
+  /* Het cijfer staat nu bovenaan als optelsom naast de vier assen, niet meer
+     als achtste invoerveldje tussen de rest. */
+  check('het cijfer staat meteen in het paneel', nick.veldNa, '4/5');
   check('en de knop is verdwenen want er is niets meer leeg', nick.knopWeg, true);
 
   console.log('');

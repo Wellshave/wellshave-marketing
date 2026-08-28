@@ -300,3 +300,286 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(var(--gold-rgb), .45) !important;
   background: rgba(var(--gold-rgb), .08) !important;
 }
+
+/* ═══ Het creative dossier ═══════════════════════════════════════════════════
+   Het detailscherm van een bewaarde static. Wat er stond was het beeld, de
+   kop, en daaronder het hele dossier plus de matrix onder elkaar geplakt:
+   acht velden met precies hetzelfde gewicht, elk in een tekstvakje van drie
+   regels met zijn eigen schuifbalk. Dan scrol je binnen een vakje om een zin
+   te lezen die je niet aan het bewerken bent.
+
+   Nu: kop met kruimelpad, beeld met zijn variaties, het oordeel per as,
+   kerninformatie, en drie tabbladen. De opbouw volgt de volgorde waarin je
+   ernaar kijkt -- wat is dit, hoe scoort het, en dan pas de details. */
+
+#wiz-inline .dos-inhoud, .dos-inhoud { display: block; }
+.dos-panel .dos-inhoud { margin-top: -4px; }
+
+/* ── Kop ── */
+.dos-kop { margin-bottom: 20px; }
+.dos-koprij { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dos-pil {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border-radius: 999px;
+  border: 1px solid rgba(var(--gold-rgb), .26); background: rgba(0, 0, 0, .3);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--gold);
+}
+/* Hoeveel variaties er bij elkaar horen. Dit stond nergens, terwijl een
+   concept per definitie een ad set van drie is. */
+.dos-pil.set { color: #7fb79a; border-color: rgba(127, 183, 154, .35); }
+.dos-datum { margin-left: auto; font-size: 12px; color: var(--text-faint); }
+.dos-titel {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 500;
+  font-size: clamp(20px, 2.4vw, 27px); line-height: 1.18; color: var(--text);
+  margin: 13px 0 8px; text-wrap: balance;
+}
+.dos-kruimels {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-size: 12.5px; color: var(--text-soft);
+}
+.dos-kruimels i { font-style: normal; color: var(--text-faint); }
+
+/* ── Beeld en variaties ── */
+.dos-lijf { display: grid; gap: 16px; margin-bottom: 18px; }
+@media (min-width: 860px) { .dos-lijf { grid-template-columns: minmax(0, 40%) minmax(0, 1fr); } }
+.dos-beeld {
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(var(--gold-rgb), .14);
+  border-radius: 11px; overflow: hidden; align-self: start;
+}
+.dos-beeld-img { width: 100%; display: block; }
+.dos-geenbeeld {
+  aspect-ratio: 4/5; display: grid; place-items: center;
+  color: var(--text-faint); font-size: 12.5px;
+}
+.dos-strip { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(var(--gold-rgb), .12); }
+.dos-strip button {
+  flex: 1; aspect-ratio: 4/5; padding: 0; overflow: hidden;
+  border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(var(--gold-rgb), .14); background: var(--bg);
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-faint);
+}
+.dos-strip button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dos-strip button[aria-pressed="true"] { border-color: var(--gold); }
+.dos-strip button:not([aria-pressed="true"]) img { opacity: .45; }
+.dos-strip button:hover img { opacity: 1; }
+.dos-strip button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.dos-kolom { display: grid; gap: 14px; align-content: start; }
+.dos-kaart {
+  background: rgba(0, 0, 0, .26); border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 11px; padding: 15px 16px;
+}
+/* !important omdat de Daylight-skin h1 t/m h4 met !important op --ink zet.
+   Zonder gelijke sterkte komen deze kopjes cremekleurig uit en zijn ze niet
+   van de lopende tekst te onderscheiden -- precies wat er eerder met de
+   matrixkop gebeurde. */
+.dos-kaart > h4 {
+  margin: 0 0 11px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--gold) !important; font-weight: 400;
+}
+.dos-lpkop h3, .dos-titel { color: var(--text) !important; }
+.dos-kaartkop {
+  margin: 0 0 11px !important; font-family: 'Fraunces', Georgia, serif !important;
+  font-size: 15px !important; color: var(--text) !important;
+  letter-spacing: 0 !important; text-transform: none !important; font-weight: 500 !important;
+}
+
+/* ── Nicks oordeel ──
+   Vier assen in plaats van een cijfer. Een enkel cijfer verbergt juist welke
+   as zwak is, en dat is het enige waar je iets aan hebt. Het cijfer blijft
+   ernaast staan als optelsom, want daar sorteer je op. */
+.dos-oordeel-kop { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.dos-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  display: grid; place-items: center;
+  font-family: 'Fraunces', serif; color: var(--gold); font-size: 14px;
+}
+.dos-naam { font-family: 'Fraunces', Georgia, serif; color: var(--text); font-size: 15.5px; }
+.dos-cijfer {
+  margin-left: auto; font-family: 'Fraunces', serif; font-size: 22px;
+  color: var(--gold-bright); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.dos-cijfer small {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text-faint); letter-spacing: .08em;
+}
+.dos-oordeel-zin { margin: 0; font-size: 13px; color: var(--text-soft); line-height: 1.55; }
+.dos-oordeel-zin b { color: var(--text); }
+.dos-assen {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 7px; margin-top: 12px;
+}
+.dos-as {
+  border: 1px solid rgba(var(--gold-rgb), .12); border-radius: 8px;
+  padding: 7px 9px; background: rgba(0, 0, 0, .3);
+}
+.dos-as em {
+  display: block; font-style: normal; font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; letter-spacing: .11em; text-transform: uppercase; color: var(--text-faint);
+}
+.dos-as b { display: block; margin-top: 3px; font-size: 13px; font-weight: 600; }
+/* Semantische kleur, met opzet niet goud: goud is het accent van de console
+   en mag niet ook nog "goed" betekenen. */
+.dos-as.sterk b { color: #7fb79a; }
+.dos-as.gemiddeld b { color: #c98f5a; }
+.dos-as.zwak b { color: #c9695a; }
+.dos-as u { display: block; height: 3px; border-radius: 2px; margin-top: 6px; background: rgba(255, 255, 255, .07); text-decoration: none; overflow: hidden; }
+.dos-as u i { display: block; height: 100%; border-radius: 2px; }
+.dos-as.sterk u i { width: 85%; background: #7fb79a; }
+.dos-as.gemiddeld u i { width: 52%; background: #c98f5a; }
+.dos-as.zwak u i { width: 28%; background: #c9695a; }
+
+/* ── Kerninformatie ── */
+.dos-kern { display: grid; gap: 10px; }
+@media (min-width: 560px) { .dos-kern { grid-template-columns: 1fr 1fr; gap: 10px 22px; } }
+.dos-kern > div { display: grid; grid-template-columns: 104px 1fr; gap: 9px; align-items: baseline; font-size: 13px; }
+.dos-kern dt {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.dos-kern dd { margin: 0; color: var(--text); line-height: 1.45; }
+.dos-kern dd.leeg { color: var(--text-faint); font-style: italic; }
+
+/* ── Tabbladen ──
+   Drie, niet zeven: een tabblad dat leeg opengaat leert je binnen een week om
+   niet meer te klikken, en dan klik je ook niet meer op de tabbladen die wel
+   iets hebben. */
+.dos-tabs {
+  display: flex; gap: 2px; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(var(--gold-rgb), .13); margin-bottom: 18px;
+}
+.dos-tabs button {
+  background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  padding: 11px 14px; color: var(--text-faint); font-family: inherit; font-size: 13.5px;
+}
+.dos-tabs button:hover { color: var(--text-soft); }
+.dos-tabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+.dos-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.dos-paneel[hidden] { display: none; }
+
+/* ── Overzicht ── */
+.dos-drie { display: grid; gap: 13px; }
+@media (min-width: 780px) { .dos-drie { grid-template-columns: repeat(3, 1fr); } }
+.dos-drie ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dos-drie li {
+  display: grid; grid-template-columns: 14px 1fr; gap: 8px;
+  font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.dos-drie li::before { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.dos-goed li::before { content: "+"; color: #7fb79a; }
+.dos-beter li::before { content: "!"; color: #c98f5a; }
+.dos-stap p { margin: 0 0 12px; font-size: 13px; color: var(--text); line-height: 1.55; }
+.dos-leegtekst { margin: 0 0 12px; font-size: 12.5px; color: var(--text-faint); line-height: 1.55; }
+.dos-knop {
+  display: inline-block; background: var(--gold); color: #14100a; border: 0;
+  border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12.5px;
+  font-weight: 600; cursor: pointer;
+}
+.dos-knop:hover { background: var(--gold-bright); }
+.dos-knop:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 3px; }
+.dos-knop.stil { background: none; border: 1px solid rgba(var(--gold-rgb), .26); color: var(--gold); }
+.dos-knop.stil:hover { background: rgba(var(--gold-rgb), .08); }
+
+/* ── Landingspagina ── */
+.dos-lpkop { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.dos-lpkop h3 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 17px; color: var(--text); font-weight: 500; }
+.dos-soort {
+  display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  color: var(--gold-bright); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+}
+.dos-eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--gold); margin: 0 0 10px;
+}
+.dos-waarom { font-size: 13px; color: var(--text-soft); margin: 0 0 16px; line-height: 1.6; }
+.dos-moet { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 7px; }
+.dos-moet li {
+  display: grid; grid-template-columns: 15px 1fr; gap: 9px;
+  font-size: 13px; color: var(--text); line-height: 1.55;
+}
+.dos-moet li::before {
+  content: ""; width: 6px; height: 6px; margin-top: 7px; border-radius: 1px;
+  background: var(--gold); transform: rotate(45deg);
+}
+/* Het punt waarop deze creative zwak scoorde. Amber, want het is geen fout
+   maar een opdracht -- dit is wat de pagina moet dichten. */
+.dos-moet li.gat { color: #c98f5a; }
+.dos-moet li.gat::before { background: #c98f5a; }
+.dos-promptvak {
+  position: relative; background: rgba(0, 0, 0, .34);
+  border: 1px solid rgba(var(--gold-rgb), .13); border-radius: 10px;
+}
+.dos-promptvak pre {
+  margin: 0; padding: 15px 17px; max-height: 300px; overflow: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.7;
+  color: var(--text-soft); white-space: pre-wrap; word-break: break-word;
+}
+.dos-kopieer {
+  position: absolute; top: 9px; right: 9px;
+  background: var(--bg-elevated); border: 1px solid rgba(var(--gold-rgb), .26);
+  border-radius: 7px; color: var(--gold); font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 6px 11px; cursor: pointer;
+}
+.dos-kopieer:hover { background: var(--gold); color: #14100a; }
+.dos-kopieer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ── Matrix ──
+   Leesbare blokken in plaats van tekstvakjes met een schuifbalk. Klik erin om
+   te wijzigen. */
+.dos-velden {
+  display: grid; gap: 1px; background: rgba(var(--gold-rgb), .13);
+  border: 1px solid rgba(var(--gold-rgb), .13); border-radius: 11px; overflow: hidden;
+}
+@media (min-width: 720px) { .dos-velden { grid-template-columns: 1fr 1fr; } }
+.dos-veld { background: #100e0b; padding: 14px 16px; }
+.dos-veldkop { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.dos-veldkop b {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--gold); font-weight: 400;
+}
+.dos-veld p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text); }
+.dos-veld p[contenteditable] { cursor: text; border-radius: 4px; }
+.dos-veld p[contenteditable]:hover { box-shadow: 0 0 0 1px rgba(var(--gold-rgb), .13); }
+.dos-veld p[contenteditable]:focus { outline: 2px solid var(--gold); outline-offset: 4px; }
+.dos-veld.leeg p { color: var(--text-faint); font-style: italic; }
+/* Afgeleid: een streep in de kantlijn. Dit stond er wel maar was niet te
+   zien, en dan weet je niet wat een mens heeft nagekeken. */
+.dos-veld.af { box-shadow: inset 2px 0 0 #c98f5a; }
+.dos-merk {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: .1em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  border: 1px solid rgba(201, 143, 90, .4); color: #c98f5a; white-space: nowrap;
+}
+.dos-merk.vast { border-color: rgba(127, 183, 154, .4); color: #7fb79a; }
+.dos-bevestig {
+  margin-left: auto; background: none; border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 6px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 8px; cursor: pointer;
+}
+.dos-bevestig:hover { border-color: rgba(var(--gold-rgb), .35); color: var(--gold); }
+.dos-bevestig:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.dos-adnaam {
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+  font-size: 11px !important; color: var(--text-soft) !important; word-break: break-all;
+}
+.dos-hint { font-size: 11.5px; color: var(--text-faint); margin: 11px 0 0; line-height: 1.55; }
+
+/* Rory's redenering bij deze variatie, boven de drie kaarten. Het is context
+   en geen oordeel, dus het staat er rustiger bij dan de kaarten eronder. */
+.dos-redenering { margin-bottom: 14px; }
+.dos-redenering .lib-extra.open {
+  background: rgba(0, 0, 0, .26); border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 11px; padding: 15px 16px;
+}
+.dos-redenering .lib-extra.open > h4 {
+  margin: 0 0 10px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--gold) !important; font-weight: 400;
+}
+.dos-redenering .lib-extra-body { display: grid; gap: 9px; font-size: 13px; line-height: 1.6; color: var(--text-soft); }
+.dos-redenering .lib-extra-body b { color: var(--gold-bright); font-weight: 600; }
