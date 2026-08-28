@@ -93,9 +93,25 @@ vergelijkbare spend, want bij 3 tot 4 aankopen per dag is één dag ruis. De
 campagne is afgebroken vóór het beoordeelmoment van 31 augustus. De daling is
 dus **suggestief, niet bewezen**.
 
+### Eén advertentie draagt de hele campagne
+
+Laatste 30 dagen, op advertentieniveau:
+
+| Advertentie | ID | Spend | ROAS | Aank. | CPA | CTR |
+|---|---|---|---|---|---|---|
+| **WS - 103 - 2 - New Vid** | `120241779363400577` | €509,50 | **2,91** | **23** | €22,15 | 2,52% |
+| WS - 138 - 2 - Copy | `120244205448260577` | €74,87 | 2,74 | 4 | €18,72 | 1,88% |
+| WS - 138 - 2 - Copy (dubbel) | `120247010758200577` | €38,09 | 1,89 | 1 | €38,09 | 1,78% |
+| WS-034 - 3 - ASC+ | `120236718822480577` | €90,06 | **0,00** | 0 | — | 2,08% |
+
+`WS - 103 - 2 - New Vid` levert **23 van de 31 aankopen**, oftewel 74%, en 64% van
+de spend. Dat is het bezit dat hier op het spel staat, niet de campagnehuls.
+`WS-034 - 3 - ASC+` deed €90 zonder één aankoop.
+
 ### Advies bij heractiveren
 
-Gearchiveerde campagnes zijn in Ads Manager terug te halen. Aanpak:
+De campagne is gearchiveerd, niet vernietigd. Alles staat er nog: vijf adsets,
+ruim dertig advertenties, de volledige historie. Aanpak:
 
 1. **Vraag Dustin eerst of het opzet was.** Als er een reden was (voorraad,
    marge, retouren) weegt die zwaarder dan deze cijfers.
@@ -104,9 +120,21 @@ Gearchiveerde campagnes zijn in Ads Manager terug te halen. Aanpak:
    ruimte om volgens de methode te verhogen.
 3. **Zet "Winning Videos TOFU - Old Vids" (`120236714475070577`) niet mee aan.**
    €103 spend, 1 aankoop, ROAS 0,52. Dat is de enige adset die geld kostte.
-4. **Daarna 7 dagen niet aanraken**, dan pas de volgende stap. Reken op een paar
+4. **Let op de einddatum.** `stop_time` staat op **26 augustus 08:24**. Die
+   ligt in het verleden, dus zolang die blijft staan levert de campagne
+   niets, ook niet als hij op actief staat. Haal de einddatum weg of zet hem
+   vooruit. Dit is de meest waarschijnlijke reden dat een heractivering
+   "lukt" maar er toch niets gebeurt.
+5. **Daarna 7 dagen niet aanraken**, dan pas de volgende stap. Reken op een paar
    dagen wobbel, want na twee dagen stilstand gaat de campagne opnieuw de
    leerfase in. Twee dagen uit is wel veel milder dan het FlexGuard-geval.
+
+**Als dearchiveren niet lukt.** Het activiteitenlogboek noemt de actie "Deleted"
+terwijl het object zelf op `ARCHIVED` staat. Verschijnt de campagne in Ads
+Manager alleen onder het filter "Verwijderd" en niet onder "Gearchiveerd", dan
+is heractiveren niet mogelijk en moet je opnieuw opbouwen. Bouw dan **rond
+`WS - 103 - 2 - New Vid` (`120241779363400577`)**, want daar zit de prestatie in.
+De campagnehuls is vervangbaar, die ene video niet.
 
 **Kosten van het stilstaan:** ongeveer €100 per dag aan spend op ROAS ~2,4, dus
 grofweg €240 omzet per dag die niet gemaakt wordt. Sinds 26 augustus loopt dat op.
