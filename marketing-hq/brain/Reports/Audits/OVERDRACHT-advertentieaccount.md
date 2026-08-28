@@ -1,6 +1,6 @@
 # 🔄 Overdracht — Wellshave® advertentieaccount
 
-*Laatst bijgewerkt: maandag 24 augustus 2026, 09:40 UTC · account `242238038391551`*
+*Laatst bijgewerkt: vrijdag 28 augustus 2026 · account `242238038391551`*
 
 > **Lees dit eerst als je een nieuwe sessie start op dit advertentieaccount.**
 > Het volledige auditrapport staat in
@@ -9,25 +9,190 @@
 
 ---
 
-## 🔴 Direct uitzoeken: ASC+ GroomGuard is verdwenen uit de API
+## ✅ Opgelost: ASC+ GroomGuard bestaat nog, maar is gearchiveerd
 
-Campagne `120236714475060577` (`⚫️ ASC+ - Scale Campaign - GroomGuard`) kwam
-op 24 augustus rond 08:00 UTC nog gewoon terug met €438 spend over 7 dagen op
-**ROAS 2,88**. Dustin heeft die dag het dagbudget naar €100 gezet.
+*Gecontroleerd 28 augustus 2026.*
 
-Rond 09:30 UTC komt de campagne **niet meer terug** uit `ads_get_ad_entities`,
-ook niet met een filter direct op het campagne-ID, en op adset-niveau met
-`campaign_id` filter komt een lege lijst terug. Het activiteitenlogboek voor
-dat object geeft eveneens niets.
+Campagne `120236714475060577` (`⚫️ ASC+ - Scale Campaign - GroomGuard`) **bestaat
+nog steeds**. Status: `ARCHIVED`, zowel `status` als `effective_status`. Alle
+historische data is intact: **€19.948,58 totale spend op ROAS 2,15** over de
+looptijd.
 
-**Voorbehoud:** afwezigheid in de API is geen bewijs van verwijdering. Meta
-verbergt objecten met status DELETED of ARCHIVED voor deze reads, en
-`ads_get_ad_entities` geeft sowieso een gelimiteerde subset terug. Het kan ook
-een archivering of een tijdelijke API-hapering zijn.
+**Wat er werkelijk is gebeurd.** Uit het activiteitenlogboek:
 
-**Actie:** controleer in Ads Manager of deze campagne nog bestaat. Dit was de
-best presterende actieve campagne van het account. Als hij echt weg is, is er
-ongeveer €100 per dag op de hoogste ROAS uit het account verdwenen.
+> Dustin Gibson, **26 augustus 08:16**, via Power Editor.
+> Campagnestatus `Active` → `Deleted` (`run_status` 1 → 3).
+
+De campagne is niet op 24 augustus verdwenen. Hij liep gewoon door, kreeg op
+24 augustus om 11:43 nog een budgetverhoging, en is pas **twee dagen later**
+uitgezet. De waarneming van 24 augustus was een leesartefact, geen gebeurtenis.
+
+**Vermoedelijk per ongeluk meegenomen.** Tussen 08:16 en 08:17 op 26 augustus
+zijn in één handeling **tien campagnes** op Deleted gezet. Negen daarvan stonden
+al op `Inactive`. ASC+ GroomGuard was **de enige actieve campagne in die selectie**.
+Dat patroon past bij een opruimactie waarbij een lopende campagne mee is
+geselecteerd, niet bij een bewust besluit. Dit is het eerst te verifiëren punt
+bij Dustin: was dit bedoeld?
+
+**Waarom de API hem leek te verbergen.** `ads_get_ad_entities` sluit gearchiveerde
+en verwijderde objecten standaard uit, en het `object_id`-filter op het
+activiteitenlogboek geeft niets terug voor een gearchiveerd object. Beide leken
+daardoor te bevestigen dat de campagne weg was. Hij komt wél terug met een
+expliciet statusfilter:
+
+```
+filtering = [{"field": "campaign.effective_status",
+              "operator": "IN", "value": ["DELETED", "ARCHIVED"]}]
+```
+
+**Gebruik dit filter voortaan altijd voordat je concludeert dat een object weg is.**
+
+### Wat er stillag, laatste 30 dagen
+
+| | |
+|---|---|
+| Spend | €798,60 |
+| ROAS | **2,45** (break-even 1,82) |
+| Aankopen | 31 |
+| CPA | **€25,76** (account ≈ €31,9) |
+| CPM | €8,08 |
+| CTR | 2,40% |
+| Frequentie | 1,41 |
+
+Op adsetniveau, laatste 30 dagen:
+
+| Adset | ID | Spend | ROAS | Aank. | CPA |
+|---|---|---|---|---|---|
+| Winning Videos TOFU - New Vids | `120241779363390577` | €555,35 | **2,93** | 25 | €22,21 |
+| Winning Videos TOFU - Old Vids | `120236714475070577` | €103,13 | **0,52** | 1 | €103,13 |
+| Video Creatives - MOFU | `120241781506980577` | €78,14 | 2,62 | 4 | €19,54 |
+| Video Creatives - MOFU - Copy | `120247010758170577` | €56,44 | 1,27 | 1 | €56,44 |
+
+Eén adset draagt de campagne. "Old Vids" op 0,52 was de enige echte lek.
+
+### De budgetladder, en wat die laat zien
+
+| Datum | Budget | Spend | ROAS |
+|---|---|---|---|
+| 16 t/m 22 aug | €60 | €419,38 | **3,13** |
+| 23 aug 09:01 → €80 | €80 | €73,16 | 1,97 |
+| 24 aug 11:43 → €100 | €100 | €95,09 | 3,23 |
+| 25 aug | €100 | €96,75 | 1,56 |
+| 26 aug (afgebroken 08:16) | €100 | €12,63 | — |
+
+Op €60 per dag draaide de campagne **3,13**, boven de schaalgrens van 2,92. Op
+€80 tot €100 zakte hij naar ongeveer **2,2**, nog steeds ruim boven break-even
+maar onder de schaalgrens. Dat is precies de decay-curve waarmee je de
+schaalgrens vindt.
+
+**Voorbehoud, en het is een belangrijk voorbehoud:** dit zijn drie dagen. Elke
+budgetverhoging zet de campagne opnieuw in de leerfase, en de twee stappen
+(60 → 80 → 100) zaten **27 uur uit elkaar** waar de methode 5 tot 10 dagen
+voorschrijft. De dagelijkse ROAS springt bovendien van 0,40 naar 4,46 op
+vergelijkbare spend, want bij 3 tot 4 aankopen per dag is één dag ruis. De
+campagne is afgebroken vóór het beoordeelmoment van 31 augustus. De daling is
+dus **suggestief, niet bewezen**.
+
+### Eén advertentie draagt de hele campagne
+
+Laatste 30 dagen, op advertentieniveau:
+
+| Advertentie | ID | Spend | ROAS | Aank. | CPA | CTR |
+|---|---|---|---|---|---|---|
+| **WS - 103 - 2 - New Vid** | `120241779363400577` | €509,50 | **2,91** | **23** | €22,15 | 2,52% |
+| WS - 138 - 2 - Copy | `120244205448260577` | €74,87 | 2,74 | 4 | €18,72 | 1,88% |
+| WS - 138 - 2 - Copy (dubbel) | `120247010758200577` | €38,09 | 1,89 | 1 | €38,09 | 1,78% |
+| WS-034 - 3 - ASC+ | `120236718822480577` | €90,06 | **0,00** | 0 | — | 2,08% |
+
+`WS - 103 - 2 - New Vid` levert **23 van de 31 aankopen**, oftewel 74%, en 64% van
+de spend. Dat is het bezit dat hier op het spel staat, niet de campagnehuls.
+`WS-034 - 3 - ASC+` deed €90 zonder één aankoop.
+
+### Herstelgegevens: de creatives leven nog
+
+*Vastgelegd 28 augustus, nadat bleek dat dearchiveren niet kan.*
+
+Ads Manager toont de campagne onder het filter **"Verwijderd"**, niet
+"Gearchiveerd". Bewerken is geblokkeerd. Een kopie op campagneniveau levert een
+**lege huls**: Meta neemt verwijderde advertentiesets en advertenties niet mee.
+
+**Maar de creatives zelf staan nog op `ACTIVE`.** Die zijn niet verwijderd en
+kunnen worden hergebruikt. Bouw de winnaars terug via **"Bestaande post
+gebruiken"** met onderstaande post-ID's, dan komen de opgebouwde likes, reacties
+en shares mee. Bouw je op vanaf de losse video, dan begin je op nul social proof.
+
+| Advertentie | Spend | ROAS | Aank. | Post-ID (gebruik deze) | Creative-ID | Video-ID |
+|---|---|---|---|---|---|---|
+| **WS - 103 - 2 - New Vid** | €509,50 | **2,91** | **23** | `100135282880333_862711533277634` | `856554463639690` | `786875607744514` |
+| WS - 138 - 2 - Copy | €74,87 | 2,74 | 4 | `100135282880333_903085635906890` | `915611068263880` | `756311050569792` |
+| WS - 110 - 2 - New Vid | €15,43 | 2,79 | 1 | `100135282880333_866988839516570` | `2432295177213391` | `4173843352945712` |
+
+Alle drie draaien dezelfde boodschap in een andere montage:
+
+- **Koptekst:** Geen sneetjes. Geen stress.
+- **Knop:** `SHOP_NOW`
+- **Primaire tekst:** "Je groom routine zou geen risico mogen voelen. Heb je ooit
+  spanning gevoeld bij het trimmen van gevoelige zones? Met de Groom Guard is die
+  angst verleden tijd. Dankzij de Skin Safe mesjes trim je zonder snijwondjes of
+  irritatie. Gewoon comfortabel, elke keer weer! 😌"
+
+Instagram-media-ID's, voor als de plaatsing apart gezet moet worden:
+`18109317439653197`, `18411776020127410`, `18013654529813187`.
+
+Begin met alleen WS - 103. Die leverde 74% van de aankopen, dus de andere vijftien
+advertenties zijn niet nodig om weer te draaien.
+
+### Opbouw van de vervangende campagne
+
+Vul de lege kopie in plaats van hem weg te gooien:
+
+| | |
+|---|---|
+| Budget | **€70 per dag**, CBO, niet €100 |
+| Doel | `OUTCOME_SALES` |
+| Optimalisatie | **aankoop via de pixel**, niet `VALUE` |
+| Attributie | **`1d_view_7d_click_1d_ev`** |
+| Targeting | Breed NL/BE, geen interesses |
+| Advertentie | Bestaande post `100135282880333_862711533277634` |
+
+De laatste zeven dagen vóór het archiveren deed de campagne €395,08 op **ROAS
+2,82** met 17 aankopen en een CPA van €23,24. Dat is de lat.
+
+### Advies bij heractiveren
+
+De campagne is gearchiveerd, niet vernietigd. Alles staat er nog: vijf adsets,
+ruim dertig advertenties, de volledige historie. Aanpak:
+
+1. **Vraag Dustin eerst of het opzet was.** Als er een reden was (voorraad,
+   marge, retouren) weegt die zwaarder dan deze cijfers.
+2. **Herstart op €70 per dag, niet op €100.** €60 was bewezen op 3,13, €100 is
+   niet eerlijk getest. €70 is één stap terug in het bewezen gebied en laat
+   ruimte om volgens de methode te verhogen.
+3. **Zet "Winning Videos TOFU - Old Vids" (`120236714475070577`) niet mee aan.**
+   €103 spend, 1 aankoop, ROAS 0,52. Dat is de enige adset die geld kostte.
+4. **Let op de einddatum.** `stop_time` staat op **26 augustus 08:24**. Die
+   ligt in het verleden, dus zolang die blijft staan levert de campagne
+   niets, ook niet als hij op actief staat. Haal de einddatum weg of zet hem
+   vooruit. Dit is de meest waarschijnlijke reden dat een heractivering
+   "lukt" maar er toch niets gebeurt.
+5. **Daarna 7 dagen niet aanraken**, dan pas de volgende stap. Reken op een paar
+   dagen wobbel, want na twee dagen stilstand gaat de campagne opnieuw de
+   leerfase in. Twee dagen uit is wel veel milder dan het FlexGuard-geval.
+
+**Als dearchiveren niet lukt.** Het activiteitenlogboek noemt de actie "Deleted"
+terwijl het object zelf op `ARCHIVED` staat. Verschijnt de campagne in Ads
+Manager alleen onder het filter "Verwijderd" en niet onder "Gearchiveerd", dan
+is heractiveren niet mogelijk en moet je opnieuw opbouwen. Bouw dan **rond
+`WS - 103 - 2 - New Vid` (`120241779363400577`)**, want daar zit de prestatie in.
+De campagnehuls is vervangbaar, die ene video niet.
+
+**Kosten van het stilstaan:** ongeveer €100 per dag aan spend op ROAS ~2,4, dus
+grofweg €240 omzet per dag die niet gemaakt wordt. Sinds 26 augustus loopt dat op.
+
+**Deze sessie kan dit niet uitvoeren.** De schrijftools zijn opnieuw afwezig,
+zie "Wat de vorige sessie niet kon" onderaan. Heractiveren moet handmatig in
+Ads Manager: filter op gearchiveerde campagnes, dearchiveer, zet het budget en
+activeer.
 
 ---
 
@@ -41,7 +206,7 @@ ongeveer €100 per dag op de hoogste ROAS uit het account verdwenen.
 | 001 · CBO · GroomGuard MIJU | `120252205202730577` | €279 | 1,54 | 8 | €34,84 | 3,24 |
 | 002 · CBO · BUNDLE SHAVE PACKAGE | `120253002360820577` | €239 | **0,85** | 2 | €119,40 | 2,15 |
 | CBO · Test · GroomGuard NL-BE | `120249635909880577` | €107 | **0,38** | 1 | €107,44 | 2,11 |
-| ⚫️ ASC+ · Scale · GroomGuard | `120236714475060577` | — | — | — | — | ⚠️ zie boven |
+| ⚫️ ASC+ · Scale · GroomGuard | `120236714475060577` | €799 | **2,45** | 31 | €25,76 | 🗄️ gearchiveerd 26 aug, zie boven |
 
 ### Belangrijkste gepauzeerde campagnes
 
@@ -94,10 +259,10 @@ adsets op 1,06 met CPM tot €16,66.
 
 - **MIJU niet aanraken.** Die campagne ligt bij het bureau. Analyseren mag,
   wijzigen niet. Dit is expliciet afgesproken op 24 augustus.
-- ASC+ GroomGuard is op 24 augustus door Dustin naar **€100 per dag** gezet.
-  Volgens de scaling-methode uit de `ben-heath` skill: **7 dagen laten staan**
-  voordat je opnieuw verhoogt. Eerste beoordeelmoment **31 augustus**: staat de
-  deliverystatus nog op `active` en zit de ROAS boven 1,82.
+- ASC+ GroomGuard is op 24 augustus door Dustin naar **€100 per dag** gezet en
+  op **26 augustus gearchiveerd**, vermoedelijk per ongeluk. Het beoordeelmoment
+  van 31 augustus is daarmee vervallen. Zie de sectie bovenaan: eerst bij Dustin
+  verifiëren of dit opzet was, daarna heractiveren op €70.
 - De WS-218-adset (`120252919944590577`) is uitgezet.
 
 ## Openstaande acties
@@ -198,6 +363,15 @@ FlexGuard is bewezen op 158 aankopen, Head Shaver moet zich nog bewijzen.
   advertentiebudget.
 - **Wellshine B.V.** (`2776743939329385`) gaf 30 dagen lang €1.874 uit op
   **ROAS 0,58**. Valt buiten deze audit, maar loopt wel.
+- **Twee nieuwe testcampagnes** gezien op 28 augustus, nog niet geanalyseerd:
+  `🟢 CBO | Test | Gentleman Shaver Elite | NL-BE | 2026-08` (`120252797570090577`)
+  en `🟢 CBO | Test | Tondeuse Elegant | NL-BE | 2026-08` (`120252797567680577`).
+  Controleer of ze op `OFFSITE_CONVERSIONS` en `1d_view_7d_click_1d_ev` staan,
+  want dat zijn de twee instellingen waarop MIJU structureel achterloopt.
+- **Grote opruiming op 26 augustus:** tien campagnes in één handeling
+  gearchiveerd. Negen stonden al stil, ASC+ GroomGuard niet. Als er vaker
+  bulkacties via Power Editor gebeuren, is het de moeite waard om vooraf op
+  status te filteren.
 
 ## Wat de vorige sessie niet kon
 
@@ -210,8 +384,15 @@ waren wel: creatives uploaden naar de mediabibliotheek
 `ads_create_ad`, `ads_create_creative`, `ads_update_entity`,
 `ads_activate_entity`.
 
-Controleer dus aan het begin van een nieuwe sessie met ToolSearch of die
-schrijftools er wél zijn voordat je toezegt iets uit te voeren. De regels voor
+**Gecontroleerd op 28 augustus: de schrijftools zijn er nog steeds niet.**
+ToolSearch op `ads_update_entity`, `ads_activate_entity`, `ads_create_campaign`,
+`ads_create_ad_set` en `ads_create_ad` geeft "No matching deferred tools found".
+Reads werken volledig, inclusief het activiteitenlogboek. Ga er dus van uit dat
+alles wat je adviseert door Dustin handmatig in Ads Manager wordt uitgevoerd,
+tenzij een volgende sessie aantoont dat de tools terug zijn.
+
+Controleer dit aan het begin van elke nieuwe sessie met ToolSearch voordat je
+toezegt iets uit te voeren. De regels voor
 schrijven staan in `.claude/skills/ben-heath/references/account-actions.md`:
 elke schrijfactie wordt eerst voorgesteld en pas uitgevoerd na expliciet
 akkoord per actie.
