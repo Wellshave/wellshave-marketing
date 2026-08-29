@@ -41,7 +41,10 @@ var SLEUTEL_VELDEN = [
     vandaan: 'console.anthropic.com , Settings , API keys' },
   { naam: 'OPENAI_KEY', label: 'ChatGPT (OpenAI)',
     waar: 'De beelden.',
-    vandaan: 'platform.openai.com , API keys' }
+    vandaan: 'platform.openai.com , API keys' },
+  { naam: 'ATRIA_API_KEY', label: 'Atria',
+    waar: 'De cijfers van een draaiende advertentie bij het itereren.',
+    vandaan: 'Atria , avatar linksboven , Settings & members , API Keys' }
 ];
 
 function sleutelEsc(s) {

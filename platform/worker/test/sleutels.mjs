@@ -56,6 +56,7 @@ function check(naam, kreeg, wilde) {
 const NEP_ANTHROPIC = 'sk-ant-api03-' + 'A'.repeat(40);
 const NEP_ANTHROPIC_2 = 'sk-ant-api03-' + 'B'.repeat(40);
 const NEP_OPENAI = 'sk-proj-' + 'C'.repeat(40);
+const NEP_ATRIA = 'atria-sk_' + 'D'.repeat(32);
 
 /* ── De nagebootste wereld ──────────────────────────────────────────────── */
 
@@ -64,8 +65,8 @@ let db, dienstAntwoorden, aanroepen;
 async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [] };
-  dienstAntwoorden = { anthropic: { ok: true }, openai: { ok: true } };
-  aanroepen = { anthropic: [], openai: [] };
+  dienstAntwoorden = { anthropic: { ok: true }, openai: { ok: true }, atria: { ok: true } };
+  aanroepen = { anthropic: [], openai: [], atria: [] };
 }
 
 const SB = 'https://vwzdxvnqhrqkvvhbxkhr.supabase.co';
@@ -108,6 +109,14 @@ globalThis.fetch = async (url, opties) => {
     return { ok: a.ok, status: a.ok ? 200 : 401,
       text: async () => a.ok ? '{"content":[]}' : JSON.stringify({ error: { message: a.melding || 'invalid x-api-key' } }),
       json: async () => ({ content: [] }) };
+  }
+  if (u.includes('api.tryatria.com')) {
+    aanroepen.atria.push(opties.headers['X-API-Key']);
+    const a = dienstAntwoorden.atria;
+    return { ok: a.ok, status: a.ok ? 200 : 401,
+      text: async () => a.ok ? '{"code":0,"data":{"items":[]}}'
+        : JSON.stringify({ error: 'invalid_api_key', message: a.melding || 'The provided API key is invalid' }),
+      json: async () => ({ code: 0, data: { items: [] } }) };
   }
   if (u.includes('api.openai.com')) {
     aanroepen.openai.push((opties.headers.Authorization || '').replace('Bearer ', ''));
@@ -214,6 +223,17 @@ check('te kort: geweigerd', teKort.status, 400);
 check('met een bruikbare melding', /hele sleutel/.test(teKort.data.error || ''), true);
 const verkeerdeDienst = await roep('/systeem/sleutels', alsAdmin({ naam: 'ANTHROPIC_KEY', waarde: NEP_OPENAI }));
 check('een OpenAI-sleutel in het Anthropic-veld: geweigerd', verkeerdeDienst.status, 400);
+/* En dezelfde controle voor de derde sleutel. Atria heeft een eigen voorvoegsel
+   en zonder deze regels glipt elke tekst erdoor -- inclusief de melding
+   "kopieer je sleutel" die iemand per ongeluk meeplakt. */
+const atriaHalf = await roep('/systeem/sleutels', alsAdmin({ naam: 'ATRIA_API_KEY', waarde: 'atria-sk_AB' }));
+check('een halve Atria-sleutel: geweigerd', atriaHalf.status, 400);
+const atriaZonderVoorvoegsel = await roep('/systeem/sleutels', alsAdmin({ naam: 'ATRIA_API_KEY', waarde: 'D'.repeat(40) }));
+check('en zonder het voorvoegsel ook', atriaZonderVoorvoegsel.status, 400);
+const atriaGoed = await roep('/systeem/sleutels', alsAdmin({ naam: 'ATRIA_API_KEY', waarde: NEP_ATRIA }));
+check('een hele Atria-sleutel gaat er wel in', atriaGoed.status, 200);
+check('en is meteen uitgeprobeerd bij Atria', atriaGoed.data.proef && atriaGoed.data.proef.geldig, true);
+check('met de sleutel die net gezet is', aanroepen.atria[aanroepen.atria.length - 1], NEP_ATRIA);
 const onbekend = await roep('/systeem/sleutels', alsAdmin({ naam: 'STRIPE_KEY', waarde: NEP_OPENAI }));
 check('een onbekende naam: geweigerd', onbekend.status, 400);
 check('en de oude sleutel staat er nog', db.systeem_geheimen.filter(r => r.naam === 'ANTHROPIC_KEY')[0].staart, NEP_ANTHROPIC.slice(-4));

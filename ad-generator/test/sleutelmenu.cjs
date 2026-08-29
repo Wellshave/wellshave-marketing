@@ -95,16 +95,26 @@ function ONDERSCHEP(antwoorden) {
       /* Het invoerveld is een wachtwoordveld: anders staat een geplakte
          sleutel gewoon leesbaar op het scherm terwijl je hem plakt. */
       typen: [].slice.call(el.querySelectorAll('.sl-invoer')).map(i => i.type),
+      /* Tegen de bronlijst tellen, niet tegen een getal: een sleutel erbij
+         hoort een regel erbij te zijn, en een test met een hard getal moet dan
+         opgezocht en aangepast worden terwijl hij niets bewaakt. */
+      verwacht: window.SLEUTEL_VELDEN.length,
+      namen: window.SLEUTEL_VELDEN.map(v => v.naam),
       auth: (window.__verzonden[0] || {}).auth
     };
   }, { onderschep: ONDERSCHEP.toString() });
-  check('beide sleutels staan er', paneel.regels, 2);
+  check('elke sleutel die het systeem kent heeft een regel', paneel.regels, paneel.verwacht);
+  /* En de drie die er horen te zijn, bij naam. Alleen tellen laat een
+     hernoemde of vervangen sleutel ongemerkt door. */
+  check('Claude, OpenAI en Atria', paneel.namen, ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY']);
   check('de staart is zichtbaar', /WXYZ/.test(paneel.html), true);
   check('met wie hem zette', /dustin@wellshave\.com/.test(paneel.html), true);
   check('en wanneer, in gewone taal', /vandaag/.test(paneel.html), true);
   check('de ontbrekende sleutel zegt dat hij ontbreekt',
     /er staat geen sleutel/.test(paneel.html), true);
-  check('het invoerveld verbergt wat je typt', paneel.typen, ['password', 'password']);
+  check('elk invoerveld verbergt wat je typt',
+    paneel.typen.filter(t => t !== 'password').length + '/' + paneel.typen.length,
+    '0/' + paneel.verwacht);
   check('en de vraag droeg het teamtoken', paneel.auth, 'Bearer token-van-de-baas');
 
   console.log('\n  zonder hoofdsleutel staat er wat je moet doen');

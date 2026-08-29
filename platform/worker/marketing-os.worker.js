@@ -80,6 +80,7 @@ const originMag = (o) => ORIGINS.includes(o) || ORIGIN_PATROON.test(o);
 const MODEL = 'claude-opus-5';
 const FALLBACK_MODEL = 'claude-fable-5';
 const META_API = 'https://graph.facebook.com/v21.0';
+const ATRIA_API = 'https://api.tryatria.com';
 
 /* De Facebook-pagina waaronder de advertenties hangen. Geverifieerd tegen het
    account: bestaande creatives hebben een object_story_id die hiermee begint. */
@@ -277,8 +278,14 @@ function sleutelVormKlopt(naam, waarde) {
   const w = String(waarde || '').trim();
   if (naam === 'ANTHROPIC_KEY') return /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(w);
   if (naam === 'OPENAI_KEY') return /^sk-[A-Za-z0-9_-]{20,}$/.test(w);
+  if (naam === 'ATRIA_API_KEY') return /^atria-sk_[A-Za-z0-9_-]{16,}$/.test(w);
   return false;
 }
+
+/* De sleutels die dit systeem kent. Eén lijst, want drie plekken die elk hun
+   eigen lijstje bijhouden lopen uit elkaar: dan staat er een sleutel in het
+   menu die de worker weigert op te slaan, of andersom. */
+const SLEUTELNAMEN = ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY'];
 
 /* De foutmelding van de dienst inkorten tot iets bruikbaars. Voluit
    doorgeven kan de sleutel bevatten die je net probeerde: sommige diensten
@@ -286,7 +293,11 @@ function sleutelVormKlopt(naam, waarde) {
 function kortDeFout(tekst, status) {
   let bericht = '';
   try { const o = JSON.parse(tekst); bericht = (o.error && (o.error.message || o.error.type)) || ''; } catch (e) { }
-  bericht = String(bericht).replace(/sk-[A-Za-z0-9_-]{8,}/g, '<sleutel>').slice(0, 140);
+  if (!bericht) { try { const o = JSON.parse(tekst); bericht = o.message || o.error || ''; } catch (e) { } }
+  bericht = String(bericht)
+    .replace(/atria-sk_[A-Za-z0-9_-]{8,}/g, '<sleutel>')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<sleutel>')
+    .slice(0, 140);
   return bericht || ('de dienst antwoordde met ' + status);
 }
 
@@ -303,6 +314,13 @@ async function sleutelWerkt(env, naam) {
         headers: { 'Content-Type': 'application/json', 'x-api-key': sleutel, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'x' }] })
       });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+    }
+    if (naam === 'ATRIA_API_KEY') {
+      /* De goedkoopste vraag die Atria kent: welke advertentieaccounts hangen
+         aan deze werkruimte. Geen paginering, geen credits. */
+      const r = await fetch(ATRIA_API + '/open/v1/ad-accounts', { headers: { 'X-API-Key': sleutel } });
       if (r.ok) return { geldig: true, reden: null };
       return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
     }
@@ -345,7 +363,7 @@ async function sleutelOverzicht(env) {
   const perNaam = {};
   rijen.forEach(function (r) { perNaam[r.naam] = r; });
   const uit = [];
-  for (const naam of ['ANTHROPIC_KEY', 'OPENAI_KEY']) {
+  for (const naam of SLEUTELNAMEN) {
     const r = perNaam[naam] || {};
     uit.push({
       naam: naam,
@@ -1035,6 +1053,426 @@ async function metaPublish(env, publicationId, gebruiker, direct_aan) {
     await sbUpdate(env, 'meta_publications', `id=eq.${publicationId}`, { status: 'mislukt', error: fout });
     return { error: fout, status: 502 };
   }
+}
+
+
+/* ============================================================
+ * 4c. Itereren: de advertentie waarop je voortbouwt
+ *
+ * Itereren begon met een formulier van dertig velden die je met de hand
+ * overtikte uit Ads Manager, of uit een screenshot liet uitlezen. Dat is niet
+ * alleen werk, het is ook de plek waar cijfers stilletjes verkeerd worden: een
+ * komma waar een punt hoort, een percentage dat als getal binnenkomt, een
+ * venster van 30 dagen in het ene veld en 7 in het andere.
+ *
+ * Hier komen ze uit de bron. Twee bronnen, een vorm:
+ *
+ *   ATRIA levert in een aanroep de advertenties van je eigen account,
+ *   gerangschikt op een KPI, met thumbnail, en bij de drill-down ook de copy
+ *   en de CTA. Dat is precies de vraag die de itereerwizard stelt.
+ *
+ *   META GRAPH is de bron waar Atria zelf ook uit put. Hij kost meer aanroepen
+ *   -- cijfers, dan de advertentie, dan de creative -- maar hij werkt zonder
+ *   Atria-abonnement en het token staat er al.
+ *
+ * DRIE REGELS DIE HIER OVERAL GELDEN:
+ *
+ *   1. ONBEKEND IS NULL, NOOIT NUL. Een maat die de bron niet gaf mag niet als
+ *      gemeten nul in beeld komen. Dan lijkt "we weten het niet" op "het is nul
+ *      keer gebeurd", en daar wordt een verkeerde iteratie op gebouwd.
+ *
+ *   2. DE NORM KOMT UIT HET ACCOUNT ZELF. Er staat in dit bestand geen enkele
+ *      grens voor wat een goede CTR of een goede ROAS is. Elke stap wordt
+ *      vergeleken met hetzelfde account over hetzelfde venster. Een vaste grens
+ *      veroudert stil; het account veroudert mee.
+ *
+ *   3. TE WEINIG DATA IS EEN UITSLAG. Een conversiepercentage op zeven klikken
+ *      is ruis, en ruis die eruitziet als een oordeel is erger dan geen
+ *      oordeel.
+ * ============================================================ */
+
+function adGetal(x) {
+  if (x === null || x === undefined || x === '') return null;
+  const n = Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* Delen dat weigert te doen alsof. Geen teller, geen noemer of een noemer van
+   nul: dan is de uitkomst niet nul maar onbekend. */
+function adDeel(teller, noemer) {
+  const t = adGetal(teller), n = adGetal(noemer);
+  if (t === null || n === null || n === 0) return null;
+  return t / n;
+}
+
+/* Wat je kunt uitrekenen als de bron het niet gaf. Uitsluitend uit maten die
+   er wel staan -- een afgeleide van een gok is een gok. */
+function adAfgeleid(c) {
+  const u = Object.assign({}, c);
+  if (u.roas == null) u.roas = adDeel(u.omzet, u.spend);
+  if (u.aov == null) u.aov = adDeel(u.omzet, u.aankopen);
+  if (u.cpa == null) u.cpa = adDeel(u.spend, u.aankopen);
+  if (u.cpc == null) u.cpc = adDeel(u.spend, u.klikken);
+  if (u.cpm == null) { const s = adGetal(u.spend); u.cpm = s === null ? null : adDeel(s * 1000, u.impressions); }
+  if (u.ctr == null) { const v = adDeel(u.klikken, u.impressions); u.ctr = v === null ? null : v * 100; }
+  if (u.frequency == null) u.frequency = adDeel(u.impressions, u.reach);
+  return u;
+}
+
+/* ---- Atria ------------------------------------------------------------- */
+
+const ATRIA_PERIODES = { 7: 'last_7d', 14: 'last_14d', 30: 'last_30d', 90: 'last_90d' };
+function atriaPeriode(dagen) { return ATRIA_PERIODES[Number(dagen)] || 'last_30d'; }
+
+/* Atria noemt zijn maten met een id en geeft in metric_names de naam die de
+   gebruiker eraan gaf. Namen zijn te wijzigen en kunnen botsen, dus eerst het
+   id; pas als dat niets oplevert de naam. Staat een maat er niet, dan blijft
+   hij null -- er wordt niets overgenomen uit iets wat er toevallig op lijkt. */
+const ATRIA_MAAT = {
+  spend:       { ids: ['spend', 'cost'], naam: /^(spend|amount spent|cost)$/i },
+  impressions: { ids: ['impressions'], naam: /^impressions$/i },
+  reach:       { ids: ['reach'], naam: /^reach$/i },
+  frequency:   { ids: ['frequency'], naam: /^frequency$/i },
+  klikken:     { ids: ['link_clicks', 'inline_link_clicks', 'outbound_clicks', 'clicks'], naam: /^(link |outbound )?clicks$/i },
+  ctr:         { ids: ['link_ctr', 'ctr', 'outbound_ctr'], naam: /^(link |outbound )?ctr$/i },
+  cpm:         { ids: ['cpm'], naam: /^cpm$/i },
+  cpc:         { ids: ['cost_per_link_click', 'cpc'], naam: /^(cpc|cost per (link )?click)$/i },
+  lpv:         { ids: ['landing_page_views', 'landing_page_view', 'lpv'], naam: /^landing page views?$/i },
+  atc:         { ids: ['add_to_cart', 'adds_to_cart', 'omni_add_to_cart'], naam: /^adds? to cart$/i },
+  aankopen:    { ids: ['purchases', 'purchase', 'omni_purchase', 'website_purchase'], naam: /^purchases?$/i },
+  omzet:       { ids: ['purchase_value', 'purchase_conversion_value', 'omni_purchase_value', 'revenue'], naam: /^(purchase (value|conversion value)|revenue)$/i },
+  roas:        { ids: ['roas', 'purchase_roas', 'website_purchase_roas'], naam: /^(website )?(purchase )?roas$/i },
+  aov:         { ids: ['aov', 'average_order_value'], naam: /^(aov|average order value)$/i },
+  cpa:         { ids: ['cpa', 'cost_per_purchase'], naam: /^(cpa|cost per purchase)$/i }
+};
+
+function atriaMaten(metrics, namen) {
+  const m = metrics || {}, n = namen || {}, uit = {};
+  Object.keys(ATRIA_MAAT).forEach(function (veld) {
+    const spec = ATRIA_MAAT[veld];
+    let w = null;
+    for (const id of spec.ids) {
+      if (m[id] !== undefined && m[id] !== null) { w = m[id]; break; }
+    }
+    if (w === null) {
+      const sleutel = Object.keys(n).find(function (id) {
+        return m[id] !== undefined && m[id] !== null && spec.naam.test(String(n[id] || ''));
+      });
+      if (sleutel !== undefined) w = m[sleutel];
+    }
+    uit[veld] = adGetal(w);
+  });
+  return uit;
+}
+
+async function atriaHaal(env, pad, params) {
+  const sleutel = await sleutelVan(env, 'ATRIA_API_KEY');
+  if (!sleutel) throw new Error('er staat geen ATRIA_API_KEY. Zet hem in het adminmenu of als Worker secret.');
+  const q = params ? ('?' + new URLSearchParams(params)) : '';
+  const r = await fetch(ATRIA_API + pad + q, { headers: { 'X-API-Key': sleutel } });
+  const tekst = await r.text();
+  /* Atria heeft twee foutvormen: de gateway antwoordt plat bij 401, 429 en 5xx,
+     en de dienst zelf pakt alles in een envelop met een code die niet nul is.
+     Alleen naar de HTTP-status kijken laat de tweede soort erdoorheen als
+     succes, en dan krijgt het scherm een lege lijst zonder uitleg. */
+  if (!r.ok) throw new Error('Atria: ' + kortDeFout(tekst, r.status));
+  let data;
+  try { data = JSON.parse(tekst); } catch (e) { throw new Error('Atria gaf geen JSON terug'); }
+  if (data && data.code !== undefined && data.code !== 0) {
+    throw new Error('Atria: ' + String(data.message || ('code ' + data.code)).slice(0, 140));
+  }
+  return (data && data.data !== undefined) ? data.data : data;
+}
+
+async function atriaAccounts(env) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts');
+  return (d.items || []).map(function (a) {
+    return {
+      id: a.id, account_id: a.ad_account_id || null, naam: a.name || a.id,
+      platform: a.platform || null, valuta: a.currency || null, staat: a.status || null
+    };
+  });
+}
+
+function atriaNaarAdvertentie(rij) {
+  return {
+    bron: 'atria',
+    id: rij.platform_ad_id || rij.ad_id || rij.id || null,
+    naam: rij.name || rij.ad_name || '(zonder naam)',
+    staat: rij.status || rij.effective_status || null,
+    beeld: rij.thumbnail_url || rij.thumbnail || rij.image_url || null,
+    cijfers: adAfgeleid(atriaMaten(rij.metrics, rij.metric_names))
+  };
+}
+
+async function atriaAdvertenties(env, account, dagen, sorteer, limiet) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/ads', {
+    period: atriaPeriode(dagen),
+    sort_by: sorteer || 'spend',
+    sort_order: 'desc',
+    limit: String(Math.max(1, Math.min(Number(limiet) || 25, 50)))
+  });
+  return (d.items || []).map(atriaNaarAdvertentie);
+}
+
+async function atriaAdvertentie(env, account, adId, dagen) {
+  const d = await atriaHaal(env,
+    '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/ads/' + encodeURIComponent(adId),
+    { period: atriaPeriode(dagen) });
+  const rij = d.item || d.ad || d;
+  const ad = atriaNaarAdvertentie(rij);
+  const beelden = rij.assets || rij.images || rij.creative_assets || [];
+  ad.copy = {
+    kop: rij.title || rij.headline || null,
+    tekst: rij.body || rij.primary_text || rij.text || null,
+    cta: rij.cta || rij.call_to_action || null
+  };
+  if (!ad.beeld && Array.isArray(beelden) && beelden.length) {
+    ad.beeld = beelden[0].url || beelden[0].image_url || beelden[0].thumbnail_url || null;
+  }
+  return ad;
+}
+
+async function atriaNorm(env, account, dagen) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/summary',
+    { period: atriaPeriode(dagen) });
+  return adAfgeleid(atriaMaten(d.metrics, d.metric_names));
+}
+
+/* ---- Meta Graph -------------------------------------------------------- */
+
+/* Dezelfde velden als de dagelijkse sync, maar zonder time_increment: hier
+   wil je een rij per advertentie over het hele venster, niet een rij per dag.
+   Optellen over dagen zou hier ook niet mogen -- bereik is ontdubbeld binnen
+   de periode die je opvraagt en telt dus niet op. */
+const META_ITEREER_VELDEN = ['spend', 'impressions', 'reach', 'frequency', 'clicks',
+  'inline_link_clicks', 'ctr', 'cpc', 'cpm', 'actions', 'action_values',
+  'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking'];
+
+function metaNaarCijfers(rij) {
+  const acties = rij.actions, waarden = rij.action_values;
+  const eerste = function (bron, namen) {
+    for (const n of namen) { const v = metaActie(bron, n); if (v !== null && v !== undefined) return v; }
+    return null;
+  };
+  return adAfgeleid({
+    spend: adGetal(rij.spend),
+    impressions: adGetal(rij.impressions),
+    reach: adGetal(rij.reach),
+    frequency: adGetal(rij.frequency),
+    klikken: adGetal(rij.inline_link_clicks) !== null ? adGetal(rij.inline_link_clicks) : adGetal(rij.clicks),
+    ctr: adGetal(rij.ctr),
+    cpc: adGetal(rij.cpc),
+    cpm: adGetal(rij.cpm),
+    lpv: eerste(acties, ['landing_page_view', 'omni_landing_page_view']),
+    atc: eerste(acties, ['omni_add_to_cart', 'add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart']),
+    aankopen: eerste(acties, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
+    omzet: eerste(waarden, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
+    roas: null, aov: null, cpa: null
+  });
+}
+
+async function metaItereerRijen(env, account, dagen, niveau, adId) {
+  const p = new URLSearchParams({
+    access_token: env.META_ACCESS_TOKEN,
+    level: niveau,
+    fields: META_ITEREER_VELDEN.concat(niveau === 'ad' ? ['ad_id', 'ad_name'] : []).join(','),
+    time_range: metaVenster(dagen),
+    limit: '200'
+  });
+  if (adId) p.set('filtering', JSON.stringify([{ field: 'ad.id', operator: 'IN', value: [String(adId)] }]));
+  const r = await fetch(`${META_API}/act_${kaalAccount(account)}/insights?${p}`);
+  const data = await r.json();
+  if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
+  return data.data || [];
+}
+
+/* De creative erbij. Meta zet de cijfers en het beeld in twee verschillende
+   edges, dus dit is onvermijdelijk een tweede aanroep. Mislukt hij, dan gaat de
+   advertentie zonder beeld door: geen beeld is vervelend, geen cijfers is fataal
+   en die hebben we al. */
+async function metaCreative(env, adId) {
+  try {
+    const p = new URLSearchParams({
+      access_token: env.META_ACCESS_TOKEN,
+      fields: 'name,effective_status,creative{thumbnail_url,image_url,body,title,call_to_action_type}'
+    });
+    const r = await fetch(`${META_API}/${encodeURIComponent(adId)}?${p}`);
+    const d = await r.json();
+    if (d.error) return null;
+    const c = d.creative || {};
+    return {
+      naam: d.name || null,
+      staat: d.effective_status || null,
+      beeld: c.image_url || c.thumbnail_url || null,
+      copy: { kop: c.title || null, tekst: c.body || null, cta: c.call_to_action_type || null }
+    };
+  } catch (e) { return null; }
+}
+
+async function metaAdvertenties(env, account, dagen, limiet) {
+  const rijen = await metaItereerRijen(env, account, dagen, 'ad', null);
+  const uit = rijen.map(function (rij) {
+    return { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
+             staat: null, beeld: null, cijfers: metaNaarCijfers(rij) };
+  });
+  /* Op spend, want dat is waar de vraag over gaat: waar is geld aan uitgegeven
+     en wat leverde het op. Een advertentie zonder spend heeft geen iteratie
+     nodig maar een lancering. */
+  uit.sort(function (a, b) { return (b.cijfers.spend || 0) - (a.cijfers.spend || 0); });
+  return uit.slice(0, Math.max(1, Math.min(Number(limiet) || 25, 50)));
+}
+
+async function metaAdvertentie(env, account, adId, dagen) {
+  const rijen = await metaItereerRijen(env, account, dagen, 'ad', adId);
+  const rij = rijen[0];
+  if (!rij) throw new Error('Meta gaf geen cijfers voor advertentie ' + adId + ' in dit venster');
+  const ad = { bron: 'meta', id: rij.ad_id || String(adId), naam: rij.ad_name || '(zonder naam)',
+               staat: null, beeld: null, copy: null, cijfers: metaNaarCijfers(rij) };
+  const cr = await metaCreative(env, ad.id);
+  if (cr) {
+    if (cr.naam) ad.naam = cr.naam;
+    ad.staat = cr.staat;
+    ad.beeld = cr.beeld;
+    ad.copy = cr.copy;
+  }
+  return ad;
+}
+
+async function metaNorm(env, account, dagen) {
+  const rijen = await metaItereerRijen(env, account, dagen, 'account', null);
+  if (!rijen.length) return null;
+  return metaNaarCijfers(rijen[0]);
+}
+
+/* ---- De trap, en waar hij lekt ---------------------------------------- */
+
+/* Vier stappen tussen geld en een bestelling, plus twee prijzen. Elke stap
+   heeft een noemer, en die noemer bepaalt of de stap iets te zeggen heeft.
+   `hoger_is_beter` staat er expliciet bij omdat CPM de enige is waar het
+   andersom werkt en dat is precies het soort ding dat je een keer omdraait. */
+const AD_TRAP = [
+  { sleutel: 'aandacht', label: 'Vertoning naar klik',
+    teller: 'klikken', noemer: 'impressions', drempel: 1000, hoger_is_beter: true,
+    zit: 'in de advertentie', ligt_aan: 'de hook, de kop en het openingsbeeld' },
+  { sleutel: 'klikkwaliteit', label: 'Klik naar landingspagina',
+    teller: 'lpv', noemer: 'klikken', drempel: 100, hoger_is_beter: true,
+    zit: 'tussen advertentie en pagina', ligt_aan: 'laadtijd, of klikken die per ongeluk gebeuren' },
+  { sleutel: 'pagina', label: 'Landingspagina naar winkelwagen',
+    teller: 'atc', noemer: 'lpv', drempel: 100, hoger_is_beter: true,
+    zit: 'op de pagina', ligt_aan: 'de belofte die de advertentie deed en de pagina niet waarmaakt' },
+  { sleutel: 'afrekenen', label: 'Winkelwagen naar bestelling',
+    teller: 'aankopen', noemer: 'atc', drempel: 25, hoger_is_beter: true,
+    zit: 'bij het afrekenen', ligt_aan: 'verzendkosten, betaalmogelijkheden of het aanbod zelf' },
+  { sleutel: 'inkoop', label: 'Prijs per duizend vertoningen',
+    maat: 'cpm', noemer: 'impressions', drempel: 1000, hoger_is_beter: false,
+    zit: 'in de veiling', ligt_aan: 'verzadiging van het publiek of een format dat duur inkoopt' },
+  { sleutel: 'orderwaarde', label: 'Gemiddelde orderwaarde',
+    maat: 'aov', noemer: 'aankopen', drempel: 25, hoger_is_beter: true,
+    zit: 'in het aanbod', ligt_aan: 'de bundel, de upsell of welk product de advertentie voorop zet' }
+];
+
+/* Wat er te testen valt als deze stap het knelpunt is. De eerste twee zijn een
+   creative-opdracht; de rest is dat nadrukkelijk NIET, en dat is de reden dat
+   dit veld bestaat. Een nieuwe hook maken terwijl het lek op de productpagina
+   zit levert drie nieuwe advertenties op die precies even hard lekken. */
+const AD_WAT_TESTEN = {
+  aandacht: { creative: true, varieer: ['hook', 'headline', 'opening'],
+    zeg: 'De advertentie wordt gezien maar niet aangeklikt. Test de hook, de kop en het openingsbeeld; laat het mechanisme en het aanbod staan.' },
+  klikkwaliteit: { creative: true, varieer: ['headline', 'cta'],
+    zeg: 'Er wordt geklikt maar de pagina wordt niet gehaald. Vaak laadtijd of een klik die per ongeluk gebeurt. Kijk eerst naar de snelheid van de pagina voordat je de creative verandert.' },
+  pagina: { creative: false, varieer: [],
+    zeg: 'Het lek zit na de klik: mensen komen op de pagina en leggen niets in de wagen. Een nieuwe creative lost dit niet op. Bouw eerst een landingspagina die de belofte van deze advertentie waarmaakt.' },
+  afrekenen: { creative: false, varieer: [],
+    zeg: 'Er wordt in de wagen gelegd maar niet afgerekend. Dat is een aanbod- of afrekenprobleem, geen creative-probleem. Kijk naar verzendkosten, betaalmethodes en het moment waarop de prijs zichtbaar wordt.' },
+  inkoop: { creative: true, varieer: ['opening', 'sfeer', 'format'],
+    zeg: 'De vertoningen zijn duur ingekocht. Meestal verzadiging: hetzelfde publiek ziet hetzelfde beeld te vaak. Test een ander format en een andere visuele wereld, niet een andere boodschap.' },
+  orderwaarde: { creative: false, varieer: [],
+    zeg: 'De orders zijn kleiner dan gemiddeld. Dat zit in het aanbod, niet in de advertentie: welk product staat vooraan, en is er een bundel.' }
+};
+
+function adStapWaarde(cijfers, stap) {
+  if (stap.maat) return adGetal(cijfers[stap.maat]);
+  return adDeel(cijfers[stap.teller], cijfers[stap.noemer]);
+}
+
+/* De diagnose. Optellen en delen, geen model: er is hier een juist antwoord en
+   een model kan er alleen iets aan verzinnen.
+
+   Wat dit expliciet NIET doet: een oordeel geven zonder norm. Kent het account
+   deze stap niet, dan krijgt de stap geen verhouding en telt hij niet mee in de
+   keuze van het knelpunt. Een advertentie afrekenen op een norm die je niet
+   hebt is precies hoe je een gezonde advertentie weggooit. */
+function adDiagnose(cijfers, norm) {
+  const c = cijfers || {}, n = norm || {};
+  const stappen = AD_TRAP.map(function (stap) {
+    const waarde = adStapWaarde(c, stap);
+    const normwaarde = adStapWaarde(n, stap);
+    const noemer = adGetal(c[stap.noemer]);
+    const genoeg = noemer !== null && noemer >= stap.drempel;
+    let verhouding = null;
+    if (waarde !== null && normwaarde !== null && normwaarde !== 0) {
+      verhouding = stap.hoger_is_beter ? (waarde / normwaarde) : (normwaarde / waarde);
+      if (!Number.isFinite(verhouding)) verhouding = null;
+    }
+    return {
+      sleutel: stap.sleutel, label: stap.label, zit: stap.zit, ligt_aan: stap.ligt_aan,
+      waarde: waarde, norm: normwaarde, verhouding: verhouding,
+      noemer: noemer, drempel: stap.drempel, genoeg_data: genoeg,
+      /* Zonder norm of zonder genoeg data: geen oordeel. Niet 'gemiddeld' --
+         dat is een oordeel, en we hebben er geen. */
+      oordeel: (verhouding === null || !genoeg) ? null
+        : (verhouding < 0.8 ? 'zwak' : (verhouding > 1.2 ? 'sterk' : 'gemiddeld'))
+    };
+  });
+
+  const meetbaar = stappen.filter(function (s) { return s.verhouding !== null && s.genoeg_data; });
+  meetbaar.sort(function (a, b) { return a.verhouding - b.verhouding; });
+  const zwakste = meetbaar[0] || null;
+  /* Alleen een knelpunt als de stap ook echt onder de norm zit. Is de zwakste
+     stap nog steeds beter dan het account, dan is er geen lek en is de eerlijke
+     uitslag: deze advertentie werkt, schaal hem op. */
+  const knelpunt = (zwakste && zwakste.verhouding < 1) ? zwakste.sleutel : null;
+  return {
+    stappen: stappen,
+    knelpunt: knelpunt,
+    meetbaar: meetbaar.length,
+    wat_testen: knelpunt ? AD_WAT_TESTEN[knelpunt] : null,
+    /* Waarom er geen knelpunt is, want dat zijn twee heel verschillende
+       situaties en ze zien er op een scherm hetzelfde uit. */
+    reden: knelpunt ? null : (meetbaar.length === 0
+      ? 'te weinig data of geen norm om tegen te meten'
+      : 'geen enkele stap zit onder het accountgemiddelde')
+  };
+}
+
+/* ---- Een bron kiezen --------------------------------------------------- */
+
+async function itereerBronnen(env) {
+  const uit = [];
+  const atriaSleutel = await sleutelVan(env, 'ATRIA_API_KEY');
+  let atria = { bron: 'atria', naam: 'Atria', bruikbaar: false, reden: 'er staat geen ATRIA_API_KEY', accounts: [] };
+  if (atriaSleutel) {
+    try { atria = { bron: 'atria', naam: 'Atria', bruikbaar: true, reden: null, accounts: await atriaAccounts(env) }; }
+    catch (e) { atria.reden = String((e && e.message) || e).slice(0, 160); }
+  }
+  uit.push(atria);
+
+  let meta = { bron: 'meta', naam: 'Meta Ads', bruikbaar: false, reden: 'er staat geen META_ACCESS_TOKEN', accounts: [] };
+  if (env.META_ACCESS_TOKEN) {
+    const accounts = await actieveAccounts(env);
+    meta = {
+      bron: 'meta', naam: 'Meta Ads',
+      bruikbaar: accounts.length > 0,
+      reden: accounts.length ? null : 'er staan geen actieve advertentieaccounts',
+      accounts: accounts.map(function (a) {
+        return { id: a.account_id, account_id: a.account_id, naam: a.naam || a.account_id,
+                 platform: 'facebook', valuta: a.valuta || null, staat: null };
+      })
+    };
+  }
+  uit.push(meta);
+  return uit;
 }
 
 /* ============================================================
@@ -1727,6 +2165,7 @@ export default {
           claude: !!(await sleutelVan(env, 'ANTHROPIC_KEY')),
           openai: !!(await sleutelVan(env, 'OPENAI_KEY')),
           meta: !!env.META_ACCESS_TOKEN,
+          atria: !!(await sleutelVan(env, 'ATRIA_API_KEY')),
           klaviyo: !!env.KLAVIYO_API_KEY
         },
       });
@@ -1774,6 +2213,74 @@ export default {
         uit = { error: 'de lezing liep vast: ' + String((e && e.message) || e).slice(0, 200) };
       }
       return json(uit, uit.error ? 502 : 200);
+    }
+
+    /* ---- Itereren: de bron van de advertentie waarop je voortbouwt ----
+       Achter de login, want dit gaat over het eigen advertentieaccount: welke
+       advertenties er draaien, wat ze kosten en wat ze opleveren. Dat is geen
+       gegeven dat op een open endpoint hoort.
+
+       De console kiest de bron, niet de worker. Draaien beide, dan zijn de
+       cijfers niet altijd tot op de cent gelijk -- Atria en Meta tellen
+       attributievensters net anders -- en dat is een keuze van degene die
+       kijkt, niet iets om stil voor hem in te vullen. */
+    if (path.startsWith('/itereren')) {
+      const bron = url.searchParams.get('bron') || 'atria';
+      const account = url.searchParams.get('account') || '';
+      const dagen = Number(url.searchParams.get('dagen')) || 30;
+      if (bron !== 'atria' && bron !== 'meta') return json({ error: "bron moet 'atria' of 'meta' zijn" }, 400);
+
+      try {
+        if (path === '/itereren/bronnen' && request.method === 'GET') {
+          return json({ bronnen: await itereerBronnen(env) });
+        }
+
+        /* De matencatalogus van Atria, onvertaald. Onze eigen namen komen uit
+           een vertaaltabel en die kan misgrijpen als het account maten anders
+           noemt. Dan wil je kunnen kijken wat er werkelijk staat in plaats van
+           te raden waarom een veld leeg blijft. */
+        if (path === '/itereren/maten' && request.method === 'GET') {
+          if (bron !== 'atria') return json({ error: 'de matencatalogus bestaat alleen bij Atria' }, 400);
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/metrics');
+          return json({ maten: d.items || [] });
+        }
+
+        if (path === '/itereren/advertenties' && request.method === 'GET') {
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const limiet = url.searchParams.get('limiet');
+          const lijst = bron === 'atria'
+            ? await atriaAdvertenties(env, account, dagen, url.searchParams.get('sorteer'), limiet)
+            : await metaAdvertenties(env, account, dagen, limiet);
+          return json({ bron: bron, dagen: dagen, advertenties: lijst });
+        }
+
+        if (path === '/itereren/advertentie' && request.method === 'GET') {
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const id = url.searchParams.get('id');
+          if (!id) return json({ error: 'id ontbreekt' }, 400);
+          /* De advertentie en de norm naast elkaar opvragen. De norm is het
+             account zelf over hetzelfde venster -- vandaar hetzelfde aantal
+             dagen, en niet een apart in te stellen periode. Twee vensters
+             vergelijken is geen vergelijking. */
+          const [advertentie, norm] = await Promise.all([
+            bron === 'atria' ? atriaAdvertentie(env, account, id, dagen) : metaAdvertentie(env, account, id, dagen),
+            (bron === 'atria' ? atriaNorm(env, account, dagen) : metaNorm(env, account, dagen)).catch(function () { return null; })
+          ]);
+          return json({
+            bron: bron, dagen: dagen,
+            advertentie: advertentie,
+            norm: norm,
+            diagnose: adDiagnose(advertentie.cijfers, norm)
+          });
+        }
+      } catch (e) {
+        /* De bron is stuk, niet de worker. Dat onderscheid hoort in het
+           antwoord te staan, anders zoekt iemand het bij ons. */
+        return json({ error: String((e && e.message) || e).slice(0, 200), bron: bron }, 502);
+      }
+
+      return json({ error: 'onbekend itereer-endpoint' }, 404);
     }
 
     /* ---- Systeem-API ----
@@ -1923,8 +2430,8 @@ export default {
         }
         const body = await request.json().catch(() => ({}));
         const naam = String(body.naam || '');
-        if (naam !== 'ANTHROPIC_KEY' && naam !== 'OPENAI_KEY') {
-          return json({ error: 'naam moet ANTHROPIC_KEY of OPENAI_KEY zijn' }, 400);
+        if (SLEUTELNAMEN.indexOf(naam) === -1) {
+          return json({ error: 'naam moet een van ' + SLEUTELNAMEN.join(', ') + ' zijn' }, 400);
         }
         const uit = await sleutelZet(env, naam, body.waarde, gebruiker.email);
         if (uit.error) return json({ error: uit.error }, uit.status || 400);
@@ -1939,10 +2446,9 @@ export default {
         if (gebruiker.role !== 'admin') {
           return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
         }
-        return json({
-          ANTHROPIC_KEY: await sleutelWerkt(env, 'ANTHROPIC_KEY'),
-          OPENAI_KEY: await sleutelWerkt(env, 'OPENAI_KEY')
-        });
+        const proeven = {};
+        for (const naam of SLEUTELNAMEN) proeven[naam] = await sleutelWerkt(env, naam);
+        return json(proeven);
       }
 
       return json({ error: 'onbekend systeem-endpoint' }, 404);
