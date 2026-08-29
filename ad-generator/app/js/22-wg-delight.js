@@ -133,7 +133,13 @@
        opzoekt (de matrixvelden, de kopieerknop) landt op het OUDSTE exemplaar
        terwijl je naar het nieuwste kijkt. */
     var _oud=document.getElementById('wg-drill'); if(_oud) _oud.remove();
-    var ov=document.createElement('div'); ov.className='wg-drill-overlay'; ov.id='wg-drill';
+    var ov=document.createElement('div'); ov.id='wg-drill';
+    /* Het dossier staat in het midden en niet meer als lade aan de zijkant.
+       Een zijpaneel is 560 pixels breed, en daar geperst werden de drie
+       kaarten van het overzicht kolommen van een woord breed. Het dossier is
+       ook geen bijzaak naast de lijst: als je erop klikt is het het enige
+       waar je naar kijkt. */
+    ov.className = 'wg-drill-overlay' + ((typeof dosPaneelHtml === 'function') ? ' dos-modal' : '');
     /* De inhoud komt uit js/55: kop, beeld met zijn variaties, Nicks oordeel
        per as, kerninformatie, en drie tabbladen waaronder de landingsbrief.
        Wat hier stond was het beeld met de kop en daaronder het hele dossier

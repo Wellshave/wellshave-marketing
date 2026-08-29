@@ -407,6 +407,89 @@ function TEKEN(item) {
 
   check('er zijn geen fouten in de pagina opgetreden', paginafouten, []);
 
+  console.log('\n  het paneel heeft de breedte die de inhoud nodig heeft');
+  /* Dit stond als lade van 560 pixels aan de rechterkant. Daar geperst werden
+     de drie kaarten van het overzicht kolommen van een woord breed: je las
+     "Hook: 184.000 / Nederlanders / kochten / zijn" onder elkaar. Nu een
+     venster in het midden.
+
+     De breekpunten hangen aan de CONTAINER en niet aan het venster, en dat is
+     het hele punt: op een scherm van 900 pixels is het venster breed genoeg
+     voor drie kolommen en het paneel niet. Kijkt de CSS naar het venster, dan
+     krijg je precies dezelfde geperste kolommen terug op een scherm dat er
+     ruim genoeg uitziet. */
+  const maten = [];
+  for (const breedte of [1600, 1280, 1024, 900, 700, 420]) {
+    await page.setViewportSize({ width: breedte, height: 900 });
+    maten.push(await page.evaluate(fx => {
+      eval('(' + fx + ')()');
+      const it = state.library[0];
+      it.matrix = { as_strategie: 'sterk', as_executie: 'sterk', as_bewijs: 'gemiddeld', as_test: 'sterk', score: '4' };
+      const oud = document.getElementById('wg-drill'); if (oud) oud.remove();
+      window.wgOpenLibraryItem('a');
+      const ov = document.getElementById('wg-drill');
+      ov.classList.add('show');
+      const pan = ov.querySelector('.wg-drill-panel');
+      const r = pan.getBoundingClientRect();
+      const vakken = [].slice.call(ov.querySelectorAll('.dos-drie .dos-kaart'))
+        .map(k => k.getBoundingClientRect());
+      const kaarten = vakken.map(b => Math.round(b.width));
+      /* Het aantal kolommen tellen in plaats van breedtes vergelijken: op een
+         smal scherm is een enkele kolom nu eenmaal smaller dan een van twee
+         op een breed scherm, en dan zegt een breedtevergelijking niets. */
+      const bovenkant = vakken.length ? Math.round(vakken[0].top) : 0;
+      const kolommen = vakken.filter(b => Math.abs(Math.round(b.top) - bovenkant) < 2).length;
+      /* Loopt er iets buiten het paneel? Dat is de vorm waarin dit misgaat:
+         geen foutmelding, alleen tekst die je niet meer ziet. */
+      const buiten = [].slice.call(pan.querySelectorAll('*')).filter(el => {
+        const b = el.getBoundingClientRect();
+        return b.width > 0 && (b.right > r.right + 1 || b.left < r.left - 1);
+      }).map(el => String(el.className || '').slice(0, 30));
+      return {
+        venster: window.innerWidth,
+        paneel: Math.round(r.width),
+        smalste: kaarten.length ? Math.min.apply(null, kaarten) : 0,
+        kolommen: kolommen,
+        sluitRechts: (function () {
+          var k = ov.querySelector('#wg-drill-close');
+          if (!k) return false;
+          var kb = k.getBoundingClientRect();
+          return kb.right > r.right - 60;
+        })(),
+        gecentreerd: Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 3,
+        buiten: buiten,
+        zijscroll: pan.scrollWidth > pan.clientWidth + 1,
+        paginaScroll: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    }, FIXTURE.toString()));
+  }
+  await page.setViewportSize({ width: 1400, height: 1100 });
+
+  check('het paneel staat in het midden, op elke breedte',
+    maten.filter(m => !m.gecentreerd).map(m => m.venster), []);
+  /* Het paneel gebruikt de ruimte die er is, met een bovengrens zodat de
+     leesregels niet uitrekken op een grote monitor. */
+  check('op een breed scherm is hij ruim maar niet eindeloos',
+    [maten[0].paneel, maten[1].paneel], [1140, 1140]);
+  check('en op een smal scherm vult hij het scherm',
+    maten[5].paneel > maten[5].venster * 0.9, true);
+  /* De kaarten in het overzicht: nooit meer zo smal dat er een woord per
+     regel in past. 280 is de ondergrens waaronder een opsomming afbreekt. */
+  check('geen kaart is smaller dan leesbaar',
+    maten.filter(m => m.smalste && m.smalste < 280).map(m => m.venster + 'px:' + m.smalste), []);
+  check('er loopt nergens iets buiten het paneel',
+    maten.filter(m => m.buiten.length).map(m => m.venster + 'px: ' + m.buiten[0]), []);
+  check('en nergens een horizontale schuifbalk',
+    maten.filter(m => m.zijscroll || m.paginaScroll).map(m => m.venster), []);
+  /* En de indeling past zich werkelijk aan in plaats van overal hetzelfde te
+     blijven: breed drie kolommen, midden twee, smal een. */
+  /* En de sluitknop rechtsboven. Hij was het enige element in zijn rij, en
+     space-between duwde hem dan naar links -- waar niemand hem zoekt. */
+  check('de sluitknop staat rechtsboven', maten[0].sluitRechts, true);
+  check('breed geeft drie kolommen', maten[0].kolommen, 3);
+  check('halverwege twee', [maten[2].kolommen, maten[3].kolommen], [2, 2]);
+  check('en smal geeft er een', [maten[4].kolommen, maten[5].kolommen], [1, 1]);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();
