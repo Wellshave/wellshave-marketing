@@ -693,6 +693,25 @@ function libNickKnopHtml(item){
 }
 function iterateFromLibrary(item){
   if (!item) return;
+  /* De strategie van de bron onthouden. Itereren op een winnaar betekent per
+     definitie: dezelfde hoek, dezelfde doelgroep, andere uitvoering -- daarom
+     itereer je erop. Toch bouwde de itereerroute verse metadata en liet hij
+     awareness, sophistication, persona, hoek, boodschap, pijn, verlangen,
+     mechanisme en bewijs allemaal liggen. In de bibliotheek stond daarna
+     negen keer "Niet vastgelegd", en het tabblad landingspagina had niets om
+     mee te werken.
+     Wat hier niet gebeurt: iets verzinnen. Heeft de bron zelf geen brief --
+     een van buiten geuploade ad bijvoorbeeld -- dan wordt er niets geerfd en
+     blijven de velden leeg. Dat is dan het eerlijke antwoord. */
+  state.iterateBron = {
+    id: item.id,
+    brief: (item.metadata && item.metadata.wizardBrief) || null,
+    awareness: (item.metadata && item.metadata.awareness) || null,
+    sophistication: (item.metadata && item.metadata.sophistication) || null,
+    destination: (item.metadata && item.metadata.destination) || null,
+    personaName: (item.metadata && item.metadata.personaName) || null,
+    personaId: (item.metadata && item.metadata.personaId) || null
+  };
   if (typeof switchMainTab === 'function') switchMainTab('generator');
   if (typeof setMode === 'function') setMode('iterate');
   if (item.image && item.image.b64){

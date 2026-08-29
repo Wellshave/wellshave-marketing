@@ -202,6 +202,17 @@
         /* Een afgeleide waarde vastleggen als beslissing. Hij stond er al --
            dit schrijft hem weg zodat hij niet meer met de brief meebeweegt. */
         wgBevestigVeld(ov, item, knop.getAttribute('data-veld'));
+      } else if (act === 'kies-bestemming') {
+        /* De bestemming alsnog vastleggen. Dit schrijft op het item zelf en
+           niet in de brief van de wizard: die brief hoort te blijven wat er
+           bij het maken besloten is, en dit is een besluit dat er later
+           bijkomt. lpSoort leest allebei. */
+        item.metadata = item.metadata || {};
+        item.metadata.destination = knop.getAttribute('data-soort');
+        try { if (typeof saveLibrary === 'function') saveLibrary(); } catch (err) {}
+        var vak = ov.querySelector('[data-paneel="landing"]');
+        if (vak && typeof dosLandingHtml === 'function') vak.innerHTML = dosLandingHtml(item);
+        if (typeof toast === 'function') toast('Bestemming vastgelegd');
       } else if (act === 'kopieer-lp') {
         try { navigator.clipboard.writeText(lpPrompt(item)); } catch (err) {}
         knop.textContent = 'Gekopieerd';

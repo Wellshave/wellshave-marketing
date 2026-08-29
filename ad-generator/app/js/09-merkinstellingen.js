@@ -743,6 +743,7 @@ async function generateFromIterateMode() {
         iterateAnalysis: analysis || null
       }
     };
+    erfStrategieVanBron(state.lastGenerated.metadata, state.iterateBron);
     state.generatedImages = {};
     renderResults(state.lastGenerated.variations, state.lastGenerated.metadata);
     btn.disabled = false;
@@ -766,3 +767,22 @@ function dispatchGenerate() {
   }
 }
 
+/* De strategie van de creative waarop we itereren meenemen naar de iteratie.
+   Zonder dit begint elke iteratie met een leeg dossier: geen awareness, geen
+   sophistication, geen hoek -- en dus ook geen landingspagina-advies, want dat
+   hangt aan awareness. Terwijl de hele reden om te itereren is dat de
+   strategie blijft staan en alleen de uitvoering verandert.
+   Alleen overnemen wat er werkelijk is, en nooit een leeg veld met iets
+   vullen: erf_van laat zien dat het geerfd is en niet hier besloten. */
+function erfStrategieVanBron(meta, bron) {
+  if (!meta || !bron || !bron.id) return meta;
+  if (bron.brief) meta.wizardBrief = bron.brief;
+  if (bron.awareness) meta.awareness = bron.awareness;
+  if (bron.sophistication) meta.sophistication = bron.sophistication;
+  if (bron.destination) meta.destination = bron.destination;
+  if (!meta.personaName && bron.personaName) meta.personaName = bron.personaName;
+  if (!meta.personaId && bron.personaId) meta.personaId = bron.personaId;
+  meta.erf_van = bron.id;
+  return meta;
+}
+window.erfStrategieVanBron = erfStrategieVanBron;

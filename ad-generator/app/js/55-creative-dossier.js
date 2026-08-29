@@ -221,9 +221,24 @@ function dosOverzichtHtml(item) {
 function dosLandingHtml(item) {
   var s = (typeof lpSoort === 'function') ? lpSoort(item) : null;
   if (!s) {
-    return '<p class="dos-leegtekst">Er is geen bestemming vastgelegd en er is geen awareness om er een ' +
-      'uit af te leiden. Zonder een van die twee is elke pagina een gok, en een gok is hier duurder ' +
-      'dan een leeg vak.</p>';
+    /* Melden dat er iets ontbreekt en het daarbij laten is de helft van een
+       bericht. Deze creative komt meestal uit de itereerroute, waar de
+       strategie van de bron niet meekwam; dan wil je hem hier alsnog kunnen
+       zetten in plaats van de wizard opnieuw te doorlopen.
+       Vier knoppen, en elke knop zegt wanneer hij hoort -- kiezen uit vier
+       namen zonder uitleg is ook gokken, alleen met meer stappen. */
+    var soorten = (typeof LP_SOORTEN !== 'undefined') ? LP_SOORTEN : {};
+    return '<p class="dos-leegtekst">Er is geen bestemming vastgelegd en er is geen awareness om er ' +
+      'een uit af te leiden. Zonder een van die twee is elke pagina een gok. ' +
+      'Kies hieronder waar de klik landt, dan staat de rest er meteen.</p>' +
+      '<div class="dos-kies">' +
+      Object.keys(soorten).map(function (k) {
+        return '<button type="button" class="dos-kieskaart" data-action="kies-bestemming" ' +
+          'data-id="' + dosEsc(item.id) + '" data-soort="' + dosEsc(k) + '">' +
+          '<b>' + dosEsc(soorten[k].label) + '</b>' +
+          '<span>' + dosEsc(soorten[k].kern) + '</span></button>';
+      }).join('') +
+      '</div>';
   }
   var soort = LP_SOORTEN[s.soort];
   var eisen = (typeof lpEisen === 'function') ? lpEisen(item) : [];

@@ -642,3 +642,19 @@ input:focus, select:focus, textarea:focus {
   .wg-drill-overlay.dos-modal { padding: 0; align-items: stretch; }
   .dos-modal .wg-drill-panel { max-height: 100vh; border-radius: 0; width: 100%; }
 }
+
+/* De keuze die je maakt als er nog geen bestemming vastligt. Vier kaarten met
+   hun eigen uitleg: kiezen uit vier namen zonder te weten wanneer je welke
+   neemt is ook gokken, alleen met meer stappen. */
+.dos-kies { display: grid; gap: 9px; margin-top: 4px; }
+@container dossier (min-width: 700px) { .dos-kies { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dos-kieskaart {
+  text-align: left; cursor: pointer; padding: 13px 15px; border-radius: 10px;
+  border: 1px solid rgba(var(--gold-rgb), .16); background: rgba(0, 0, 0, .26);
+  display: grid; gap: 4px; font-family: inherit;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.dos-kieskaart:hover { border-color: rgba(var(--gold-rgb), .5); background: rgba(var(--gold-rgb), .05); }
+.dos-kieskaart:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.dos-kieskaart b { font-size: 14px; color: var(--gold-bright); font-weight: 600; }
+.dos-kieskaart span { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }

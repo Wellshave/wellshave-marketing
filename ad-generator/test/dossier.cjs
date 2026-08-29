@@ -407,6 +407,136 @@ function TEKEN(item) {
 
   check('er zijn geen fouten in de pagina opgetreden', paginafouten, []);
 
+  console.log('\n  een iteratie erft de strategie van zijn bron');
+  /* Dit ging mis in de praktijk: je itereert op een winnaar, en in de
+     bibliotheek staat daarna negen keer "Niet vastgelegd" plus een tabblad
+     landingspagina zonder advies. De itereerroute bouwde verse metadata en
+     liet awareness, sophistication, persona, hoek, boodschap, pijn, verlangen,
+     mechanisme en bewijs allemaal liggen -- terwijl itereren per definitie
+     betekent dat de strategie blijft staan en alleen de uitvoering verandert. */
+  const erven = await page.evaluate(fx => {
+    eval('(' + fx + ')()');
+    const bron = state.library[0];
+    const uit = {};
+
+    /* Zo ziet het eruit als de strategie NIET meekomt: de oude situatie. */
+    const kaal = {
+      id: 'kaal', saved_at: Date.now(),
+      variation: { headline_nl: 'Iteratie zonder brief' },
+      metadata: { product: 'Groom Guard', funnel: 'tof', sourceMode: 'iterate', concept: '(iteratie van winnaar)' },
+      matrix: {}
+    };
+    uit.kaalLeeg = DOS_KERN.filter(r => !dosKernWaarde(kaal, r)).length;
+    uit.kaalSoort = lpSoort(kaal);
+
+    /* En zo met de erfenis erbij. iterateFromLibrary onthoudt de bron; de
+       itereerroute schrijft hem op de nieuwe metadata. Hier bootsen we die
+       twee stappen na zonder het model aan te roepen. */
+    iterateFromLibrary(bron);
+    uit.onthouden = !!(state.iterateBron && state.iterateBron.id === bron.id);
+    uit.brief = !!(state.iterateBron && state.iterateBron.brief);
+
+    const geerfd = JSON.parse(JSON.stringify(kaal));
+    geerfd.id = 'geerfd';
+    /* Let op: hier wordt de echte erfenisstap aangeroepen, niet nagebouwd.
+       Een test die de logica overschrijft blijft groen als die logica uit de
+       app verdwijnt -- en dan bewijst hij alleen zichzelf. */
+    erfStrategieVanBron(geerfd.metadata, state.iterateBron);
+    uit.erfVan = geerfd.metadata.erf_van;
+    state.library.push(geerfd);
+
+    uit.geerfdLeeg = DOS_KERN.filter(r => !dosKernWaarde(geerfd, r)).length;
+    uit.geerfdSoort = lpSoort(geerfd);
+    uit.hoek = dosKernWaarde(geerfd, DOS_KERN.filter(r => r.label === 'Marketing angle')[0]);
+    uit.persona = dosKernWaarde(geerfd, DOS_KERN.filter(r => r.label === 'Persona')[0]);
+    uit.eisen = lpEisen(geerfd).length;
+    uit.promptLengte = lpPrompt(geerfd).length;
+
+    /* De iteratie mag zelf ook keuzes hebben gemaakt. Wat er bij het maken
+       van de iteratie is ingevuld wint van wat de bron had: erven is
+       aanvullen waar het leeg is, niet overschrijven wat er al staat. */
+    const eigen = { product: 'Groom Guard', personaName: 'Sanne Bakker', personaId: 'eigen' };
+    erfStrategieVanBron(eigen, state.iterateBron);
+    uit.eigenPersona = eigen.personaName;
+    uit.eigenPersonaId = eigen.personaId;
+    uit.eigenAware = eigen.awareness;
+
+    /* Een bron zonder eigen brief levert niets op om te erven, en dan hoort
+       er ook niets te ontstaan. Een verzonnen strategie is erger dan geen. */
+    const vreemd = { id: 'vreemd', metadata: { product: 'X' }, variation: {}, matrix: {} };
+    iterateFromLibrary(vreemd);
+    uit.vreemdBrief = (state.iterateBron || {}).brief;
+    uit.vreemdAware = (state.iterateBron || {}).awareness;
+    return uit;
+  }, FIXTURE.toString());
+
+  /* De oude situatie, ter vergelijking: bijna alles leeg en geen bestemming. */
+  check('zonder erfenis staat bijna alles leeg', erven.kaalLeeg >= 9, true);
+  check('en is er geen bestemming af te leiden', erven.kaalSoort, null);
+  check('de bron wordt onthouden bij het starten', erven.onthouden, true);
+  check('inclusief zijn brief', erven.brief, true);
+  /* Met de erfenis: alleen product, funnel en plaatsing kunnen nog leeg zijn,
+     en die komen uit de iteratie zelf. */
+  check('met erfenis is bijna niets meer leeg', erven.geerfdLeeg <= 3, true);
+  check('de hoek komt mee', erven.hoek, 'De oprichter rekent het voor');
+  check('de persona ook', erven.persona, 'Mark de Vries');
+  check('en er is weer een bestemming', erven.geerfdSoort.soort, 'advertorial');
+  check('dus ook eisen voor de pagina', erven.eisen > 4, true);
+  check('en een bruikbare prompt', erven.promptLengte > 1000, true);
+  /* En het staat erbij dat het geerfd is en niet hier besloten. */
+  check('met de bron erbij vermeld', erven.erfVan, 'a');
+  /* Erven vult aan, het overschrijft niet: een persona die bij de iteratie
+     zelf is gekozen blijft staan, terwijl een leeg veld wel wordt gevuld. */
+  check('een eigen persona wordt niet overschreven',
+    [erven.eigenPersona, erven.eigenPersonaId], ['Sanne Bakker', 'eigen']);
+  check('maar een leeg veld wordt wel gevuld', erven.eigenAware, 'problem');
+  /* En de grens: een bron zonder brief levert niets op om te erven. */
+  check('een bron zonder brief erft niets', [erven.vreemdBrief, erven.vreemdAware], [null, null]);
+
+  console.log('\n  en zonder bestemming staat er een keuze, geen dood spoor');
+  /* Melden dat er iets ontbreekt en het daarbij laten is de helft van een
+     bericht. Je moet het hier kunnen zetten in plaats van de hele wizard
+     opnieuw te doorlopen. */
+  const keuze = await page.evaluate(() => {
+    const kaal = {
+      id: 'kaal2', saved_at: Date.now(),
+      variation: { headline_nl: 'Iteratie zonder brief' },
+      metadata: { product: 'Groom Guard', funnel: 'tof', sourceMode: 'iterate' },
+      matrix: {}
+    };
+    state.library.push(kaal);
+    const oud = document.getElementById('wg-drill'); if (oud) oud.remove();
+    window.wgOpenLibraryItem('kaal2');
+    const ov = document.getElementById('wg-drill');
+    ov.querySelector('.dos-tabs button[data-tab="landing"]').click();
+    const vak = ov.querySelector('[data-paneel="landing"]');
+    const uit = {
+      kaarten: vak.querySelectorAll('.dos-kieskaart').length,
+      /* Elke kaart zegt wanneer je hem neemt: kiezen uit vier namen zonder
+         uitleg is ook gokken, alleen met meer stappen. */
+      metUitleg: [].slice.call(vak.querySelectorAll('.dos-kieskaart span'))
+        .filter(x => x.textContent.length > 30).length
+    };
+    /* Kiezen, en dan moet de brief er meteen staan. Niet blind klikken: is de
+       knop er niet, dan hoort dat een uitslag te zijn en geen vastloper --
+       een test die crasht meldt niets bruikbaars over wat er ontbreekt. */
+    const knop = vak.querySelector('.dos-kieskaart[data-soort="listicle"]');
+    if (!knop) return Object.assign(uit, { naKeuze: 'GEEN KNOP', opgeslagen: null, prompt: 0, geenKaartenMeer: -1 });
+    knop.click();
+    const na = ov.querySelector('[data-paneel="landing"]');
+    uit.naKeuze = (na.querySelector('.dos-soort') || {}).textContent;
+    uit.opgeslagen = state.library.filter(x => x.id === 'kaal2')[0].metadata.destination;
+    uit.prompt = (na.querySelector('.dos-promptvak pre') || { textContent: '' }).textContent.length;
+    uit.geenKaartenMeer = na.querySelectorAll('.dos-kieskaart').length;
+    return uit;
+  });
+  check('er staan vier bestemmingen om uit te kiezen', keuze.kaarten, 4);
+  check('elk met de uitleg wanneer je hem neemt', keuze.metUitleg, 4);
+  check('kiezen levert meteen de brief op', keuze.naKeuze, 'Listicle');
+  check('en legt het vast op het item', keuze.opgeslagen, 'listicle');
+  check('met een prompt erbij', keuze.prompt > 800, true);
+  check('en de keuzekaarten zijn weg', keuze.geenKaartenMeer, 0);
+
   console.log('\n  het paneel heeft de breedte die de inhoud nodig heeft');
   /* Dit stond als lade van 560 pixels aan de rechterkant. Daar geperst werden
      de drie kaarten van het overzicht kolommen van een woord breed: je las
@@ -421,6 +551,9 @@ function TEKEN(item) {
   const maten = [];
   for (const breedte of [1600, 1280, 1024, 900, 700, 420]) {
     await page.setViewportSize({ width: breedte, height: 900 });
+    /* Twee frames wachten na het verzetten van het venster: anders meet je de
+       indeling van de vorige breedte en is de uitslag een muntworp. */
+    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     maten.push(await page.evaluate(fx => {
       eval('(' + fx + ')()');
       const it = state.library[0];
