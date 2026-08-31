@@ -90,7 +90,17 @@ async function crVraag(pad) {
   var r = await fetch(crBasis() + pad, o);
   var data = null;
   try { data = await r.json(); } catch (e) { data = {}; }
-  if (!r.ok) throw new Error((data && data.error) || ('de worker antwoordde met ' + r.status));
+  if (!r.ok) {
+    /* Nooit blind String() op wat er binnenkomt: de worker geeft bij een
+       geweigerde login {error: "..."} en bij een onbekende route
+       {error: {message: "..."}}, en die tweede werd "[object Object]" op het
+       scherm -- een zin die niets zegt op de plek waar hoort te staan wat er
+       mis is. */
+    var melding = (typeof wgFoutTekst === 'function')
+      ? wgFoutTekst(data, r.status) : ('de worker antwoordde met ' + r.status);
+    var teOud = (typeof wgWorkerTeOud === 'function') ? wgWorkerTeOud(r.status, melding, '/onderzoek') : null;
+    throw new Error(teOud || melding);
+  }
   return data;
 }
 

@@ -324,6 +324,29 @@ function ONDERSCHEP() {
   check('de melding staat er', /Dat lukte niet/.test(stuk), true);
   check('met wat de bron zei', /API key is invalid/.test(stuk), true);
 
+  console.log('\n  een te oude worker zegt dat, en nooit [object Object]');
+  /* Precies wat er op het scherm stond toen de console al uitgerold was en de
+     worker nog niet: "[object Object]" in een rood vak. De worker geeft bij een
+     onbekende route een object terug waar de console een string verwachtte. */
+  const teOud = await page.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/itereren/bronnen') > -1) {
+        return { ok: false, status: 404,
+                 json: async () => ({ error: { message: 'Gebruik /systeem/*, POST /anthropic of /openai/… (of GET /health).' } }) };
+      }
+      return echt(u, o);
+    };
+    _iw.gekozen = null; _iw.bronnen = null;
+    await iwHaalBronnen();
+    const t = document.getElementById('iw-paneel').textContent;
+    window.fetch = echt;
+    return t;
+  });
+  check('geen [object Object] meer', /\[object Object\]/.test(teOud), false);
+  check('er staat wat er moet gebeuren', /wrangler deploy/.test(teOud), true);
+  check('en waaraan je ziet of het gelukt is', /versie 20 of hoger/.test(teOud), true);
+
   console.log('\n  handmatig invullen kan nog steeds');
   const hand = await page.evaluate(() => {
     document.querySelector('[data-action="iw-handmatig"]').click();

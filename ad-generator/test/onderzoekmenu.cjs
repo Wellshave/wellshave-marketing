@@ -339,6 +339,66 @@ function ONDERSCHEP() {
   check('met het teamtoken', beeld.auth, 'Bearer token-van-de-baas');
   check('en nooit rechtstreeks bij de concurrent', beeld.rechtstreeks, 0);
 
+  console.log('\n  een foutmelding is nooit [object Object]');
+  /* Vijfde keer dat ditzelfde patroon toeslaat: er komt een object binnen waar
+     tekst verwacht werd, String() maakt er "[object Object]" van, en dat komt
+     zo op het scherm. Eerder was het het Score-veld in het dossier; nu de
+     foutmelding van de worker, die bij een onbekende route een object geeft en
+     bij een geweigerde login een string. */
+  const vormen = await page.evaluate(() => ({
+    string: wgFoutTekst({ error: 'unauthorized' }, 401),
+    object: wgFoutTekst({ error: { message: 'Gebruik /systeem/*' } }, 404),
+    genest: wgFoutTekst({ error: { error: { message: 'twee lagen diep' } } }, 500),
+    losseMessage: wgFoutTekst({ message: 'zo doet Atria het' }, 502),
+    lijst: wgFoutTekst({ error: ['eerste', 'tweede'] }, 400),
+    /* Niets bruikbaars: dan een eerlijke zin met de status, niet de letterlijke
+       tekst "[object Object]" en ook geen lege melding. */
+    leeg: wgFoutTekst({}, 503),
+    niets: wgFoutTekst(null, 500),
+    letterlijk: wgFoutTekst({ error: '[object Object]' }, 500),
+    /* Een kringverwijzing mag geen vastloper worden. Netjes afvangen, want een
+       test die op een stack overflow klapt meldt alleen dát hij klapte -- niet
+       wat er stuk is. */
+    kring: (function () {
+      const a = { error: {} }; a.error.error = a;
+      try { return wgFoutTekst(a, 500); }
+      catch (e) { return 'VASTGELOPEN: ' + String(e && e.message).slice(0, 40); }
+    })()
+  }));
+  check('een string komt er gewoon uit', vormen.string, 'unauthorized');
+  check('een object wordt uitgepakt', vormen.object, 'Gebruik /systeem/*');
+  check('ook twee lagen diep', vormen.genest, 'twee lagen diep');
+  check('en een losse message', vormen.losseMessage, 'zo doet Atria het');
+  check('een lijst wordt samengevoegd', vormen.lijst, 'eerste , tweede');
+  check('niets bruikbaars levert de status op', vormen.leeg, 'de server antwoordde met 503 zonder uitleg');
+  check('en helemaal niets ook', vormen.niets, 'de server antwoordde met 500 zonder uitleg');
+  check('de letterlijke tekst wordt geweigerd', vormen.letterlijk, 'de server antwoordde met 500 zonder uitleg');
+  check('een kringverwijzing loopt niet vast', vormen.kring, 'de server antwoordde met 500 zonder uitleg');
+
+  console.log('\n  en een te oude worker zegt dat, niet iets algemeens');
+  /* Dit is de fout die je het vaakst krijgt: de console is uitgerold en de
+     worker nog niet. Dan bestaat de route in de browser en niet op de server,
+     en antwoordt de worker met een zin over /systeem en /anthropic waar de
+     lezer niets aan heeft. */
+  const teOud = await page.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/onderzoek/toplijst') > -1) {
+        return { ok: false, status: 404,
+                 json: async () => ({ error: { message: 'Gebruik /systeem/*, POST /anthropic of /openai/… (of GET /health).' } }) };
+      }
+      return echt(u, o);
+    };
+    _cr.open = null;
+    await crHaalLijst();
+    const t = document.getElementById('cr-inhoud').textContent;
+    window.fetch = echt;
+    return t;
+  });
+  check('geen [object Object] meer', /\[object Object\]/.test(teOud), false);
+  check('er staat wat er moet gebeuren', /wrangler deploy/.test(teOud), true);
+  check('en waaraan je ziet of het gelukt is', /versie 20 of hoger/.test(teOud), true);
+
   console.log('\n  een fout van de bron komt op het scherm, niet in de console');
   const stuk = await page.evaluate(async () => {
     const echt = window.fetch;
