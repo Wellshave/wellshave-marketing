@@ -44,7 +44,10 @@ var SLEUTEL_VELDEN = [
     vandaan: 'platform.openai.com , API keys' },
   { naam: 'ATRIA_API_KEY', label: 'Atria',
     waar: 'De cijfers van een draaiende advertentie bij het itereren.',
-    vandaan: 'Atria , avatar linksboven , Settings & members , API Keys' }
+    vandaan: 'Atria , avatar linksboven , Settings & members , API Keys' },
+  { naam: 'TRENDTRACK_API_KEY', label: 'TrendTrack',
+    waar: 'Creative Research: wat er in de markt draait.',
+    vandaan: 'TrendTrack , een beheerder zet Public API aan , daarna API keys' }
 ];
 
 function sleutelEsc(s) {

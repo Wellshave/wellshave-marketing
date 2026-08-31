@@ -106,7 +106,8 @@ function ONDERSCHEP(antwoorden) {
   check('elke sleutel die het systeem kent heeft een regel', paneel.regels, paneel.verwacht);
   /* En de drie die er horen te zijn, bij naam. Alleen tellen laat een
      hernoemde of vervangen sleutel ongemerkt door. */
-  check('Claude, OpenAI en Atria', paneel.namen, ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY']);
+  check('Claude, OpenAI, Atria en TrendTrack', paneel.namen,
+    ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY', 'TRENDTRACK_API_KEY']);
   check('de staart is zichtbaar', /WXYZ/.test(paneel.html), true);
   check('met wie hem zette', /dustin@wellshave\.com/.test(paneel.html), true);
   check('en wanneer, in gewone taal', /vandaag/.test(paneel.html), true);

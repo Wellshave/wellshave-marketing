@@ -81,6 +81,7 @@ const MODEL = 'claude-opus-5';
 const FALLBACK_MODEL = 'claude-fable-5';
 const META_API = 'https://graph.facebook.com/v21.0';
 const ATRIA_API = 'https://api.tryatria.com';
+const TRENDTRACK_API = 'https://api.trendtrack.io';
 
 /* De Facebook-pagina waaronder de advertenties hangen. Geverifieerd tegen het
    account: bestaande creatives hebben een object_story_id die hiermee begint. */
@@ -279,22 +280,35 @@ function sleutelVormKlopt(naam, waarde) {
   if (naam === 'ANTHROPIC_KEY') return /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(w);
   if (naam === 'OPENAI_KEY') return /^sk-[A-Za-z0-9_-]{20,}$/.test(w);
   if (naam === 'ATRIA_API_KEY') return /^atria-sk_[A-Za-z0-9_-]{16,}$/.test(w);
+  /* TrendTrack schrijft geen voorvoegsel voor. Dan blijft alleen de vorm over
+     die elke sleutel heeft: lang genoeg, en zonder spaties of regeleindes --
+     precies wat er misgaat bij plakken uit een e-mail of een chatvenster. */
+  if (naam === 'TRENDTRACK_API_KEY') return /^[A-Za-z0-9._-]{24,}$/.test(w);
   return false;
 }
 
 /* De sleutels die dit systeem kent. Eén lijst, want drie plekken die elk hun
    eigen lijstje bijhouden lopen uit elkaar: dan staat er een sleutel in het
    menu die de worker weigert op te slaan, of andersom. */
-const SLEUTELNAMEN = ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY'];
+const SLEUTELNAMEN = ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY', 'TRENDTRACK_API_KEY'];
 
 /* De foutmelding van de dienst inkorten tot iets bruikbaars. Voluit
    doorgeven kan de sleutel bevatten die je net probeerde: sommige diensten
    echoen hem terug in hun melding, en dan staat hij alsnog in beeld. */
-function kortDeFout(tekst, status) {
+function kortDeFout(tekst, status, sleutel) {
   let bericht = '';
   try { const o = JSON.parse(tekst); bericht = (o.error && (o.error.message || o.error.type)) || ''; } catch (e) { }
   if (!bericht) { try { const o = JSON.parse(tekst); bericht = o.message || o.error || ''; } catch (e) { } }
-  bericht = String(bericht)
+  bericht = String(bericht);
+  /* De sleutel die we net gebruikt hebben letterlijk wegstrepen. De patronen
+     hieronder dekken alleen diensten met een herkenbaar voorvoegsel, en dat is
+     precies waar dit misging: een TrendTrack-sleutel heeft er geen, dus die
+     kwam gewoon mee in de melding op het scherm. De waarde die we in de hand
+     hebben is de enige maskering die altijd klopt. */
+  if (sleutel && String(sleutel).length > 7) {
+    bericht = bericht.split(String(sleutel)).join('<sleutel>');
+  }
+  bericht = bericht
     .replace(/atria-sk_[A-Za-z0-9_-]{8,}/g, '<sleutel>')
     .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<sleutel>')
     .slice(0, 140);
@@ -315,18 +329,26 @@ async function sleutelWerkt(env, naam) {
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'x' }] })
       });
       if (r.ok) return { geldig: true, reden: null };
-      return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
+    }
+    if (naam === 'TRENDTRACK_API_KEY') {
+      /* /v1/me is bij TrendTrack met opzet ongemeten: hij kost geen credits en
+         zegt precies wat je wilt weten -- op welke werkruimte deze sleutel
+         uitkomt. Een zoekopdracht als proef zou credits verbranden. */
+      const r = await fetch(TRENDTRACK_API + '/v1/me', { headers: { 'Authorization': 'Bearer ' + sleutel } });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
     }
     if (naam === 'ATRIA_API_KEY') {
       /* De goedkoopste vraag die Atria kent: welke advertentieaccounts hangen
          aan deze werkruimte. Geen paginering, geen credits. */
       const r = await fetch(ATRIA_API + '/open/v1/ad-accounts', { headers: { 'X-API-Key': sleutel } });
       if (r.ok) return { geldig: true, reden: null };
-      return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
     }
     const r = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': 'Bearer ' + sleutel } });
     if (r.ok) return { geldig: true, reden: null };
-    return { geldig: false, reden: kortDeFout(await r.text(), r.status) };
+    return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
   } catch (e) {
     return { geldig: false, reden: 'de dienst was niet bereikbaar' };
   }
@@ -1175,7 +1197,7 @@ async function atriaHaal(env, pad, params) {
      en de dienst zelf pakt alles in een envelop met een code die niet nul is.
      Alleen naar de HTTP-status kijken laat de tweede soort erdoorheen als
      succes, en dan krijgt het scherm een lege lijst zonder uitleg. */
-  if (!r.ok) throw new Error('Atria: ' + kortDeFout(tekst, r.status));
+  if (!r.ok) throw new Error('Atria: ' + kortDeFout(tekst, r.status, sleutel));
   let data;
   try { data = JSON.parse(tekst); } catch (e) { throw new Error('Atria gaf geen JSON terug'); }
   if (data && data.code !== undefined && data.code !== 0) {
@@ -1473,6 +1495,171 @@ async function itereerBronnen(env) {
   }
   uit.push(meta);
   return uit;
+}
+
+
+/* ============================================================
+ * 4d. Creative research: wat er in de markt draait
+ *
+ * De vraag is niet "wat vinden wij mooi" maar "wat draait er al maanden bij
+ * iemand anders". Een advertentie die na negentig dagen nog loopt is niet
+ * blijven staan uit sentiment: er zit een budget achter dat elke dag opnieuw
+ * verlengd wordt. Dat is het sterkste openbare signaal dat er bestaat.
+ *
+ * TWEE RANGSCHIKKINGEN DIE VERSCHILLENDE VRAGEN BEANTWOORDEN, en ze door
+ * elkaar halen is de fout die dit hele scherm nutteloos maakt:
+ *
+ *   LOOPTIJD zegt: dit werkt al lang. Het is de betrouwbaarste maat en de
+ *   traagste -- wat hier bovenaan staat is inmiddels ook door iedereen gezien.
+ *
+ *   BEREIKGROEI zegt: hier wordt nu geld op bijgezet. Dat is het vroegste
+ *   signaal en het onbetrouwbaarste: een advertentie kan drie dagen opschalen
+ *   en daarna stilvallen.
+ *
+ * WAT DIT UITDRUKKELIJK NIET IS: bewijs. Lang draaien is een signaal. Er is
+ * geen enkele advertentie in deze lijst waarvan wij de ROAS kennen, en het
+ * enige wat we van de adverteerder weten is dat hij hem niet heeft uitgezet.
+ * Dat staat in het antwoord, want een lijst met cijfers erbij ziet eruit als
+ * bewijs ook als er nergens staat dat het dat is.
+ *
+ * EN WAT ER OVERGENOMEN WORDT: de structuur en de hoek, nooit het beeld, de
+ * copy of de claim. Dat is niet alleen de nette lezing -- het is ook de enige
+ * bruikbare: de foto van een ander merk in jouw advertentie werkt niet, en hun
+ * claim is hun claim om waar te maken. De bronlaag levert daarom het materiaal
+ * en de cijfers, en laat het overnemen aan de stap die er een eigen creative
+ * van maakt.
+ * ============================================================ */
+
+const TT_VENSTERS = { 1: 'last24h', 7: 'last7d', 14: 'last30d', 30: 'last30d' };
+/* TrendTrack kent geen venster van veertien dagen voor bereik; last30d is het
+   eerstvolgende dat bestaat. Dat verschil verzwijgen zou de lijst laten
+   doorgaan voor iets wat hij niet is, dus het venster dat werkelijk gebruikt
+   is gaat mee terug in het antwoord. */
+function ttVenster(dagen) { return TT_VENSTERS[Number(dagen)] || 'last30d'; }
+
+const TT_SORTERING = {
+  looptijd: { sortBy: 'longestRunning', zegt: 'draait het langst' },
+  bereik: { sortBy: 'reach', zegt: 'heeft het grootste bereik' },
+  groei: { sortBy: 'reachDelta7d', zegt: 'schaalt op dit moment op' }
+};
+
+async function ttHaal(env, pad, params) {
+  const sleutel = await sleutelVan(env, 'TRENDTRACK_API_KEY');
+  if (!sleutel) throw new Error('er staat geen TRENDTRACK_API_KEY. Zet hem in het adminmenu of als Worker secret.');
+  const q = params ? ('?' + new URLSearchParams(params)) : '';
+  const r = await fetch(TRENDTRACK_API + pad + q, { headers: { 'Authorization': 'Bearer ' + sleutel } });
+  const tekst = await r.text();
+  if (!r.ok) throw new Error('TrendTrack: ' + kortDeFout(tekst, r.status, sleutel));
+  try { return JSON.parse(tekst); } catch (e) { throw new Error('TrendTrack gaf geen JSON terug'); }
+}
+
+/* Het eerste veld dat er werkelijk staat. TrendTrack levert per advertentie
+   niet altijd dezelfde sleutels -- een oudere rij heeft `thumbnail`, een
+   nieuwere `media.thumbnailUrl` -- en een vaste keuze levert dan stil een leeg
+   veld op in plaats van een fout. */
+function ttEerste(obj, paden) {
+  for (const pad of paden) {
+    let w = obj;
+    for (const stuk of pad.split('.')) { w = (w && typeof w === 'object') ? w[stuk] : undefined; }
+    if (w !== undefined && w !== null && w !== '') return w;
+  }
+  return null;
+}
+
+function ttNaarAdvertentie(rij) {
+  const r = rij || {};
+  return {
+    id: String(ttEerste(r, ['collationId', 'collation_id', 'adId', 'ad_id', 'id']) || ''),
+    merk: ttEerste(r, ['brand', 'pageName', 'page_name', 'advertiser.name', 'advertiserName']),
+    domein: ttEerste(r, ['domain', 'website.domain', 'shop.domain']),
+    beeld: ttEerste(r, ['mediaUrl', 'media_url', 'media.url', 'thumbnailUrl', 'thumbnail_url', 'media.thumbnailUrl', 'thumbnail']),
+    soort: ttEerste(r, ['mediaType', 'media_type', 'media.type']),
+    copy: {
+      kop: ttEerste(r, ['title', 'headline', 'creative.title']),
+      tekst: ttEerste(r, ['body', 'description', 'adCopy', 'ad_copy', 'creative.body']),
+      cta: ttEerste(r, ['cta', 'ctaType', 'callToAction', 'creative.cta'])
+    },
+    /* Onbekend blijft null. Bereik komt uit de transparantierapportage van Meta
+       en die bestaat alleen voor de EU en het VK -- buiten dat gebied is er
+       niets, en een nul zou daar een meting suggereren die er niet is. */
+    bereik: adGetal(ttEerste(r, ['reach', 'impressions', 'metrics.reach'])),
+    dagen_actief: adGetal(ttEerste(r, ['daysRunning', 'days_running', 'activeDays'])),
+    eerst_gezien: ttEerste(r, ['firstSeen', 'first_seen', 'createdAt']),
+    laatst_gezien: ttEerste(r, ['lastSeen', 'last_seen']),
+    varianten: adGetal(ttEerste(r, ['duplicates', 'duplicateCount', 'variations'])),
+    land: ttEerste(r, ['mainCountry', 'main_country', 'countries.0']),
+    taal: ttEerste(r, ['language', 'ad_language']),
+    actief: ttEerste(r, ['isActive', 'active', 'status'])
+  };
+}
+
+async function ttToplijst(env, opties) {
+  const o = opties || {};
+  const sortering = TT_SORTERING[o.sorteer] || TT_SORTERING.looptijd;
+  const dagen = Number(o.dagen) || 14;
+  const params = {
+    sortBy: sortering.sortBy,
+    order: 'desc',
+    status: 'active',
+    limit: String(Math.max(1, Math.min(Number(o.limiet) || 10, 50))),
+    page: '1'
+  };
+  if (o.zoek) params.search = String(o.zoek).slice(0, 200);
+  if (o.land) params.countries = String(o.land).toUpperCase().slice(0, 2);
+  if (o.taal) params.languages = String(o.taal).slice(0, 8);
+  if (o.soort === 'image' || o.soort === 'video') params.mediaType = o.soort;
+  /* Bij bereik en groei hoort een venster; bij looptijd niet. Een venster
+     meesturen op looptijd zou de lijst inperken tot wat er in dat venster
+     begon -- en dat is precies het omgekeerde van wat je vraagt als je zoekt
+     naar wat er het langst draait. */
+  if (o.sorteer === 'bereik' || o.sorteer === 'groei') {
+    params.reachPeriod = ttVenster(dagen);
+    params.minReach = '1';
+  }
+  if (o.min_dagen) params.minDaysRunning = String(Math.max(0, Number(o.min_dagen) || 0));
+
+  const data = await ttHaal(env, '/v1/ads', params);
+  const rijen = data.data || data.items || data.results || [];
+  return {
+    sorteer: o.sorteer || 'looptijd',
+    sorteert_op: sortering.zegt,
+    venster: params.reachPeriod || null,
+    /* Wat er gevraagd is en wat er werkelijk gebruikt is, allebei. Veertien
+       dagen bestaat niet bij deze bron en dan zie je hier dat er dertig is
+       gemeten in plaats van dat je het aanneemt. */
+    dagen_gevraagd: dagen,
+    /* Eén zin die voorkomt dat deze lijst voor bewijs doorgaat. Hij hoort bij
+       de data en niet bij het scherm: elk scherm dat deze lijst toont hoort
+       hem mee te tonen, ook een scherm dat later gebouwd wordt. */
+    voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+    advertenties: rijen.map(ttNaarAdvertentie)
+  };
+}
+
+/* ---- De beeldproxy ----------------------------------------------------- */
+
+/* De console kan het beeld van een concurrent niet rechtstreeks ophalen: die
+   servers staan geen vreemde herkomst toe, en later moet Claude het beeld ook
+   kunnen lezen. Dus haalt de worker het op.
+ *
+ * Dat maakt van deze route een gerichte aanvalsmogelijkheid als hij alles
+ * doorlaat: een worker die elke URL ophaalt is een manier om via ons bij
+ * adressen te komen die alleen wij kunnen bereiken. Vandaar een lijst van
+ * hosts die er werkelijk toe doen, en verder niets -- niet een lijst van wat
+ * verboden is, want die is altijd incompleet. */
+const BEELD_HOSTS = [
+  'fbcdn.net', 'cdninstagram.com', 'facebook.com', 'trendtrack.io',
+  'tryatria.com', 'atria-cdn.com'
+];
+
+function beeldHostMag(u) {
+  let host;
+  try {
+    const url = new URL(u);
+    if (url.protocol !== 'https:') return false;
+    host = url.hostname.toLowerCase();
+  } catch (e) { return false; }
+  return BEELD_HOSTS.some(function (h) { return host === h || host.endsWith('.' + h); });
 }
 
 /* ============================================================
@@ -2166,6 +2353,7 @@ export default {
           openai: !!(await sleutelVan(env, 'OPENAI_KEY')),
           meta: !!env.META_ACCESS_TOKEN,
           atria: !!(await sleutelVan(env, 'ATRIA_API_KEY')),
+          trendtrack: !!(await sleutelVan(env, 'TRENDTRACK_API_KEY')),
           klaviyo: !!env.KLAVIYO_API_KEY
         },
       });
@@ -2281,6 +2469,52 @@ export default {
       }
 
       return json({ error: 'onbekend itereer-endpoint' }, 404);
+    }
+
+    /* ---- Creative Research: wat er in de markt draait ----
+       Achter de login. Niet omdat de gegevens geheim zijn -- ze komen uit een
+       openbare advertentiebibliotheek -- maar omdat elke aanroep credits kost
+       bij TrendTrack, en een open endpoint dat credits verbrandt is een
+       rekening die iemand anders voor je opmaakt. */
+    if (path.startsWith('/onderzoek')) {
+      try {
+        if (path === '/onderzoek/toplijst' && request.method === 'GET') {
+          return json(await ttToplijst(env, {
+            sorteer: url.searchParams.get('sorteer'),
+            dagen: url.searchParams.get('dagen'),
+            limiet: url.searchParams.get('limiet'),
+            zoek: url.searchParams.get('zoek'),
+            land: url.searchParams.get('land'),
+            taal: url.searchParams.get('taal'),
+            soort: url.searchParams.get('soort'),
+            min_dagen: url.searchParams.get('min_dagen')
+          }));
+        }
+
+        /* Het beeld van een concurrent, opgehaald door de worker omdat de
+           browser dat niet mag en Claude het straks moet kunnen lezen. Alleen
+           van hosts die er werkelijk toe doen: zonder die grens is dit een
+           manier om via ons bij adressen te komen die alleen wij bereiken. */
+        if (path === '/onderzoek/beeld' && request.method === 'GET') {
+          const bron = url.searchParams.get('u') || '';
+          if (!beeldHostMag(bron)) return json({ error: 'dit adres wordt niet doorgelaten' }, 400);
+          const r = await fetch(bron);
+          if (!r.ok) return json({ error: 'het beeld was niet op te halen (' + r.status + ')' }, 502);
+          const type = r.headers.get('content-type') || '';
+          /* En wat er terugkomt moet ook echt een beeld zijn. Een host op de
+             lijst die iets anders teruggeeft is geen reden om het door te
+             zetten alsof het een plaatje is. */
+          if (!/^image\//.test(type)) return json({ error: 'dat adres gaf geen afbeelding terug' }, 400);
+          return new Response(await r.arrayBuffer(), {
+            status: 200,
+            headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', ...cors }
+          });
+        }
+      } catch (e) {
+        return json({ error: String((e && e.message) || e).slice(0, 200), bron: 'trendtrack' }, 502);
+      }
+
+      return json({ error: 'onbekend onderzoek-endpoint' }, 404);
     }
 
     /* ---- Systeem-API ----

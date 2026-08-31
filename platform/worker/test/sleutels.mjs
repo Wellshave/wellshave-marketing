@@ -57,6 +57,7 @@ const NEP_ANTHROPIC = 'sk-ant-api03-' + 'A'.repeat(40);
 const NEP_ANTHROPIC_2 = 'sk-ant-api03-' + 'B'.repeat(40);
 const NEP_OPENAI = 'sk-proj-' + 'C'.repeat(40);
 const NEP_ATRIA = 'atria-sk_' + 'D'.repeat(32);
+const NEP_TT = 'tt' + 'E'.repeat(32);
 
 /* ── De nagebootste wereld ──────────────────────────────────────────────── */
 
@@ -65,8 +66,8 @@ let db, dienstAntwoorden, aanroepen;
 async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [] };
-  dienstAntwoorden = { anthropic: { ok: true }, openai: { ok: true }, atria: { ok: true } };
-  aanroepen = { anthropic: [], openai: [], atria: [] };
+  dienstAntwoorden = { anthropic: { ok: true }, openai: { ok: true }, atria: { ok: true }, trendtrack: { ok: true } };
+  aanroepen = { anthropic: [], openai: [], atria: [], trendtrack: [] };
 }
 
 const SB = 'https://vwzdxvnqhrqkvvhbxkhr.supabase.co';
@@ -109,6 +110,17 @@ globalThis.fetch = async (url, opties) => {
     return { ok: a.ok, status: a.ok ? 200 : 401,
       text: async () => a.ok ? '{"content":[]}' : JSON.stringify({ error: { message: a.melding || 'invalid x-api-key' } }),
       json: async () => ({ content: [] }) };
+  }
+  if (u.includes('api.trendtrack.io')) {
+    aanroepen.trendtrack.push(opties.headers.Authorization);
+    const a = dienstAntwoorden.trendtrack;
+    return { ok: a.ok, status: a.ok ? 200 : 401,
+      /* De melding draagt de sleutel die net geprobeerd is. Dat doen diensten
+         werkelijk, en TrendTrack heeft geen voorvoegsel waar een filter op kan
+         aanslaan -- vandaar dat de maskering de waarde zelf moet kennen. */
+      text: async () => a.ok ? '{"workspace":"wellshave"}'
+        : JSON.stringify({ message: 'Invalid API key ' + NEP_TT }),
+      json: async () => ({ workspace: 'wellshave' }) };
   }
   if (u.includes('api.tryatria.com')) {
     aanroepen.atria.push(opties.headers['X-API-Key']);
@@ -234,6 +246,28 @@ const atriaGoed = await roep('/systeem/sleutels', alsAdmin({ naam: 'ATRIA_API_KE
 check('een hele Atria-sleutel gaat er wel in', atriaGoed.status, 200);
 check('en is meteen uitgeprobeerd bij Atria', atriaGoed.data.proef && atriaGoed.data.proef.geldig, true);
 check('met de sleutel die net gezet is', aanroepen.atria[aanroepen.atria.length - 1], NEP_ATRIA);
+/* En de vierde. TrendTrack schrijft geen voorvoegsel voor, dus blijft alleen
+   de lengte over -- en dat is precies waarom de melding hieronder apart
+   gecontroleerd wordt: er is geen patroon waar een filter op kan aanslaan. */
+const ttKort = await roep('/systeem/sleutels', alsAdmin({ naam: 'TRENDTRACK_API_KEY', waarde: 'abc123' }));
+check('een te korte TrendTrack-sleutel: geweigerd', ttKort.status, 400);
+const ttSpatie = await roep('/systeem/sleutels', alsAdmin({ naam: 'TRENDTRACK_API_KEY', waarde: NEP_TT.slice(0, 16) + ' ' + NEP_TT.slice(16) }));
+check('en een met een spatie erin ook', ttSpatie.status, 400);
+const ttGoed = await roep('/systeem/sleutels', alsAdmin({ naam: 'TRENDTRACK_API_KEY', waarde: NEP_TT }));
+check('een hele TrendTrack-sleutel gaat er wel in', ttGoed.status, 200);
+check('en is uitgeprobeerd bij TrendTrack', aanroepen.trendtrack[aanroepen.trendtrack.length - 1], 'Bearer ' + NEP_TT);
+
+/* En de melding als hij niet deugt: een sleutel zonder voorvoegsel glipt door
+   elk patroonfilter. Dit is een echte fout geweest -- de sleutel stond
+   voluit in het antwoord op het scherm. */
+dienstAntwoorden.trendtrack = { ok: false };
+const ttProef = await roep('/systeem/sleutels/proef', alsAdmin());
+check('de proef zegt dat hij niet geldig is', ttProef.data.TRENDTRACK_API_KEY.geldig, false);
+check('en de sleutel staat niet in de reden',
+  String(ttProef.data.TRENDTRACK_API_KEY.reden).indexOf(NEP_TT), -1);
+check('terwijl de dienst hem wel meestuurde',
+  JSON.stringify({ message: 'Invalid API key ' + NEP_TT }).indexOf(NEP_TT) > -1, true);
+
 const onbekend = await roep('/systeem/sleutels', alsAdmin({ naam: 'STRIPE_KEY', waarde: NEP_OPENAI }));
 check('een onbekende naam: geweigerd', onbekend.status, 400);
 check('en de oude sleutel staat er nog', db.systeem_geheimen.filter(r => r.naam === 'ANTHROPIC_KEY')[0].staart, NEP_ANTHROPIC.slice(-4));
