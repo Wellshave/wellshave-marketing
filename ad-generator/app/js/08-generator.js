@@ -357,6 +357,11 @@ function setMode(mode) {
 
   document.body.classList.toggle('copy-mode-active', mode === 'copy');
   document.body.classList.toggle('iterate-mode-active', mode === 'iterate');
+  /* De itereerwizard tekent zichzelf zodra de modus aangaat. Zonder dit staat
+     hij leeg als je via de modusknop binnenkomt in plaats van via het menu --
+     twee ingangen naar hetzelfde scherm en maar een ervan tekent, is precies
+     het soort verschil dat je pas ziet als iemand het meldt. */
+  if (mode === 'iterate' && typeof renderItereerWizard === 'function') renderItereerWizard();
 
   // scratch-only elementen (format mode, funnel, archetype, concept-suggester) verbergen in copy en iterate
   document.querySelectorAll('.scratch-only').forEach(el => {

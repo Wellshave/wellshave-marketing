@@ -764,3 +764,114 @@ input:focus, select:focus, textarea:focus {
 .cr-copy-cta { font-size: 11.5px; color: var(--text-faint); margin-top: 6px; }
 .cr-patroon { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
 .cr-patroon h4 { font-size: 14px; color: var(--gold-bright) !important; margin: 0 0 14px; }
+
+/* ── De itereerwizard ────────────────────────────────────────────────────
+   Twee blokken onder elkaar in de volgorde waarin het werk gebeurt. De trap
+   is een rij vakjes waarvan er hooguit één opvalt: het lek. Alles tegelijk
+   laten opvallen is hetzelfde als niets laten opvallen. */
+.iw-blok { margin: 18px 0 26px; }
+.iw-stapkop {
+  display: flex; align-items: center; gap: 10px; font-size: 14px;
+  font-weight: 600; color: var(--gold-bright); margin-bottom: 12px;
+}
+.iw-nr {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 12px;
+  border: 1px solid rgba(var(--gold-rgb), .5); color: var(--gold-bright);
+}
+.iw-rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.iw-keuze {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.iw-keuze.klein { padding: 6px 11px; font-size: 12px; }
+.iw-keuze:hover:not(:disabled) { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.iw-keuze.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+.iw-keuze:disabled { opacity: .4; cursor: not-allowed; }
+.iw-knop {
+  padding: 9px 18px; border-radius: 8px; border: 1px solid var(--gold);
+  background: rgba(var(--gold-rgb), .12); color: var(--gold-bright);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.iw-knop:hover:not(:disabled) { background: rgba(var(--gold-rgb), .2); }
+.iw-knop:disabled { opacity: .5; cursor: default; }
+.iw-link {
+  background: none; border: none; padding: 0; color: var(--text-soft);
+  font-size: 12.5px; text-decoration: underline; cursor: pointer;
+}
+.iw-link:hover { color: var(--gold-bright); }
+.iw-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; margin: 8px 0; max-width: 76ch; }
+.iw-uitleg.leeg { color: var(--text-faint); }
+/* Een lek na de klik is geen creative-opdracht. Dat moet je zien voor je
+   doorklikt, niet erna. */
+.iw-uitleg.waarschuwing {
+  border-left: 2px solid rgba(212, 138, 42, .7); padding: 8px 0 8px 14px; color: var(--text);
+}
+.iw-fout {
+  border: 1px solid rgba(189, 15, 15, .5); border-radius: 8px; padding: 12px 14px;
+  color: #e88; font-size: 12.5px; line-height: 1.6; margin-bottom: 16px;
+}
+
+.iw-lijst { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-height: 340px; overflow-y: auto; }
+.iw-adkaart {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer;
+}
+.iw-adkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.iw-adnaam { font-size: 13px; color: var(--text); }
+.iw-adcijfers { font-size: 11.5px; color: var(--text-faint); }
+.iw-punt { opacity: .5; }
+
+.iw-gekozen { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
+.iw-gekozen-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.iw-gekozen-kop b { font-size: 13.5px; color: var(--text); }
+.iw-cijfers { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px 16px; }
+.iw-cijfer { display: flex; flex-direction: column; gap: 1px; }
+.iw-cijfer-label { font-size: 11px; color: var(--text-faint); }
+.iw-cijfer-waarde { font-size: 14px; color: var(--text); font-weight: 600; }
+
+.iw-trap { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 18px; }
+.iw-stap {
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  background: var(--surface); display: flex; flex-direction: column; gap: 3px;
+}
+/* Alleen het knelpunt springt eruit. De rest is context: de stappen die het
+   goed doen hoeven geen aandacht, ze hoeven alleen leesbaar te zijn. */
+.iw-stap.knelpunt { border-color: rgba(212, 138, 42, .8); background: rgba(212, 138, 42, .07); }
+.iw-stap-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.iw-stap-label { font-size: 11px; color: var(--text-faint); line-height: 1.3; }
+.iw-vlag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  color: #d48a2a; white-space: nowrap; font-weight: 600;
+}
+.iw-stap-waarde { font-size: 17px; color: var(--text); font-weight: 600; }
+.iw-stap-waarde.leeg { font-size: 12.5px; color: var(--text-faint); font-weight: 400; }
+.iw-stap-norm { font-size: 11px; color: var(--text-soft); }
+.iw-stap-norm.leeg { color: var(--text-faint); font-style: italic; }
+.iw-stap.o-sterk .iw-stap-norm { color: #8fc49a; }
+.iw-stap.o-zwak .iw-stap-norm { color: #d48a2a; }
+
+/* ── Het eigen keuzeveld ─────────────────────────────────────────────────
+   .wgsel is de zelfgebouwde vervanger van een <select>, en hij droeg nog
+   zijn cremekleur uit de tijd dat de console licht was: background #f3f1e9,
+   hardgecodeerd. Dat viel niet op omdat hij op de itereertab onder dertig
+   invoervelden stond en dus buiten het meetbereik van de nachttest viel.
+   Zodra die velden verdwenen, kwam hij in beeld -- de fout stond er al, hij
+   was alleen niet te zien.
+
+   Ook de tekstkleuren gaan mee: donkerbruin op zwart is niet te lezen. */
+.wgsel-field { background: var(--surface); border-color: rgba(var(--gold-rgb), .28); }
+.wgsel-field:hover { border-color: rgba(var(--gold-rgb), .5); box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+.wgsel.open .wgsel-field { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(var(--gold-rgb), .45); }
+.wgsel-bar { background: var(--gold); }
+.wgsel-val { color: var(--text); }
+.wgsel-val.placeholder { color: var(--text-faint); }
+.wgsel-chev { color: var(--text-soft); }
+.wgsel-panel {
+  background: var(--bg-elevated); border-color: rgba(var(--gold-rgb), .3);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .6);
+}
+.wgsel-opt { color: var(--text-soft); }
+.wgsel-opt:hover { background: rgba(var(--gold-rgb), .1); color: var(--gold-bright); }
+.wgsel-opt.sel { color: var(--gold-bright); }
+.wgsel-ck { color: var(--gold); }

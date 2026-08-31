@@ -319,17 +319,26 @@
 
     <div class="iterate-options" id="iterate-options">
       <div class="copy-options-title">Iteratie-instellingen <span class="label-hint">alleen voor itereer-modus</span></div>
-      <div style="margin-top:12px;"><span class="label">Advertentiedata <span class="label-hint">vul handmatig in, of lees uit een dashboard-screenshot</span></span></div>
-      <div class="iterate-upload">
-        <button class="btn btn-small btn-ghost" type="button" id="iterate-extract-btn" onclick="document.getElementById('iterate-data-input').click()">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Lees uit screenshot
-        </button>
-        <input type="file" id="iterate-data-input" accept="image/*" style="display:none;" onchange="handleIterateDataUpload(event)">
-        <span class="iterate-upload-status" id="iterate-extract-status">upload een screenshot van Atria of Meta, Claude vult de velden</span>
+      <div id="iw-paneel"></div>
+
+      <!-- De terugval: het oude formulier. Het staat er nog omdat de koppeling
+           kan ontbreken -- geen sleutel, een account dat nog niet gekoppeld is,
+           of cijfers uit een bron die wij niet lezen. Het staat alleen in beeld
+           als je er zelf voor kiest, want twee invoerwegen tegelijk tonen is
+           hoe je twee verschillende cijfers in dezelfde prompt krijgt. -->
+      <div id="iterate-handmatig" style="display:none;">
+        <div style="margin-top:12px;"><span class="label">Advertentiedata <span class="label-hint">met de hand, of uit een dashboard-screenshot</span></span></div>
+        <div class="iterate-upload">
+          <button class="btn btn-small btn-ghost" type="button" id="iterate-extract-btn" onclick="document.getElementById('iterate-data-input').click()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Lees uit screenshot
+          </button>
+          <input type="file" id="iterate-data-input" accept="image/*" style="display:none;" onchange="handleIterateDataUpload(event)">
+          <span class="iterate-upload-status" id="iterate-extract-status">upload een screenshot van Atria of Meta, Claude vult de velden</span>
+        </div>
+        <div id="iterate-fields"></div>
+        <button class="btn btn-small" id="iterate-save-btn" type="button" onclick="saveIterateData()" style="margin:10px 0 4px;">Opslaan</button>
       </div>
-      <div id="iterate-fields"></div>
-      <button class="btn btn-small" id="iterate-save-btn" type="button" onclick="saveIterateData()" style="margin:10px 0 4px;">Opslaan</button>
       <button class="btn btn-small" id="iterate-analyze-btn" type="button" onclick="analyzeWinningAd()" style="margin-bottom:6px;">Analyseer deze ad</button>
       <div class="iterate-analysis" id="iterate-analysis" style="display:none;"></div>
       <div class="field form-full">
@@ -1939,6 +1948,7 @@
 <script src="js/54-landingsbrief.js"></script>
 <script src="js/55-creative-dossier.js"></script>
 <script src="js/56-creative-research.js"></script>
+<script src="js/57-itereerwizard.js"></script>
 
 <!-- Static Ad Wizard: alleen voor het maken van een nieuwe static vanaf nul.
      Kopieer ad, Itereren en de Ad Transformer draaien onveranderd door op het

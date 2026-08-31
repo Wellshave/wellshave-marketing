@@ -243,6 +243,7 @@ function switchMainTab(tab) {
     if (genView) genView.style.display = 'block';
     if (iterBtn) iterBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('iterate');
+    if (typeof renderItereerWizard === 'function') renderItereerWizard();
   } else if (tab === 'team') {
     if (teamView) teamView.style.display = 'block';
     if (teamBtn) teamBtn.classList.add('active');
@@ -530,6 +531,18 @@ function renderIterateFields() {
 }
 
 function collectIterateData() {
+  /* Is er een advertentie uit Atria of Meta gekozen, dan komen de cijfers
+     daarvandaan -- inclusief de funneldiagnose, die je met de hand niet kunt
+     invullen omdat hij tegen het accountgemiddelde gemeten wordt.
+
+     Uitdrukkelijk niet allebei: de invoervelden houden hun oude waarde, en die
+     mengen met verse cijfers levert twee verschillende getallen in dezelfde
+     prompt op. Dan is de diagnose van het model gebaseerd op een advertentie
+     die niet bestaat. */
+  if (typeof iwCijfertekst === 'function') {
+    var uitBron = iwCijfertekst();
+    if (uitBron) return uitBron;
+  }
   let adName = '';
   let period = '';
   const lines = [];
