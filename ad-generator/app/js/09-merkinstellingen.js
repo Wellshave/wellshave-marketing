@@ -181,7 +181,7 @@ function toggleMobileNav() { document.body.classList.toggle('nav-open'); }
 function closeMobileNav() { document.body.classList.remove('nav-open'); }
 
 function switchMainTab(tab) {
-  if (window._userRole === 'guest' && ['generator','copy','iterate','transformer','copywriter','scriptwriter','brand','proxy'].indexOf(tab) !== -1) { tab = 'library'; }
+  if (window._userRole === 'guest' && ['generator','copy','iterate','transformer','copywriter','scriptwriter','brand','proxy','research'].indexOf(tab) !== -1) { tab = 'library'; }
   closeMobileNav();
   const genView = document.getElementById('main-tab-generator');
   const proxyView = document.getElementById('main-tab-proxy');
@@ -205,6 +205,8 @@ function switchMainTab(tab) {
   const scriptsBtn = document.getElementById('main-tab-btn-scripts');
   const creativesView = document.getElementById('main-tab-creatives');
   const creativesBtn = document.getElementById('main-tab-btn-creatives');
+  const researchView = document.getElementById('main-tab-research');
+  const researchBtn = document.getElementById('main-tab-btn-research');
   const transformerView = document.getElementById('main-tab-transformer');
   const transformerBtn = document.getElementById('main-tab-btn-transformer');
   const copywriterView = document.getElementById('main-tab-copywriter');
@@ -213,7 +215,7 @@ function switchMainTab(tab) {
   const scriptwriterBtn = document.getElementById('main-tab-btn-scriptwriter');
   const teamView = document.getElementById('main-tab-team');
   const teamBtn = document.getElementById('main-tab-btn-team');
-  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, teamBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, teamBtn, researchBtn].forEach(b => { if (b) b.classList.remove('active'); });
   if (genView) genView.style.display = 'none';
   if (proxyView) proxyView.style.display = 'none';
   if (libView) libView.style.display = 'none';
@@ -221,6 +223,7 @@ function switchMainTab(tab) {
   if (changeView) changeView.style.display = 'none';
   if (personaLibView) personaLibView.style.display = 'none';
   if (productLibView) productLibView.style.display = 'none';
+  if (researchView) researchView.style.display = 'none';
   if (transformerView) transformerView.style.display = 'none';
   if (copywriterView) copywriterView.style.display = 'none';
   if (scriptwriterView) scriptwriterView.style.display = 'none';
@@ -264,6 +267,10 @@ function switchMainTab(tab) {
     if (productLibView) productLibView.style.display = 'block';
     if (productLibBtn) productLibBtn.classList.add('active');
     if (typeof renderProductLibrary === 'function') renderProductLibrary();
+  } else if (tab === 'research') {
+    if (researchView) researchView.style.display = 'block';
+    if (researchBtn) researchBtn.classList.add('active');
+    if (typeof renderCreativeResearch === 'function') renderCreativeResearch();
   } else if (tab === 'transformer') {
     if (transformerView) transformerView.style.display = 'block';
     if (transformerBtn) transformerBtn.classList.add('active');
@@ -296,7 +303,7 @@ function switchMainTab(tab) {
     if (genBtn) genBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('scratch');
   }
-  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', team: 'Team' };
+  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', team: 'Team', research: 'Creative Research' };
   const tEl = document.getElementById('ws-page-title');
   if (tEl) tEl.textContent = titleMap[tab] || 'Generator';
   window.scrollTo({ top: 0, behavior: 'smooth' });

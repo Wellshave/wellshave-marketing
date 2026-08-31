@@ -658,3 +658,109 @@ input:focus, select:focus, textarea:focus {
 .dos-kieskaart:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .dos-kieskaart b { font-size: 14px; color: var(--gold-bright); font-weight: 600; }
 .dos-kieskaart span { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+
+/* ── Creative Research ───────────────────────────────────────────────────
+   Kaarten waarvan het beeld de hoofdrol heeft, want dat is waar je naar
+   kijkt als je een advertentie beoordeelt. De cijfers staan eronder en
+   nadrukkelijk klein: ze zijn context, geen ranglijst.
+
+   De breekpunten hangen aan de container en niet aan het venster, om
+   dezelfde reden als bij het dossier: het vlak bepaalt hoeveel kolommen er
+   passen, en het venster weet dat niet. */
+.cr-wrap { container-type: inline-size; container-name: research; max-width: 1240px; }
+.cr-intro h2 { font-size: 22px; color: var(--gold-bright) !important; margin: 0 0 6px; }
+.cr-intro p { font-size: 13.5px; color: var(--text-soft); line-height: 1.6; max-width: 62ch; margin: 0 0 20px; }
+
+.cr-filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.cr-filterrij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cr-keuze {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); font-size: 13px;
+  font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.cr-keuze.klein { padding: 6px 11px; font-size: 12px; }
+.cr-keuze:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.cr-keuze.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+.cr-invoer {
+  flex: 1 1 240px; min-width: 160px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-elevated); color: var(--text); font-size: 13px;
+}
+.cr-invoer.kort { flex: 0 0 90px; min-width: 70px; }
+.cr-knop {
+  padding: 9px 18px; border-radius: 8px; border: 1px solid var(--gold);
+  background: rgba(var(--gold-rgb), .12); color: var(--gold-bright);
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.cr-knop:hover:not(:disabled) { background: rgba(var(--gold-rgb), .2); }
+.cr-knop:disabled { opacity: .5; cursor: default; }
+.cr-knop.groot { padding: 12px 22px; font-size: 14px; margin-top: 14px; }
+
+.cr-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; margin: 0; max-width: 76ch; }
+/* De keerzijde van een sortering krijgt dezelfde regel als de belofte, alleen
+   valer. Op een eigen regel zetten leest als een waarschuwing; ernaast leest
+   het als wat het is -- de andere helft van dezelfde zin. */
+.cr-letop { color: var(--text-faint); }
+
+/* Het voorbehoud staat boven de lijst en niet eronder. Onder de kaarten is
+   het een voetnoot, en een voetnoot bij tien cijfers wordt niet gelezen. */
+.cr-voorbehoud {
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.6;
+  border-left: 2px solid rgba(var(--gold-rgb), .45); padding: 8px 0 8px 14px;
+  margin: 0 0 18px; max-width: 84ch;
+}
+.cr-venstermelding { font-size: 12.5px; color: var(--text-faint); margin: -10px 0 16px; }
+
+.cr-melding {
+  padding: 20px; border: 1px dashed var(--line); border-radius: 10px;
+  color: var(--text-soft); font-size: 13px; line-height: 1.6; max-width: 72ch;
+}
+.cr-melding.fout { border-color: rgba(189, 15, 15, .5); color: #e88; border-style: solid; }
+
+.cr-raster { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@container research (min-width: 620px) { .cr-raster { grid-template-columns: repeat(2, 1fr); } }
+@container research (min-width: 940px) { .cr-raster { grid-template-columns: repeat(3, 1fr); } }
+
+.cr-kaart {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer;
+}
+.cr-kaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-kaart:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cr-beeld {
+  aspect-ratio: 1 / 1; background: var(--bg-elevated); display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+}
+.cr-beeld img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cr-beeld-leeg { font-size: 11.5px; color: var(--text-faint); }
+.cr-kaart-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+.cr-merk { font-size: 12px; color: var(--gold-bright); font-weight: 600; }
+.cr-kop { font-size: 13px; color: var(--text); line-height: 1.45; }
+.cr-cijfers { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.cr-cijfers b { color: var(--text-soft); font-weight: 600; }
+.cr-punt { opacity: .5; }
+
+.cr-terug {
+  background: none; border: none; color: var(--text-soft); font-size: 13px;
+  cursor: pointer; padding: 0 0 14px;
+}
+.cr-terug:hover { color: var(--gold-bright); }
+.cr-detail-boven { display: grid; grid-template-columns: 1fr; gap: 22px; }
+@container research (min-width: 760px) { .cr-detail-boven { grid-template-columns: 340px 1fr; } }
+.cr-detail-beeld {
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; min-height: 200px;
+}
+.cr-detail-beeld img { width: 100%; display: block; }
+.cr-detail-naast h3 { font-size: 17px; color: var(--gold-bright) !important; margin: 0 0 2px; }
+.cr-domein { font-size: 12px; color: var(--text-faint); margin-bottom: 14px; }
+.cr-feiten { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 12.5px; }
+.cr-feiten.breed { grid-template-columns: 1fr; gap: 2px 0; }
+.cr-feiten dt { color: var(--text-faint); }
+.cr-feiten dd { color: var(--text); margin: 0; line-height: 1.5; }
+.cr-feiten.breed dt { margin-top: 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+.cr-copy { border-left: 2px solid var(--line); padding-left: 14px; }
+.cr-copy-kop { font-size: 13.5px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+.cr-copy-tekst { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
+.cr-copy-cta { font-size: 11.5px; color: var(--text-faint); margin-top: 6px; }
+.cr-patroon { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.cr-patroon h4 { font-size: 14px; color: var(--gold-bright) !important; margin: 0 0 14px; }

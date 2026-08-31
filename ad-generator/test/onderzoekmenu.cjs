@@ -1,0 +1,364 @@
+/* Creative Research — het scherm.
+ *
+ * De bronlaag staat in platform/worker/test/onderzoek.mjs; daar wordt bewaakt
+ * wat er binnenkomt. Hier gaat het om wat dit scherm ermee doet, en dat is een
+ * ander soort risico -- vier fouten die er alle vier goed uitzien:
+ *
+ *   1. HET VOORBEHOUD SNEUVELT ONDERWEG. De bronlaag stuurt de zin mee die
+ *      zegt dat dit signalen zijn en geen bewijs. Een scherm dat hem niet
+ *      toont maakt van tien advertenties met cijfers een ranglijst van
+ *      winnaars, en daar wordt op besloten.
+ *
+ *   2. EEN ONBEKENDE MAAT WORDT EEN NUL. Bereik bestaat alleen in de
+ *      EU-rapportage van Meta. Een 0 op het scherm zegt "niemand heeft hem
+ *      gezien"; de waarheid is "wij weten het niet".
+ *
+ *   3. HET SCHERM ZEGT NIET WAT EEN SORTERING MEET. Looptijd en bereikgroei
+ *      beantwoorden verschillende vragen. Alleen de sterke kant noemen is
+ *      reclame, geen uitleg -- dus staat de keerzijde er ook.
+ *
+ *   4. HET WERK VAN DE ANDER GAAT MEE NAAR DE WIZARD. Dit is de duurste. Het
+ *      patroon overnemen is de bedoeling; de copy, het beeld en de claim van
+ *      een ander merk overnemen is het niet -- die werken niet voor ons en ze
+ *      zijn niet van ons.
+ *
+ *   node ad-generator/test/onderzoekmenu.cjs
+ */
+const { chromium } = require('playwright');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const APP = path.join(__dirname, '..', 'app');
+const CHROOM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.jpg': 'image/jpeg' };
+
+let fout = 0;
+function check(naam, kreeg, wilde) {
+  const ok = JSON.stringify(kreeg) === JSON.stringify(wilde);
+  console.log((ok ? '  ok   ' : '  FOUT ') + naam + (ok ? '' : `  (kreeg ${JSON.stringify(kreeg)}, wilde ${JSON.stringify(wilde)})`));
+  if (!ok) fout++;
+}
+
+function serve(root) {
+  const s = http.createServer((req, res) => {
+    const rel = req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]).slice(1);
+    const p = path.join(root, rel);
+    if (!p.startsWith(root) || !fs.existsSync(p)) { res.writeHead(404); return res.end('x'); }
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'text/plain' });
+    res.end(fs.readFileSync(p));
+  });
+  return new Promise(r => s.listen(0, () => r([s, s.address().port])));
+}
+
+/* De worker nabootsen in de pagina. Alles wat het scherm ophaalt gaat door
+   fetch, dus dat is de plek waar je hem afvangt -- en meteen de plek waar je
+   ziet WAT er gevraagd is. */
+function ONDERSCHEP() {
+  window.__gevraagd = [];
+  window.__antwoord = {
+    voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+    sorteert_op: 'draait het langst', venster: null, dagen_gevraagd: 14,
+    advertenties: [
+      { id: 'c-900', merk: 'Concurrent BV', domein: 'concurrent.nl', beeld: 'https://x.fbcdn.net/1.jpg',
+        soort: 'image', copy: { kop: 'Waarom mannen overstappen', tekst: 'Drie maanden getest.', cta: 'SHOP_NOW' },
+        bereik: 412000, dagen_actief: 96, varianten: 4, eerst_gezien: '2026-05-20', land: 'NL', taal: 'nl' },
+      { id: 'c-901', merk: 'Zonder cijfers BV', domein: null, beeld: null, soort: 'image',
+        copy: { kop: 'Een tweede', tekst: null, cta: null },
+        bereik: null, dagen_actief: null, varianten: null, eerst_gezien: null, land: null, taal: null }
+    ]
+  };
+  window.__claude = { hoek: 'De oprichter rekent het voor', mechanisme: 'Direct van fabriek naar deur',
+    awareness: 'problem', sophistication: 's4', publiek: 'Mannen die te veel betalen voor mesjes',
+    bewijs: 'cijfer', formaat: 'nieuwsartikel', waarom: 'Het publiek gelooft geen belofte meer, wel een som.' };
+  const echt = window.fetch;
+  window.fetch = async function (url, opties) {
+    const u = String(url);
+    window.__gevraagd.push({ url: u, auth: (opties && opties.headers && opties.headers.Authorization) || null,
+      body: (opties && opties.body) || null });
+    if (u.indexOf('/onderzoek/toplijst') > -1) {
+      return { ok: true, status: 200, json: async () => window.__antwoord };
+    }
+    if (u.indexOf('/onderzoek/beeld') > -1) {
+      return { ok: true, status: 200, blob: async () => new Blob(['x'], { type: 'image/jpeg' }) };
+    }
+    if (u.indexOf('/anthropic') > -1) {
+      return { ok: true, status: 200,
+        json: async () => ({ content: [{ type: 'text', text: JSON.stringify(window.__claude) }] }) };
+    }
+    return echt(url, opties);
+  };
+  window.__WG_TOKEN = 'token-van-de-baas';
+}
+
+(async () => {
+  const [srv, poort] = await serve(APP);
+  const browser = await chromium.launch({ executablePath: CHROOM });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
+  const paginafouten = [];
+  page.on('pageerror', e => paginafouten.push(String(e)));
+  await page.goto('http://127.0.0.1:' + poort + '/');
+  await page.waitForFunction(() => typeof renderCreativeResearch === 'function');
+  await page.evaluate(fx => { eval('(' + fx + ')()'); }, ONDERSCHEP.toString());
+
+  console.log('\n  het menu bestaat en opent');
+  const menu = await page.evaluate(() => {
+    switchMainTab('research');
+    const view = document.getElementById('main-tab-research');
+    return {
+      knop: !!document.getElementById('main-tab-btn-research'),
+      knopTekst: (document.getElementById('main-tab-btn-research') || {}).textContent.trim(),
+      zichtbaar: view && view.style.display === 'block',
+      actief: (document.getElementById('main-tab-btn-research') || { classList: { contains: () => false } }).classList.contains('active'),
+      titel: (document.getElementById('ws-page-title') || {}).textContent,
+      /* En de andere schermen zijn weg. Twee zichtbare vlakken tegelijk is de
+         klassieke fout bij een tab die erbij komt: hij werkt, en de vorige
+         staat er nog onder. */
+      anderen: ['generator', 'library', 'transformer', 'team']
+        .filter(t => { const el = document.getElementById('main-tab-' + t); return el && el.style.display !== 'none'; })
+    };
+  });
+  check('er is een navigatieknop', menu.knop, true);
+  check('en hij heet Creative Research', menu.knopTekst, 'Creative Research');
+  check('het scherm wordt zichtbaar', menu.zichtbaar, true);
+  check('de knop staat aan', menu.actief, true);
+  check('de paginatitel klopt', menu.titel, 'Creative Research');
+  check('en er staat niets anders meer open', menu.anderen, []);
+
+  /* En de andere kant op. Dat een nieuw vlak opent is de helft; dat het weer
+     dichtgaat als je verdergaat is de andere helft, en dat is de helft die bij
+     een tab die erbij komt vergeten wordt -- dan staat Creative Research onder
+     elk ander scherm door. */
+  const weer = await page.evaluate(() => {
+    switchMainTab('research');
+    switchMainTab('library');
+    const el = document.getElementById('main-tab-research');
+    return { verborgen: el.style.display === 'none',
+             knopUit: !document.getElementById('main-tab-btn-research').classList.contains('active') };
+  });
+  check('en hij gaat weer dicht als je verdergaat', weer.verborgen, true);
+  check('met de knop uit', weer.knopUit, true);
+  await page.evaluate(() => switchMainTab('research'));
+
+  console.log('\n  elke sortering zegt wat hij meet, en wat niet');
+  /* Een optie die alleen zijn sterke kant noemt is reclame. De keerzijde staat
+     er daarom bij, en dat is precies het soort regel dat bij een herschrijving
+     stilletjes sneuvelt. */
+  const sorteringen = await page.evaluate(() => {
+    /* Van elke sortering nagaan of BEIDE helften werkelijk op het scherm komen.
+       Alleen controleren dat het veld bestaat is niet genoeg: dan blijft dit
+       blok groen terwijl de keerzijde nergens getekend wordt, en dat is precies
+       de regel die bij een herschrijving als eerste sneuvelt. */
+    const getekend = CR_SORTERINGEN.map(s => {
+      _cr.sorteer = s.id;
+      const html = crFilterHtml();
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      const t = el.textContent;
+      return { id: s.id, zegt: t.indexOf(s.zegt) > -1, letop: t.indexOf(s.let_op) > -1 };
+    });
+    _cr.sorteer = 'looptijd';
+    return {
+      aantal: CR_SORTERINGEN.length,
+      allemaalUitleg: CR_SORTERINGEN.filter(s => s.zegt && s.zegt.length > 30).length,
+      allemaalKeerzijde: CR_SORTERINGEN.filter(s => s.let_op && s.let_op.length > 25).length,
+      zonderZegt: getekend.filter(g => !g.zegt).map(g => g.id),
+      zonderLetop: getekend.filter(g => !g.letop).map(g => g.id)
+    };
+  });
+  check('drie sorteringen', sorteringen.aantal, 3);
+  check('elk met uitleg', sorteringen.allemaalUitleg, 3);
+  check('en elk met een keerzijde', sorteringen.allemaalKeerzijde, 3);
+  check('elke uitleg komt ook werkelijk in beeld', sorteringen.zonderZegt, []);
+  check('en elke keerzijde ook', sorteringen.zonderLetop, []);
+
+  console.log('\n  de lijst komt binnen');
+  const lijst = await page.evaluate(async () => {
+    await crHaalLijst();
+    const el = document.getElementById('cr-inhoud');
+    return {
+      kaarten: el.querySelectorAll('.cr-kaart').length,
+      tekst: el.textContent,
+      auth: (window.__gevraagd[0] || {}).auth,
+      url: (window.__gevraagd[0] || {}).url
+    };
+  });
+  check('twee kaarten', lijst.kaarten, 2);
+  check('met het merk erop', /Concurrent BV/.test(lijst.tekst), true);
+  check('en de vraag droeg het teamtoken', lijst.auth, 'Bearer token-van-de-baas');
+  check('met de gekozen sortering', /sorteer=looptijd/.test(lijst.url), true);
+
+  console.log('\n  het voorbehoud staat er, en het staat bovenaan');
+  const voorbehoud = await page.evaluate(() => {
+    const el = document.getElementById('cr-inhoud');
+    const v = el.querySelector('.cr-voorbehoud');
+    const eersteKaart = el.querySelector('.cr-kaart');
+    if (!v || !eersteKaart) return { er: false };
+    /* Boven de kaarten, niet eronder: onder tien cijfers is het een voetnoot,
+       en een voetnoot wordt niet gelezen. */
+    return {
+      er: true, tekst: v.textContent,
+      boven: v.compareDocumentPosition(eersteKaart) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false,
+      /* En hij komt uit de bron, niet uit dit bestand. */
+      letterlijk: v.textContent.trim() === window.__antwoord.voorbehoud
+    };
+  });
+  check('het voorbehoud staat op het scherm', voorbehoud.er, true);
+  check('boven de kaarten', voorbehoud.boven, true);
+  check('en letterlijk zoals de bron hem gaf', voorbehoud.letterlijk, true);
+
+  console.log('\n  een verzonnen voorbehoud zou niet meekomen');
+  /* De zelfcontrole: als het scherm de zin zelf zou formuleren, blijft het
+     blok hierboven ook groen. Dit blok laat de bron iets anders zeggen en
+     controleert dat het scherm meebeweegt. */
+  const anders = await page.evaluate(async () => {
+    window.__antwoord = Object.assign({}, window.__antwoord, { voorbehoud: 'EEN HEEL ANDER VOORBEHOUD' });
+    await crHaalLijst();
+    return (document.querySelector('.cr-voorbehoud') || {}).textContent;
+  });
+  check('het scherm toont wat de bron zegt', (anders || '').trim(), 'EEN HEEL ANDER VOORBEHOUD');
+  await page.evaluate(async () => {
+    window.__antwoord = Object.assign({}, window.__antwoord, {
+      voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.'
+    });
+    await crHaalLijst();
+  });
+
+  console.log('\n  onbekend blijft leeg, ook op het scherm');
+  /* Een 0 zegt "niemand heeft hem gezien". De waarheid is "wij weten het
+     niet", en dat is een streepje. */
+  const leeg = await page.evaluate(() => ({
+    nul: crGetal(0), leeg: crGetal(null), onbepaald: crGetal(undefined), tekst: crGetal(''),
+    duizend: crGetal(412000), klein: crGetal(96),
+    tweedeKaart: document.querySelectorAll('.cr-kaart')[1].textContent
+  }));
+  check('nul is nul', leeg.nul, '0');
+  check('maar niets is een streepje', [leeg.leeg, leeg.onbepaald, leeg.tekst], ['—', '—', '—']);
+  check('grote getallen leesbaar', [leeg.duizend, leeg.klein], ['412k', '96']);
+  check('en een kaart zonder cijfers toont er geen', /0 dagen|0 bereik/.test(leeg.tweedeKaart), false);
+
+  console.log('\n  een venster dat de bron anders maakte wordt gemeld');
+  const venster = await page.evaluate(async () => {
+    window.__antwoord = Object.assign({}, window.__antwoord, { venster: 'last30d', dagen_gevraagd: 14 });
+    await crHaalLijst();
+    return document.getElementById('cr-inhoud').textContent;
+  });
+  check('het scherm zegt wat er werkelijk gemeten is', /last30d/.test(venster), true);
+  check('en waar je om vroeg', /14 dagen/.test(venster), true);
+
+  console.log('\n  doorklikken naar een advertentie');
+  const detail = await page.evaluate(async () => {
+    document.querySelector('.cr-kaart').click();
+    const el = document.getElementById('cr-inhoud');
+    return { tekst: el.textContent, leesknop: !!el.querySelector('[data-action="cr-lees"]'),
+             terug: !!el.querySelector('[data-action="cr-sluit"]'),
+             /* Nog geen knop naar de wizard: die hoort pas te bestaan als er
+                een patroon gelezen is. Anders neem je niets over. */
+             wizardknop: !!el.querySelector('[data-action="cr-wizard"]') };
+  });
+  check('de copy van de advertentie staat er', /Drie maanden getest/.test(detail.tekst), true);
+  check('en hoe lang hij draait', /96 dagen/.test(detail.tekst), true);
+  check('er is een knop om het patroon te lezen', detail.leesknop, true);
+  check('en een weg terug', detail.terug, true);
+  check('maar nog geen knop naar de wizard', detail.wizardknop, false);
+
+  console.log('\n  het patroon wordt gelezen, niet de uitvoering');
+  const prompt = await page.evaluate(() => crPatroonPrompt(window.__antwoord.advertenties[0]));
+  check('de prompt vraagt om het patroon', /PATROON eronder, niet de uitvoering/.test(prompt), true);
+  check('en zegt dat het voor een ander merk is', /ander merk in een andere categorie/.test(prompt), true);
+  /* Een leeg veld is het juiste antwoord bij twijfel. Zonder deze regel vult
+     het model de gaten, en een verzonnen mechanisme ziet er precies zo uit als
+     een gelezen mechanisme. */
+  check('een onbekend veld blijft leeg', /laat het veld dan LEEG/.test(prompt), true);
+  check('en claims blijven claims', /niet wat waar is/.test(prompt), true);
+
+  const patroon = await page.evaluate(async () => {
+    await crLeesPatroon();
+    const el = document.getElementById('cr-inhoud');
+    return { tekst: el.textContent, wizardknop: !!el.querySelector('[data-action="cr-wizard"]') };
+  });
+  check('het patroon staat op het scherm', /De oprichter rekent het voor/.test(patroon.tekst), true);
+  check('met het mechanisme', /Direct van fabriek naar deur/.test(patroon.tekst), true);
+  check('en nu is er wel een knop naar de wizard', patroon.wizardknop, true);
+
+  console.log('\n  een leeg veld in het patroon wordt niet gevuld');
+  const lekker = await page.evaluate(() => {
+    const html = crPatroonHtml({ hoek: 'Alleen een hoek', mechanisme: '', awareness: null });
+    return { hoek: /Alleen een hoek/.test(html),
+             mechanisme: /Het mechanisme/.test(html), awareness: /Awareness/.test(html) };
+  });
+  check('wat er is komt in beeld', lekker.hoek, true);
+  check('een leeg mechanisme krijgt geen regel', lekker.mechanisme, false);
+  check('en een lege awareness ook niet', lekker.awareness, false);
+
+  console.log('\n  naar de wizard gaat het patroon, niet het werk van de ander');
+  /* De duurste fout van de vier. Het patroon overnemen is de bedoeling; de
+     copy, het beeld en de claim van een ander merk overnemen is het niet --
+     die werken niet voor ons en ze zijn niet van ons. */
+  const over = await page.evaluate(() => {
+    crNaarWizard();
+    const d = wizState.data;
+    return {
+      hoek: d.strategy.marketingAngle,
+      mechanisme: d.strategy.mechanism,
+      awareness: d.audience.awareness,
+      sophistication: d.audience.sophistication,
+      bewijs: d.strategy.proof,
+      /* Wat er NIET in mag staan: de kop, de tekst en het beeldadres van de
+         ander. Het hele databestand van de wizard doorzoeken, want een veld
+         waar het per ongeluk in belandt is precies het veld waar niemand
+         kijkt. */
+      lek: JSON.stringify(d).indexOf('Waarom mannen overstappen') > -1
+        || JSON.stringify(d).indexOf('Drie maanden getest') > -1
+        || JSON.stringify(d).indexOf('fbcdn') > -1,
+      herkomst: wizState.source['strategy.marketingAngle'],
+      bron: wizState.onderzoekBron
+    };
+  });
+  check('de hoek gaat mee', over.hoek, 'De oprichter rekent het voor');
+  check('het mechanisme ook', over.mechanisme, 'Direct van fabriek naar deur');
+  check('awareness en sophistication', [over.awareness, over.sophistication], ['problem', 's4']);
+  check('de bewijsvorm', over.bewijs, 'cijfer');
+  check('en de copy, de kop en het beeld van de ander NIET', over.lek, false);
+  /* Afgekeken is een derde soort herkomst, naast een keuze van de gebruiker en
+     een advies van Rory. Dat hoort zichtbaar te zijn. */
+  check('de herkomst staat op onderzoek', over.herkomst, 'onderzoek');
+  check('met het merk waar het vandaan komt', over.bron.merk, 'Concurrent BV');
+
+  console.log('\n  het beeld gaat via de worker, met het token');
+  const beeld = await page.evaluate(() => {
+    const b = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/beeld') > -1);
+    return { aantal: b.length, auth: (b[0] || {}).auth,
+             /* Het adres van de concurrent gaat als parameter mee, niet als
+                pad: de browser mag daar niet rechtstreeks heen. */
+             viaWorker: b.length ? /\/onderzoek\/beeld\?u=/.test(b[0].url) : false,
+             rechtstreeks: window.__gevraagd.filter(g => /^https:\/\/x\.fbcdn\.net/.test(g.url)).length };
+  });
+  check('het beeld is opgehaald', beeld.aantal > 0, true);
+  check('via de worker', beeld.viaWorker, true);
+  check('met het teamtoken', beeld.auth, 'Bearer token-van-de-baas');
+  check('en nooit rechtstreeks bij de concurrent', beeld.rechtstreeks, 0);
+
+  console.log('\n  een fout van de bron komt op het scherm, niet in de console');
+  const stuk = await page.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/onderzoek/toplijst') > -1) {
+        return { ok: false, status: 502, json: async () => ({ error: 'TrendTrack: de dienst antwoordde met 401' }) };
+      }
+      return echt(u, o);
+    };
+    _cr.open = null;
+    await crHaalLijst();
+    return document.getElementById('cr-inhoud').textContent;
+  });
+  check('de melding staat er', /Dat lukte niet/.test(stuk), true);
+  check('met wat de bron zei', /antwoordde met 401/.test(stuk), true);
+
+  check('en geen enkele paginafout onderweg', paginafouten, []);
+
+  await browser.close();
+  srv.close();
+  console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
+  process.exit(fout ? 1 : 0);
+})();
