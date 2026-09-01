@@ -662,11 +662,30 @@ async function analyzeWinningAd() {
   if (btn) { btn.disabled = true; btn.textContent = 'Bezig met analyseren...'; }
   if (box) { box.style.display = 'block'; box.innerHTML = '<div style="color:var(--text-faint);font-size:12px;">Theriot leest de ad en de cijfers...</div>'; }
   try {
-    const userText = 'Je bekijkt de bijgevoegde advertentie-afbeelding van een Wellshave-ad EN de cijfers eronder, en je trekt zelf een plan om deze ad te itereren. ' + (perfData ? ('Prestatiecijfers uit de advertentiebeheerder (Atria of Meta):\n' + perfData + '\n\n') : 'Er zijn geen cijfers meegegeven; baseer je dan op wat je in de ad ziet.\n\n') + 'Doe DRIE dingen.\n(1) BEKIJK DE FOTO: wat zien we, welke hook, headline, compositie, CTA en sfeer.\n(2) LEES DE CIJFERS ALS EEN FUNNEL en bepaal met de concrete getallen erbij waar het knelpunt zit: levering (impressies, CPM), hook en creatief (CTR, see-more of hold rate), klik-naar-ATC (landingspagina en offer-match), ATC-naar-purchase (checkout, prijs, vertrouwen). Voorbeeld-logica: hoge CTR maar lage klik-naar-ATC betekent dat het creatief werkt en je NIET de hook moet wisselen maar de pre-sell of landing-belofte; lage hold of see-more rate betekent dat de eerste frame of headline niet vasthoudt; een gezonde funnel met krappe CPA-marge vraagt om schaalbare variatie, niet om een nieuw mechaniek.\n(3) TREK JE EIGEN ITERATIEPLAN: bepaal welke dimensies je zou testen (kies UITSLUITEND uit deze lijst: hook, headline, opening, achtergrond, cta, sfeer, persona, format) en welke concrete iteraties je zou maken, elk gekoppeld aan de funnel-diagnose. Bepaal ook de creatieve richting: een concrete brief voor de iteraties die naadloos aansluit op de diagnose, klaar om in het richtingsveld te zetten.\nGeef je volledige analyse en plan terug via de tool iteratieplan. Vul alle relevante velden in; kies de testdimensies UITSLUITEND uit de toegestane lijst.';
+    /* Bij een videoadvertentie krijgt hij BEELDEN UIT DE VIDEO, niet de
+       thumbnail. Dat leek een detail en was het niet: Rory las de eerste frame
+       en beschreef daarna de hele advertentie alsof die stilstond -- compositie,
+       CTA, opbouw -- terwijl er zevenentwintig seconden bewegend beeld onder
+       zat waarin de hook, het bewijs en de afsluiting allemaal ergens anders
+       staan. Een analyse die er compleet uitziet en over iets anders gaat. */
+    const frames = (state.sourceAd.frames && state.sourceAd.frames.length)
+      ? state.sourceAd.frames : null;
+    const videoRegels = frames
+      ? 'Dit is een VIDEOadvertentie. Je krijgt ' + frames.length + ' stilstaande beelden uit die ' +
+        'video, in volgorde, op ' + frames.map(function (f) { return Math.round(f.t) + 's'; }).join(', ') + '. ' +
+        'Je hoort het geluid NIET en je ziet de beweging niet. Bij een video zit de hook in de ' +
+        'eerste seconden, het bewijs in het midden en de CTA op het eind -- lees ze dus als een ' +
+        'volgorde en niet als losse beelden. Kun je iets niet uit de beelden of de cijfers ' +
+        'aflezen, laat het veld dan leeg in plaats van op te schrijven wat er gezegd zou kunnen zijn.\n\n'
+      : '';
+    const userText = videoRegels + 'Je bekijkt de bijgevoegde advertentie-afbeelding van een Wellshave-ad EN de cijfers eronder, en je trekt zelf een plan om deze ad te itereren. ' + (perfData ? ('Prestatiecijfers uit de advertentiebeheerder (Atria of Meta):\n' + perfData + '\n\n') : 'Er zijn geen cijfers meegegeven; baseer je dan op wat je in de ad ziet.\n\n') + 'Doe DRIE dingen.\n(1) BEKIJK DE FOTO: wat zien we, welke hook, headline, compositie, CTA en sfeer.\n(2) LEES DE CIJFERS ALS EEN FUNNEL en bepaal met de concrete getallen erbij waar het knelpunt zit: levering (impressies, CPM), hook en creatief (CTR, see-more of hold rate), klik-naar-ATC (landingspagina en offer-match), ATC-naar-purchase (checkout, prijs, vertrouwen). Voorbeeld-logica: hoge CTR maar lage klik-naar-ATC betekent dat het creatief werkt en je NIET de hook moet wisselen maar de pre-sell of landing-belofte; lage hold of see-more rate betekent dat de eerste frame of headline niet vasthoudt; een gezonde funnel met krappe CPA-marge vraagt om schaalbare variatie, niet om een nieuw mechaniek.\n(3) TREK JE EIGEN ITERATIEPLAN: bepaal welke dimensies je zou testen (kies UITSLUITEND uit deze lijst: hook, headline, opening, achtergrond, cta, sfeer, persona, format) en welke concrete iteraties je zou maken, elk gekoppeld aan de funnel-diagnose. Bepaal ook de creatieve richting: een concrete brief voor de iteraties die naadloos aansluit op de diagnose, klaar om in het richtingsveld te zetten.\nGeef je volledige analyse en plan terug via de tool iteratieplan. Vul alle relevante velden in; kies de testdimensies UITSLUITEND uit de toegestane lijst.';
     const data = await fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model, max_tokens: 3000, system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(), tools: [ITERATE_ANALYSIS_TOOL], tool_choice: { type: 'tool', name: 'iteratieplan' }, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userText } ] }] })
+      body: JSON.stringify({ model, max_tokens: 3000, system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(), tools: [ITERATE_ANALYSIS_TOOL], tool_choice: { type: 'tool', name: 'iteratieplan' }, messages: [{ role: 'user', content: (frames
+        ? frames.map(function (f) { return { type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } }; })
+        : [{ type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }]
+      ).concat([{ type: 'text', text: userText }]) }] })
     });
     let parsed = null;
     if (data && Array.isArray(data.content)) {

@@ -874,6 +874,7 @@ input:focus, select:focus, textarea:focus {
   display: flex; align-items: center; justify-content: center; min-height: 150px; margin-bottom: 12px;
 }
 .iw-adbeeld img { width: 100%; display: block; }
+.iw-adbeeld video { width: 100%; display: block; background: #000; }
 .iw-leeg { font-size: 11.5px; color: var(--text-faint); }
 .iw-adtitel { font-size: 13px; color: var(--text); }
 .iw-adonder { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }

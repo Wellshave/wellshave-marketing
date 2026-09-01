@@ -116,6 +116,15 @@ function ONDERSCHEP() {
     if (u.indexOf('/onderzoek/beeld') > -1) {
       return { ok: true, status: 200, blob: async () => new Blob(['JPEGDATA'], { type: 'image/jpeg' }) };
     }
+    if (u.indexOf('/onderzoek/video') > -1) {
+      return { ok: true, status: 200, blob: async () => new Blob(['MP4DATA'], { type: 'video/mp4' }) };
+    }
+    if (u.indexOf('/anthropic') > -1) {
+      window.__naarRory = JSON.parse(opties.body);
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name: 'iteratieplan',
+        input: { cijfer_diagnose: 'x', aanbevolen_aanpak: 'y', creatieve_richting: 'z',
+                 aanbevolen_dimensies: ['hook'], iteratie_hypotheses: ['a'] } }] }) };
+    }
     return echt(url, opties);
   };
   window.__WG_TOKEN = 'token-van-de-baas';
@@ -724,6 +733,117 @@ function ONDERSCHEP() {
   check('op stap 2 niet', werkblad['2'], 'none');
   check('op stap 3 wel', werkblad['3'], 'block');
 
+  console.log('\n  bij een video leest Rory de video, niet de thumbnail');
+  /* Dit ging stil mis en het antwoord zag er compleet uit: hij las de eerste
+     frame en beschreef daarna de hele advertentie alsof die stilstond --
+     compositie, CTA, opbouw -- terwijl er zevenentwintig seconden bewegend
+     beeld onder zat waarin de hook, het bewijs en de afsluiting alle drie
+     ergens anders staan. */
+  const uitVideo = await page.evaluate(async () => {
+    /* Een echte mp4 valt hier niet te decoderen. De speler wordt vervangen door
+       een dubbelganger die zich gedraagt zoals de API belooft: springen naar een
+       tijdstip, "seeked" melden, en dan een ANDER beeld tonen. Wat hier bewaakt
+       wordt is dat er zes verschillende beelden uitkomen en niet zes kopieën. */
+    const echteSpeler = window.crEigenSpeler;
+    window.crEigenSpeler = async () => {
+      const doek = document.createElement('canvas');
+      doek.width = 24; doek.height = 24;
+      const ctx = doek.getContext('2d');
+      let t = 0;
+      Object.defineProperty(doek, 'duration', { value: 27 });
+      Object.defineProperty(doek, 'videoWidth', { value: 24 });
+      Object.defineProperty(doek, 'videoHeight', { value: 24 });
+      Object.defineProperty(doek, 'currentTime', { get: () => t, set: function (w) {
+        t = w;
+        setTimeout(() => {
+          ctx.fillStyle = 'hsl(' + Math.round(w * 13) + ' 90% 50%)'; ctx.fillRect(0, 0, 24, 24);
+          doek.dispatchEvent(new Event('seeked'));
+        }, 2);
+      } });
+      return doek;
+    };
+    state.sourceAd = null;
+    /* De teller staat vol van eerdere controles; alleen wat hierna gebeurt telt. */
+    window.__gevraagd.length = 0;
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: { spend: 144.92, roas: 3.5 },
+                    beeld: 'https://x.fbcdn.net/poster.jpg', video: 'https://x.fbcdn.net/f.mp4' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    const kaart = document.querySelector('.iw-adbeeld');
+    const bron = state.sourceAd || {};
+    const uit = {
+      frames: (bron.frames || []).length,
+      verschillend: new Set((bron.frames || []).map(f => f.b64)).size,
+      eerste: bron.b64 === (bron.frames || [{}])[0].b64,
+      speler: !!kaart.querySelector('video'),
+      plaatje: !!kaart.querySelector('img'),
+      zegt: document.getElementById('iw-paneel').textContent,
+      /* En geen enkel verzoek naar de beeldpoort: de thumbnail is hier niet
+         waar het om gaat. */
+      beeldOpgehaald: window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/beeld') > -1).length
+    };
+    window.__gevraagd.length = 0;
+    await iwAnalyse();
+    const b = window.__naarRory;
+    const inhoud = b.messages[0].content;
+    uit.beelden = inhoud.filter(x => x.type === 'image').length;
+    uit.tekst = inhoud.filter(x => x.type === 'text').map(x => x.text).join('');
+    window.crEigenSpeler = echteSpeler;
+    return uit;
+  });
+  check('zes beelden uit de video', uitVideo.frames, 6);
+  check('en het zijn zes VERSCHILLENDE beelden', uitVideo.verschillend, 6);
+  check('het eerste beeld is ook het losse beeld', uitVideo.eerste, true);
+  check('de kaart toont een speler', uitVideo.speler, true);
+  check('en geen stilstaand beeld', uitVideo.plaatje, false);
+  check('het scherm zegt wat Rory leest', /6 beelden uit deze video/.test(uitVideo.zegt), true);
+  check('en dat hij het geluid niet hoort', /geluid hoort hij niet/.test(uitVideo.zegt), true);
+  check('de thumbnail is niet opgehaald', uitVideo.beeldOpgehaald, 0);
+  /* De kern: zes beelden naar het model, niet één. */
+  check('Rory krijgt zes beelden', uitVideo.beelden, 6);
+  check('met de uitleg dat het een video is', /VIDEOadvertentie/.test(uitVideo.tekst), true);
+  check('op welke seconden ze staan', /0s, 5s, 11s, 16s, 22s, 27s/.test(uitVideo.tekst), true);
+  check('en dat het geluid ontbreekt', /geluid NIET/.test(uitVideo.tekst), true);
+  check('met de opdracht om niet te gokken', /laat het veld dan leeg/.test(uitVideo.tekst), true);
+
+  /* Levert de video geen enkel beeld op, dan is dat een uitslag en geen stilte.
+     Zonder melding staat er een lege kaart en denkt Rory dat er niets is. */
+  const geenFrames = await page.evaluate(async () => {
+    const echt = window.crVideoFrames;
+    const echteSpeler2 = window.crEigenSpeler;
+    /* Ook de speler vervangen: een blob met "MP4DATA" erin is geen video, en
+       dan valt hij al om vóór de lus die we hier willen meten. */
+    window.crEigenSpeler = async () => document.createElement('canvas');
+    window.crVideoFrames = async () => [];
+    state.sourceAd = null;
+    _iw.gekozen = { id: 'v2', naam: 'Stille film', cijfers: {}, beeld: null,
+                    video: 'https://x.fbcdn.net/leeg.mp4' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    window.crVideoFrames = echt;
+    window.crEigenSpeler = echteSpeler2;
+    return { melding: document.querySelector('.iw-adbeeld').textContent,
+             bron: !!state.sourceAd };
+  });
+  check('het zegt dat er geen beeld uitkwam', /geen enkel beeld uit de video/.test(geenFrames.melding), true);
+  check('en er staat geen halve bron klaar', geenFrames.bron, false);
+
+  /* En de tegenproef: een gewone static krijgt geen videoregels en één beeld. */
+  const uitStatic = await page.evaluate(async () => {
+    state.sourceAd = null;
+    _iw.gekozen = { id: 's1', naam: 'Stil', cijfers: {}, beeld: 'https://x.fbcdn.net/1.jpg' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    await iwAnalyse();
+    const inhoud = window.__naarRory.messages[0].content;
+    return { beelden: inhoud.filter(x => x.type === 'image').length,
+             tekst: inhoud.filter(x => x.type === 'text').map(x => x.text).join(''),
+             speler: !!document.querySelector('.iw-adbeeld video') };
+  });
+  check('een static levert één beeld', uitStatic.beelden, 1);
+  check('zonder videoregels', /VIDEO|geluid/.test(uitStatic.tekst), false);
+  check('en zonder speler', uitStatic.speler, false);
+
   console.log('\n  geen beeld is drie verschillende dingen');
   /* Op het scherm stond bij alle drie hetzelfde: "geen beeld bij deze
      advertentie". Ze vragen om iets heel anders -- een andere uitlezing, een
@@ -747,13 +867,6 @@ function ONDERSCHEP() {
        Rory dat beeld met deze cijfers. */
     uit.oudeCreativeWeg = !state.sourceAd;
 
-    /* 2. Het is een video. Dan is er geen still en dat is geen storing. */
-    _iw.gekozen = { id: 'b', naam: 'Bewegend', cijfers: {}, beeld: null,
-                    video: 'https://x.fbcdn.net/f.mp4' };
-    await iwZetBronAd(_iw.gekozen);
-    iwRender();
-    uit.video = toon();
-
     /* 3. Er is een adres, maar de beeldpoort weigert de host. Dan hoort de
           host erbij, en dat kun je alleen weten als het er staat. */
     const echt = window.fetch;
@@ -773,12 +886,11 @@ function ONDERSCHEP() {
   });
   check('het beeld van de vorige advertentie is weg', redenen.oudeCreativeWeg, true);
   check('de veldnamen staan erbij', /snapshot.preview/.test(redenen.veldnamen), true);
-  check('een video zegt dat het een video is', /videoadvertentie/.test(redenen.video), true);
   check('en een geweigerd adres zegt dat het geweigerd is',
     /niet doorgelaten/.test(redenen.geweigerd), true);
-  /* Drie keer dezelfde zin zou betekenen dat je nog steeds niets weet. */
-  check('en het zijn drie verschillende meldingen',
-    new Set([redenen.veldnamen, redenen.video, redenen.geweigerd]).size, 3);
+  /* Twee keer dezelfde zin zou betekenen dat je nog steeds niets weet. */
+  check('en het zijn verschillende meldingen',
+    new Set([redenen.veldnamen, redenen.geweigerd]).size, 2);
 
   console.log('\n  en Rory zegt wat hij mist in plaats van niets te doen');
   const roryZonderBeeld = await page.evaluate(async () => {

@@ -158,6 +158,41 @@ async function iwKies(i) {
   _iw.bezig = false; iwRender();
 }
 
+/* Het aantal beelden dat Rory uit een video te zien krijgt. Zes: de hook, vier
+   momenten uit de opbouw, en het eind. Meer beelden maken het antwoord niet
+   beter, ze maken hem alleen duurder. */
+var IW_FRAMES = 6;
+
+async function iwZetBronVideo(ad) {
+  if (typeof crVideoHaal !== 'function' || typeof crVideoFrames !== 'function' ||
+      typeof crEigenSpeler !== 'function') {
+    _iw.beeldFout = 'De videolezer is niet geladen.';
+    return;
+  }
+  try {
+    var v = await crVideoHaal(ad.video);
+    if (!v) { _iw.beeldFout = 'De video was niet op te halen.'; return; }
+    var frames = await crVideoFrames(await crEigenSpeler(v.url), IW_FRAMES);
+    if (!frames.length) {
+      _iw.beeldFout = 'Er kwam geen enkel beeld uit de video.';
+      return;
+    }
+    var st = iwState();
+    if (st) {
+      /* b64 blijft het EERSTE beeld: de beeldgeneratie verderop leest dat veld
+         en die kan geen reeks aan. De reeks staat ernaast, voor wie hem wél
+         kan lezen. */
+      st.sourceAd = { b64: frames[0].b64, mimeType: frames[0].mime,
+                      fileName: 'video-' + (ad.id || 'ad') + '.jpg',
+                      size: frames[0].b64.length, uploadedAt: Date.now(),
+                      frames: frames, videoUrl: v.url };
+    }
+    if (typeof renderSourceAdPreview === 'function') renderSourceAdPreview();
+  } catch (e) {
+    _iw.beeldFout = 'De video was niet te lezen: ' + String((e && e.message) || e);
+  }
+}
+
 /* Waarom er geen beeld staat. Drie oorzaken die er op het scherm identiek
    uitzagen -- "geen beeld bij deze advertentie" -- terwijl ze om iets heel
    anders vragen: de bron gaf geen adres, het adres komt van een host die wij
@@ -173,10 +208,19 @@ async function iwZetBronAd(ad) {
   if (st) st.sourceAd = null;
   if (typeof renderSourceAdPreview === 'function') renderSourceAdPreview();
   if (!ad) return;
+  /* Bewegend beeld gaat als BEELDEN UIT DE VIDEO naar Rory, niet als
+     thumbnail. Dat leek een detail en was het niet: hij las de eerste frame en
+     beschreef daarna de hele advertentie alsof die stilstond, terwijl de hook,
+     het bewijs en de afsluiting alle drie ergens anders in die zevenentwintig
+     seconden staan. Een analyse die er compleet uitziet en over iets anders
+     gaat is erger dan geen analyse.
+
+     De helpers hiervoor staan in 56-creative-research.js. Ze zijn niet van dat
+     scherm maar van het probleem: een model dat geen video kijkt en wel beelden
+     leest. Vandaar hier hergebruikt in plaats van nagebouwd. */
+  if (ad.video) return await iwZetBronVideo(ad);
   if (!ad.beeld) {
-    if (ad.video) {
-      _iw.beeldFout = 'Dit is een videoadvertentie. Er is geen stilstaand beeld om op te itereren.';
-    } else if (ad.velden_zonder_beeld && ad.velden_zonder_beeld.length) {
+    if (ad.velden_zonder_beeld && ad.velden_zonder_beeld.length) {
       /* Dezelfde diagnose als bij Creative Research, en om dezelfde reden: dit
          zegt of we verkeerd zoeken of dat er werkelijk niets is. */
       _iw.beeldFout = 'De bron gaf geen beeldadres. Deze velden stonden er wel: ' +
@@ -566,13 +610,24 @@ function iwAdkaartHtml() {
   var ad = _iw.gekozen;
   if (!ad) return '';
   var st = iwState();
-  var beeld = (st && st.sourceAd)
-    ? 'data:' + st.sourceAd.mimeType + ';base64,' + st.sourceAd.b64 : null;
+  var bron = st && st.sourceAd;
+  var beeld = bron ? 'data:' + bron.mimeType + ';base64,' + bron.b64 : null;
+  /* Staat er een video onder, dan hoort daar een speler te staan en niet één
+     frame. Anders zie je precies wat Rory eerst zag: een stilstaand beeld waar
+     beweging hoort. */
+  var speler = (bron && bron.videoUrl) ? bron.videoUrl : null;
   var h = '<section class="iw-kaart"><div class="iw-kaart-kop">' +
     '<span class="iw-kaart-titel">Geselecteerde advertentie</span></div>';
-  h += '<div class="iw-adbeeld">' + (beeld
-    ? '<img src="' + iwEsc(beeld) + '" alt="">'
-    : '<span class="iw-leeg">' + iwEsc(_iw.beeldFout || 'geen beeld bij deze advertentie') + '</span>') + '</div>';
+  h += '<div class="iw-adbeeld">' + (speler
+    ? '<video class="iw-video" controls playsinline preload="metadata" src="' + iwEsc(speler) + '"></video>'
+    : (beeld ? '<img src="' + iwEsc(beeld) + '" alt="">'
+             : '<span class="iw-leeg">' + iwEsc(_iw.beeldFout || 'geen beeld bij deze advertentie') + '</span>')) + '</div>';
+  if (speler && bron.frames) {
+    /* Wat er naar Rory gaat, en wat niet. Zonder deze regel lees je zijn
+       analyse als "hij heeft de video gezien". */
+    h += '<div class="iw-adonder">Rory leest ' + bron.frames.length + ' beelden uit deze video — ' +
+      'het geluid hoort hij niet.</div>';
+  }
   h += '<div class="iw-adtitel">' + iwEsc(ad.naam) + '</div>';
   h += '<div class="iw-adonder">' +
     iwEsc(_iw.bron === 'atria' ? 'Atria' : 'Meta Ads') + ' <span class="iw-punt">·</span> laatste ' +
@@ -864,4 +919,5 @@ window.IW_ANALYSEVELDEN = IW_ANALYSEVELDEN; window.IW_KAARTCIJFERS = IW_KAARTCIJ
 window.iwFilter = iwFilter; window.iwBewaard = iwBewaard; window.iwBewaarToggle = iwBewaarToggle;
 window.iwStapperHtml = iwStapperHtml; window.iwStap1Html = iwStap1Html; window.iwStap2Html = iwStap2Html;
 window.iwAnalyse = iwAnalyse; window.iwState = iwState;
-window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;
+window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN;
+window.iwZetBronVideo = iwZetBronVideo; window.IW_FRAMES = IW_FRAMES; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;
