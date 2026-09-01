@@ -1,0 +1,85 @@
+# De previewworker uitrollen bij elke push naar een werkbranch.
+#
+# Waarom: er is één worker en de console praat er altijd mee, ook vanaf een
+# deploy-preview. Elke workerwijziging moest dus met de hand geplakt worden --
+# en zonder dat plakken werkte de preview met oude workercode, wat de helft van
+# de fouten in deze rebuild verklaart. Nu rolt de branch naar
+# marketing-ads-preview en praat de deploy-preview van de console daarmee.
+#
+# marketing-ads (de echte) wordt hier NIET aangeraakt. Die gaat pas mee bij het
+# samenvoegen, en dat blijft een bewuste handeling.
+name: previewworker uitrollen
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+    paths:
+      - 'platform/worker/**'
+      - '.github/workflows/worker-preview.yml'
+
+# Duwt iemand twee keer snel achter elkaar, dan telt de laatste. Twee deploys
+# die elkaar inhalen zetten willekeurig de oudste als laatste neer.
+concurrency:
+  group: previewworker
+  cancel-in-progress: true
+
+jobs:
+  uitrollen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Eerst de testlus. Een worker die zijn eigen controles niet haalt hoort
+      # niet uitgerold te worden, ook niet naar een preview -- dan test je de
+      # volgende ronde tegen iets wat al stuk is.
+      - name: de controles van de worker
+        run: |
+          for t in platform/worker/test/*.mjs; do
+            echo "── $t"
+            node "$t" || exit 1
+          done
+
+      # Zonder token gebeurt er niets, en dat staat er dan ook. Een workflow die
+      # stil overslaat leest als een workflow die gedraaid heeft.
+      - name: staat het token er?
+        id: token
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "er"=nee >> "$GITHUB_OUTPUT"
+            echo "::warning::Geen CLOUDFLARE_API_TOKEN ingesteld — er is niets uitgerold. Zet hem onder Settings → Secrets and variables → Actions."
+          else
+            echo "er"=ja >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: uitrollen naar marketing-ads-preview
+        if: steps.token.outputs.er == 'ja'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --config platform/worker/wrangler.preview.toml
+
+      # En daarna kijken of er werkelijk staat wat we net gestuurd hebben. Een
+      # deploy die "geslaagd" zegt en oude code laat draaien is precies de fout
+      # die deze hele opzet moet wegnemen.
+      - name: nakijken wat er draait
+        if: steps.token.outputs.er == 'ja'
+        run: |
+          verwacht=$(grep -oP "const VERSIE = \K[0-9]+" platform/worker/marketing-os.worker.js)
+          for poging in 1 2 3 4 5; do
+            sleep 5
+            antwoord=$(curl -fsS https://marketing-ads-preview.dustin-9ff.workers.dev/health || true)
+            echo "$antwoord"
+            draait=$(printf '%s' "$antwoord" | grep -oP '"versie":\K[0-9]+' || true)
+            if [ "$draait" = "$verwacht" ]; then
+              echo "versie $draait draait"
+              exit 0
+            fi
+          done
+          echo "::error::De previewworker draait versie '$draait', verwacht was $verwacht."
+          exit 1

@@ -110,10 +110,54 @@ const check = (label, echt, verwacht) => {
   check('en heeft de tussenstap dus niet meer nodig', werkbank.tussenstap, false);
 
   const preview = await previewPage.evaluate(() => ({
-    hier: PROXY_BASE, worker: WORKER_URL, tussenstap: PROXY_BASE === location.origin
+    hier: PROXY_BASE, worker: WORKER_URL, previewWorker: WORKER_PREVIEW_URL,
+    aan: WORKER_PREVIEW_AAN, tussenstap: PROXY_BASE === location.origin
   }));
-  check('een deploy preview praat rechtstreeks met de worker', preview.hier, preview.worker);
+  /* Een deploy preview praat met de PREVIEWworker zodra die er staat, en tot
+     die tijd met de echte. Dat onderscheid is de hele reden dat de tweede
+     worker bestaat: anders is elke workerwijziging meteen live voor iedereen,
+     of hij moet met de hand geplakt worden. */
+  check('een deploy preview praat rechtstreeks met een worker',
+    preview.hier, preview.aan ? preview.previewWorker : preview.worker);
   check('en heeft de tussenstap dus niet nodig', preview.tussenstap, false);
+  check('de twee workers zijn niet hetzelfde adres',
+    preview.worker === preview.previewWorker, false);
+
+  /* En de twee andere omgevingen praten NOOIT met de previewworker, aan of uit.
+     Een vlag die per ongeluk de live console omzet is precies het soort schade
+     dat een preview hoort te voorkomen. */
+  const nooitPreview = await Promise.all([page, werkbankPage].map(p => p.evaluate(() => PROXY_BASE)));
+  check('de live consoles blijven bij de echte worker',
+    nooitPreview.every(u => u.indexOf('-preview') === -1), true);
+
+  /* En de regel zelf, met de vlag allebei de kanten op. Anders is de helft van
+     het gedrag pas te meten door de vlag om te zetten -- en dan test je hem
+     nooit, want hij staat maar op één stand tegelijk. */
+  const regel = await page.evaluate(() => {
+    const kies = (h, aan) => wgWorkerVoor(h, 'https:', 'https://' + h, aan);
+    return {
+      liveUit: kies('wellshave-adgen.netlify.app', false),
+      liveAan: kies('wellshave-adgen.netlify.app', true),
+      werkbankAan: kies('wellshave-werkbank.netlify.app', true),
+      previewUit: kies('deploy-preview-14--wellshave-adgen.netlify.app', false),
+      previewAan: kies('deploy-preview-14--wellshave-adgen.netlify.app', true),
+      previewWerkbankAan: kies('deploy-preview-9--wellshave-werkbank.netlify.app', true),
+      lokaalAan: kies('localhost', true),
+      vreemdAan: kies('ergens-anders.nl', true),
+      worker: WORKER_URL, preview: WORKER_PREVIEW_URL
+    };
+  });
+  check('de live console gaat naar de echte worker, vlag of geen vlag',
+    [regel.liveUit, regel.liveAan, regel.werkbankAan],
+    [regel.worker, regel.worker, regel.worker]);
+  check('een preview met de vlag uit gaat naar de echte worker', regel.previewUit, regel.worker);
+  check('en met de vlag aan naar de previewworker', regel.previewAan, regel.preview);
+  check('dat geldt voor allebei de sites', regel.previewWerkbankAan, regel.preview);
+  /* Lokaal werk hoort nooit tegen een preview te praten: dan debug je tegen een
+     worker die iemand anders net heeft omgegooid. */
+  check('lokaal blijft bij de echte worker', regel.lokaalAan, regel.worker);
+  check('en een vreemde host valt terug op zijn eigen origin',
+    regel.vreemdAan, 'https://ergens-anders.nl');
 
   console.log('\n  wie krijgt het token');
   // De kern. De vraag is niet "welke hostnaam" maar "gaat dit naar onze

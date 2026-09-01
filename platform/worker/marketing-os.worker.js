@@ -2760,6 +2760,12 @@ async function lid(request) {
 
 export default {
   async scheduled(event, env, ctx) {
+    /* De previewworker draait de geplande lus niet. Twee workers die elke vijf
+       minuten dezelfde wachtrij afwerken publiceren alles twee keer, en dat zie
+       je pas als een klant twee keer dezelfde mail heeft. De previewconfiguratie
+       zet geen cron; dit is het tweede slot voor als iemand er later toch een
+       op zet. */
+    if (env.ROL === 'preview') { console.log('preview: de geplande lus draait hier niet'); return; }
     if (!env.SUPABASE_SERVICE_KEY) { console.error('SUPABASE_SERVICE_KEY ontbreekt — runtime staat stil'); return; }
     const workerId = 'cron-' + event.scheduledTime;
     ctx.waitUntil(tick(env, workerId).then(
@@ -2793,6 +2799,10 @@ export default {
         versie: VERSIE,
         versie_datum: VERSIE_DATUM,
         versie_wat: VERSIE_WAT,
+        /* Welke van de twee je te pakken hebt. Zonder dit kijk je naar een
+           /health die er goed uitziet en vraag je je af waarom je wijziging er
+           niet in zit -- omdat je naar de andere worker keek. */
+        rol: env.ROL === 'preview' ? 'preview' : 'live',
         runtime: env.SUPABASE_SERVICE_KEY ? 'actief' : 'uit (SUPABASE_SERVICE_KEY ontbreekt)',
         /* Let op wat dit wel en niet zegt: of er EEN sleutel is, niet of hij
            nog geldig is. Dat onderscheid heeft een halve dag gekost -- het

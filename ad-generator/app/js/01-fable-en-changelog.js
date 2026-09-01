@@ -30,6 +30,20 @@ function wgClaudeText(data){
 // ===== TEAM-SERVER CONFIG (gedeelde proxy + database) =====
 // Fase 1: alle AI-calls lopen via deze Worker (keys staan op de server).
 const WORKER_URL = 'https://marketing-ads.dustin-9ff.workers.dev'; /* [MARKETING-ADS] eigen ad-generator-worker: /anthropic + /v1 (OpenAI), team-login vereist */
+
+/* De tweede worker: dezelfde code, uitgerold vanaf de werkbranch. Er is er maar
+   één en de console praat er altijd mee, ook vanaf een deploy-preview -- dus
+   was elke workerwijziging meteen live voor iedereen, of hij moest met de hand
+   geplakt worden. Zonder dat plakken werkte de preview met oude workercode, en
+   dat verklaart de helft van de fouten in deze rebuild.
+   Zie .github/workflows/worker-preview.yml. */
+const WORKER_PREVIEW_URL = 'https://marketing-ads-preview.dustin-9ff.workers.dev';
+
+/* Uit tot de previewworker er werkelijk staat. Aanzetten voordat de eerste
+   uitrol geslaagd is, betekent dat de deploy-preview naar een adres wijst dat
+   niets teruggeeft -- en dan is de console stuk om een reden die niets met de
+   console te maken heeft. Eén regel, één keer, en daarna nooit meer. */
+const WORKER_PREVIEW_AAN = false;
 /* Welke omgevingen de worker rechtstreeks mogen aanroepen. Deze lijst hoort
    gelijk te zijn aan ORIGINS in de worker: staat een host daar niet in, dan
    weigert de browser het antwoord.
@@ -48,14 +62,23 @@ var WORKER_HOSTS = ['wellshave-adgen.netlify.app', 'wellshave-werkbank.netlify.a
    alleen dit repository laten ontstaan -- en de worker vraagt daarnaast nog
    steeds om een ingelogd, goedgekeurd teamaccount. */
 var WORKER_HOST_PATROON = /^deploy-preview-\d+--wellshave-(adgen|werkbank)\.netlify\.app$/;
-const PROXY_BASE = (function () {
-  var h = location.hostname;
-  if (WORKER_HOSTS.indexOf(h) > -1)          return WORKER_URL;
-  if (WORKER_HOST_PATROON.test(h))           return WORKER_URL;
-  if (/^(localhost|127\.0\.0\.1)$/.test(h)) return WORKER_URL;
-  if (location.protocol === 'file:')         return WORKER_URL;
-  return location.origin;
-})();
+/* De keuze apart, met de vlag als argument. Zo is de regel te controleren
+   zonder de pagina op vier hostnamen te laden EN zonder de vlag te moeten
+   omzetten om de andere helft te kunnen meten. `eigenOrigin` is wat er
+   overblijft als geen enkele regel past. */
+function wgWorkerVoor(host, protocol, eigenOrigin, previewAan) {
+  if (WORKER_HOSTS.indexOf(host) > -1)          return WORKER_URL;
+  /* Een deploy preview praat met de PREVIEWworker zodra die er staat. Dat is de
+     hele reden dat die tweede worker bestaat: anders is elke workerwijziging
+     meteen live voor iedereen, of hij moet met de hand geplakt worden. */
+  if (WORKER_HOST_PATROON.test(host))           return previewAan ? WORKER_PREVIEW_URL : WORKER_URL;
+  if (/^(localhost|127\.0\.0\.1)$/.test(host)) return WORKER_URL;
+  if (protocol === 'file:')                     return WORKER_URL;
+  return eigenOrigin;
+}
+
+const PROXY_BASE = wgWorkerVoor(location.hostname, location.protocol,
+                                location.origin, WORKER_PREVIEW_AAN);
 /* Staan de sleutels op de server? Zo ja, dan hoeft niemand hier een API-key in
    te tikken. De vraag is niet welk protocol PROXY_BASE heeft maar of hij naar
    een server wijst die de sleutels houdt: de worker rechtstreeks, of onze eigen
