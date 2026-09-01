@@ -498,5 +498,72 @@ check('geen vergelijking bij Atria', viaAtriaTrend.trend_beschikbaar, false);
 check('met de reden erbij', /vaste periodes/.test(viaAtriaTrend.trend_reden || ''), true);
 check('en geen verzonnen trend op de advertentie', viaAtriaTrend.advertenties[0].trend, undefined);
 
+console.log('\n  het beeld wordt gevonden waar het staat, niet waar wij het verwachtten');
+/* Dit stond letterlijk op het scherm: "geen beeld bij deze advertentie",
+   terwijl Atria het adres gewoon meestuurde -- onder een naam die de uitlezer
+   niet probeerde. Drie vaste veldnamen zijn geen uitlezer maar een gok. */
+await reset();
+atria.ads = [atriaAd({ thumbnail_url: null,
+  creative: { preview_url: null, resizedImageUrl: 'https://cdn.ergens/ad-9.jpg' } })];
+const diep = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30')).data;
+check('het beeld komt uit een genest veld', diep.advertenties[0].beeld, 'https://cdn.ergens/ad-9.jpg');
+
+/* En een adres op een host die wij (nog) niet ophalen gaat WEL mee. Hem hier
+   wegfilteren zou "de bron gaf geen beeldadres" opleveren terwijl er een adres
+   stond -- dan zoek je aan de verkeerde kant. De beeldpoort weigert hem
+   verderop en zegt dat; dan weet je welke host erbij moet. */
+await reset();
+atria.ads = [atriaAd({ thumbnail_url: 'https://een-host-die-wij-niet-kennen.nl/1.jpg' })];
+const vreemd = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30')).data;
+check('een onbekende host wordt niet stil weggelaten',
+  vreemd.advertenties[0].beeld, 'https://een-host-die-wij-niet-kennen.nl/1.jpg');
+
+/* En als laatste redmiddel elk adres in de rij dat op een host staat waar wij
+   beelden vandaan halen -- ook onder een naam die we niet kennen. Dit is de
+   grofste greep en hij mag alleen grof zijn omdat de hostlijst hem tegenhoudt. */
+await reset();
+atria.ads = [atriaAd({ thumbnail_url: null,
+  snapshot: { een_veld_dat_wij_niet_kennen: 'https://x.fbcdn.net/laatste.jpg' } })];
+const laatste = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30')).data;
+check('een onbekende naam op een bekende host wordt alsnog gevonden',
+  laatste.advertenties[0].beeld, 'https://x.fbcdn.net/laatste.jpg');
+
+/* Een video is geen beeld. Een mp4 in een <img> is een zwart vlak. */
+await reset();
+atria.ads = [atriaAd({ thumbnail_url: null, video_url: 'https://cdn.ergens/ad-9.mp4' })];
+const bewegend = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30')).data;
+check('de video staat apart', bewegend.advertenties[0].video, 'https://cdn.ergens/ad-9.mp4');
+check('en het beeld blijft leeg', bewegend.advertenties[0].beeld, null);
+
+/* En andersom: een veld dat "media" heet hoeft geen video te bevatten. Wie
+   daar niet op de extensie kijkt zet een jpg in een <video> en een still in de
+   speler -- en dan is er geen beeld meer waar er wel een was. */
+await reset();
+atria.ads = [atriaAd({ thumbnail_url: null, mediaUrl: 'https://cdn.ergens/still.jpg' })];
+const mediaJpg = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30')).data;
+check('een jpg in een mediaveld blijft een beeld',
+  mediaJpg.advertenties[0].beeld, 'https://cdn.ergens/still.jpg');
+check('en wordt geen video', mediaJpg.advertenties[0].video, null);
+
+console.log('\n  komt er niets uit, dan zegt de rij welke velden hij wel had');
+/* "Geen beeld" en "verkeerd gezocht" zien er op het scherm identiek uit en
+   vragen om iets heel anders. Alleen de namen gaan mee, nooit de inhoud: een
+   advertentietekst hoort niet in een diagnostisch veld. */
+await reset();
+atria.ad = { platform_ad_id: '120001', name: 'Zonder beeld', status: 'ACTIVE',
+  snapshot: { onbekend_veld: 'x' }, metrics: {}, metric_names: {} };
+const geenBeeld = (await roep('/itereren/advertentie?bron=atria&account=aaaa1111&id=120001')).data;
+check('er kwam geen beeld uit', geenBeeld.advertentie.beeld, null);
+check('en de veldnamen staan in het antwoord',
+  (geenBeeld.advertentie.velden_zonder_beeld || []).indexOf('snapshot.onbekend_veld') > -1, true);
+check('de inhoud niet', JSON.stringify(geenBeeld.advertentie.velden_zonder_beeld || []).indexOf('"x"'), -1);
+
+/* En de tegenproef: komt er wel een beeld uit, dan staat het veld er niet. Een
+   diagnostisch veld dat er altijd staat wordt genegeerd. */
+await reset();
+atria.ad = atriaAd();
+const metBeeld = (await roep('/itereren/advertentie?bron=atria&account=aaaa1111&id=120001')).data;
+check('met beeld valt er niets te melden', metBeeld.advertentie.velden_zonder_beeld, undefined);
+
 console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
 process.exit(fout ? 1 : 0);

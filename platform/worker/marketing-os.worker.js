@@ -58,7 +58,7 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 27;
+const VERSIE = 28;
 const VERSIE_DATUM = '2026-09-01';
 const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
 
@@ -1242,13 +1242,61 @@ async function atriaAccounts(env) {
   });
 }
 
+/* Het beeld en de video uit een rij, waar ze ook staan. Dezelfde aanpak als
+   bij TrendTrack, en om dezelfde reden: drie vaste veldnamen leverden bij Atria
+   een lege kaart op ("geen beeld bij deze advertentie") terwijl het adres
+   gewoon in het antwoord stond -- onder een naam of op een plek die wij niet
+   probeerden. Eerst de paden die we kennen, dan de naam waar hij ook staat, en
+   als laatste elk adres op een host waar wij beelden vandaan halen. */
+function adIsAdres(u) { return typeof u === 'string' && /^https?:\/\//i.test(u); }
+
+/* Hier NIET op host filteren, anders dan bij het onderzoek. Een advertentie
+   uit ons eigen account mag op een host staan die wij nog niet kennen -- en
+   die dan stilzwijgend weglaten levert "de bron gaf geen beeldadres" op
+   terwijl er een adres stond. Dan zoek je aan de verkeerde kant. Het adres
+   gaat mee; weigert de beeldpoort hem, dan zegt het scherm dát, en dan weet je
+   welke host erbij moet. Alleen de blinde eindzoektocht blijft aan de
+   hostlijst gebonden: die grijpt te grof om zonder rem te mogen. */
+function adBeeldUit(rij) {
+  return ttVeld(rij,
+    ['thumbnail_url', 'thumbnail', 'image_url', 'creative.thumbnail_url',
+     'creative.image_url', 'assets.0.url', 'images.0.url'],
+    ['thumbnailUrl', 'thumbnail', 'imageUrl', 'image', 'previewUrl', 'snapshotUrl',
+     'creativeUrl', 'resizedImageUrl', 'originalImageUrl', 'mediaUrl'],
+    function (w) { return adIsAdres(w) && !ttIsVideoAdres(w); }) || ttDiepAdres(rij, ttBeeldMag);
+}
+
+function adVideoUit(rij) {
+  return ttVeld(rij,
+    ['video_url', 'creative.video_url', 'assets.0.video_url'],
+    ['videoUrl', 'videoHdUrl', 'videoSdUrl', 'mediaUrl', 'video'],
+    function (w) { return adIsAdres(w) && ttIsVideoAdres(w); }) || ttDiepAdres(rij, ttVideoMag);
+}
+
+/* Welke velden er dan wél in de rij stonden. Alleen de namen, nooit de inhoud.
+   Zonder dit is "geen beeld" niet te onderscheiden van "verkeerd gezocht", en
+   dat verschil kost een ronde per gok. */
+function adVeldnamen(rij) {
+  const uit = [];
+  if (!rij || typeof rij !== 'object') return uit;
+  Object.keys(rij).forEach(function (k) {
+    uit.push(k);
+    const w = rij[k];
+    if (w && typeof w === 'object' && !Array.isArray(w)) {
+      Object.keys(w).forEach(function (k2) { uit.push(k + '.' + k2); });
+    }
+  });
+  return uit;
+}
+
 function atriaNaarAdvertentie(rij) {
   return {
     bron: 'atria',
     id: rij.platform_ad_id || rij.ad_id || rij.id || null,
     naam: rij.name || rij.ad_name || '(zonder naam)',
     staat: rij.status || rij.effective_status || null,
-    beeld: rij.thumbnail_url || rij.thumbnail || rij.image_url || null,
+    beeld: adBeeldUit(rij),
+    video: adVideoUit(rij),
     cijfers: adAfgeleid(atriaMaten(rij.metrics, rij.metric_names))
   };
 }
@@ -1269,15 +1317,15 @@ async function atriaAdvertentie(env, account, adId, dagen) {
     { period: atriaPeriode(dagen) });
   const rij = d.item || d.ad || d;
   const ad = atriaNaarAdvertentie(rij);
-  const beelden = rij.assets || rij.images || rij.creative_assets || [];
   ad.copy = {
     kop: rij.title || rij.headline || null,
     tekst: rij.body || rij.primary_text || rij.text || null,
     cta: rij.cta || rij.call_to_action || null
   };
-  if (!ad.beeld && Array.isArray(beelden) && beelden.length) {
-    ad.beeld = beelden[0].url || beelden[0].image_url || beelden[0].thumbnail_url || null;
-  }
+  /* Komt er niets uit, dan gaan de veldnamen mee terug. Het scherm kan dan
+     zeggen wat er wél stond in plaats van "geen beeld", en dan is de volgende
+     ronde een aflezing en geen gok. */
+  if (!ad.beeld && !ad.video) ad.velden_zonder_beeld = adVeldnamen(rij);
   return ad;
 }
 
@@ -1352,7 +1400,9 @@ async function metaCreative(env, adId) {
     return {
       naam: d.name || null,
       staat: d.effective_status || null,
-      beeld: c.image_url || c.thumbnail_url || null,
+      beeld: adBeeldUit(c),
+      video: adVideoUit(c),
+      velden: adVeldnamen(c),
       copy: { kop: c.title || null, tekst: c.body || null, cta: c.call_to_action_type || null }
     };
   } catch (e) { return null; }
@@ -1379,8 +1429,13 @@ async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
   const toen = {};
   if (vorige) vorige.forEach(function (r) { if (r.ad_id) toen[r.ad_id] = metaNaarCijfers(r); });
   const uit = rijen.map(function (rij) {
+    /* beeld en video staan er leeg bij: de lijst haalt geen creatives op, dat
+       is een tweede aanroep per advertentie. Ze horen wél in de vorm, want een
+       advertentie uit Atria en een uit Meta moeten dezelfde velden hebben --
+       anders leest het scherm bij de ene bron iets uit dat bij de andere niet
+       bestaat. */
     const ad = { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
-                 staat: null, beeld: null, cijfers: metaNaarCijfers(rij) };
+                 staat: null, beeld: null, video: null, cijfers: metaNaarCijfers(rij) };
     if (vergelijk) {
       /* Geen vorige periode is niet hetzelfde als een vlakke lijn. Een
          advertentie die vorige week nog niet bestond hoort niet als "stabiel"
@@ -1404,13 +1459,15 @@ async function metaAdvertentie(env, account, adId, dagen) {
   const rij = rijen[0];
   if (!rij) throw new Error('Meta gaf geen cijfers voor advertentie ' + adId + ' in dit venster');
   const ad = { bron: 'meta', id: rij.ad_id || String(adId), naam: rij.ad_name || '(zonder naam)',
-               staat: null, beeld: null, copy: null, cijfers: metaNaarCijfers(rij) };
+               staat: null, beeld: null, video: null, copy: null, cijfers: metaNaarCijfers(rij) };
   const cr = await metaCreative(env, ad.id);
   if (cr) {
     if (cr.naam) ad.naam = cr.naam;
     ad.staat = cr.staat;
     ad.beeld = cr.beeld;
+    ad.video = cr.video || null;
     ad.copy = cr.copy;
+    if (!ad.beeld && !ad.video) ad.velden_zonder_beeld = cr.velden || [];
   }
   return ad;
 }

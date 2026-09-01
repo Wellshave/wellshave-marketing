@@ -699,6 +699,9 @@ function ONDERSCHEP() {
   /* De vorige analyse laten staan alsof hij vers is, is het soort stilte dat
      je op een verkeerd plan zet: de velden gaan over een andere advertentie. */
   const stille = await page.evaluate(async () => {
+    /* Er IS een beeld: het gaat hier om een analyse die niets teruggeeft, niet
+       om een advertentie zonder creative. */
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png', fileName: 'x.png', size: 3 };
     const echt = window.analyzeWinningAd;
     window.analyzeWinningAd = async () => { /* doet niets, geeft niets terug */ };
     await iwAnalyse();
@@ -720,6 +723,76 @@ function ONDERSCHEP() {
   check('op stap 1 niet', werkblad['1'], 'none');
   check('op stap 2 niet', werkblad['2'], 'none');
   check('op stap 3 wel', werkblad['3'], 'block');
+
+  console.log('\n  geen beeld is drie verschillende dingen');
+  /* Op het scherm stond bij alle drie hetzelfde: "geen beeld bij deze
+     advertentie". Ze vragen om iets heel anders -- een andere uitlezing, een
+     host erbij, of gewoon opnieuw proberen. */
+  const redenen = await page.evaluate(async () => {
+    const uit = {};
+    /* Er staat nog een creative van een eerdere controle. Die hoort te
+       verdwijnen zodra je een advertentie zonder beeld kiest -- dat is de
+       eerste controle hieronder. */
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png', fileName: 'oud.png', size: 3 };
+    const toon = () => document.querySelector('.iw-adbeeld').textContent.trim();
+
+    /* 1. De bron gaf geen adres, maar wel andere velden. Dan zoeken wij
+          verkeerd, en de veldnamen zeggen waar we moeten kijken. */
+    _iw.gekozen = { id: 'a', naam: 'Zonder beeld', cijfers: {}, beeld: null,
+                    velden_zonder_beeld: ['id', 'snapshot.preview'] };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    uit.veldnamen = toon();
+    /* Het beeld van de vorige advertentie is weg. Bleef het staan, dan las
+       Rory dat beeld met deze cijfers. */
+    uit.oudeCreativeWeg = !state.sourceAd;
+
+    /* 2. Het is een video. Dan is er geen still en dat is geen storing. */
+    _iw.gekozen = { id: 'b', naam: 'Bewegend', cijfers: {}, beeld: null,
+                    video: 'https://x.fbcdn.net/f.mp4' };
+    await iwZetBronAd(_iw.gekozen);
+    iwRender();
+    uit.video = toon();
+
+    /* 3. Er is een adres, maar de beeldpoort weigert de host. Dan hoort de
+          host erbij, en dat kun je alleen weten als het er staat. */
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/onderzoek/beeld') > -1) {
+        return { ok: false, status: 400, json: async () => ({ error: 'dit adres wordt niet doorgelaten' }) };
+      }
+      return echt(u, o);
+    };
+    _iw.gekozen = { id: 'c', naam: 'Vreemde host', cijfers: {},
+                    beeld: 'https://onbekende-host.nl/1.jpg' };
+    await iwZetBronAd(_iw.gekozen);
+    window.fetch = echt;
+    iwRender();
+    uit.geweigerd = toon();
+    return uit;
+  });
+  check('het beeld van de vorige advertentie is weg', redenen.oudeCreativeWeg, true);
+  check('de veldnamen staan erbij', /snapshot.preview/.test(redenen.veldnamen), true);
+  check('een video zegt dat het een video is', /videoadvertentie/.test(redenen.video), true);
+  check('en een geweigerd adres zegt dat het geweigerd is',
+    /niet doorgelaten/.test(redenen.geweigerd), true);
+  /* Drie keer dezelfde zin zou betekenen dat je nog steeds niets weet. */
+  check('en het zijn drie verschillende meldingen',
+    new Set([redenen.veldnamen, redenen.video, redenen.geweigerd]).size, 3);
+
+  console.log('\n  en Rory zegt wat hij mist in plaats van niets te doen');
+  const roryZonderBeeld = await page.evaluate(async () => {
+    state.sourceAd = null;
+    _iw.beeldFout = 'De bron gaf geen beeldadres bij deze advertentie.';
+    _iw.gekozen = { id: 'a', naam: 'Zonder beeld', cijfers: {}, beeld: null };
+    _iw.stap = 2;
+    await iwAnalyse();
+    return { fout: _iw.analyseFout, tekst: document.getElementById('iw-paneel').textContent };
+  });
+  check('hij zegt waarom het niet kan', /zonder beeld kan hij niet lezen/.test(roryZonderBeeld.fout || ''), true);
+  check('met de oorzaak erbij', /geen beeldadres/.test(roryZonderBeeld.fout || ''), true);
+  check('en wat je eraan kunt doen', /Upload de creative/.test(roryZonderBeeld.fout || ''), true);
+  check('het staat ook op het scherm', /De analyse liep vast/.test(roryZonderBeeld.tekst), true);
 
   console.log('\n  handmatig invullen kan nog steeds');
   const hand = await page.evaluate(() => {

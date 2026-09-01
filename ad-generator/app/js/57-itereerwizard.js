@@ -44,7 +44,10 @@ var _iw = {
      dat is "geen dalende advertenties" niet te onderscheiden van "niet
      gemeten", en die twee vragen om iets heel anders. */
   trendBeschikbaar: null, trendReden: null,
-  analyseBezig: false, analyseFout: null
+  analyseBezig: false, analyseFout: null,
+  /* Waarom er geen beeld staat, als er geen beeld staat. Null betekent: er is
+     er wel een, of we hebben het nog niet geprobeerd. */
+  beeldFout: null
 };
 
 function iwEsc(s) {
@@ -155,13 +158,45 @@ async function iwKies(i) {
   _iw.bezig = false; iwRender();
 }
 
+/* Waarom er geen beeld staat. Drie oorzaken die er op het scherm identiek
+   uitzagen -- "geen beeld bij deze advertentie" -- terwijl ze om iets heel
+   anders vragen: de bron gaf geen adres, het adres komt van een host die wij
+   niet ophalen, of het ophalen zelf ging mis. De eerste vraag om een andere
+   uitlezing, de tweede om een host op de lijst, de derde om opnieuw proberen. */
 async function iwZetBronAd(ad) {
-  if (!ad || !ad.beeld) return;
+  _iw.beeldFout = null;
+  /* Eerst het vorige beeld weg. Zonder dit blijft de creative van de VORIGE
+     advertentie staan zodra de nieuwe er geen heeft -- en dan leest Rory het
+     ene beeld met de cijfers van het andere. Dat ziet er volkomen normaal uit
+     en is het duurste soort fout in dit scherm. */
+  var st = iwState();
+  if (st) st.sourceAd = null;
+  if (typeof renderSourceAdPreview === 'function') renderSourceAdPreview();
+  if (!ad) return;
+  if (!ad.beeld) {
+    if (ad.video) {
+      _iw.beeldFout = 'Dit is een videoadvertentie. Er is geen stilstaand beeld om op te itereren.';
+    } else if (ad.velden_zonder_beeld && ad.velden_zonder_beeld.length) {
+      /* Dezelfde diagnose als bij Creative Research, en om dezelfde reden: dit
+         zegt of we verkeerd zoeken of dat er werkelijk niets is. */
+      _iw.beeldFout = 'De bron gaf geen beeldadres. Deze velden stonden er wel: ' +
+        ad.velden_zonder_beeld.slice(0, 24).join(', ') + '.';
+    } else {
+      _iw.beeldFout = 'De bron gaf geen beeldadres bij deze advertentie.';
+    }
+    return;
+  }
   try {
     var o = { headers: {} };
     if (window.__WG_TOKEN) o.headers['Authorization'] = 'Bearer ' + window.__WG_TOKEN;
     var r = await fetch(iwBasis() + '/onderzoek/beeld?u=' + encodeURIComponent(ad.beeld), o);
-    if (!r.ok) return;
+    if (!r.ok) {
+      var d = null;
+      try { d = await r.json(); } catch (e) { d = null; }
+      _iw.beeldFout = 'Het beeld was niet op te halen: ' +
+        ((typeof wgFoutTekst === 'function') ? wgFoutTekst(d, r.status) : ('de worker antwoordde met ' + r.status));
+      return;
+    }
     var blob = await r.blob();
     var dataUrl = await new Promise(function (klaar, mislukt) {
       var lezer = new FileReader();
@@ -174,7 +209,11 @@ async function iwZetBronAd(ad) {
     state.sourceAd = { b64: m[2], mimeType: m[1], fileName: 'meta-' + (ad.id || 'ad') + '.png',
                        size: blob.size, uploadedAt: Date.now() };
     if (typeof renderSourceAdPreview === 'function') renderSourceAdPreview();
-  } catch (e) { /* geen beeld is vervelend, geen cijfers is fataal en die hebben we */ }
+  } catch (e) {
+    /* Geen beeld is vervelend, geen cijfers is fataal en die hebben we. Maar
+       stil is het niet meer: wat er misging staat op de kaart. */
+    _iw.beeldFout = 'Het beeld was niet op te halen: ' + String((e && e.message) || e);
+  }
 }
 
 /* ── De cijfers, in onze eigen woorden ─────────────────────────────────── */
@@ -533,7 +572,7 @@ function iwAdkaartHtml() {
     '<span class="iw-kaart-titel">Geselecteerde advertentie</span></div>';
   h += '<div class="iw-adbeeld">' + (beeld
     ? '<img src="' + iwEsc(beeld) + '" alt="">'
-    : '<span class="iw-leeg">geen beeld bij deze advertentie</span>') + '</div>';
+    : '<span class="iw-leeg">' + iwEsc(_iw.beeldFout || 'geen beeld bij deze advertentie') + '</span>') + '</div>';
   h += '<div class="iw-adtitel">' + iwEsc(ad.naam) + '</div>';
   h += '<div class="iw-adonder">' +
     iwEsc(_iw.bron === 'atria' ? 'Atria' : 'Meta Ads') + ' <span class="iw-punt">·</span> laatste ' +
@@ -697,6 +736,16 @@ async function iwAnalyse() {
   if (_iw.analyseBezig) return;
   if (typeof analyzeWinningAd !== 'function') {
     _iw.analyseFout = 'De analyse is niet geladen.'; return iwRender();
+  }
+  /* Rory leest het beeld én de cijfers. Zonder beeld weigert de analyse, en
+     dat gebeurde met een toast die je een seconde later kwijt bent. Waarom er
+     geen beeld is staat al op de kaart; hier staat wat je eraan kunt doen. */
+  var st0 = iwState();
+  if (!st0 || !st0.sourceAd) {
+    _iw.analyseFout = (_iw.beeldFout ? _iw.beeldFout + ' ' : '') +
+      'Rory leest de advertentie zelf, dus zonder beeld kan hij niet lezen. ' +
+      'Upload de creative met de hand in stap 1.';
+    return iwRender();
   }
   _iw.analyseBezig = true; _iw.analyseFout = null; iwRender();
   var st = iwState();
