@@ -362,6 +362,11 @@ function setMode(mode) {
      twee ingangen naar hetzelfde scherm en maar een ervan tekent, is precies
      het soort verschil dat je pas ziet als iemand het meldt. */
   if (mode === 'iterate' && typeof renderItereerWizard === 'function') renderItereerWizard();
+  /* En bij het VERLATEN van itereren de blokken weer vrijgeven. De wizard zet
+     ze op none tot stap 3; blijft dat staan, dan opent Kopieer ad met een leeg
+     scherm -- een scherm dat kapot is door een instelling van een ander
+     scherm is precies het soort fout dat niemand terugvindt. */
+  if (mode !== 'iterate' && typeof iwToonWerkblad === 'function') iwToonWerkblad();
 
   // scratch-only elementen (format mode, funnel, archetype, concept-suggester) verbergen in copy en iterate
   document.querySelectorAll('.scratch-only').forEach(el => {

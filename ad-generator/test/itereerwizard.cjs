@@ -191,6 +191,87 @@ function ONDERSCHEP() {
   check('bij Kopieer ad staat de configuratie er gewoon', kolommen.naKopieer, true);
   await page.evaluate(() => switchMainTab('iterate'));
 
+  console.log('\n  en het werkblad krijgt de hele breedte, niet een strook');
+  /* De controle hierboven keek of de kolommen "display: none" waren. Dat waren
+     ze -- en het scherm was tóch kapot: de rasterbreedtes stonden met
+     !important vast op 296px / 484px / 336px, dus het werkblad kreeg 290
+     pixels midden op een leeg scherm van 1600. Zichtbaarheid meten is hier
+     niet genoeg; je moet de breedte meten. */
+  const breedte = await page.evaluate(() => {
+    switchMainTab('iterate');
+    _iw.stap = 1; iwRender();
+    const b = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? Math.round(el.getBoundingClientRect().width) : null;
+    };
+    return { grid: b('.ws8-grid'), center: b('.ws8-center'), paneel: b('#iw-paneel'),
+             kolommen: getComputedStyle(document.querySelector('.ws8-grid')).gridTemplateColumns };
+  });
+  check('het werkblad vult het raster', breedte.center !== null && breedte.grid - breedte.center < 40, true);
+  check('en het paneel is breed, geen strook', breedte.paneel > 800, true);
+  check('het raster heeft nog maar één kolom',
+    /^[0-9.]+px$/.test(breedte.kolommen || '') && breedte.kolommen.split(' ').length, 1);
+
+  console.log('\n  de commandobalk van Statics hoort hier niet');
+  /* Hij zegt "Statics", telt 2/5 van een andere wizard, en zijn Genereer-knop
+     start de statics-generatie. Op het itereerscherm is elk woord ervan
+     onwaar -- en hij stond er gewoon, boven de stappenbalk. */
+  const balk = await page.evaluate(() => {
+    switchMainTab('iterate');
+    const h = document.querySelector('.ws8-header');
+    const bijItereren = h ? getComputedStyle(h).display : null;
+    setMode('copy');
+    const bijKopieer = h ? getComputedStyle(h).display : null;
+    setMode('iterate');
+    return { bijItereren: bijItereren, bijKopieer: bijKopieer, bestaat: !!h };
+  });
+  check('de balk bestaat wel', balk.bestaat, true);
+  check('maar staat niet op het itereerscherm', balk.bijItereren, 'none');
+  check('en bij Kopieer ad staat hij er gewoon', balk.bijKopieer !== 'none', true);
+
+  console.log('\n  stap 1 staat in twee kolommen, zoals het ontwerp zegt');
+  const twee = await page.evaluate(() => {
+    _iw.stap = 1; _iw.gekozen = null; iwRender();
+    const k = [].slice.call(document.querySelectorAll('.iw-kaart'));
+    const st = document.querySelector('.iw-stapper');
+    return {
+      kaarten: k.length,
+      naastElkaar: k.length === 2 && Math.abs(k[0].getBoundingClientRect().top - k[1].getBoundingClientRect().top) < 4,
+      breedtes: k.map(e => Math.round(e.getBoundingClientRect().width)),
+      /* De stappenbalk is één rij, geen blokje van vijf onder elkaar. */
+      stapperHoog: st ? Math.round(st.getBoundingClientRect().height) : null
+    };
+  });
+  check('twee kaarten', twee.kaarten, 2);
+  check('naast elkaar', twee.naastElkaar, true);
+  check('en even breed', Math.abs(twee.breedtes[0] - twee.breedtes[1]) < 20, true);
+  check('de stappenbalk is één rij', twee.stapperHoog !== null && twee.stapperHoog < 60, true);
+
+  console.log('\n  het oude werkblad staat er pas vanaf stap 3');
+  /* Het stond allemaal meteen onder de wizard: het uploadvak, de winnende ad,
+     de testdimensies en de knop "Analyseer en genereer iteraties". Dan begin je
+     aan het onderste eind van het scherm, en de wizard erboven is decoratie. */
+  const perStap = await page.evaluate(() => {
+    const zicht = () => ['iterate-werkblad', 'source-ad-section', 'classic-form'].map(id => {
+      const el = document.getElementById(id);
+      return el ? getComputedStyle(el).display !== 'none' : null;
+    });
+    const uit = {};
+    [1, 2, 3].forEach(n => { _iw.stap = n; iwRender(); uit[n] = zicht(); });
+    /* En bij het verlaten van itereren komt alles weer terug. Blijft het op
+       none staan, dan opent Kopieer ad met een leeg scherm -- kapot door een
+       instelling van een ander scherm. */
+    _iw.stap = 1; iwRender();
+    setMode('copy');
+    uit.naKopieer = zicht();
+    setMode('iterate');
+    return uit;
+  });
+  check('op stap 1 niets ervan', perStap['1'], [false, false, false]);
+  check('op stap 2 nog steeds niet', perStap['2'], [false, false, false]);
+  check('op stap 3 alles', perStap['3'], [true, true, true]);
+  check('en Kopieer ad krijgt zijn scherm terug', perStap.naKopieer, [true, true, true]);
+
   console.log('\n  ook als je via de modusknop binnenkomt');
   /* Twee ingangen naar hetzelfde scherm en maar een ervan tekent: dat zie je
      pas als iemand het meldt. */

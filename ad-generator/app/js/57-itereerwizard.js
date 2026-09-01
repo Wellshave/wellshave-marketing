@@ -653,14 +653,30 @@ function iwRender() {
   else h += '<p class="iw-uitleg">De instellingen en het werkblad staan hieronder.</p>';
   el.innerHTML = h;
 
-  /* Vanaf stap 3 neemt het bestaande werkblad het over: de testdimensies, de
-     richting en het genereren. Die werkten al en veranderen hier niet -- wat
-     verandert is dat ze pas in beeld komen als de advertentie gekozen en
-     gelezen is. */
-  var opties = document.getElementById('iterate-werkblad');
-  if (opties) opties.style.display = _iw.stap >= 3 ? 'block' : 'none';
+  iwToonWerkblad();
   var oud = document.getElementById('iterate-handmatig');
   if (oud) oud.style.display = (_iw.handmatig && _iw.stap >= 2) ? 'block' : 'none';
+}
+
+/* Vanaf stap 3 neemt het bestaande werkblad het over: het uploadvak, de
+   testdimensies, de richting en het genereren. Die werkten al en veranderen
+   hier niet -- wat verandert is dat ze pas in beeld komen als de advertentie
+   gekozen en gelezen is. Ze stonden er allemaal meteen onder, en dan begin je
+   aan het onderste eind van het scherm.
+
+   Alleen op het itereerscherm. Kopieer ad deelt deze blokken en heeft ze vanaf
+   het begin nodig; ze daar verbergen zou dat scherm slopen. */
+var IW_WERKBLADEN = ['iterate-werkblad', 'source-ad-section', 'classic-form'];
+
+function iwToonWerkblad() {
+  var itereert = document.body && document.body.classList.contains('iterate-mode-active');
+  IW_WERKBLADEN.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    /* Buiten het itereerscherm bepaalt dit niets: dan gaat de eigen stand van
+       het element weer gelden. */
+    el.style.display = itereert ? (_iw.stap >= 3 ? 'block' : 'none') : '';
+  });
 }
 
 /* De testdimensies die uit de diagnose volgen alvast aanvinken. Ze blijven te
@@ -798,4 +814,5 @@ window.IW_STAPPEN = IW_STAPPEN; window.IW_PRESETS = IW_PRESETS;
 window.IW_ANALYSEVELDEN = IW_ANALYSEVELDEN; window.IW_KAARTCIJFERS = IW_KAARTCIJFERS;
 window.iwFilter = iwFilter; window.iwBewaard = iwBewaard; window.iwBewaarToggle = iwBewaarToggle;
 window.iwStapperHtml = iwStapperHtml; window.iwStap1Html = iwStap1Html; window.iwStap2Html = iwStap2Html;
-window.iwAnalyse = iwAnalyse; window.iwState = iwState; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;
+window.iwAnalyse = iwAnalyse; window.iwState = iwState;
+window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;

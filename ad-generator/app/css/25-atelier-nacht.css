@@ -789,6 +789,12 @@ input:focus, select:focus, textarea:focus {
    laten opvallen is hetzelfde als niets laten opvallen. */
 /* ── De itereerwizard: vijf stappen ──────────────────────────────────── */
 
+/* Het paneel meet zichzelf. De breekpunten hieronder keken naar `dossier` --
+   de container van de statics-wizard -- en die bestaat op dit scherm niet, dus
+   klapten de twee kolommen nooit uit. Een breekpunt dat naar een container
+   kijkt die er niet is, is een breekpunt dat nooit afgaat. */
+#iw-paneel { container-type: inline-size; container-name: itereren; display: block; }
+
 .iw-stapper { display: flex; align-items: center; gap: 6px; margin: 4px 0 26px; flex-wrap: wrap; }
 .iw-stapper-stap {
   display: flex; align-items: center; gap: 8px; background: none; border: none;
@@ -811,9 +817,9 @@ input:focus, select:focus, textarea:focus {
 .iw-titel { font-size: 15px; color: var(--text) !important; margin: 0 0 4px; }
 .iw-onder { font-size: 12.5px; color: var(--text-faint); margin: 0 0 18px; }
 .iw-kolommen { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@container dossier (min-width: 900px) {
+@container itereren (min-width: 860px) {
   .iw-kolommen { grid-template-columns: 1fr 1fr; align-items: start; }
-  .iw-kolommen.smal-breed { grid-template-columns: 320px 1fr; }
+  .iw-kolommen.smal-breed { grid-template-columns: 340px 1fr; }
 }
 .iw-kaart {
   border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
@@ -881,7 +887,7 @@ input:focus, select:focus, textarea:focus {
 .iw-voet { display: flex; justify-content: flex-end; margin-top: 18px; }
 
 .iw-velden { display: grid; grid-template-columns: 1fr; gap: 12px 22px; }
-@container dossier (min-width: 700px) { .iw-velden { grid-template-columns: 1fr 1fr; } }
+@container itereren (min-width: 640px) { .iw-velden { grid-template-columns: 1fr 1fr; } }
 .iw-veld { display: flex; flex-direction: column; gap: 1px; }
 .iw-veld-l { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
 .iw-veld-w { font-size: 12.5px; color: var(--text); line-height: 1.45; }
@@ -1026,12 +1032,22 @@ input:focus, select:focus, textarea:focus {
 
    De opbouw zelf blijft ongemoeid: die wordt bij het opstarten door JS gedaan
    en alle ids en listeners hangen eraan. Hier verandert alleen wat je ziet. */
-body.iterate-mode-active .ws8-grid { grid-template-columns: minmax(0, 1fr); }
+/* !important, en met tegenzin. 22-groepering.css zet de drie kolommen met
+   !important vast, dus een gewone regel hier deed niets: links en rechts waren
+   wél verborgen maar de kolombreedtes bleven staan, en het werkblad stond als
+   een strook van 290 pixels midden op een leeg scherm van 1600. Precies wat je
+   op de schermafdruk ziet. */
+body.iterate-mode-active .ws8-grid { grid-template-columns: minmax(0, 1fr) !important; }
 body.iterate-mode-active .ws8-left,
 body.iterate-mode-active .ws8-right { display: none; }
 /* Een kolomnaam boven de enige kolom zegt niets. */
 body.iterate-mode-active .ws8-center > .ws8-zone-lbl { display: none; }
 body.iterate-mode-active .ws8-grid { max-width: 1180px; }
+
+/* En de commandobalk van Statics hoort hier niet. Hij zegt "Statics", telt
+   2/5 van een andere wizard, en zijn Genereer-knop start de statics-generatie.
+   Op het itereerscherm is elk woord ervan onwaar. */
+body.iterate-mode-active .ws8-header { display: none !important; }
 
 /* En de volgorde: eerst de cijfers ophalen, dan pas de rest. Dat is de
    volgorde waarin het werk gebeurt -- je kiest een advertentie, je ziet waar
