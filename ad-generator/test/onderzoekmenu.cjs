@@ -58,6 +58,7 @@ function ONDERSCHEP() {
   window.__gevraagd = [];
   window.__antwoord = {
     voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+    bereik: 'brandtracker',
     sorteert_op: 'draait het langst', venster: null, dagen_gevraagd: 14,
     advertenties: [
       { id: 'c-900', merk: 'Concurrent BV', domein: 'concurrent.nl', beeld: 'https://x.fbcdn.net/1.jpg',
@@ -474,6 +475,41 @@ function ONDERSCHEP() {
   /* Een lijst die stil korter is dan hij hoort te zijn leest als "die
      concurrent doet even niets". */
   check('en welk merk ontbrak', /Freebird/.test(uitleg), true);
+
+  console.log('\n  een antwoord dat niet is wat je vroeg wordt gemeld');
+  /* Dit gebeurde echt: de console was uitgerold en de worker niet. Die kende de
+     bereik-parameter nog niet, negeerde hem zwijgend en stuurde de hele markt
+     terug -- en het scherm zette "Analyseer onze Brand Tracker" boven een lijst
+     met een Duitse kinderopvang erin. Het geloofde zijn eigen knop in plaats
+     van het antwoord. */
+  const mismatch = await page.evaluate(async () => {
+    _cr.open = null; _cr.bereik = 'brandtracker';
+    /* Een oude worker: geen bereik in het antwoord. */
+    const bewaard = window.__antwoord;
+    window.__antwoord = Object.assign({}, bewaard);
+    delete window.__antwoord.bereik;
+    await crHaalLijst();
+    const zonderVeld = document.getElementById('cr-inhoud').textContent;
+    /* En een worker die iets anders terugstuurt dan gevraagd. */
+    window.__antwoord = Object.assign({}, bewaard, { bereik: 'markt' });
+    await crHaalLijst();
+    const anderBereik = document.getElementById('cr-inhoud').textContent;
+    /* En als het wel klopt: geen waarschuwing. Een melding die er altijd staat
+       wordt niet gelezen. */
+    window.__antwoord = Object.assign({}, bewaard, { bereik: 'brandtracker' });
+    await crHaalLijst();
+    const klopt = document.getElementById('cr-inhoud').textContent;
+    window.__antwoord = bewaard;
+    return { zonderVeld, anderBereik, klopt };
+  });
+  check('een oude worker wordt herkend', /ouder dan deze console/.test(mismatch.zonderVeld), true);
+  check('met wat je moet doen', /versie 22 of hoger/.test(mismatch.zonderVeld), true);
+  check('en wat je nu ziet', /de hele markt, niet onze Brand Tracker/.test(mismatch.zonderVeld), true);
+  check('een ander bereik wordt gemeld', /niet waar de knop om vroeg/.test(mismatch.anderBereik), true);
+  check('met wat er gevraagd is', /om onze Brand Tracker gevraagd/.test(mismatch.anderBereik), true);
+  /* En de tegenproef: klopt het, dan staat er niets. */
+  check('bij een kloppend antwoord geen waarschuwing',
+    /Dit is niet wat je vroeg/.test(mismatch.klopt), false);
 
   console.log('\n  een foutmelding is nooit [object Object]');
   /* Vijfde keer dat ditzelfde patroon toeslaat: er komt een object binnen waar

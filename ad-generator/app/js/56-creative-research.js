@@ -59,7 +59,7 @@ var _cr = {
   bereik: 'brandtracker', merk: '', merken: null,
   sorteer: 'looptijd', dagen: 14, land: 'NL', taal: '', soort: '', zoek: '', limiet: 10,
   lijst: null, voorbehoud: null, venster: null, dagenGevraagd: null,
-  hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null,
+  hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null, bereikMismatch: null,
   bezig: false, fout: null, open: null, patroon: null, patroonBezig: false,
   /* De beelden die we al opgehaald hebben, per adres. Zonder dit haalt elke
      hertekening ze opnieuw op, en dat is bij tien kaarten tien verzoeken per
@@ -206,6 +206,23 @@ async function crHaalLijst() {
       if (_cr.zoek) p.set('zoek', _cr.zoek);
     }
     var uit = await crVraag('/onderzoek/toplijst?' + p);
+    /* Wat we vroegen naast wat we kregen. Dit is geen theoretische controle:
+       een worker die de bereik-parameter nog niet kent negeert hem zwijgend en
+       stuurt de hele markt terug -- en dan staat er "Analyseer onze Brand
+       Tracker" boven een lijst met een Duitse kinderopvang erin. Het scherm
+       geloofde zijn eigen knop in plaats van het antwoord.
+
+       Ontbreekt het veld helemaal, dan is de worker ouder dan deze console. */
+    _cr.bereikMismatch = null;
+    if (!uit.bereik) {
+      _cr.bereikMismatch = 'De worker weet nog niet wat een bereik is: hij is ouder dan deze console. ' +
+        'Wat je hieronder ziet is de hele markt, niet onze Brand Tracker. Rol de worker uit ' +
+        '(versie 22 of hoger) en probeer het opnieuw.';
+    } else if (uit.bereik !== _cr.bereik) {
+      _cr.bereikMismatch = 'Er is om ' + (_cr.bereik === 'brandtracker' ? 'onze Brand Tracker' : 'de hele markt') +
+        ' gevraagd, maar er kwam ' + (uit.bereik === 'brandtracker' ? 'de Brand Tracker' : 'de hele markt') +
+        ' terug. Wat hieronder staat is dus niet waar de knop om vroeg.';
+    }
     _cr.lijst = uit.advertenties || [];
     if (uit.merken) _cr.merken = uit.merken;
     _cr.hoeGerangschikt = uit.hoe_gerangschikt || null;
@@ -343,6 +360,12 @@ function crLijstHtml() {
       'proberen levert meestal meer op dan een breder venster.</div>';
   }
   var h = '';
+  /* Bovenaan en opvallend: een lijst die iets anders is dan de knop belooft
+     wordt anders gewoon gelezen als de lijst die je vroeg. */
+  if (_cr.bereikMismatch) {
+    h += '<div class="cr-melding fout"><b>Dit is niet wat je vroeg.</b><br>' +
+      crEsc(_cr.bereikMismatch) + '</div>';
+  }
   if (_cr.voorbehoud) {
     h += '<p class="cr-voorbehoud">' + crEsc(_cr.voorbehoud) + '</p>';
   }
