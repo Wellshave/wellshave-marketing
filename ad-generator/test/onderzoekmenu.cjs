@@ -476,6 +476,27 @@ function ONDERSCHEP() {
      concurrent doet even niets". */
   check('en welk merk ontbrak', /Freebird/.test(uitleg), true);
 
+  console.log('\n  als er geen beeld uitkomt, zegt het scherm welke velden er wel waren');
+  const veldMelding = await page.evaluate(async () => {
+    const bewaard = window.__antwoord;
+    window.__antwoord = Object.assign({}, bewaard, {
+      velden_zonder_beeld: ['id', 'creative', 'snapshot']
+    });
+    _cr.open = null;
+    await crHaalLijst();
+    const met = document.getElementById('cr-inhoud').textContent;
+    /* En als het wel goed gaat staat er niets: een technische melding die er
+       altijd staat wordt genegeerd, en dan is hij er niet als je hem nodig hebt. */
+    window.__antwoord = bewaard;
+    await crHaalLijst();
+    const zonder = document.getElementById('cr-inhoud').textContent;
+    return { met, zonder };
+  });
+  check('de veldnamen komen in beeld', /creative, snapshot/.test(veldMelding.met), true);
+  check('met wat eraan te doen is', /Stuur die regel door/.test(veldMelding.met), true);
+  check('en bij een goed antwoord staat er niets',
+    /Geen beeld te vinden/.test(veldMelding.zonder), false);
+
   console.log('\n  waar bereik ontbreekt komt de positie in beeld');
   /* Bij een gevolgd merk geeft TrendTrack geen bereik. Drie streepjes op een
      kaart geven je niets om op te kiezen; de positie binnen de advertenties van

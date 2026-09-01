@@ -60,6 +60,7 @@ var _cr = {
   sorteer: 'looptijd', dagen: 14, land: 'NL', taal: '', soort: '', zoek: '', limiet: 10,
   lijst: null, voorbehoud: null, venster: null, dagenGevraagd: null,
   hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null, bereikMismatch: null,
+  veldenZonderBeeld: null,
   bezig: false, fout: null, open: null, patroon: null, patroonBezig: false,
   /* De beelden die we al opgehaald hebben, per adres. Zonder dit haalt elke
      hertekening ze opnieuw op, en dat is bij tien kaarten tien verzoeken per
@@ -228,6 +229,7 @@ async function crHaalLijst() {
     _cr.hoeGerangschikt = uit.hoe_gerangschikt || null;
     _cr.merkenGebruikt = uit.merken_gebruikt || null;
     _cr.merkenMislukt = uit.merken_mislukt || null;
+    _cr.veldenZonderBeeld = uit.velden_zonder_beeld || null;
     /* Het voorbehoud en het gebruikte venster komen uit de bron mee. Ze worden
        hier niet opnieuw geformuleerd: dan zouden ze uit elkaar kunnen lopen. */
     _cr.voorbehoud = uit.voorbehoud || null;
@@ -399,6 +401,14 @@ function crLijstHtml() {
   if (_cr.merkenMislukt && _cr.merkenMislukt.length) {
     h += '<p class="cr-venstermelding">Niet opgehaald: ' +
       crEsc(_cr.merkenMislukt.join(' · ')) + '</p>';
+  }
+  /* Als er geen beelden uitkwamen: welke velden er dan wel stonden. Dat is
+     geen boodschap voor dagelijks gebruik maar wel precies wat er nodig is om
+     het te repareren, en het staat er alleen als het misgaat. */
+  if (_cr.veldenZonderBeeld && _cr.veldenZonderBeeld.length) {
+    h += '<p class="cr-venstermelding">Geen beeld te vinden in het antwoord. ' +
+      'De bron gebruikte deze velden: <b>' + crEsc(_cr.veldenZonderBeeld.join(', ')) + '</b>. ' +
+      'Stuur die regel door, dan weet ik waar het beeld zit.</p>';
   }
   h += '<div class="cr-raster">' + _cr.lijst.map(crKaartHtml).join('') + '</div>';
   return h;

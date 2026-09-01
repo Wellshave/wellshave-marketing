@@ -457,6 +457,32 @@ check('op groei de hardst gestegen advertentie', opGroei.advertenties[0].rang_de
 check('en de aanroep vroeg om die sortering',
   /sortBy=rankDelta7d/.test(aanroepen.tt.filter(a => /top-ads/.test(a.url))[0].url), true);
 
+console.log('\n  een rij zonder beeld verraadt zijn eigen veldnamen');
+/* De vorm die wij kennen komt uit een gereedschap dat het antwoord
+   normaliseert; de ruwe route kan andere namen gebruiken. Zonder dit is de
+   volgende ronde weer raden -- met dit staat in het antwoord welke velden er
+   dan wel waren. Alleen de namen, nooit de inhoud: een advertentietekst hoort
+   niet in een diagnostisch veld. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'x', daysRunning: 5,
+  /* Een vorm die wij niet kennen: het beeld heet hier anders. */
+  creative: { imageUri: 'https://ergens/beeld.jpg' }, snapshot: { url: 'x' } }] };
+const onbekend = (await roep('/onderzoek/toplijst')).data;
+check('er kwam geen beeld uit', onbekend.advertenties[0].beeld, null);
+check('en de veldnamen staan in het antwoord',
+  (onbekend.velden_zonder_beeld || []).sort(), ['creative', 'daysRunning', 'id', 'snapshot']);
+
+/* En de tegenproef: komt er wel een beeld uit, dan staat het veld er niet.
+   Een diagnostisch veld dat er altijd staat wordt genegeerd, en dan is het er
+   niet als je het nodig hebt. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [ttRij()] };
+const metBeeld = (await roep('/onderzoek/toplijst')).data;
+check('met beeld is er niets te melden', metBeeld.velden_zonder_beeld, undefined);
+check('en het beeld is er ook echt', metBeeld.advertenties[0].beeld !== null, true);
+
 console.log('\n  de merken worden een voor een bevraagd, niet allemaal tegelijk');
 /* TrendTrack weigert gelijktijdige aanroepen met "Too many concurrent public
    API requests are already in flight". Elf van de dertien merken vielen

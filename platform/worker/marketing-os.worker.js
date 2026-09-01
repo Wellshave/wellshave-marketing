@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 23;
+const VERSIE = 24;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'de merken worden een voor een bevraagd in plaats van allemaal tegelijk -- TrendTrack knijpt gelijktijdige aanroepen af en elf van de dertien merken vielen weg. Verder: de naam van de adverteerder wint van het domein in de tracker, en waar bereik ontbreekt wordt op de advertentiepositie gerangschikt in plaats van op een leeg veld';
+const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1717,6 +1717,8 @@ async function ttToplijstMerken(env, o) {
   const uit = [];
   const gelukt = [];
   const mislukt = [];
+  /* De veldnamen van rijen waar we geen beeld uit kregen. Namen, geen waarden. */
+  const sleutels = [];
   /* Niet dertien tegelijk. TrendTrack weigert gelijktijdige aanroepen met "Too
      many concurrent public API requests are already in flight" -- elf van de
      dertien merken vielen daardoor weg, en het scherm liet twee concurrenten
@@ -1735,6 +1737,21 @@ async function ttToplijstMerken(env, o) {
       const rijen = d.data || d.items || d.results || [];
       rijen.forEach(function (r) {
         const ad = ttNaarAdvertentie(r);
+        /* Levert de uitlezer geen beeld op, dan onthouden we WELKE velden er
+           dan wel stonden -- alleen de namen, nooit de inhoud. De vorm die wij
+           kennen komt uit een gereedschap dat het antwoord normaliseert, en de
+           ruwe route kan andere namen gebruiken. Zonder dit is de volgende
+           ronde weer raden; hiermee staat het in het antwoord. */
+        if (!ad.beeld) {
+          Object.keys(r || {}).forEach(function (k) {
+            if (sleutels.indexOf(k) === -1) sleutels.push(k);
+          });
+          if (r && r.media && typeof r.media === 'object') {
+            Object.keys(r.media).forEach(function (k) {
+              if (sleutels.indexOf('media.' + k) === -1) sleutels.push('media.' + k);
+            });
+          }
+        }
         /* De naam van de adverteerder wint van die van de Brand Tracker. Ik had
            het andersom, en dat leverde "manscaped.com" op waar de advertentie
            gewoon "MANSCAPED" zei: in de Brand Tracker staat vaak het domein als
@@ -1752,7 +1769,8 @@ async function ttToplijstMerken(env, o) {
       mislukt.push((m.naam || m.id) + ': ' + String((e && e.message) || e).slice(0, 80));
     }
   }
-  return { merken: alle, advertenties: uit, gebruikt: gelukt, mislukt: mislukt, per_merk: perMerk, sortBy: sortBy };
+  return { merken: alle, advertenties: uit, gebruikt: gelukt, mislukt: mislukt,
+           per_merk: perMerk, sortBy: sortBy, sleutels_zonder_beeld: sleutels };
 }
 
 async function ttToplijst(env, opties) {
@@ -1803,6 +1821,10 @@ async function ttToplijst(env, opties) {
          uitleg lezen als "niet gemeten bij deze advertentie" terwijl het
          "bestaat niet op deze route" is -- twee heel verschillende dingen. */
       geen_cijfers_voor: ['bereik', 'uitgave_schatting', 'varianten'],
+      /* Alleen als er werkelijk beelden ontbreken. Een diagnostisch veld dat er
+         altijd staat wordt genegeerd, en dan is het er niet als je het nodig
+         hebt. */
+      velden_zonder_beeld: m.sleutels_zonder_beeld.length ? m.sleutels_zonder_beeld : undefined,
       advertenties: lijst.slice(0, Math.max(1, Math.min(Number(o.limiet) || 10, 50)))
     };
   }
