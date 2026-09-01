@@ -47,7 +47,7 @@ let db, tt, beeld, aanroepen;
 async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }] };
-  tt = { rijen: [], fout: null };
+  tt = { rijen: [], fout: null, merken: [], merkAds: {}, merkFout: {} };
   beeld = { type: 'image/jpeg', ok: true, body: 'JPEGDATA' };
   aanroepen = { tt: [], extern: [] };
 }
@@ -74,6 +74,17 @@ globalThis.fetch = async (url, opties) => {
       methode: (opties && opties.method) || 'GET',
       body: (opties && opties.body) ? JSON.parse(opties.body) : null });
     if (tt.fout) return tt.fout;
+    if (/\/v1\/brandtrackers$/.test(u.split('?')[0])) {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: tt.merken }) };
+    }
+    const perMerk = u.match(/\/v1\/brandtrackers\/([^/]+)\/top-ads/);
+    if (perMerk) {
+      const id = decodeURIComponent(perMerk[1]);
+      if (tt.merkFout && tt.merkFout[id]) {
+        return { ok: false, status: 500, text: async () => JSON.stringify({ message: 'die is stuk' }) };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: (tt.merkAds && tt.merkAds[id]) || [] }) };
+    }
     return { ok: true, status: 200, text: async () => JSON.stringify({ data: tt.rijen }) };
   }
 
@@ -140,14 +151,14 @@ console.log('\n  het onderzoek zit achter de login');
 /* Niet omdat de gegevens geheim zijn, maar omdat elke aanroep credits kost bij
    TrendTrack. Een open endpoint dat credits verbrandt is een rekening die
    iemand anders voor je opmaakt. */
-const dicht = await roep('/onderzoek/toplijst', { headers: {} });
+const dicht = await roep('/onderzoek/toplijst?bereik=markt', { headers: {} });
 check('zonder inloggen: geweigerd', dicht.status, 401);
 check('en er is niets naar TrendTrack gegaan', aanroepen.tt.length, 0);
 
 console.log('\n  de toplijst komt binnen in onze eigen vorm');
 await reset();
 tt.rijen = [ttRij(), ttRij({ collationId: 'c-901', brand: 'Ander merk', daysRunning: 41 })];
-const topAntwoord = await roep('/onderzoek/toplijst?sorteer=looptijd&dagen=14&limiet=10');
+const topAntwoord = await roep('/onderzoek/toplijst?bereik=markt&sorteer=looptijd&dagen=14&limiet=10');
 /* Eerst of de route er is. Zonder deze regel loopt de test vast op een lege
    body in plaats van te melden dat het endpoint verdwenen is -- en een test die
    vastloopt meldt niets bruikbaars. */
@@ -187,7 +198,7 @@ console.log('\n  een venster dat niet bestaat wordt niet stilzwijgend iets ander
    opschrijven is de fout waarbij je een maand afleest als twee weken. */
 await reset();
 tt.rijen = [ttRij()];
-const venster = (await roep('/onderzoek/toplijst?sorteer=bereik&dagen=14')).data;
+const venster = (await roep('/onderzoek/toplijst?bereik=markt&sorteer=bereik&dagen=14')).data;
 check('er is om veertien dagen gevraagd', venster.dagen_gevraagd, 14);
 check('en er is dertig gemeten', venster.venster, 'last30d');
 /* Niet meer in de querystring maar in de body: de filters zijn lijsten, en een
@@ -202,7 +213,7 @@ console.log('\n  looptijd krijgt geen venster mee');
    precies het omgekeerde van de vraag "wat draait er het langst". */
 await reset();
 tt.rijen = [ttRij()];
-const opLooptijd = (await roep('/onderzoek/toplijst?sorteer=looptijd&dagen=14')).data;
+const opLooptijd = (await roep('/onderzoek/toplijst?bereik=markt&sorteer=looptijd&dagen=14')).data;
 check('geen venster in het antwoord', opLooptijd.venster, null);
 check('en geen reachPeriod in de aanroep', aanroepen.tt[0].body.reachPeriod, undefined);
 check('wel gesorteerd op looptijd', aanroepen.tt[0].body.sortBy, 'longestRunning');
@@ -220,7 +231,7 @@ await reset();
    niet meer, en dan blijft dit blok groen terwijl hij nog steeds nullen kan
    maken. */
 tt.rijen = [ttRij({ metrics: { reach: null, duplicates: '' }, daysRunning: undefined })];
-const leeg = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+const leeg = (await roep('/onderzoek/toplijst?bereik=markt')).data.advertenties[0];
 check('geen bereik gemeten, dus null', leeg.bereik, null);
 check('geen looptijd, dus null', leeg.dagen_actief, null);
 check('geen varianten, dus null', leeg.varianten, null);
@@ -242,7 +253,7 @@ tt.rijen = [{
   title: '', headline: 'De kop',
   ad_copy: 'De tekst', days_running: 12, impressions: 5000
 }];
-const oud = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+const oud = (await roep('/onderzoek/toplijst?bereik=markt')).data.advertenties[0];
 check('het merk uit een ander veld', oud.merk, 'Oud formaat');
 check('en een lege kop wordt overgeslagen', oud.copy.kop, 'De kop');
 check('het beeld uit een genest veld', oud.beeld, 'https://x.fbcdn.net/t.jpg');
@@ -293,7 +304,7 @@ console.log('\n  de filters gaan mee in de vorm die de dienst verwacht');
    die zin kon niemand zien welk veld het was. */
 await reset();
 tt.rijen = [ttRij()];
-await roep('/onderzoek/toplijst?sorteer=bereik&dagen=30&land=nl&taal=nl&soort=image&zoek=scheren&min_dagen=45');
+await roep('/onderzoek/toplijst?bereik=markt&sorteer=bereik&dagen=30&land=nl&taal=nl&soort=image&zoek=scheren&min_dagen=45');
 const verstuurd = aanroepen.tt[0].body;
 check('het land is een lijst', verstuurd.mainCountries, ['NL']);
 check('en in hoofdletters', verstuurd.mainCountries[0], 'NL');
@@ -306,7 +317,7 @@ check('de ondergrens voor looptijd', verstuurd.minDaysRunning, 45);
    maar stilletjes minder, en dat is de vervelendste vorm. */
 check('nooit meer dan twintig', verstuurd.limit, 10);
 await reset(); tt.rijen = [ttRij()];
-await roep('/onderzoek/toplijst?limiet=500');
+await roep('/onderzoek/toplijst?bereik=markt&limiet=500');
 check('ook niet als er meer gevraagd wordt', aanroepen.tt[0].body.limit, 20);
 
 console.log('\n  en wat er NIET gekozen is wordt niet meegestuurd');
@@ -315,7 +326,7 @@ console.log('\n  en wat er NIET gekozen is wordt niet meegestuurd');
    een 400. */
 await reset();
 tt.rijen = [ttRij()];
-await roep('/onderzoek/toplijst?sorteer=looptijd');
+await roep('/onderzoek/toplijst?bereik=markt&sorteer=looptijd');
 const kaalVerstuurd = aanroepen.tt[0].body;
 check('geen land', 'mainCountries' in kaalVerstuurd, false);
 check('geen taal', 'adLanguages' in kaalVerstuurd, false);
@@ -331,7 +342,7 @@ tt.fout = { ok: false, status: 400, text: async () => JSON.stringify({
   message: 'Request validation failed',
   errors: [{ path: ['body', 'countries'], message: 'Unrecognized key' }]
 }) };
-const validatie = await roep('/onderzoek/toplijst');
+const validatie = await roep('/onderzoek/toplijst?bereik=markt');
 check('de melding komt door', /Request validation failed/.test(validatie.data.error), true);
 check('met het veld erbij', /body\.countries/.test(validatie.data.error), true);
 check('en waarom', /Unrecognized key/.test(validatie.data.error), true);
@@ -340,13 +351,111 @@ check('en waarom', /Unrecognized key/.test(validatie.data.error), true);
 await reset();
 tt.fout = { ok: false, status: 400, text: async () => JSON.stringify({
   errorMessage: 'query.limit - must be <= 20' }) };
-const andereVorm = await roep('/onderzoek/toplijst');
+const andereVorm = await roep('/onderzoek/toplijst?bereik=markt');
 check('ook een platte errorMessage komt door', /must be <= 20/.test(andereVorm.data.error), true);
+
+console.log('\n  standaard kijken we naar de Brand Tracker, niet naar de hele markt');
+/* "Wat draait er in de markt" en "wat draait er bij onze concurrenten" zijn
+   twee verschillende vragen. De hele markt leverde een Duitse kinderopvang op;
+   de Brand Tracker levert de merken waar we tegen vechten.
+
+   En let op: spender=brandtracker op de gewone zoekopdracht doet dit NIET --
+   dat verbreedde de lijst van vierhonderdduizend naar bijna acht miljoen. De
+   enige route die werkelijk filtert loopt per merk. */
+await reset();
+tt.merken = [
+  { id: 'm1', name: 'Manscaped', domain: 'manscaped.com', counts: { activeAds: 155, newAdsLast7Days: 33 } },
+  { id: 'm2', name: 'BALZY', domain: 'balzy.nl', counts: { activeAds: 428, newAdsLast7Days: 33 } }
+];
+tt.merkAds = {
+  m1: [ttRij({ collationId: 'a1', daysRunning: 40, advertiser: { name: 'Manscaped FB-pagina' },
+               metrics: { reach: 90000, duplicates: 2, reachDelta7d: 500 } }),
+       /* Eentje zonder gemeten looptijd. Die hoort ONDERAAN te zakken: een
+          onbekende waarde is geen nul en zeker geen hoogste, en hem bovenaan
+          zetten maakt van "wij weten het niet" de winnaar van de lijst. */
+       ttRij({ collationId: 'a2', daysRunning: null, metrics: { reach: 70000, reachDelta7d: 300 } })],
+  m2: [ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, duplicates: 1, reachDelta7d: 9000 } }),
+       ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, duplicates: 3, reachDelta7d: 100 } })]
+};
+const bt = (await roep('/onderzoek/toplijst?sorteer=looptijd')).data;
+check('zonder bereik is het de Brand Tracker', bt.bereik, 'brandtracker');
+check('de gevolgde merken staan erbij', bt.merken.map(m => m.naam), ['Manscaped', 'BALZY']);
+check('van beide merken zijn advertenties opgehaald', bt.merken_gebruikt.sort(), ['BALZY', 'Manscaped']);
+check('vier advertenties samen', bt.advertenties.length, 4);
+/* Gerangschikt op looptijd, over alle merken heen. */
+check('de langst draaiende staat bovenaan', bt.advertenties[0].dagen_actief, 300);
+check('daarna de volgende', bt.advertenties[1].dagen_actief, 120);
+check('en wat niet gemeten is zakt naar onderen',
+  bt.advertenties[bt.advertenties.length - 1].dagen_actief, null);
+/* De merknaam uit de Brand Tracker wint van de naam van de Facebook-pagina:
+   die heet niet altijd zoals het merk. */
+const vanManscaped = bt.advertenties.filter(a => a.merk_id === 'm1')[0];
+check('de merknaam komt uit de Brand Tracker', vanManscaped.merk, 'Manscaped');
+
+console.log('\n  en het zegt eerlijk wat voor rangschikking dit is');
+/* TrendTrack kent bij een gevolgd merk geen sortering op looptijd. We halen per
+   merk de best presterende advertenties op en rangschikken die aan onze kant --
+   dat is iets anders dan "de langst draaiende die zij ooit hadden", en dat
+   verschil hoort in het antwoord te staan. */
+check('er staat hoe er gerangschikt is', typeof bt.hoe_gerangschikt, 'string');
+check('met hoeveel merken er meededen', /2 van de 2 merken/.test(bt.hoe_gerangschikt), true);
+check('en wat het niet is', /niet van alles wat zij ooit draaiden/.test(bt.hoe_gerangschikt), true);
+
+console.log('\n  op bereik en op groei rangschikt hij anders');
+await reset();
+tt.merken = [{ id: 'm2', name: 'BALZY' }];
+tt.merkAds = { m2: [
+  ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, reachDelta7d: 9000 } }),
+  ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, reachDelta7d: 100 } })
+] };
+const opBereik = (await roep('/onderzoek/toplijst?sorteer=bereik')).data;
+check('op bereik staat de grootste bovenaan', opBereik.advertenties[0].bereik, 50000);
+await reset();
+tt.merken = [{ id: 'm2', name: 'BALZY' }];
+tt.merkAds = { m2: [
+  ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, reachDelta7d: 9000 } }),
+  ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, reachDelta7d: 100 } })
+] };
+const opGroei = (await roep('/onderzoek/toplijst?sorteer=groei')).data;
+check('op groei de hardst stijgende', opGroei.advertenties[0].groei_7d, 9000);
+check('en de aanroep vroeg om die sortering',
+  /sortBy=reachDelta7d/.test(aanroepen.tt.filter(a => /top-ads/.test(a.url))[0].url), true);
+
+console.log('\n  een merk dat weigert laat de rest staan');
+/* Eén merk dat stuk is mag de andere twaalf niet meenemen. Wel moet erbij staan
+   welke ontbreekt: een lijst die stil korter is leest als "die concurrent doet
+   niets". */
+await reset();
+tt.merken = [{ id: 'm1', name: 'Manscaped' }, { id: 'm2', name: 'BALZY' }];
+tt.merkAds = { m2: [ttRij({ collationId: 'b1' })] };
+tt.merkFout = { m1: true };
+const halfStukAntwoord = await roep('/onderzoek/toplijst');
+/* Eerst of het endpoint überhaupt antwoordde. Zonder deze regel loopt de test
+   vast op een lege body en meldt hij alleen dát hij vastliep. */
+check('het endpoint antwoordt nog steeds', halfStukAntwoord.status, 200);
+const halfStuk = halfStukAntwoord.data;
+check('de rest komt gewoon door', (halfStuk.advertenties || []).length, 1);
+check('en er staat welk merk ontbrak', /Manscaped/.test((halfStuk.merken_mislukt || []).join(' ')), true);
+
+console.log('\n  je kunt op een enkel merk inzoomen');
+await reset();
+tt.merken = [{ id: 'm1', name: 'Manscaped' }, { id: 'm2', name: 'BALZY' }];
+tt.merkAds = { m1: [ttRij({ collationId: 'a1' })], m2: [ttRij({ collationId: 'b1' })] };
+const eenMerk = (await roep('/onderzoek/toplijst?merk=m2')).data;
+check('alleen dat merk is bevraagd', aanroepen.tt.filter(a => /top-ads/.test(a.url)).length, 1);
+check('en het is de goede', /m2/.test(aanroepen.tt.filter(a => /top-ads/.test(a.url))[0].url), true);
+
+console.log('\n  de merkenlijst is los op te vragen');
+await reset();
+tt.merken = [{ id: 'm1', name: 'Manscaped', domain: 'manscaped.com', counts: { activeAds: 155 } }];
+const merken = (await roep('/onderzoek/merken')).data;
+check('met naam en domein', [merken.merken[0].naam, merken.merken[0].domein], ['Manscaped', 'manscaped.com']);
+check('en hoeveel er draaien', merken.merken[0].actieve_ads, 155);
 
 console.log('\n  een fout van TrendTrack is een fout van TrendTrack');
 await reset();
 tt.fout = { ok: false, status: 401, text: async () => JSON.stringify({ message: 'Invalid API key ' + NEP_TT }) };
-const stuk = await roep('/onderzoek/toplijst');
+const stuk = await roep('/onderzoek/toplijst?bereik=markt');
 check('502, niet een lege lijst', stuk.status, 502);
 check('met de bron erbij', stuk.data.bron, 'trendtrack');
 check('en de sleutel staat er niet in', stuk.data.error.indexOf(NEP_TT), -1);
@@ -362,7 +471,7 @@ check('en er is niets naar buiten gegaan', aanroepen.tt.length, 0);
 console.log('\n  de sleutel gaat als Bearer mee, en alleen naar TrendTrack');
 await reset();
 tt.rijen = [ttRij()];
-await roep('/onderzoek/toplijst');
+await roep('/onderzoek/toplijst?bereik=markt');
 check('de aanroep droeg de sleutel', aanroepen.tt[0].auth, 'Bearer ' + NEP_TT);
 await reset();
 await roep('/onderzoek/beeld?u=' + encodeURIComponent('https://scontent.xx.fbcdn.net/v/b.jpg'));

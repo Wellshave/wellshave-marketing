@@ -52,8 +52,14 @@ var CR_VENSTERS = [
 ];
 
 var _cr = {
+  /* De Brand Tracker is de standaard. "Wat draait er in de markt" en "wat
+     draait er bij onze concurrenten" zijn twee verschillende vragen, en de
+     tweede is de vraag die je stelt: de hele markt levert een Duitse
+     kinderopvang op, de Brand Tracker levert Manscaped en BALZY. */
+  bereik: 'brandtracker', merk: '', merken: null,
   sorteer: 'looptijd', dagen: 14, land: 'NL', taal: '', soort: '', zoek: '', limiet: 10,
   lijst: null, voorbehoud: null, venster: null, dagenGevraagd: null,
+  hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null,
   bezig: false, fout: null, open: null, patroon: null, patroonBezig: false,
   /* De beelden die we al opgehaald hebben, per adres. Zonder dit haalt elke
      hertekening ze opnieuw op, en dat is bij tien kaarten tien verzoeken per
@@ -134,6 +140,52 @@ function crBlobNaarBase64(blob) {
   });
 }
 
+/* De gevolgde merken, los van een analyse. Zo staat de lijst er al voordat je
+   credits uitgeeft aan advertenties. */
+async function crHaalMerken() {
+  try {
+    var uit = await crVraag('/onderzoek/merken');
+    _cr.merken = uit.merken || [];
+  } catch (e) {
+    /* Geen merkenlijst is vervelend maar niet fataal: je kunt nog steeds op
+       alle merken tegelijk analyseren. */
+    _cr.merken = [];
+  }
+  crRender();
+}
+
+/* ── Terug naar de lijst ───────────────────────────────────────────────────
+   Een detailweergave zonder weg terug is een doodlopende weg, en de eerste
+   plek waar iemand hem zoekt is de terugknop van de browser -- niet een link
+   in de pagina. Vandaar een echte stap in de geschiedenis: openen duwt er een
+   bij, terug haalt hem eraf, en de knop in de pagina doet hetzelfde als de
+   knop van de browser. */
+function crOpenAd(ad) {
+  _cr.open = ad;
+  _cr.patroon = null;
+  try {
+    history.pushState({ crOpen: true }, '', location.href);
+  } catch (e) { /* geen geschiedenis is geen reden om niets te tonen */ }
+  crRender();
+}
+
+function crSluitAd(viaGeschiedenis) {
+  if (!_cr.open) return;
+  _cr.open = null;
+  _cr.patroon = null;
+  /* Klikte je op de knop in de pagina, dan moet de stap ook uit de
+     geschiedenis. Anders moet je twee keer terug voor er iets gebeurt. */
+  if (!viaGeschiedenis) {
+    try { if (history.state && history.state.crOpen) history.back(); } catch (e) { }
+  }
+  crRender();
+  crLaadBeelden();
+}
+
+window.addEventListener('popstate', function () {
+  if (_cr.open) crSluitAd(true);
+});
+
 /* ── De lijst ──────────────────────────────────────────────────────────── */
 
 async function crHaalLijst() {
@@ -141,14 +193,24 @@ async function crHaalLijst() {
   crRender();
   try {
     var p = new URLSearchParams({
-      sorteer: _cr.sorteer, dagen: String(_cr.dagen), limiet: String(_cr.limiet)
+      bereik: _cr.bereik, sorteer: _cr.sorteer, dagen: String(_cr.dagen), limiet: String(_cr.limiet)
     });
-    if (_cr.land) p.set('land', _cr.land);
-    if (_cr.taal) p.set('taal', _cr.taal);
-    if (_cr.soort) p.set('soort', _cr.soort);
-    if (_cr.zoek) p.set('zoek', _cr.zoek);
+    if (_cr.bereik === 'brandtracker') {
+      if (_cr.merk) p.set('merk', _cr.merk);
+    } else {
+      /* De filters op land, taal en soort horen bij de hele markt. Bij de Brand
+         Tracker zijn ze zinloos: je hebt die merken zelf uitgekozen. */
+      if (_cr.land) p.set('land', _cr.land);
+      if (_cr.taal) p.set('taal', _cr.taal);
+      if (_cr.soort) p.set('soort', _cr.soort);
+      if (_cr.zoek) p.set('zoek', _cr.zoek);
+    }
     var uit = await crVraag('/onderzoek/toplijst?' + p);
     _cr.lijst = uit.advertenties || [];
+    if (uit.merken) _cr.merken = uit.merken;
+    _cr.hoeGerangschikt = uit.hoe_gerangschikt || null;
+    _cr.merkenGebruikt = uit.merken_gebruikt || null;
+    _cr.merkenMislukt = uit.merken_mislukt || null;
     /* Het voorbehoud en het gebruikte venster komen uit de bron mee. Ze worden
        hier niet opnieuw geformuleerd: dan zouden ze uit elkaar kunnen lopen. */
     _cr.voorbehoud = uit.voorbehoud || null;
@@ -193,8 +255,38 @@ function crKaartHtml(ad, i) {
     '</div></button>';
 }
 
+var CR_BEREIKEN = [
+  { id: 'brandtracker', label: 'Onze Brand Tracker',
+    zegt: 'Alleen de merken die we volgen. Dit is de vraag die je meestal stelt: wat draait er bij de concurrenten waar we tegen vechten.' },
+  { id: 'markt', label: 'De hele markt',
+    zegt: 'Alles wat TrendTrack heeft. Bruikbaar om een hoek te vinden buiten de categorie, maar de meeste treffers gaan niet over ons.' }
+];
+
 function crFilterHtml() {
   var h = '<div class="cr-filters">';
+  /* Het bereik eerst: dat bepaalt waar de rest van de filters over gaat, en
+     het is de keuze die het vaakst verkeerd stond. */
+  h += '<div class="cr-filterrij">';
+  CR_BEREIKEN.forEach(function (b) {
+    h += '<button type="button" class="cr-keuze' + (_cr.bereik === b.id ? ' aan' : '') + '" ' +
+      'data-action="cr-bereik" data-id="' + b.id + '">' + crEsc(b.label) + '</button>';
+  });
+  h += '</div>';
+  var bActief = CR_BEREIKEN.filter(function (b) { return b.id === _cr.bereik; })[0];
+  if (bActief) h += '<p class="cr-uitleg">' + crEsc(bActief.zegt) + '</p>';
+  /* Bij de Brand Tracker: alle merken, of inzoomen op er een. */
+  if (_cr.bereik === 'brandtracker' && _cr.merken && _cr.merken.length) {
+    h += '<div class="cr-filterrij">';
+    h += '<button type="button" class="cr-keuze klein' + (!_cr.merk ? ' aan' : '') +
+      '" data-action="cr-merk" data-id="">Alle ' + _cr.merken.length + ' merken</button>';
+    _cr.merken.forEach(function (m) {
+      h += '<button type="button" class="cr-keuze klein' + (_cr.merk === m.id ? ' aan' : '') +
+        '" data-action="cr-merk" data-id="' + crEsc(m.id) + '">' + crEsc(m.naam) +
+        (m.actieve_ads != null ? ' <span class="cr-letop">' + crGetal(m.actieve_ads) + '</span>' : '') +
+        '</button>';
+    });
+    h += '</div>';
+  }
   h += '<div class="cr-filterrij">';
   CR_SORTERINGEN.forEach(function (s) {
     h += '<button type="button" class="cr-keuze' + (_cr.sorteer === s.id ? ' aan' : '') + '" ' +
@@ -214,17 +306,24 @@ function crFilterHtml() {
     h += '<button type="button" class="cr-keuze klein' + (_cr.dagen === v.id ? ' aan' : '') + '" ' +
       'data-action="cr-dagen" data-id="' + v.id + '">' + crEsc(v.label) + '</button>';
   });
-  ['', 'image', 'video'].forEach(function (s) {
-    var label = s === '' ? 'Alles' : (s === 'image' ? 'Beeld' : 'Video');
-    h += '<button type="button" class="cr-keuze klein' + (_cr.soort === s ? ' aan' : '') + '" ' +
-      'data-action="cr-soort" data-id="' + s + '">' + label + '</button>';
-  });
+  if (_cr.bereik === 'markt') {
+    ['', 'image', 'video'].forEach(function (s) {
+      var label = s === '' ? 'Alles' : (s === 'image' ? 'Beeld' : 'Video');
+      h += '<button type="button" class="cr-keuze klein' + (_cr.soort === s ? ' aan' : '') + '" ' +
+        'data-action="cr-soort" data-id="' + s + '">' + label + '</button>';
+    });
+  }
   h += '</div>';
-  h += '<div class="cr-filterrij">' +
-    '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="Zoekwoord in de advertentietekst (leeg = de hele markt)" value="' + crEsc(_cr.zoek) + '">' +
-    '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="Land" value="' + crEsc(_cr.land) + '">' +
-    '<button type="button" class="cr-knop" data-action="cr-haal"' + (_cr.bezig ? ' disabled' : '') + '>' +
-      (_cr.bezig ? 'Bezig…' : 'Analyseer TrendTrack') + '</button>' +
+  h += '<div class="cr-filterrij">';
+  /* Zoeken op een woord en filteren op land horen bij de hele markt. Bij de
+     Brand Tracker zijn ze zinloos -- die merken heb je zelf uitgekozen -- en een
+     filter dat niets doet is erger dan een filter dat er niet is. */
+  if (_cr.bereik === 'markt') {
+    h += '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="Zoekwoord in de advertentietekst (leeg = alles)" value="' + crEsc(_cr.zoek) + '">' +
+      '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="Land" value="' + crEsc(_cr.land) + '">';
+  }
+  h += '<button type="button" class="cr-knop" data-action="cr-haal"' + (_cr.bezig ? ' disabled' : '') + '>' +
+      (_cr.bezig ? 'Bezig…' : (_cr.bereik === 'brandtracker' ? 'Analyseer onze Brand Tracker' : 'Analyseer de hele markt')) + '</button>' +
     '</div>';
   h += '</div>';
   return h;
@@ -255,6 +354,19 @@ function crLijstHtml() {
       ' dagen. TrendTrack kent dat venster niet en heeft <b>' + crEsc(_cr.venster) +
       '</b> gemeten.</p>';
   }
+  /* Hoe deze rangschikking tot stand kwam. Bij de Brand Tracker halen we per
+     merk de topadvertenties op en rangschikken we die aan onze kant -- dat is
+     iets anders dan "de langst draaiende die zij ooit hadden", en dat verschil
+     hoort te lezen te zijn. */
+  if (_cr.hoeGerangschikt) {
+    h += '<p class="cr-venstermelding">' + crEsc(_cr.hoeGerangschikt) + '</p>';
+  }
+  /* Een merk dat niet opgehaald kon worden. Een lijst die stil korter is dan
+     hij hoort te zijn leest als "die concurrent doet even niets". */
+  if (_cr.merkenMislukt && _cr.merkenMislukt.length) {
+    h += '<p class="cr-venstermelding">Niet opgehaald: ' +
+      crEsc(_cr.merkenMislukt.join(' · ')) + '</p>';
+  }
   h += '<div class="cr-raster">' + _cr.lijst.map(crKaartHtml).join('') + '</div>';
   return h;
 }
@@ -266,7 +378,10 @@ function crDetailHtml() {
   if (!ad) return '';
   var b = ad.beeld ? _cr.beelden[ad.beeld] : null;
   var h = '<div class="cr-detail">';
-  h += '<button type="button" class="cr-terug" data-action="cr-sluit">‹ Terug naar de lijst</button>';
+  h += '<button type="button" class="cr-terug" data-action="cr-sluit">' +
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg> Terug naar de lijst</button>';
   h += '<div class="cr-detail-boven">';
   h += '<div class="cr-detail-beeld">' + (b ? '<img src="' + crEsc(b.url) + '" alt="">' : '<span class="cr-beeld-leeg">geen beeld</span>') + '</div>';
   h += '<div class="cr-detail-naast">';
@@ -447,7 +562,16 @@ function crKlik(e) {
   var knop = e.target.closest ? e.target.closest('[data-action]') : null;
   if (!knop) return;
   var act = knop.getAttribute('data-action');
-  if (act === 'cr-sorteer') { _cr.sorteer = knop.getAttribute('data-id'); crRender(); }
+  if (act === 'cr-bereik') {
+    _cr.bereik = knop.getAttribute('data-id');
+    /* De lijst hoort bij het vorige bereik. Hem laten staan terwijl de knop
+       iets anders zegt is precies hoe je naar de markt kijkt in de
+       veronderstelling dat het je concurrenten zijn. */
+    _cr.lijst = null; _cr.open = null; _cr.hoeGerangschikt = null;
+    crRender();
+    if (_cr.bereik === 'brandtracker' && !_cr.merken) crHaalMerken();
+  } else if (act === 'cr-merk') { _cr.merk = knop.getAttribute('data-id'); _cr.lijst = null; crRender(); }
+  else if (act === 'cr-sorteer') { _cr.sorteer = knop.getAttribute('data-id'); crRender(); }
   else if (act === 'cr-dagen') { _cr.dagen = Number(knop.getAttribute('data-id')); crRender(); }
   else if (act === 'cr-soort') { _cr.soort = knop.getAttribute('data-id'); crRender(); }
   else if (act === 'cr-haal') {
@@ -456,10 +580,8 @@ function crKlik(e) {
     if (l) _cr.land = l.value.trim().toUpperCase();
     crHaalLijst();
   } else if (act === 'cr-open') {
-    _cr.open = _cr.lijst[Number(knop.getAttribute('data-i'))];
-    _cr.patroon = null;
-    crRender();
-  } else if (act === 'cr-sluit') { _cr.open = null; _cr.patroon = null; crRender(); crLaadBeelden(); }
+    crOpenAd(_cr.lijst[Number(knop.getAttribute('data-i'))]);
+  } else if (act === 'cr-sluit') { crSluitAd(false); }
   else if (act === 'cr-lees') { crLeesPatroon(); }
   else if (act === 'cr-wizard') { crNaarWizard(); }
 }
@@ -468,10 +590,15 @@ function renderCreativeResearch() {
   var el = document.getElementById('cr-inhoud');
   if (el && !el._crGebonden) { el.addEventListener('click', crKlik); el._crGebonden = true; }
   crRender();
+  /* De gevolgde merken staan er meteen, zonder dat je eerst een analyse hoeft
+     te draaien: dan weet je wat je gaat bevragen voordat je credits uitgeeft. */
+  if (_cr.bereik === 'brandtracker' && !_cr.merken) crHaalMerken();
 }
 
 window.renderCreativeResearch = renderCreativeResearch;
 window.crRender = crRender; window.crHaalLijst = crHaalLijst;
+window.crHaalMerken = crHaalMerken; window.crOpenAd = crOpenAd; window.crSluitAd = crSluitAd;
+window.CR_BEREIKEN = CR_BEREIKEN;
 window.crNaarWizard = crNaarWizard; window.crLeesPatroon = crLeesPatroon;
 window.crPatroonPrompt = crPatroonPrompt; window.crPatroonHtml = crPatroonHtml;
 window.crKaartHtml = crKaartHtml; window.crLijstHtml = crLijstHtml;

@@ -875,3 +875,15 @@ input:focus, select:focus, textarea:focus {
 .wgsel-opt:hover { background: rgba(var(--gold-rgb), .1); color: var(--gold-bright); }
 .wgsel-opt.sel { color: var(--gold-bright); }
 .wgsel-ck { color: var(--gold); }
+
+/* De terugknop was een zinnetje in de kleur van bijschrift: je zag hem niet,
+   en de eerste plek waar iemand dan kijkt is de terugknop van de browser. Die
+   werkt nu ook, maar deze moet er ook uitzien als wat hij is. */
+.cr-terug {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px 7px 10px; margin-bottom: 18px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  color: var(--text-soft); font-size: 12.5px; cursor: pointer;
+}
+.cr-terug:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--gold-bright); }
+.cr-terug svg { flex: 0 0 auto; }

@@ -68,6 +68,10 @@ function ONDERSCHEP() {
         bereik: null, dagen_actief: null, varianten: null, eerst_gezien: null, land: null, taal: null }
     ]
   };
+  window.__merken = [
+    { id: 'm1', naam: 'Manscaped', domein: 'manscaped.com', actieve_ads: 155 },
+    { id: 'm2', naam: 'BALZY', domein: 'balzy.nl', actieve_ads: 428 }
+  ];
   window.__claude = { hoek: 'De oprichter rekent het voor', mechanisme: 'Direct van fabriek naar deur',
     awareness: 'problem', sophistication: 's4', publiek: 'Mannen die te veel betalen voor mesjes',
     bewijs: 'cijfer', formaat: 'nieuwsartikel', waarom: 'Het publiek gelooft geen belofte meer, wel een som.' };
@@ -76,6 +80,9 @@ function ONDERSCHEP() {
     const u = String(url);
     window.__gevraagd.push({ url: u, auth: (opties && opties.headers && opties.headers.Authorization) || null,
       body: (opties && opties.body) || null });
+    if (u.indexOf('/onderzoek/merken') > -1) {
+      return { ok: true, status: 200, json: async () => ({ merken: window.__merken }) };
+    }
     if (u.indexOf('/onderzoek/toplijst') > -1) {
       return { ok: true, status: 200, json: async () => window.__antwoord };
     }
@@ -180,7 +187,10 @@ function ONDERSCHEP() {
       kaarten: el.querySelectorAll('.cr-kaart').length,
       tekst: el.textContent,
       auth: (window.__gevraagd[0] || {}).auth,
-      url: (window.__gevraagd[0] || {}).url
+      /* De eerste aanroep is inmiddels de merkenlijst; de sortering staat op de
+         toplijst. Op index 0 blijven kijken is hoe een test iets anders gaat
+         controleren dan hij denkt. */
+      url: (window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1)[0] || {}).url
     };
   });
   check('twee kaarten', lijst.kaarten, 2);
@@ -338,6 +348,132 @@ function ONDERSCHEP() {
   check('via de worker', beeld.viaWorker, true);
   check('met het teamtoken', beeld.auth, 'Bearer token-van-de-baas');
   check('en nooit rechtstreeks bij de concurrent', beeld.rechtstreeks, 0);
+
+  console.log('\n  standaard kijken we naar onze Brand Tracker');
+  /* Dit is de fout die het scherm nutteloos maakte: je drukt op analyseren en
+     krijgt de hele markt, met een Duitse kinderopvang bovenaan. */
+  /* De standaard zelf, vóór er iets gekozen is. Hem in de test eerst op
+     'brandtracker' zetten en dan controleren bewijst niets -- dan test je je
+     eigen regel. */
+  const standaard = await page.evaluate(() => _cr.bereik);
+  check('het bereik staat standaard op de Brand Tracker', standaard, 'brandtracker');
+  const bereik = await page.evaluate(async () => {
+    _cr.open = null; _cr.lijst = null; _cr.merken = null;
+    await crHaalMerken();
+    await crHaalLijst();
+    const el = document.getElementById('cr-inhoud');
+    const vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
+    return {
+      gevraagdBereik: (vraag.url.match(/bereik=([a-z]+)/) || [])[1],
+      knop: (el.querySelector('[data-action="cr-haal"]') || {}).textContent,
+      merkknoppen: el.querySelectorAll('[data-action="cr-merk"]').length,
+      tekst: el.textContent,
+      /* Zoeken op een woord en filteren op land horen bij de hele markt. Bij de
+         Brand Tracker doen ze niets, en een filter dat niets doet is erger dan
+         een filter dat er niet is. */
+      zoekveld: !!el.querySelector('#cr-zoek'),
+      landveld: !!el.querySelector('#cr-land')
+    };
+  });
+  check('de vraag gaat naar de Brand Tracker', bereik.gevraagdBereik, 'brandtracker');
+  check('en de knop zegt dat ook', /Brand Tracker/.test(bereik.knop), true);
+  check('de gevolgde merken staan er, plus "alle"', bereik.merkknoppen, 3);
+  check('met hun naam', /Manscaped/.test(bereik.tekst) && /BALZY/.test(bereik.tekst), true);
+  check('geen zoekveld bij de Brand Tracker', bereik.zoekveld, false);
+  check('en geen landfilter', bereik.landveld, false);
+
+  console.log('\n  de hele markt kan nog steeds, maar je kiest hem');
+  const markt = await page.evaluate(async () => {
+    document.querySelector('[data-action="cr-bereik"][data-id="markt"]').click();
+    const el = document.getElementById('cr-inhoud');
+    /* De lijst van het vorige bereik hoort weg te zijn. Hem laten staan terwijl
+       de knop iets anders zegt is precies hoe je naar de markt kijkt in de
+       veronderstelling dat het je concurrenten zijn. */
+    const lijstWeg = !el.querySelector('.cr-kaart');
+    await crHaalLijst();
+    const vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
+    return { lijstWeg, bereik: (vraag.url.match(/bereik=([a-z]+)/) || [])[1],
+             zoekveld: !!document.getElementById('cr-zoek'),
+             knop: (el.querySelector('[data-action="cr-haal"]') || {}).textContent };
+  });
+  check('de oude lijst is weg bij het wisselen', markt.lijstWeg, true);
+  check('en de vraag gaat naar de markt', markt.bereik, 'markt');
+  check('daar is het zoekveld er wel', markt.zoekveld, true);
+  check('en de knop zegt het', /hele markt/.test(markt.knop), true);
+  await page.evaluate(async () => {
+    document.querySelector('[data-action="cr-bereik"][data-id="brandtracker"]').click();
+    await crHaalLijst();
+  });
+
+  console.log('\n  op een enkel merk inzoomen');
+  const eenMerk = await page.evaluate(async () => {
+    document.querySelector('[data-action="cr-merk"][data-id="m2"]').click();
+    await crHaalLijst();
+    const vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
+    return (vraag.url.match(/merk=([a-z0-9]+)/) || [])[1];
+  });
+  check('het merk gaat mee in de vraag', eenMerk, 'm2');
+  await page.evaluate(async () => {
+    document.querySelector('[data-action="cr-merk"][data-id=""]').click();
+    await crHaalLijst();
+  });
+
+  console.log('\n  de weg terug werkt, ook met de knop van de browser');
+  /* Een detailweergave zonder weg terug is een doodlopende weg, en de eerste
+     plek waar iemand hem zoekt is de terugknop van de browser -- niet een link
+     in de pagina. */
+  const geopend = await page.evaluate(() => {
+    const el = document.getElementById('cr-inhoud');
+    el.querySelector('.cr-kaart').click();
+    return { open: !!el.querySelector('.cr-detail'),
+             stapErbij: !!(history.state && history.state.crOpen === true) };
+  });
+  check('de advertentie opent', geopend.open, true);
+  check('en zet een stap in de geschiedenis', geopend.stapErbij, true);
+  /* Alleen echt teruggaan als die stap er is. Zonder die stap navigeert
+     history.back() de hele pagina weg en klapt de test op iets anders dan
+     waar het om gaat. */
+  const terug = geopend.stapErbij ? await page.evaluate(async () => {
+    history.back();
+    await new Promise(r => setTimeout(r, 80));
+    const el = document.getElementById('cr-inhoud');
+    return { naTerug: !!el.querySelector('.cr-detail'), lijstTerug: !!el.querySelector('.cr-kaart') };
+  }) : { naTerug: true, lijstTerug: false };
+  check('de terugknop van de browser sluit hem', terug.naTerug, false);
+  check('en de lijst staat er weer', terug.lijstTerug, true);
+
+  const terugKnop = await page.evaluate(async () => {
+    const el = document.getElementById('cr-inhoud');
+    el.querySelector('.cr-kaart').click();
+    const k = document.getElementById('cr-inhoud').querySelector('[data-action="cr-sluit"]');
+    /* De knop in de pagina moet eruitzien als een knop, niet als een zinnetje:
+       in de vorige versie was hij tekst in de kleur van een bijschrift. */
+    const stijl = k ? getComputedStyle(k) : null;
+    const heeftRand = stijl && stijl.borderStyle !== 'none' && parseFloat(stijl.borderTopWidth) > 0;
+    const heeftPijl = !!(k && k.querySelector('svg'));
+    k.click();
+    await new Promise(r => setTimeout(r, 60));
+    return { heeftRand, heeftPijl,
+             dicht: !document.getElementById('cr-inhoud').querySelector('.cr-detail') };
+  });
+  check('de knop in de pagina heeft een rand', terugKnop.heeftRand, true);
+  check('en een pijl', terugKnop.heeftPijl, true);
+  check('en sluit hem ook', terugKnop.dicht, true);
+
+  console.log('\n  het antwoord zegt hoe er gerangschikt is');
+  const uitleg = await page.evaluate(async () => {
+    window.__antwoord = Object.assign({}, window.__antwoord, {
+      hoe_gerangschikt: 'Per gevolgd merk zijn de 6 best presterende advertenties opgehaald (2 van de 2 merken).',
+      merken_mislukt: ['Freebird: die is stuk']
+    });
+    _cr.open = null;
+    await crHaalLijst();
+    return document.getElementById('cr-inhoud').textContent;
+  });
+  check('dat staat op het scherm', /6 best presterende/.test(uitleg), true);
+  /* Een lijst die stil korter is dan hij hoort te zijn leest als "die
+     concurrent doet even niets". */
+  check('en welk merk ontbrak', /Freebird/.test(uitleg), true);
 
   console.log('\n  een foutmelding is nooit [object Object]');
   /* Vijfde keer dat ditzelfde patroon toeslaat: er komt een object binnen waar

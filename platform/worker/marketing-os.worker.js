@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 21;
+const VERSIE = 22;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'de TrendTrack-aanroep klopt nu: POST /v1/ads/query met een JSON-body, land als lijst onder mainCountries. En de uitlezer leest de geneste vorm die de dienst werkelijk teruggeeft, zodat kop, tekst, CTA, domein en land niet meer leeg blijven';
+const VERSIE_WAT = 'Creative Research kijkt standaard naar de Brand Tracker in plaats van naar de hele markt: per gevolgd merk de topadvertenties, samen gerangschikt. Plus /onderzoek/merken. En de TrendTrack-aanroep klopt: POST /v1/ads/query met een JSON-body';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1637,10 +1637,122 @@ function ttNaarAdvertentie(rij) {
   };
 }
 
+/* ---- De Brand Tracker ---------------------------------------------------
+ *
+ * "Wat draait er in de markt" en "wat draait er bij onze concurrenten" zijn
+ * twee verschillende vragen, en de tweede is de vraag die je stelt. De hele
+ * markt levert een Duitse kinderopvang op; de Brand Tracker levert Manscaped,
+ * BALZY en Brothers in Style.
+ *
+ * Let op: `spender=brandtracker` op de gewone zoekopdracht doet dit NIET. Dat
+ * verbreedde de lijst juist -- van vierhonderdduizend naar bijna acht miljoen.
+ * De enige route die werkelijk op de gevolgde merken filtert loopt per merk.
+ * ------------------------------------------------------------------------ */
+
+async function ttMerken(env) {
+  const d = await ttHaal(env, '/v1/brandtrackers');
+  const rijen = d.data || d.items || d.results || [];
+  return rijen.map(function (m) {
+    return {
+      id: ttEerste(m, ['id', 'brandtrackerId', 'brandtracker_id']),
+      naam: ttEerste(m, ['name', 'brand', 'naam']),
+      domein: ttEerste(m, ['domain', 'website']),
+      actieve_ads: adGetal(ttEerste(m, ['counts.activeAds', 'activeAds', 'active_ads'])),
+      nieuw_7d: adGetal(ttEerste(m, ['counts.newAdsLast7Days', 'newAdsLast7Days'])),
+      adverteert: ttEerste(m, ['status.advertising', 'advertising'])
+    };
+  }).filter(function (m) { return m.id; });
+}
+
+/* Welke sortering de top-ads-endpoint zelf kent. longestRunning zit er NIET
+   bij -- dat is precies het soort verschil dat je stil verkeerd invult. */
+const TT_MERK_SORTERING = { looptijd: 'reach', bereik: 'reach', groei: 'reachDelta7d' };
+
+async function ttToplijstMerken(env, o) {
+  const alle = await ttMerken(env);
+  const gekozen = o.merk ? alle.filter(function (m) { return m.id === o.merk; }) : alle;
+  if (!gekozen.length) {
+    return { merken: alle, advertenties: [], gebruikt: [] };
+  }
+  /* Per merk een handvol, niet per merk een lijst. Dertien merken maal twintig
+     is tweehonderdzestig advertenties en evenzoveel credits, voor een scherm
+     waar er tien op passen. */
+  const perMerk = Math.max(1, Math.min(Number(o.per_merk) || 6, 20));
+  const sortBy = TT_MERK_SORTERING[o.sorteer] || 'reach';
+  const uit = [];
+  const gelukt = [];
+  const mislukt = [];
+  await Promise.all(gekozen.slice(0, 20).map(async function (m) {
+    try {
+      const d = await ttHaal(env, '/v1/brandtrackers/' + encodeURIComponent(m.id) + '/top-ads', {
+        sortBy: sortBy, order: 'desc', limit: String(perMerk), status: 'active'
+      });
+      const rijen = d.data || d.items || d.results || [];
+      rijen.forEach(function (r) {
+        const ad = ttNaarAdvertentie(r);
+        /* De merknaam uit de Brand Tracker wint van wat er in de advertentie
+           staat: daar staat de naam van de Facebook-pagina, en die heet niet
+           altijd zoals het merk. */
+        ad.merk = m.naam || ad.merk;
+        ad.merk_id = m.id;
+        uit.push(ad);
+      });
+      gelukt.push(m.naam || m.id);
+    } catch (e) {
+      /* Eén merk dat weigert is geen reden om de andere twaalf te laten
+         vallen. Wel om te zeggen welke ontbreekt: een lijst die stil korter is
+         dan hij hoort te zijn leest als "die concurrent doet niets". */
+      mislukt.push((m.naam || m.id) + ': ' + String((e && e.message) || e).slice(0, 80));
+    }
+  }));
+  return { merken: alle, advertenties: uit, gebruikt: gelukt, mislukt: mislukt, per_merk: perMerk, sortBy: sortBy };
+}
+
 async function ttToplijst(env, opties) {
   const o = opties || {};
   const sortering = TT_SORTERING[o.sorteer] || TT_SORTERING.looptijd;
   const dagen = Number(o.dagen) || 14;
+
+  /* De Brand Tracker is de standaard, want dat is de vraag die je stelt: wat
+     draait er bij ONZE concurrenten. De hele markt blijft bereikbaar, maar je
+     kiest hem bewust. */
+  if (o.bereik !== 'markt') {
+    const m = await ttToplijstMerken(env, o);
+    const sleutel = o.sorteer === 'bereik' ? 'bereik'
+      : (o.sorteer === 'groei' ? 'groei_7d' : 'dagen_actief');
+    const lijst = m.advertenties.slice();
+    /* Rangschikken over alles wat we opgehaald hebben. Wat er niet gemeten is
+       zakt naar onderen -- niet naar boven, want een onbekende waarde is geen
+       nul en zeker geen hoogste. */
+    lijst.sort(function (a, b) {
+      const x = a[sleutel], y = b[sleutel];
+      if (x === null && y === null) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return y - x;
+    });
+    return {
+      bereik: 'brandtracker',
+      sorteer: o.sorteer || 'looptijd',
+      sorteert_op: sortering.zegt,
+      venster: null,
+      dagen_gevraagd: dagen,
+      merken: m.merken,
+      merken_gebruikt: m.gebruikt,
+      merken_mislukt: m.mislukt,
+      voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+      /* Eerlijk over wat deze rangschikking is. TrendTrack kent bij een gevolgd
+         merk geen sortering op looptijd, dus we halen per merk de best lopende
+         advertenties op en rangschikken die aan onze kant. Dat is "de langst
+         draaiende van de topadvertenties van je concurrenten" en niet "de
+         langst draaiende die zij ooit hadden". */
+      hoe_gerangschikt: 'Per gevolgd merk zijn de ' + m.per_merk + ' best presterende advertenties opgehaald ' +
+        '(' + m.gebruikt.length + ' van de ' + m.merken.length + ' merken), en die zijn hier samen gerangschikt. ' +
+        'Het is dus de beste van hun topadvertenties, niet van alles wat zij ooit draaiden.',
+      advertenties: lijst.slice(0, Math.max(1, Math.min(Number(o.limiet) || 10, 50)))
+    };
+  }
+
   /* POST /v1/ads/query met een JSON-body, niet GET /v1/ads met parameters.
      Twee redenen, en de eerste is met schade geleerd: de filters die wij nodig
      hebben zijn lijsten (landen, platforms), en een lijst in een querystring is
@@ -1679,6 +1791,7 @@ async function ttToplijst(env, opties) {
   const data = await ttHaal(env, '/v1/ads/query', null, body);
   const rijen = data.data || data.items || data.results || [];
   return {
+    bereik: 'markt',
     sorteer: o.sorteer || 'looptijd',
     sorteert_op: sortering.zegt,
     venster: body.reachPeriod || null,
@@ -2545,8 +2658,17 @@ export default {
             land: url.searchParams.get('land'),
             taal: url.searchParams.get('taal'),
             soort: url.searchParams.get('soort'),
-            min_dagen: url.searchParams.get('min_dagen')
+            min_dagen: url.searchParams.get('min_dagen'),
+            bereik: url.searchParams.get('bereik'),
+            merk: url.searchParams.get('merk'),
+            per_merk: url.searchParams.get('per_merk')
           }));
+        }
+
+        /* De gevolgde merken apart, zodat het scherm ze kan tonen zonder eerst
+           een hele analyse te draaien. */
+        if (path === '/onderzoek/merken' && request.method === 'GET') {
+          return json({ merken: await ttMerken(env) });
         }
 
         /* Het beeld van een concurrent, opgehaald door de worker omdat de
