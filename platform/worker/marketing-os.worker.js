@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 20;
-const VERSIE_DATUM = '2026-08-31';
-const VERSIE_WAT = 'twee nieuwe bronlagen: /itereren/* haalt de cijfers van een draaiende advertentie uit Atria of Meta en wijst het lek in de funnel aan, /onderzoek/* haalt uit TrendTrack wat er in de markt draait. Sleutels voor Atria en TrendTrack lopen via hetzelfde sleutelbeheer';
+const VERSIE = 21;
+const VERSIE_DATUM = '2026-09-01';
+const VERSIE_WAT = 'de TrendTrack-aanroep klopt nu: POST /v1/ads/query met een JSON-body, land als lijst onder mainCountries. En de uitlezer leest de geneste vorm die de dienst werkelijk teruggeeft, zodat kop, tekst, CTA, domein en land niet meer leeg blijven';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -299,6 +299,26 @@ function kortDeFout(tekst, status, sleutel) {
   let bericht = '';
   try { const o = JSON.parse(tekst); bericht = (o.error && (o.error.message || o.error.type)) || ''; } catch (e) { }
   if (!bericht) { try { const o = JSON.parse(tekst); bericht = o.message || o.error || ''; } catch (e) { } }
+  /* En de details erbij. "Request validation failed" zonder te zeggen WELK veld
+     faalde kostte een halve ochtend zoeken -- de dienst stuurt dat wel mee, in
+     een veld dat we niet lazen. Elke vorm die diensten hiervoor gebruiken staat
+     hieronder; wat er niet is wordt overgeslagen. */
+  try {
+    const o = JSON.parse(tekst);
+    const details = o.errors || o.details || o.detail || o.issues || (o.error && (o.error.errors || o.error.details));
+    const stukken = [];
+    (Array.isArray(details) ? details : (details ? [details] : [])).forEach(function (d) {
+      if (typeof d === 'string') { stukken.push(d); return; }
+      if (d && typeof d === 'object') {
+        const waar = d.path || d.field || d.param || d.loc || '';
+        const wat = d.message || d.msg || d.reason || d.code || '';
+        const zin = [Array.isArray(waar) ? waar.join('.') : waar, wat].filter(Boolean).join(': ');
+        if (zin) stukken.push(zin);
+      }
+    });
+    if (stukken.length) bericht = (bericht ? bericht + ' — ' : '') + stukken.join('; ');
+    if (!bericht && o.errorMessage) bericht = String(o.errorMessage);
+  } catch (e) { }
   bericht = String(bericht);
   /* De sleutel die we net gebruikt hebben letterlijk wegstrepen. De patronen
      hieronder dekken alleen diensten met een herkenbaar voorvoegsel, en dat is
@@ -1543,11 +1563,17 @@ const TT_SORTERING = {
   groei: { sortBy: 'reachDelta7d', zegt: 'schaalt op dit moment op' }
 };
 
-async function ttHaal(env, pad, params) {
+async function ttHaal(env, pad, params, body) {
   const sleutel = await sleutelVan(env, 'TRENDTRACK_API_KEY');
   if (!sleutel) throw new Error('er staat geen TRENDTRACK_API_KEY. Zet hem in het adminmenu of als Worker secret.');
   const q = params ? ('?' + new URLSearchParams(params)) : '';
-  const r = await fetch(TRENDTRACK_API + pad + q, { headers: { 'Authorization': 'Bearer ' + sleutel } });
+  const opties = { headers: { 'Authorization': 'Bearer ' + sleutel } };
+  if (body) {
+    opties.method = 'POST';
+    opties.headers['Content-Type'] = 'application/json';
+    opties.body = JSON.stringify(body);
+  }
+  const r = await fetch(TRENDTRACK_API + pad + q, opties);
   const tekst = await r.text();
   if (!r.ok) throw new Error('TrendTrack: ' + kortDeFout(tekst, r.status, sleutel));
   try { return JSON.parse(tekst); } catch (e) { throw new Error('TrendTrack gaf geen JSON terug'); }
@@ -1566,30 +1592,48 @@ function ttEerste(obj, paden) {
   return null;
 }
 
+/* De vorm die TrendTrack werkelijk teruggeeft, geverifieerd op een echt
+   antwoord en niet op de documentatie. Bijna alles zit genest onder media,
+   content, metrics en audience -- ik had het plat verwacht, en daardoor bleven
+   de kop, de tekst, de CTA, het domein en het land leeg terwijl het antwoord ze
+   gewoon bevatte. Een leeg veld dat er leeg uitziet is precies de fout die je
+   niet ziet gebeuren.
+
+   De oudere, platte namen staan er nog achter: ze kosten niets en een dienst
+   die zijn vorm wijzigt is geen theoretisch geval. */
 function ttNaarAdvertentie(rij) {
   const r = rij || {};
   return {
-    id: String(ttEerste(r, ['collationId', 'collation_id', 'adId', 'ad_id', 'id']) || ''),
-    merk: ttEerste(r, ['brand', 'pageName', 'page_name', 'advertiser.name', 'advertiserName']),
-    domein: ttEerste(r, ['domain', 'website.domain', 'shop.domain']),
-    beeld: ttEerste(r, ['mediaUrl', 'media_url', 'media.url', 'thumbnailUrl', 'thumbnail_url', 'media.thumbnailUrl', 'thumbnail']),
-    soort: ttEerste(r, ['mediaType', 'media_type', 'media.type']),
+    id: String(ttEerste(r, ['collationId', 'id', 'collation_id', 'adId', 'ad_id']) || ''),
+    merk: ttEerste(r, ['advertiser.name', 'brand', 'pageName', 'page_name', 'advertiserName']),
+    domein: ttEerste(r, ['content.landingPageDomain', 'domain', 'website.domain', 'shop.domain']),
+    beeld: ttEerste(r, ['media.mediaUrl', 'media.thumbnailUrl', 'mediaUrl', 'media_url',
+                        'media.url', 'thumbnailUrl', 'thumbnail_url', 'thumbnail']),
+    soort: ttEerste(r, ['media.type', 'mediaType', 'media_type']),
     copy: {
-      kop: ttEerste(r, ['title', 'headline', 'creative.title']),
-      tekst: ttEerste(r, ['body', 'description', 'adCopy', 'ad_copy', 'creative.body']),
-      cta: ttEerste(r, ['cta', 'ctaType', 'callToAction', 'creative.cta'])
+      kop: ttEerste(r, ['content.title', 'title', 'headline', 'creative.title']),
+      tekst: ttEerste(r, ['content.body', 'body', 'description', 'adCopy', 'ad_copy', 'creative.body']),
+      cta: ttEerste(r, ['content.callToAction', 'cta', 'ctaType', 'callToAction', 'creative.cta'])
     },
     /* Onbekend blijft null. Bereik komt uit de transparantierapportage van Meta
        en die bestaat alleen voor de EU en het VK -- buiten dat gebied is er
        niets, en een nul zou daar een meting suggereren die er niet is. */
-    bereik: adGetal(ttEerste(r, ['reach', 'impressions', 'metrics.reach'])),
+    bereik: adGetal(ttEerste(r, ['metrics.reach', 'reach', 'impressions'])),
     dagen_actief: adGetal(ttEerste(r, ['daysRunning', 'days_running', 'activeDays'])),
-    eerst_gezien: ttEerste(r, ['firstSeen', 'first_seen', 'createdAt']),
-    laatst_gezien: ttEerste(r, ['lastSeen', 'last_seen']),
-    varianten: adGetal(ttEerste(r, ['duplicates', 'duplicateCount', 'variations'])),
-    land: ttEerste(r, ['mainCountry', 'main_country', 'countries.0']),
+    /* firstSeenAt en createdAt zijn twee verschillende dingen: wanneer de
+       advertentie voor het eerst gezien is, en wanneer TrendTrack hem opnam.
+       Die door elkaar halen maakt van een advertentie uit 2022 er een van
+       vorige maand. */
+    eerst_gezien: ttEerste(r, ['firstSeenAt', 'firstSeen', 'first_seen']),
+    laatst_gezien: ttEerste(r, ['lastSeenAt', 'lastSeen', 'last_seen']),
+    varianten: adGetal(ttEerste(r, ['metrics.duplicates', 'duplicates', 'duplicateCount', 'variations'])),
+    /* Een schatting, en hij heet ook zo. TrendTrack rekent hem uit met een
+       aangenomen CPM -- het is geen bedrag dat iemand betaald heeft. */
+    uitgave_schatting: adGetal(ttEerste(r, ['metrics.estimatedSpend', 'estimatedSpend'])),
+    groei_7d: adGetal(ttEerste(r, ['metrics.reachDelta7d', 'reachDelta7d'])),
+    land: ttEerste(r, ['audience.mainCountry', 'mainCountry', 'main_country', 'audience.targetedCountries.0']),
     taal: ttEerste(r, ['language', 'ad_language']),
-    actief: ttEerste(r, ['isActive', 'active', 'status'])
+    actief: ttEerste(r, ['status', 'isActive', 'active'])
   };
 }
 
@@ -1597,33 +1641,47 @@ async function ttToplijst(env, opties) {
   const o = opties || {};
   const sortering = TT_SORTERING[o.sorteer] || TT_SORTERING.looptijd;
   const dagen = Number(o.dagen) || 14;
-  const params = {
+  /* POST /v1/ads/query met een JSON-body, niet GET /v1/ads met parameters.
+     Twee redenen, en de eerste is met schade geleerd: de filters die wij nodig
+     hebben zijn lijsten (landen, platforms), en een lijst in een querystring is
+     bij elke API weer anders gecodeerd. GET /v1/ads weigerde `countries=NL` met
+     niets anders dan "Request validation failed" -- het veld heet mainCountries
+     en het is een array. In een JSON-body bestaat die dubbelzinnigheid niet.
+     De tweede: /v1/ads/query is bij TrendTrack de endpoint die voor filteren
+     bedoeld is. */
+  const body = {
     sortBy: sortering.sortBy,
     order: 'desc',
     status: 'active',
-    limit: String(Math.max(1, Math.min(Number(o.limiet) || 10, 50))),
-    page: '1'
+    page: 1,
+    /* Twintig is de bovengrens die de dienst zelf aanhoudt. Meer vragen levert
+       geen fout op maar stilletjes minder, en dat is de vervelendste vorm. */
+    limit: Math.max(1, Math.min(Number(o.limiet) || 10, 20)),
+    platforms: ['facebook']
   };
-  if (o.zoek) params.search = String(o.zoek).slice(0, 200);
-  if (o.land) params.countries = String(o.land).toUpperCase().slice(0, 2);
-  if (o.taal) params.languages = String(o.taal).slice(0, 8);
-  if (o.soort === 'image' || o.soort === 'video') params.mediaType = o.soort;
+  /* Alleen meesturen wat er werkelijk gekozen is. Een leeg filter meesturen is
+     hoe je een lijst inperkt zonder dat iemand daarom vroeg -- en bij een
+     dienst die streng valideert is het ook gewoon een 400. */
+  if (o.zoek) body.search = String(o.zoek).slice(0, 200);
+  if (o.land) body.mainCountries = [String(o.land).toUpperCase().slice(0, 2)];
+  if (o.taal) body.adLanguages = [String(o.taal).slice(0, 8)];
+  if (o.soort === 'image' || o.soort === 'video') body.mediaType = o.soort;
   /* Bij bereik en groei hoort een venster; bij looptijd niet. Een venster
      meesturen op looptijd zou de lijst inperken tot wat er in dat venster
      begon -- en dat is precies het omgekeerde van wat je vraagt als je zoekt
      naar wat er het langst draait. */
   if (o.sorteer === 'bereik' || o.sorteer === 'groei') {
-    params.reachPeriod = ttVenster(dagen);
-    params.minReach = '1';
+    body.reachPeriod = ttVenster(dagen);
+    body.minReach = 1;
   }
-  if (o.min_dagen) params.minDaysRunning = String(Math.max(0, Number(o.min_dagen) || 0));
+  if (o.min_dagen) body.minDaysRunning = Math.max(0, Number(o.min_dagen) || 0);
 
-  const data = await ttHaal(env, '/v1/ads', params);
+  const data = await ttHaal(env, '/v1/ads/query', null, body);
   const rijen = data.data || data.items || data.results || [];
   return {
     sorteer: o.sorteer || 'looptijd',
     sorteert_op: sortering.zegt,
-    venster: params.reachPeriod || null,
+    venster: body.reachPeriod || null,
     /* Wat er gevraagd is en wat er werkelijk gebruikt is, allebei. Veertien
        dagen bestaat niet bij deze bron en dan zie je hier dat er dertig is
        gemeten in plaats van dat je het aanneemt. */

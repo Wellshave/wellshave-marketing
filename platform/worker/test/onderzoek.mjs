@@ -70,7 +70,9 @@ globalThis.fetch = async (url, opties) => {
   }
 
   if (u.includes('api.trendtrack.io')) {
-    aanroepen.tt.push({ url: u, auth: opties.headers.Authorization });
+    aanroepen.tt.push({ url: u, auth: opties.headers.Authorization,
+      methode: (opties && opties.method) || 'GET',
+      body: (opties && opties.body) ? JSON.parse(opties.body) : null });
     if (tt.fout) return tt.fout;
     return { ok: true, status: 200, text: async () => JSON.stringify({ data: tt.rijen }) };
   }
@@ -110,13 +112,23 @@ async function roep(pad, opties, extraEnv) {
 /* Een advertentie zoals TrendTrack hem geeft. De velden heten per rij net
    anders -- dat is geen verzinsel maar precies waarom de uitlezer meerdere
    namen probeert. */
+/* De vorm die TrendTrack WERKELIJK teruggeeft. Overgenomen van een echt
+   antwoord, niet uit de documentatie: bijna alles zit genest onder media,
+   content, metrics en audience. Mijn eerste uitlezer verwachtte het plat en
+   liet daardoor de kop, de tekst, de CTA, het domein en het land leeg -- terwijl
+   het antwoord ze gewoon bevatte. Een fixture die de vorm raadt zou dat niet
+   hebben gevonden; die had precies dezelfde aanname bevestigd. */
 function ttRij(over) {
   return Object.assign({
-    collationId: 'c-900', brand: 'Concurrent BV', domain: 'concurrent.nl',
-    mediaUrl: 'https://scontent.xx.fbcdn.net/v/beeld1.jpg', mediaType: 'image',
-    title: 'Waarom mannen overstappen', body: 'Drie maanden getest.', cta: 'SHOP_NOW',
-    reach: 412000, daysRunning: 96, firstSeen: '2026-05-20', lastSeen: '2026-08-30',
-    duplicates: 4, mainCountry: 'NL', language: 'nl', isActive: true
+    id: 'facebook_1127870081380657', collationId: 'c-900', platform: 'facebook',
+    status: 'active', createdAt: '2025-12-11T07:00:45.133Z',
+    firstSeenAt: '2022-01-26T08:00:00.000Z', lastSeenAt: null, daysRunning: 96,
+    media: { type: 'image', thumbnailUrl: null, mediaUrl: 'https://medias.trendtrack.io/facebook/image/abc.jpg' },
+    advertiser: { id: '253', name: 'Concurrent BV', logoUrl: 'https://medias.trendtrack.io/p/253.jpg' },
+    content: { title: 'Waarom mannen overstappen', body: 'Drie maanden getest.',
+               callToAction: 'SHOP_NOW', landingPageDomain: 'concurrent.nl' },
+    metrics: { reach: 412000, estimatedSpend: 275, duplicates: 4, reachDelta7d: 1200 },
+    audience: { targetedCountries: ['NL'], mainCountry: 'NL' }
   }, over || {});
 }
 
@@ -144,10 +156,21 @@ const top = topAntwoord.data;
 check('twee advertenties', (top.advertenties || []).length, 2);
 const a = top.advertenties[0];
 check('met het merk', a.merk, 'Concurrent BV');
-check('het beeld', a.beeld, 'https://scontent.xx.fbcdn.net/v/beeld1.jpg');
+check('het beeld', a.beeld, 'https://medias.trendtrack.io/facebook/image/abc.jpg');
 check('de copy', [a.copy.kop, a.copy.cta], ['Waarom mannen overstappen', 'SHOP_NOW']);
+check('en de tekst', a.copy.tekst, 'Drie maanden getest.');
+check('het domein van de landingspagina', a.domein, 'concurrent.nl');
 check('hoe lang hij al draait', a.dagen_actief, 96);
 check('en hoeveel varianten ervan lopen', a.varianten, 4);
+check('het bereik', a.bereik, 412000);
+check('de geschatte uitgave', a.uitgave_schatting, 275);
+check('het land', a.land, 'NL');
+/* firstSeenAt en createdAt zijn twee verschillende dingen: wanneer de
+   advertentie voor het eerst gezien is, en wanneer TrendTrack hem opnam. Die
+   door elkaar halen maakt van een advertentie uit 2022 er een van vorige
+   maand -- en dan klopt "draait het langst" niet meer. */
+check('eerst gezien is wanneer hij begon, niet wanneer TrendTrack hem zag',
+  String(a.eerst_gezien).slice(0, 4), '2022');
 
 console.log('\n  de lijst zegt zelf dat hij geen bewijs is');
 /* Tien advertenties met bereikcijfers ernaast zien eruit als een ranglijst van
@@ -167,8 +190,12 @@ tt.rijen = [ttRij()];
 const venster = (await roep('/onderzoek/toplijst?sorteer=bereik&dagen=14')).data;
 check('er is om veertien dagen gevraagd', venster.dagen_gevraagd, 14);
 check('en er is dertig gemeten', venster.venster, 'last30d');
-const gevraagd = aanroepen.tt[0].url;
-check('dat is ook wat de bron te horen kreeg', /reachPeriod=last30d/.test(gevraagd), true);
+/* Niet meer in de querystring maar in de body: de filters zijn lijsten, en een
+   lijst in een querystring is bij elke API weer anders gecodeerd. Dit is de
+   controle die de fout ving -- GET met countries=NL werd geweigerd. */
+check('de aanroep is een POST', aanroepen.tt[0].methode, 'POST');
+check('naar de query-endpoint', /\/v1\/ads\/query$/.test(aanroepen.tt[0].url.split('?')[0]), true);
+check('dat is ook wat de bron te horen kreeg', aanroepen.tt[0].body.reachPeriod, 'last30d');
 
 console.log('\n  looptijd krijgt geen venster mee');
 /* Een venster op looptijd perkt de lijst in tot wat er in dat venster begon --
@@ -177,15 +204,22 @@ await reset();
 tt.rijen = [ttRij()];
 const opLooptijd = (await roep('/onderzoek/toplijst?sorteer=looptijd&dagen=14')).data;
 check('geen venster in het antwoord', opLooptijd.venster, null);
-check('en geen reachPeriod in de aanroep', /reachPeriod/.test(aanroepen.tt[0].url), false);
-check('wel gesorteerd op looptijd', /sortBy=longestRunning/.test(aanroepen.tt[0].url), true);
+check('en geen reachPeriod in de aanroep', aanroepen.tt[0].body.reachPeriod, undefined);
+check('wel gesorteerd op looptijd', aanroepen.tt[0].body.sortBy, 'longestRunning');
+/* Het land als lijst, want dat is wat de dienst verwacht. Als string werd het
+   geweigerd met niets anders dan "Request validation failed". */
+check('en het land gaat als lijst mee', aanroepen.tt[0].body.mainCountries, undefined);
 
 console.log('\n  onbekend blijft leeg');
 /* Bereik bestaat alleen in de EU-rapportage van Meta. Buiten dat gebied is er
    niets, en een 0 zou daar een meting suggereren die er niet is -- waarna
    sorteren op bereik precies de verkeerde kant op werkt. */
 await reset();
-tt.rijen = [ttRij({ reach: null, daysRunning: undefined, duplicates: '' })];
+/* De lege maten op de plek waar ze werkelijk staan: onder metrics. Ze op het
+   oude, platte niveau leegmaken zou niets bewijzen -- daar kijkt de uitlezer
+   niet meer, en dan blijft dit blok groen terwijl hij nog steeds nullen kan
+   maken. */
+tt.rijen = [ttRij({ metrics: { reach: null, duplicates: '' }, daysRunning: undefined })];
 const leeg = (await roep('/onderzoek/toplijst')).data.advertenties[0];
 check('geen bereik gemeten, dus null', leeg.bereik, null);
 check('geen looptijd, dus null', leeg.dagen_actief, null);
@@ -251,6 +285,63 @@ beeld.type = 'text/html';
 const geenBeeld = await roep('/onderzoek/beeld?u=' + encodeURIComponent('https://scontent.xx.fbcdn.net/v/b.jpg'));
 check('geen afbeelding: geweigerd', geenBeeld.status, 400);
 check('en de inhoud wordt niet doorgegeven', geenBeeld.ruw.indexOf('JPEGDATA'), -1);
+
+console.log('\n  de filters gaan mee in de vorm die de dienst verwacht');
+/* Dit is de fout die het scherm plat legde. Ik stuurde `countries=NL` als los
+   woord in de querystring; het veld heet mainCountries en het is een lijst.
+   TrendTrack antwoordde met "Request validation failed" en verder niets, en aan
+   die zin kon niemand zien welk veld het was. */
+await reset();
+tt.rijen = [ttRij()];
+await roep('/onderzoek/toplijst?sorteer=bereik&dagen=30&land=nl&taal=nl&soort=image&zoek=scheren&min_dagen=45');
+const verstuurd = aanroepen.tt[0].body;
+check('het land is een lijst', verstuurd.mainCountries, ['NL']);
+check('en in hoofdletters', verstuurd.mainCountries[0], 'NL');
+check('de taal ook', verstuurd.adLanguages, ['nl']);
+check('het platform staat erbij', verstuurd.platforms, ['facebook']);
+check('het soort creative', verstuurd.mediaType, 'image');
+check('het zoekwoord', verstuurd.search, 'scheren');
+check('de ondergrens voor looptijd', verstuurd.minDaysRunning, 45);
+/* En de bovengrens die de dienst zelf aanhoudt. Meer vragen levert geen fout op
+   maar stilletjes minder, en dat is de vervelendste vorm. */
+check('nooit meer dan twintig', verstuurd.limit, 10);
+await reset(); tt.rijen = [ttRij()];
+await roep('/onderzoek/toplijst?limiet=500');
+check('ook niet als er meer gevraagd wordt', aanroepen.tt[0].body.limit, 20);
+
+console.log('\n  en wat er NIET gekozen is wordt niet meegestuurd');
+/* Een leeg filter meesturen is hoe je een lijst inperkt zonder dat iemand
+   daarom vroeg -- en bij een dienst die streng valideert is het ook gewoon
+   een 400. */
+await reset();
+tt.rijen = [ttRij()];
+await roep('/onderzoek/toplijst?sorteer=looptijd');
+const kaalVerstuurd = aanroepen.tt[0].body;
+check('geen land', 'mainCountries' in kaalVerstuurd, false);
+check('geen taal', 'adLanguages' in kaalVerstuurd, false);
+check('geen soort', 'mediaType' in kaalVerstuurd, false);
+check('geen zoekwoord', 'search' in kaalVerstuurd, false);
+check('geen venster', 'reachPeriod' in kaalVerstuurd, false);
+
+console.log('\n  een validatiefout zegt WELK veld faalde');
+/* "Request validation failed" zonder te zeggen welk veld kostte een halve
+   ochtend. De dienst stuurt dat wel mee, in een veld dat we niet lazen. */
+await reset();
+tt.fout = { ok: false, status: 400, text: async () => JSON.stringify({
+  message: 'Request validation failed',
+  errors: [{ path: ['body', 'countries'], message: 'Unrecognized key' }]
+}) };
+const validatie = await roep('/onderzoek/toplijst');
+check('de melding komt door', /Request validation failed/.test(validatie.data.error), true);
+check('met het veld erbij', /body\.countries/.test(validatie.data.error), true);
+check('en waarom', /Unrecognized key/.test(validatie.data.error), true);
+
+/* En de andere vormen die diensten hiervoor gebruiken. */
+await reset();
+tt.fout = { ok: false, status: 400, text: async () => JSON.stringify({
+  errorMessage: 'query.limit - must be <= 20' }) };
+const andereVorm = await roep('/onderzoek/toplijst');
+check('ook een platte errorMessage komt door', /must be <= 20/.test(andereVorm.data.error), true);
 
 console.log('\n  een fout van TrendTrack is een fout van TrendTrack');
 await reset();
