@@ -261,6 +261,16 @@ function crKaartHtml(ad, i) {
   var regels = [];
   if (ad.dagen_actief != null) regels.push('<b>' + crGetal(ad.dagen_actief) + '</b> dagen');
   if (ad.bereik != null) regels.push('<b>' + crGetal(ad.bereik) + '</b> bereik');
+  /* Bij een gevolgd merk geeft TrendTrack geen bereik maar wel een positie.
+     Die tonen in plaats van drie streepjes: een kaart zonder enig cijfer geeft
+     je niets om op te kiezen. Lager is beter, dus met een hekje ervoor -- "12"
+     zonder context leest als een hoeveelheid. */
+  if (ad.bereik == null && ad.rang != null) {
+    regels.push('positie <b>#' + crGetal(ad.rang) + '</b>');
+  }
+  if (ad.rang_delta != null && ad.rang_delta > 0) {
+    regels.push('<b>+' + crGetal(ad.rang_delta) + '</b> gestegen');
+  }
   if (ad.varianten != null) regels.push('<b>' + crGetal(ad.varianten) + '</b> varianten');
   return '<button type="button" class="cr-kaart" data-i="' + i + '" data-action="cr-open">' +
     '<div class="cr-beeld"><span class="cr-beeld-leeg">' +

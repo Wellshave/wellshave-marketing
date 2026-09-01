@@ -47,7 +47,8 @@ let db, tt, beeld, aanroepen;
 async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }] };
-  tt = { rijen: [], fout: null, merken: [], merkAds: {}, merkFout: {} };
+  tt = { rijen: [], fout: null, merken: [], merkAds: {}, merkFout: {},
+         eenmaligAfknijpen: {}, gelijktijdig: 0, maxGelijktijdig: 0 };
   beeld = { type: 'image/jpeg', ok: true, body: 'JPEGDATA' };
   aanroepen = { tt: [], extern: [] };
 }
@@ -80,8 +81,19 @@ globalThis.fetch = async (url, opties) => {
     const perMerk = u.match(/\/v1\/brandtrackers\/([^/]+)\/top-ads/);
     if (perMerk) {
       const id = decodeURIComponent(perMerk[1]);
+      /* Meten hoeveel er tegelijk onderweg zijn. Dit is de enige manier om te
+         zien dat de fan-out weg is: het resultaat is bij beide hetzelfde. */
+      tt.gelijktijdig = (tt.gelijktijdig || 0) + 1;
+      tt.maxGelijktijdig = Math.max(tt.maxGelijktijdig || 0, tt.gelijktijdig);
+      await new Promise(r => setTimeout(r, 5));
+      tt.gelijktijdig--;
       if (tt.merkFout && tt.merkFout[id]) {
         return { ok: false, status: 500, text: async () => JSON.stringify({ message: 'die is stuk' }) };
+      }
+      if (tt.eenmaligAfknijpen && tt.eenmaligAfknijpen[id]) {
+        tt.eenmaligAfknijpen[id] = false;
+        return { ok: false, status: 429,
+          text: async () => JSON.stringify({ message: 'Too many concurrent public API requests are already in flight' }) };
       }
       return { ok: true, status: 200, text: async () => JSON.stringify({ data: (tt.merkAds && tt.merkAds[id]) || [] }) };
     }
@@ -363,34 +375,42 @@ console.log('\n  standaard kijken we naar de Brand Tracker, niet naar de hele ma
    dat verbreedde de lijst van vierhonderdduizend naar bijna acht miljoen. De
    enige route die werkelijk filtert loopt per merk. */
 await reset();
+/* Let op de naam: in de Brand Tracker staat vaak het DOMEIN als naam
+   ("manscaped.com"), terwijl de advertentie zelf gewoon "MANSCAPED" zegt. Ik
+   had de trackernaam laten winnen en dat leverde domeinen op de kaarten op. */
 tt.merken = [
-  { id: 'm1', name: 'Manscaped', domain: 'manscaped.com', counts: { activeAds: 155, newAdsLast7Days: 33 } },
+  { id: 'm1', name: 'manscaped.com', domain: 'manscaped.com', counts: { activeAds: 155, newAdsLast7Days: 33 } },
   { id: 'm2', name: 'BALZY', domain: 'balzy.nl', counts: { activeAds: 428, newAdsLast7Days: 33 } }
 ];
 tt.merkAds = {
-  m1: [ttRij({ collationId: 'a1', daysRunning: 40, advertiser: { name: 'Manscaped FB-pagina' },
+  m1: [ttRij({ collationId: 'a1', daysRunning: 40, advertiser: { name: 'MANSCAPED' },
                metrics: { reach: 90000, duplicates: 2, reachDelta7d: 500 } }),
        /* Eentje zonder gemeten looptijd. Die hoort ONDERAAN te zakken: een
           onbekende waarde is geen nul en zeker geen hoogste, en hem bovenaan
           zetten maakt van "wij weten het niet" de winnaar van de lijst. */
-       ttRij({ collationId: 'a2', daysRunning: null, metrics: { reach: 70000, reachDelta7d: 300 } })],
+       ttRij({ collationId: 'a2', daysRunning: null, advertiser: {},
+               metrics: { reach: 70000, reachDelta7d: 300 } })],
   m2: [ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, duplicates: 1, reachDelta7d: 9000 } }),
        ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, duplicates: 3, reachDelta7d: 100 } })]
 };
 const bt = (await roep('/onderzoek/toplijst?sorteer=looptijd')).data;
 check('zonder bereik is het de Brand Tracker', bt.bereik, 'brandtracker');
-check('de gevolgde merken staan erbij', bt.merken.map(m => m.naam), ['Manscaped', 'BALZY']);
-check('van beide merken zijn advertenties opgehaald', bt.merken_gebruikt.sort(), ['BALZY', 'Manscaped']);
+check('de gevolgde merken staan erbij', bt.merken.map(m => m.naam), ['manscaped.com', 'BALZY']);
+check('van beide merken zijn advertenties opgehaald', bt.merken_gebruikt.sort(), ['BALZY', 'manscaped.com']);
 check('vier advertenties samen', bt.advertenties.length, 4);
 /* Gerangschikt op looptijd, over alle merken heen. */
 check('de langst draaiende staat bovenaan', bt.advertenties[0].dagen_actief, 300);
 check('daarna de volgende', bt.advertenties[1].dagen_actief, 120);
 check('en wat niet gemeten is zakt naar onderen',
   bt.advertenties[bt.advertenties.length - 1].dagen_actief, null);
-/* De merknaam uit de Brand Tracker wint van de naam van de Facebook-pagina:
-   die heet niet altijd zoals het merk. */
+/* De naam van de adverteerder wint van die van de Brand Tracker. Daar staat
+   vaak het domein, en een domein is geen merknaam. */
 const vanManscaped = bt.advertenties.filter(a => a.merk_id === 'm1')[0];
-check('de merknaam komt uit de Brand Tracker', vanManscaped.merk, 'Manscaped');
+check('de merknaam komt van de adverteerder', vanManscaped.merk, 'MANSCAPED');
+/* En de terugval: zegt de advertentie niets, dan is de tracker beter dan niets. */
+const zonderNaam = bt.advertenties.filter(a => a.merk_id === 'm1' && a.dagen_actief === null)[0];
+check('zonder naam bij de advertentie valt hij terug op de tracker',
+  zonderNaam ? zonderNaam.merk : null, 'manscaped.com');
 
 console.log('\n  en het zegt eerlijk wat voor rangschikking dit is');
 /* TrendTrack kent bij een gevolgd merk geen sortering op looptijd. We halen per
@@ -401,25 +421,67 @@ check('er staat hoe er gerangschikt is', typeof bt.hoe_gerangschikt, 'string');
 check('met hoeveel merken er meededen', /2 van de 2 merken/.test(bt.hoe_gerangschikt), true);
 check('en wat het niet is', /niet van alles wat zij ooit draaiden/.test(bt.hoe_gerangschikt), true);
 
-console.log('\n  op bereik en op groei rangschikt hij anders');
+console.log('\n  bij een gevolgd merk bestaat bereik niet, en dat wordt niet verzwegen');
+/* Dit is wat TrendTrack werkelijk teruggeeft op de per-merk-route: bereik,
+   uitgave en varianten zijn leeg. Wat er wel is, is de positie van de
+   advertentie binnen de pagina van dat merk. Op een leeg veld sorteren levert
+   een willekeurige volgorde die eruitziet als een ranglijst. */
+function merkRij(over) {
+  return ttRij(Object.assign({
+    metrics: { reach: null, estimatedSpend: null, duplicates: null, reachDelta7d: 0 }
+  }, over || {}));
+}
 await reset();
 tt.merken = [{ id: 'm2', name: 'BALZY' }];
 tt.merkAds = { m2: [
-  ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, reachDelta7d: 9000 } }),
-  ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, reachDelta7d: 100 } })
+  merkRij({ collationId: 'b1', daysRunning: 300, rank: { currentRank: 40, rankDelta: 2 } }),
+  merkRij({ collationId: 'b2', daysRunning: 120, rank: { currentRank: 3, rankDelta: 33 } })
 ] };
 const opBereik = (await roep('/onderzoek/toplijst?sorteer=bereik')).data;
-check('op bereik staat de grootste bovenaan', opBereik.advertenties[0].bereik, 50000);
+check('het bereik is inderdaad leeg', opBereik.advertenties[0].bereik, null);
+/* Rang: lager is beter. Rang 3 is de advertentie waar dat merk het meest op
+   inzet, en die hoort bovenaan -- niet onderaan. */
+check('er wordt op rang gerangschikt, laag eerst', opBereik.advertenties[0].rang, 3);
+check('en het scherm krijgt te horen dat bereik hier niet bestaat',
+  /geen bereikcijfers/.test(opBereik.hoe_gerangschikt), true);
+check('met welke velden er leeg blijven', opBereik.geen_cijfers_voor, ['bereik', 'uitgave_schatting', 'varianten']);
+
 await reset();
 tt.merken = [{ id: 'm2', name: 'BALZY' }];
 tt.merkAds = { m2: [
-  ttRij({ collationId: 'b1', daysRunning: 300, metrics: { reach: 10000, reachDelta7d: 9000 } }),
-  ttRij({ collationId: 'b2', daysRunning: 120, metrics: { reach: 50000, reachDelta7d: 100 } })
+  merkRij({ collationId: 'b1', daysRunning: 300, rank: { currentRank: 40, rankDelta: 2 } }),
+  merkRij({ collationId: 'b2', daysRunning: 120, rank: { currentRank: 3, rankDelta: 33 } })
 ] };
 const opGroei = (await roep('/onderzoek/toplijst?sorteer=groei')).data;
-check('op groei de hardst stijgende', opGroei.advertenties[0].groei_7d, 9000);
+check('op groei de hardst gestegen advertentie', opGroei.advertenties[0].rang_delta, 33);
 check('en de aanroep vroeg om die sortering',
-  /sortBy=reachDelta7d/.test(aanroepen.tt.filter(a => /top-ads/.test(a.url))[0].url), true);
+  /sortBy=rankDelta7d/.test(aanroepen.tt.filter(a => /top-ads/.test(a.url))[0].url), true);
+
+console.log('\n  de merken worden een voor een bevraagd, niet allemaal tegelijk');
+/* TrendTrack weigert gelijktijdige aanroepen met "Too many concurrent public
+   API requests are already in flight". Elf van de dertien merken vielen
+   daardoor weg, en het scherm liet twee concurrenten zien alsof dat de hele
+   Brand Tracker was. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }, { id: 'm2', name: 'B' }, { id: 'm3', name: 'C' }];
+tt.merkAds = { m1: [ttRij()], m2: [ttRij()], m3: [ttRij()] };
+tt.gelijktijdig = 0; tt.maxGelijktijdig = 0;
+const volgorde = (await roep('/onderzoek/toplijst')).data;
+check('alle drie de merken zijn opgehaald', volgorde.merken_gebruikt.length, 3);
+check('en er was er nooit meer dan een tegelijk onderweg', tt.maxGelijktijdig, 1);
+
+console.log('\n  en een afknijper wordt uitgezeten, niet doorgegeven');
+/* Een afknijper is geen fout maar een verzoek om te wachten. Eén keer wachten
+   en opnieuw; blijft het misgaan, dan is het wel een fout. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [ttRij()] };
+tt.eenmaligAfknijpen = { m1: true };
+const naGeduld = (await roep('/onderzoek/toplijst')).data;
+check('het merk komt alsnog binnen', naGeduld.merken_gebruikt, ['A']);
+check('er is een tweede poging gedaan',
+  aanroepen.tt.filter(a => /top-ads/.test(a.url)).length, 2);
+check('en er staat niets bij de mislukte merken', naGeduld.merken_mislukt, []);
 
 console.log('\n  een merk dat weigert laat de rest staan');
 /* Eén merk dat stuk is mag de andere twaalf niet meenemen. Wel moet erbij staan

@@ -476,6 +476,28 @@ function ONDERSCHEP() {
      concurrent doet even niets". */
   check('en welk merk ontbrak', /Freebird/.test(uitleg), true);
 
+  console.log('\n  waar bereik ontbreekt komt de positie in beeld');
+  /* Bij een gevolgd merk geeft TrendTrack geen bereik. Drie streepjes op een
+     kaart geven je niets om op te kiezen; de positie binnen de advertenties van
+     dat merk wel. */
+  const rang = await page.evaluate(() => {
+    const zonderBereik = { id: 'x', merk: 'MANSCAPED', beeld: null, copy: {},
+      bereik: null, varianten: null, dagen_actief: 8, rang: 3, rang_delta: 33 };
+    const metBereik = { id: 'y', merk: 'Ander', beeld: null, copy: {},
+      bereik: 412000, varianten: 4, dagen_actief: 96, rang: 12, rang_delta: null };
+    const d = document.createElement('div');
+    d.innerHTML = crKaartHtml(zonderBereik, 0) + crKaartHtml(metBereik, 1);
+    const kaarten = d.querySelectorAll('.cr-cijfers');
+    return { zonder: kaarten[0].textContent, met: kaarten[1].textContent };
+  });
+  check('de positie staat er, met een hekje', /positie #3/.test(rang.zonder), true);
+  check('en hoeveel hij gestegen is', /\+33 gestegen/.test(rang.zonder), true);
+  check('geen leeg bereik als streepje', /bereik/.test(rang.zonder), false);
+  /* En waar bereik er wel is blijft dat leidend: de positie is de terugval,
+     geen extra kolom die er altijd bij komt. */
+  check('met bereik blijft het bereik staan', /412k bereik/.test(rang.met), true);
+  check('en dan geen positie', /positie/.test(rang.met), false);
+
   console.log('\n  een antwoord dat niet is wat je vroeg wordt gemeld');
   /* Dit gebeurde echt: de console was uitgerold en de worker niet. Die kende de
      bereik-parameter nog niet, negeerde hem zwijgend en stuurde de hele markt

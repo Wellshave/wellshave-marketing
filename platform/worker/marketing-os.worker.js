@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 22;
+const VERSIE = 23;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'Creative Research kijkt standaard naar de Brand Tracker in plaats van naar de hele markt: per gevolgd merk de topadvertenties, samen gerangschikt. Plus /onderzoek/merken. En de TrendTrack-aanroep klopt: POST /v1/ads/query met een JSON-body';
+const VERSIE_WAT = 'de merken worden een voor een bevraagd in plaats van allemaal tegelijk -- TrendTrack knijpt gelijktijdige aanroepen af en elf van de dertien merken vielen weg. Verder: de naam van de adverteerder wint van het domein in de tracker, en waar bereik ontbreekt wordt op de advertentiepositie gerangschikt in plaats van op een leeg veld';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1631,6 +1631,12 @@ function ttNaarAdvertentie(rij) {
        aangenomen CPM -- het is geen bedrag dat iemand betaald heeft. */
     uitgave_schatting: adGetal(ttEerste(r, ['metrics.estimatedSpend', 'estimatedSpend'])),
     groei_7d: adGetal(ttEerste(r, ['metrics.reachDelta7d', 'reachDelta7d'])),
+    /* De positie van de advertentie binnen de pagina van dat merk. Bij een
+       gevolgd merk is dit het enige prestatiesignaal dat TrendTrack geeft --
+       bereik en uitgave komen daar leeg terug. Lager is beter: rang 1 is de
+       advertentie waar dat merk het meest op inzet. */
+    rang: adGetal(ttEerste(r, ['rank.currentRank', 'currentRank'])),
+    rang_delta: adGetal(ttEerste(r, ['rank.rankDelta', 'rankDelta'])),
     land: ttEerste(r, ['audience.mainCountry', 'mainCountry', 'main_country', 'audience.targetedCountries.0']),
     taal: ttEerste(r, ['language', 'ad_language']),
     actief: ttEerste(r, ['status', 'isActive', 'active'])
@@ -1649,6 +1655,20 @@ function ttNaarAdvertentie(rij) {
  * De enige route die werkelijk op de gevolgde merken filtert loopt per merk.
  * ------------------------------------------------------------------------ */
 
+/* Een afknijper is geen fout maar een verzoek om te wachten. Eén keer wachten
+   en opnieuw proberen; blijft het misgaan, dan is het wel een fout en gaat hij
+   naar boven. Zonder dit valt een merk uit om een reden die vanzelf overgaat. */
+async function ttMetGeduld(env, pad, params) {
+  try {
+    return await ttHaal(env, pad, params);
+  } catch (e) {
+    const bericht = String((e && e.message) || e);
+    if (!/concurrent|rate limit|too many|429/i.test(bericht)) throw e;
+    await new Promise(function (r) { setTimeout(r, 900); });
+    return await ttHaal(env, pad, params);
+  }
+}
+
 async function ttMerken(env) {
   const d = await ttHaal(env, '/v1/brandtrackers');
   const rijen = d.data || d.items || d.results || [];
@@ -1665,8 +1685,23 @@ async function ttMerken(env) {
 }
 
 /* Welke sortering de top-ads-endpoint zelf kent. longestRunning zit er NIET
-   bij -- dat is precies het soort verschil dat je stil verkeerd invult. */
-const TT_MERK_SORTERING = { looptijd: 'reach', bereik: 'reach', groei: 'reachDelta7d' };
+   bij -- dat is precies het soort verschil dat je stil verkeerd invult.
+
+   En belangrijker: op deze route komen bereik, uitgave en varianten LEEG terug.
+   Dat is geen fout van ons; TrendTrack levert ze per gevolgd merk niet. Wat er
+   wel is, is de positie van de advertentie binnen de pagina van dat merk, en
+   hoeveel die positie verschoven is. Daarop sorteren is het enige eerlijke
+   alternatief -- op een leeg veld sorteren levert een willekeurige volgorde die
+   eruitziet als een ranglijst. */
+const TT_MERK_SORTERING = { looptijd: 'currentRank', bereik: 'currentRank', groei: 'rankDelta7d' };
+
+/* Waarop wij daarna rangschikken, en in welke richting. Rang is de enige waar
+   laag beter is. */
+const TT_MERK_SLEUTEL = {
+  looptijd: { veld: 'dagen_actief', hoog_is_beter: true },
+  bereik:   { veld: 'rang', hoog_is_beter: false },
+  groei:    { veld: 'rang_delta', hoog_is_beter: true }
+};
 
 async function ttToplijstMerken(env, o) {
   const alle = await ttMerken(env);
@@ -1682,18 +1717,30 @@ async function ttToplijstMerken(env, o) {
   const uit = [];
   const gelukt = [];
   const mislukt = [];
-  await Promise.all(gekozen.slice(0, 20).map(async function (m) {
+  /* Niet dertien tegelijk. TrendTrack weigert gelijktijdige aanroepen met "Too
+     many concurrent public API requests are already in flight" -- elf van de
+     dertien merken vielen daardoor weg, en het scherm liet twee concurrenten
+     zien alsof dat de hele Brand Tracker was. Een voor een is trager en het is
+     het enige wat werkt.
+
+     Twee tegelijk zou sneller zijn, maar de grens is niet gedocumenteerd en een
+     lijst die half aankomt is erger dan een lijst die tien seconden duurt. */
+  const lijst = gekozen.slice(0, 20);
+  for (let i = 0; i < lijst.length; i++) {
+    const m = lijst[i];
     try {
-      const d = await ttHaal(env, '/v1/brandtrackers/' + encodeURIComponent(m.id) + '/top-ads', {
+      const d = await ttMetGeduld(env, '/v1/brandtrackers/' + encodeURIComponent(m.id) + '/top-ads', {
         sortBy: sortBy, order: 'desc', limit: String(perMerk), status: 'active'
       });
       const rijen = d.data || d.items || d.results || [];
       rijen.forEach(function (r) {
         const ad = ttNaarAdvertentie(r);
-        /* De merknaam uit de Brand Tracker wint van wat er in de advertentie
-           staat: daar staat de naam van de Facebook-pagina, en die heet niet
-           altijd zoals het merk. */
-        ad.merk = m.naam || ad.merk;
+        /* De naam van de adverteerder wint van die van de Brand Tracker. Ik had
+           het andersom, en dat leverde "manscaped.com" op waar de advertentie
+           gewoon "MANSCAPED" zei: in de Brand Tracker staat vaak het domein als
+           naam, en een domein is geen merknaam. Staat er bij de advertentie
+           niets, dan is de tracker de terugval. */
+        ad.merk = ad.merk || m.naam;
         ad.merk_id = m.id;
         uit.push(ad);
       });
@@ -1704,7 +1751,7 @@ async function ttToplijstMerken(env, o) {
          dan hij hoort te zijn leest als "die concurrent doet niets". */
       mislukt.push((m.naam || m.id) + ': ' + String((e && e.message) || e).slice(0, 80));
     }
-  }));
+  }
   return { merken: alle, advertenties: uit, gebruikt: gelukt, mislukt: mislukt, per_merk: perMerk, sortBy: sortBy };
 }
 
@@ -1718,18 +1765,18 @@ async function ttToplijst(env, opties) {
      kiest hem bewust. */
   if (o.bereik !== 'markt') {
     const m = await ttToplijstMerken(env, o);
-    const sleutel = o.sorteer === 'bereik' ? 'bereik'
-      : (o.sorteer === 'groei' ? 'groei_7d' : 'dagen_actief');
+    const spec = TT_MERK_SLEUTEL[o.sorteer] || TT_MERK_SLEUTEL.looptijd;
+    const sleutel = spec.veld;
     const lijst = m.advertenties.slice();
     /* Rangschikken over alles wat we opgehaald hebben. Wat er niet gemeten is
        zakt naar onderen -- niet naar boven, want een onbekende waarde is geen
-       nul en zeker geen hoogste. */
+       nul en zeker geen hoogste, en bij rang zou nul juist de eerste plek zijn. */
     lijst.sort(function (a, b) {
       const x = a[sleutel], y = b[sleutel];
       if (x === null && y === null) return 0;
       if (x === null) return 1;
       if (y === null) return -1;
-      return y - x;
+      return spec.hoog_is_beter ? (y - x) : (x - y);
     });
     return {
       bereik: 'brandtracker',
@@ -1748,7 +1795,14 @@ async function ttToplijst(env, opties) {
          langst draaiende die zij ooit hadden". */
       hoe_gerangschikt: 'Per gevolgd merk zijn de ' + m.per_merk + ' best presterende advertenties opgehaald ' +
         '(' + m.gebruikt.length + ' van de ' + m.merken.length + ' merken), en die zijn hier samen gerangschikt. ' +
-        'Het is dus de beste van hun topadvertenties, niet van alles wat zij ooit draaiden.',
+        'Het is dus de beste van hun topadvertenties, niet van alles wat zij ooit draaiden.' +
+        (o.sorteer === 'bereik'
+          ? ' TrendTrack geeft per gevolgd merk geen bereikcijfers; er is daarom gerangschikt op de positie die de advertentie inneemt binnen de advertenties van dat merk.'
+          : ''),
+      /* Wat er op deze route domweg niet is. Kolommen met streepjes zonder
+         uitleg lezen als "niet gemeten bij deze advertentie" terwijl het
+         "bestaat niet op deze route" is -- twee heel verschillende dingen. */
+      geen_cijfers_voor: ['bereik', 'uitgave_schatting', 'varianten'],
       advertenties: lijst.slice(0, Math.max(1, Math.min(Number(o.limiet) || 10, 50)))
     };
   }
