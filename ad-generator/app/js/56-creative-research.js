@@ -656,9 +656,16 @@ function crPatroonHtml(p) {
     if (w) h += '<dt>' + crEsc(v.label) + '</dt><dd>' + crEsc(w) + '</dd>';
   });
   h += '</dl>';
-  h += '<button type="button" class="cr-knop groot" data-action="cr-wizard">Maak hier onze versie van</button>';
-  h += '<p class="cr-uitleg">Dit vult de statics-wizard met de hoek, het mechanisme en het publiek. ' +
-    'Het beeld, de copy en de claim van dit merk gaan niet mee — die zijn van hen.</p>';
+  /* De knop zegt WAT er gemaakt wordt. "Maak hier onze versie van" liet in het
+     midden of dat een static of een video werd, en stuurde altijd naar de
+     statics-wizard -- ook bij een advertentie van zevenentwintig seconden. */
+  var video = crIsVideo(_cr.open);
+  h += '<button type="button" class="cr-knop groot" data-action="cr-wizard">' +
+    (video ? 'Maak hier ons script van' : 'Maak hier onze static van') + '</button>';
+  h += '<p class="cr-uitleg">Dit vult ' +
+    (video ? 'de Scriptwriter met de hoek, het mechanisme, het publiek en de vorm — jij kiest het product'
+           : 'de statics-wizard met de hoek, het mechanisme, het publiek, de bewijsvorm en het formaat') +
+    '. Het beeld, de copy en de claim van dit merk gaan niet mee — die zijn van hen.</p>';
   return h;
 }
 
@@ -744,6 +751,132 @@ async function crLeesPatroon() {
   crRender();
 }
 
+/* ── Van een patroon naar ons eigen werk ───────────────────────────────── */
+
+/* Een video wordt geen static. Dat lijkt vanzelfsprekend en het ging toch mis:
+   de knop stuurde alles naar de statics-wizard, ook een advertentie van
+   zevenentwintig seconden met een voice-over. Dan bouw je een bewegend concept
+   na als één stilstaand beeld, en het enige wat overblijft is de eerste frame.
+
+   Bewegend beeld gaat naar de Scriptwriter, stilstaand beeld naar de
+   statics-wizard. Het patroon is hetzelfde; het ambacht niet. */
+function crIsVideo(ad) {
+  return !!(ad && (ad.video || /video/i.test(String(ad.soort || ''))));
+}
+
+/* Van het formaat dat Rory leest naar een formaat dat wij kennen. Volgorde is
+   betekenis: 'advertorial' staat voor 'artikel', want een advertorial IS een
+   artikel en de omgekeerde volgorde zou hem als nieuwsbericht wegzetten.
+
+   Herkent hij niets, dan blijft het veld leeg -- en leeg betekent hier "kies
+   zelf" of "laat Theriot kiezen". Een gok invullen is erger dan niets
+   invullen: een ingevuld veld leest als een besluit. */
+var CR_FORMAAT_STATIC = [
+  { woorden: ['advertorial'], id: 'news-headline-advertorial' },
+  { woorden: ['nieuwsartikel', 'nieuwsbericht', 'artikel', 'news'], id: 'news-headline-advertorial' },
+  { woorden: ['voor-na', 'voor/na', 'before'], id: 'before-after' },
+  { woorden: ['vergelijking', 'comparison', 'us vs'], id: 'us-vs-them-tabel' },
+  { woorden: ['meme'], id: 'meme-format' },
+  { woorden: ['screenshot'], id: 'review-screenshot' },
+  { woorden: ['getuige', 'testimonial', 'review'], id: 'testimonial-pull-quote' },
+  { woorden: ['demonstratie', 'demo', 'hoe het werkt'], id: 'how-it-works' },
+  { woorden: ['productfoto', 'packshot', 'product'], id: 'product-hero' }
+];
+
+var CR_FORMAAT_SCRIPT = [
+  { woorden: ['advertorial'], id: 'Native Article / Advertorial' },
+  { woorden: ['nieuwsartikel', 'nieuwsbericht', 'artikel', 'news'], id: 'Native Article / Advertorial' },
+  { woorden: ['voor-na', 'voor/na', 'before'], id: 'Before & After / Transformation' },
+  { woorden: ['vergelijking', 'comparison', 'split'], id: 'Split Screen Comparison' },
+  { woorden: ['founder', 'oprichter'], id: 'Founder Story / Origin Video' },
+  { woorden: ['getuige', 'testimonial', 'talking head', 'review'], id: 'UGC Talking Head Testimonial' },
+  { woorden: ['demonstratie', 'demo', 'how-to', 'hoe het werkt'], id: 'UGC Demo / How-To' },
+  { woorden: ['verhaal', 'story', 'dag uit'], id: 'UGC Story Time / Day in the Life' }
+];
+
+function crFormaatNaar(tabel, formaat) {
+  if (!formaat) return '';
+  var t = String(formaat).toLowerCase();
+  for (var i = 0; i < tabel.length; i++) {
+    for (var j = 0; j < tabel[i].woorden.length; j++) {
+      if (t.indexOf(tabel[i].woorden[j]) !== -1) return tabel[i].id;
+    }
+  }
+  return '';
+}
+
+/* Sophistication komt als 's4' binnen en de Scriptwriter wil '4'. Een stille
+   mismatch levert daar een leeg veld op -- en dan valt hij terug op stadium 3
+   terwijl de markt op 4 zit, wat precies het verschil is tussen een claim die
+   nog gelooft wordt en een die dat niet meer wordt. */
+function crSophNummer(s) {
+  var m = String(s || '').match(/([1-5])/);
+  return m ? m[1] : '';
+}
+
+/* Een veld alleen zetten als de keuzelijst die waarde werkelijk kent. Zet je
+   een select op iets wat er niet in staat, dan springt hij terug naar de
+   eerste optie -- en dan staat er een waarde die niemand gekozen heeft. */
+function crZetVeld(id, waarde) {
+  var el = document.getElementById(id);
+  if (!el || !waarde) return false;
+  if (el.tagName === 'SELECT') {
+    var kan = [].slice.call(el.options).some(function (o) { return o.value === String(waarde); });
+    if (!kan) return false;
+  }
+  el.value = String(waarde);
+  if (typeof el.dispatchEvent === 'function') el.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}
+
+/* De brief die meegaat. Het patroon gaat mee, het werk van de ander niet:
+   geen beeld, geen copy, geen claim. Dat staat er ook in, want deze tekst gaat
+   rechtstreeks een model in en dat leest alles wat er staat als opdracht. */
+function crBrief(ad, p, soort) {
+  var r = [];
+  r.push('Nagebouwd patroon uit Creative Research' + (ad.merk ? ' (gezien bij ' + ad.merk + ')' : '') + '.');
+  if (ad.dagen_actief) r.push('Die advertentie draait daar al ' + ad.dagen_actief + ' dagen.');
+  if (p.hoek) r.push('Hoek: ' + p.hoek);
+  if (p.mechanisme) r.push('Mechanisme: ' + p.mechanisme);
+  if (p.publiek) r.push('Voor wie: ' + p.publiek);
+  if (p.bewijs && p.bewijs !== 'geen') r.push('Bewijsvorm: ' + p.bewijs);
+  if (p.waarom) r.push('Waarom dit daar werkt: ' + p.waarom);
+  r.push('Wij maken hier onze eigen ' + (soort === 'script' ? 'video' : 'static') +
+    ' van, voor ons eigen product. Neem het patroon over, niet de uitvoering: ' +
+    'het beeld, de copy en de claims van dat merk gaan niet mee.');
+  return r.join('\n');
+}
+
+/* Alles wat we uit het onderzoek weten, klaargezet voordat het scherm opengaat.
+   Wat we NIET weten is welk van onze producten dit wordt -- dat is een besluit
+   en geen aflezing, dus dat blijft de ene open keuze. */
+function crNaarScriptwriter() {
+  var ad = _cr.open, p = _cr.patroon;
+  if (!ad || !p || p.fout) return;
+  if (typeof switchMainTab !== 'function' || !document.getElementById('sw-direction')) {
+    if (typeof toast === 'function') toast('De Scriptwriter is hier niet beschikbaar', true);
+    return;
+  }
+  switchMainTab('scriptwriter');
+  if (typeof setSwMode === 'function') setSwMode('new');
+
+  var gezet = [];
+  if (crZetVeld('sw-awareness', p.awareness)) gezet.push('awareness');
+  if (crZetVeld('sw-sophistication', crSophNummer(p.sophistication))) gezet.push('sophistication');
+  if (crZetVeld('sw-format', crFormaatNaar(CR_FORMAAT_SCRIPT, p.formaat))) gezet.push('format');
+
+  /* Een richting die er al staat is werk van iemand anders. Die overschrijven
+     we niet -- dan verdwijnt een brief waar iemand tien minuten aan zat. */
+  var dir = document.getElementById('sw-direction');
+  if (dir && !dir.value.trim()) { dir.value = crBrief(ad, p, 'script'); gezet.push('richting'); }
+
+  _cr.overgenomen = { naar: 'scriptwriter', velden: gezet, merk: ad.merk || null };
+  if (typeof toast === 'function') {
+    toast('Patroon overgenomen in de Scriptwriter. Kies je product, de rest staat klaar. ' +
+      'Het beeld en de copy van ' + (ad.merk || 'dat merk') + ' zijn niet meegekomen.');
+  }
+}
+
 /* ── Naar de wizard ────────────────────────────────────────────────────── */
 
 /* Wat er meegaat is het patroon. Wat er niet meegaat is het werk van de ander:
@@ -772,9 +905,39 @@ function crNaarWizard() {
   ['awareness', 'sophistication'].forEach(function (v) {
     if (d.audience[v]) wizState.source['audience.' + v] = 'onderzoek';
   });
+  /* Het formaat ook. Dit was de grootste lege stap: je kwam de wizard binnen
+     met een gelezen patroon en moest het formaat alsnog zelf kiezen, terwijl
+     Rory net had opgeschreven welke vorm het daar had. */
+  var fid = crFormaatNaar(CR_FORMAAT_STATIC, p.formaat);
+  if (fid && typeof AD_FORMATS !== 'undefined' &&
+      AD_FORMATS.some(function (f) { return f.id === fid; })) {
+    d.format.formatId = fid;
+    wizState.source['format.formatId'] = 'onderzoek';
+  }
+
+  /* En de brief, in het richtingsveld van de copy-stap. Die staat er anders
+     leeg terwijl alles wat erin hoort net gelezen is. Wat er al stond blijft
+     staan: dat is werk van iemand. */
+  if (!d.copy.direction) {
+    d.copy.direction = crBrief(ad, p, 'static');
+    wizState.source['copy.direction'] = 'onderzoek';
+  }
+
+  /* Eén product? Dan is er niets te kiezen en is die stap geen stap. Zijn het
+     er meer, dan blijft het een besluit -- welk van ONZE producten dit wordt
+     staat niet in de advertentie van een ander. */
+  if (!d.product.productId && typeof state !== 'undefined' &&
+      Array.isArray(state.products) && state.products.length === 1) {
+    d.product.productId = state.products[0].id;
+  }
+
   wizState.onderzoekBron = {
     merk: ad.merk || null, dagen_actief: ad.dagen_actief || null,
-    formaat: p.formaat || null, waarom: p.waarom || null
+    formaat: p.formaat || null, waarom: p.waarom || null,
+    /* Voor wie het daar was. Er is geen vrij tekstveld voor het publiek in de
+       wizard -- audience.market gaat over wáár de campagne draait, niet over
+       wie -- dus zou dit verdwijnen als het hier niet stond. */
+    publiek: p.publiek || null
   };
   if (typeof wizSave === 'function') wizSave();
   if (typeof switchMainTab === 'function') switchMainTab('generator');
@@ -817,7 +980,10 @@ function crKlik(e) {
     crOpenAd(_cr.lijst[Number(knop.getAttribute('data-i'))]);
   } else if (act === 'cr-sluit') { crSluitAd(false); }
   else if (act === 'cr-lees') { crLeesPatroon(); }
-  else if (act === 'cr-wizard') { crNaarWizard(); }
+  else if (act === 'cr-wizard') {
+    /* Bewegend beeld wordt een script, stilstaand beeld een static. */
+    if (crIsVideo(_cr.open)) crNaarScriptwriter(); else crNaarWizard();
+  }
 }
 
 function renderCreativeResearch() {
@@ -834,6 +1000,10 @@ window.crRender = crRender; window.crHaalLijst = crHaalLijst;
 window.crHaalMerken = crHaalMerken; window.crOpenAd = crOpenAd; window.crSluitAd = crSluitAd;
 window.CR_BEREIKEN = CR_BEREIKEN;
 window.crNaarWizard = crNaarWizard; window.crLeesPatroon = crLeesPatroon;
+window.crNaarScriptwriter = crNaarScriptwriter; window.crIsVideo = crIsVideo;
+window.crFormaatNaar = crFormaatNaar; window.crSophNummer = crSophNummer;
+window.crZetVeld = crZetVeld; window.crBrief = crBrief;
+window.CR_FORMAAT_STATIC = CR_FORMAAT_STATIC; window.CR_FORMAAT_SCRIPT = CR_FORMAAT_SCRIPT;
 window.crPatroonPrompt = crPatroonPrompt; window.crPatroonHtml = crPatroonHtml;
 window.crKaartHtml = crKaartHtml; window.crLijstHtml = crLijstHtml;
 window.crFilterHtml = crFilterHtml; window.crDetailHtml = crDetailHtml;

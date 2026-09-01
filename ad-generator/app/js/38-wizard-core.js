@@ -160,7 +160,11 @@ var wizState = {
      ziet de volgende hertekening dat als "nog niet gekeken". */
   advised: {},
   /* Stappen waar de gebruiker het formulier heeft opengeklapt. */
-  unfolded: {}
+  unfolded: {},
+  /* Waar dit werk vandaan komt als het is afgekeken bij een concurrent:
+     welk merk, hoe lang die advertentie daar draait, welke vorm hij had en
+     voor wie hij daar was. Null zolang je vanaf nul werkt. */
+  onderzoekBron: null
 };
 
 var WIZ_STORE_KEY = 'wizard_static_v1';
@@ -169,6 +173,9 @@ function wizSave() {
   try {
     localStorage.setItem(STORAGE_PREFIX + WIZ_STORE_KEY, JSON.stringify({
       current: wizState.current, data: wizState.data, source: wizState.source,
+      /* Waar dit vandaan kwam hoort een verversing te overleven: anders is het
+         patroon na één F5 spoorloos terwijl de velden er nog staan. */
+      onderzoekBron: wizState.onderzoekBron || null,
       done: wizState.done, stale: wizState.stale, advice: wizState.advice,
       chat: wizState.chat, asked: wizState.asked,
       advised: wizState.advised, unfolded: wizState.unfolded,
@@ -197,6 +204,7 @@ function wizLoad() {
     wizState.data = blank;
     wizState.current = saved.current || 'product';
     wizState.source = saved.source || {};
+    wizState.onderzoekBron = saved.onderzoekBron || null;
     wizState.done = saved.done || {};
     wizState.stale = saved.stale || {};
     wizState.advice = saved.advice || {};
@@ -456,6 +464,9 @@ function wizReset(stil) {
   wizState.source = {}; wizState.done = {}; wizState.stale = {};
   wizState.advice = {}; wizState.chat = {}; wizState.asked = {};
   wizState.advised = {}; wizState.unfolded = {};
+  /* Ook de herkomst. Blijft die staan, dan zegt de regel bovenin dat er iets
+     is overgenomen terwijl elk veld dat het betrof net leeggemaakt is. */
+  wizState.onderzoekBron = null;
   wizState.current = 'product';
   wizSave();
   if (wizState.open) wizRender();
@@ -522,6 +533,49 @@ window.addEventListener('resize', function () { wizPasProgressAan(); });
  * het laat alleen zien dat hij nadenkt. */
 function wizRoryBezig() {
   return !!(wizState.roryBezig || wizState.busy);
+}
+
+/* Wat er uit Creative Research is meegekomen, boven de stappen. Zonder deze
+   regel kom je de wizard binnen op stap 1 met een leeg productveld en is er
+   niets te zien van het patroon dat je net hebt laten lezen -- terwijl de
+   audience-, strategie- en formaatstap wel degelijk ingevuld zijn. Dan lijkt
+   het alsof er niets is overgenomen, en begin je opnieuw.
+
+   Het staat er ook omdat het een derde soort herkomst is: niet jouw keuze en
+   niet Rory's advies, maar afgekeken bij een ander. Dat hoort zichtbaar te
+   zijn zolang het meegaat. */
+function wizRenderOnderzoek() {
+  var el = document.getElementById('wiz-onderzoek');
+  if (!el) return;
+  var b = wizState.onderzoekBron;
+  if (!b) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  var uit = Object.keys(wizState.source).filter(function (k) {
+    return wizState.source[k] === 'onderzoek';
+  }).length;
+  var h = '<div class="wiz-onderzoek-kop">Overgenomen uit Creative Research' +
+    (b.merk ? ' — gezien bij ' + wizEsc(b.merk) : '') +
+    (b.dagen_actief ? ', draait daar al ' + wizEsc(b.dagen_actief) + ' dagen' : '') + '</div>';
+  var regels = [];
+  if (uit) regels.push(uit + ' ' + (uit === 1 ? 'veld staat' : 'velden staan') + ' al ingevuld');
+  if (b.publiek) regels.push('Voor wie het daar was: ' + b.publiek);
+  if (b.formaat) regels.push('Vorm daar: ' + b.formaat);
+  /* Wat er NIET meekwam hoort in dezelfde regel te staan als wat er wel
+     meekwam. Anders leest "overgenomen" als "alles is geregeld". */
+  regels.push('Het beeld, de copy en de claims van dat merk zijn niet meegekomen. ' +
+    'Welk van onze producten dit wordt, kies je zelf.');
+  h += '<div class="wiz-onderzoek-tekst">' + regels.map(wizEsc).join(' · ') + '</div>';
+  h += '<button type="button" class="wiz-onderzoek-weg" onclick="wizOnderzoekWeg()" ' +
+    'title="deze regel weghalen">×</button>';
+  el.innerHTML = h;
+  el.style.display = 'block';
+}
+
+/* Weghalen haalt de regel weg, niet de ingevulde velden: die zijn een besluit
+   geworden zodra je ermee doorwerkt. */
+function wizOnderzoekWeg() {
+  wizState.onderzoekBron = null;
+  wizSave();
+  wizRenderOnderzoek();
 }
 
 function wizRenderRoryBalk() {
@@ -646,6 +700,7 @@ function wizRender() {
         : '');
   }
   wizRenderRoryBalk();
+  wizRenderOnderzoek();
 
   var body = document.getElementById('wiz-body');
   if (body) {
@@ -783,6 +838,7 @@ function wizMount() {
     '    </div>' +
     '    <div class="wiz-progress" id="wiz-progress"></div>' +
     '  </div>' +
+    '  <div class="wiz-onderzoek" id="wiz-onderzoek"></div>' +
     '  <div class="wiz-rorybalk" id="wiz-rorybalk"></div>' +
     '  <div class="wiz-head" id="wiz-head"></div>' +
     '  <div class="wiz-body" id="wiz-body"></div>' +
@@ -872,6 +928,7 @@ window.wizRender = wizRender; window.wizSet = wizSet; window.wizState = wizState
 window.wizStepComplete = wizStepComplete; window.wizCanEnter = wizCanEnter;
 window.wizDependentsOf = wizDependentsOf; window.wizSourceOf = wizSourceOf;
 window.wizEsc = wizEsc; window.WIZ_STEPS = WIZ_STEPS; window.wizSave = wizSave;
+window.wizRenderOnderzoek = wizRenderOnderzoek; window.wizOnderzoekWeg = wizOnderzoekWeg;
 window.wizFirstIncomplete = wizFirstIncomplete; window.wizHasContent = wizHasContent;
 window.wizMissingMessage = wizMissingMessage; window.toggleClassicForm = toggleClassicForm;
 window.wizBlokkerendeStap = wizBlokkerendeStap; window.WIZ_ONDERWERP = WIZ_ONDERWERP;

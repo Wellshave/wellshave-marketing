@@ -312,11 +312,161 @@ function ONDERSCHEP() {
   check('een leeg mechanisme krijgt geen regel', lekker.mechanisme, false);
   check('en een lege awareness ook niet', lekker.awareness, false);
 
+  console.log('\n  een video wordt geen static');
+  /* Dit ging stil mis en het kostte een generatie: de knop stuurde alles naar
+     de statics-wizard, ook een advertentie van zevenentwintig seconden met een
+     voice-over. Dan bouw je een bewegend concept na als één stilstaand beeld
+     en houd je de eerste frame over. */
+  const soort = await page.evaluate(() => ({
+    /* Zonder soort, want die komt niet altijd mee. Het bestand alleen is al
+       genoeg bewijs dat het bewegend beeld is. */
+    video: crIsVideo({ video: 'https://x.fbcdn.net/film.mp4', soort: null }),
+    metSoort: crIsVideo({ video: null, soort: 'video' }),
+    still: crIsVideo({ video: null, soort: 'image' }),
+    leeg: crIsVideo(null)
+  }));
+  check('een bestand maakt het een video', soort.video, true);
+  check('en het soort ook', soort.metSoort, true);
+  check('een still is geen video', soort.still, false);
+  check('en niets is ook geen video', soort.leeg, false);
+
+  const knoppen = await page.evaluate(() => {
+    const uit = {};
+    _cr.patroon = window.__claude;
+    _cr.open = window.__antwoord.advertenties[0];
+    crRender();
+    uit.static = document.getElementById('cr-inhoud').textContent;
+    _cr.open = window.__antwoord.advertenties[2];
+    crRender();
+    uit.video = document.getElementById('cr-inhoud').textContent;
+    return uit;
+  });
+  check('bij een still heet de knop static', /Maak hier onze static van/.test(knoppen.static), true);
+  check('en bij een video script', /Maak hier ons script van/.test(knoppen.video), true);
+  check('de uitleg noemt de Scriptwriter', /Scriptwriter/.test(knoppen.video), true);
+  check('en bij een still de statics-wizard', /statics-wizard/.test(knoppen.static), true);
+
+  console.log('\n  het formaat wordt vertaald, of het blijft leeg');
+  /* Een gok invullen is erger dan niets invullen: een ingevuld veld leest als
+     een besluit. En de volgorde is betekenis -- een advertorial IS een artikel,
+     dus die moet eerst gevonden worden. */
+  const formaten = await page.evaluate(() => ({
+    advertorial: crFormaatNaar(window.CR_FORMAAT_STATIC, 'advertorial in nieuwsstijl'),
+    nieuws: crFormaatNaar(window.CR_FORMAAT_STATIC, 'nieuwsartikel'),
+    demo: crFormaatNaar(window.CR_FORMAAT_SCRIPT, 'demonstratie'),
+    founder: crFormaatNaar(window.CR_FORMAAT_SCRIPT, 'Founder Story'),
+    onbekend: crFormaatNaar(window.CR_FORMAAT_STATIC, 'iets wat wij niet kennen'),
+    leeg: crFormaatNaar(window.CR_FORMAAT_STATIC, '')
+  }));
+  check('advertorial vindt het advertorialformaat', formaten.advertorial, 'news-headline-advertorial');
+  check('nieuwsartikel ook', formaten.nieuws, 'news-headline-advertorial');
+  check('demonstratie wordt een demo-script', formaten.demo, 'UGC Demo / How-To');
+  check('een founder story ook', formaten.founder, 'Founder Story / Origin Video');
+  check('wat we niet kennen blijft leeg', formaten.onbekend, '');
+  check('en leeg blijft leeg', formaten.leeg, '');
+  /* En waar twee woorden allebei passen wint de meest specifieke. Een
+     "productdemonstratie" is een demonstratie, geen productfoto -- wie de
+     volgorde omgooit maakt er stil een packshot van. */
+  const volgorde = await page.evaluate(() => ({
+    demoVoorProduct: crFormaatNaar(window.CR_FORMAAT_STATIC, 'productdemonstratie'),
+    founderVoorGetuige: crFormaatNaar(window.CR_FORMAAT_SCRIPT, 'founder testimonial')
+  }));
+  check('een productdemonstratie is een demonstratie', volgorde.demoVoorProduct, 'how-it-works');
+  check('en een founder-testimonial is een founder story',
+    volgorde.founderVoorGetuige, 'Founder Story / Origin Video');
+
+  const soph = await page.evaluate(() => [crSophNummer('s4'), crSophNummer('4'), crSophNummer(''),
+    crSophNummer('onbekend'), crSophNummer('s7'), crSophNummer('stadium 12')]);
+  check('s4 wordt 4, en onbekend blijft leeg', soph.slice(0, 4), ['4', '4', '', '']);
+  /* Buiten de schaal is geen stadium. Een 7 of een 12 doorgeven levert een
+     keuzelijst op die terugspringt naar de eerste optie -- en dan staat er
+     stadium 1 waar niemand iets gekozen heeft. */
+  check('en buiten de schaal blijft leeg', soph.slice(4), ['', '1']);
+
+  console.log('\n  een keuzelijst krijgt nooit een waarde die hij niet kent');
+  /* Zet je een select op iets wat er niet in staat, dan springt hij terug naar
+     de eerste optie -- en dan staat er een waarde die niemand gekozen heeft. */
+  const zetten = await page.evaluate(() => {
+    const sel = document.createElement('select');
+    sel.id = 'test-select';
+    sel.innerHTML = '<option value="a">A</option><option value="b">B</option>';
+    document.body.appendChild(sel);
+    const kan = crZetVeld('test-select', 'b');
+    const waarde1 = sel.value;
+    const nietKan = crZetVeld('test-select', 'zzz');
+    const waarde2 = sel.value;
+    sel.remove();
+    return { kan: kan, waarde1: waarde1, nietKan: nietKan, waarde2: waarde2 };
+  });
+  check('een bekende waarde wordt gezet', [zetten.kan, zetten.waarde1], [true, 'b']);
+  check('een onbekende niet, en de oude blijft staan', [zetten.nietKan, zetten.waarde2], [false, 'b']);
+
+  console.log('\n  de video gaat naar de Scriptwriter, voorgevuld');
+  const script = await page.evaluate(() => {
+    _cr.open = window.__antwoord.advertenties[2];
+    _cr.patroon = window.__claude;
+    /* De richting leeg zetten: wat er al staat is werk van iemand en hoort te
+       blijven staan -- dat controleren we hierna. */
+    const dir = document.getElementById('sw-direction');
+    if (dir) dir.value = '';
+    crNaarScriptwriter();
+    return {
+      tab: (document.getElementById('main-tab-scriptwriter') || {}).style
+        ? document.getElementById('main-tab-scriptwriter').style.display : null,
+      awareness: (document.getElementById('sw-awareness') || {}).value,
+      soph: (document.getElementById('sw-sophistication') || {}).value,
+      richting: (document.getElementById('sw-direction') || {}).value,
+      velden: (_cr.overgenomen || {}).velden || []
+    };
+  });
+  check('de Scriptwriter staat open', script.tab, 'block');
+  check('awareness is overgenomen', script.awareness, 'problem');
+  check('sophistication ook, als nummer', script.soph, '4');
+  check('de hoek staat in de richting', /De oprichter rekent het voor/.test(script.richting), true);
+  check('het mechanisme ook', /Direct van fabriek naar deur/.test(script.richting), true);
+  check('en het publiek', /Mannen die te veel betalen/.test(script.richting), true);
+  /* En wat er NIET in mag: de copy en het beeld van de ander. */
+  check('geen copy van de ander in de brief', /Kijk wat er gebeurt/.test(script.richting), false);
+  check('geen beeldadres in de brief', /fbcdn/.test(script.richting), false);
+  check('de brief zegt dat het patroon meegaat en de uitvoering niet',
+    /niet de uitvoering/.test(script.richting), true);
+
+  /* En de knop zelf, niet alleen de functie erachter. Dit is de fout die het
+     midden hield: de knop heette goed en stuurde alles naar de statics-wizard. */
+  const viaKnop = await page.evaluate(() => {
+    switchMainTab('research');
+    _cr.open = window.__antwoord.advertenties[2];
+    _cr.patroon = window.__claude;
+    wizReset(true);
+    crRender();
+    document.querySelector('[data-action="cr-wizard"]').click();
+    return {
+      scriptwriter: (document.getElementById('main-tab-scriptwriter') || {}).style.display,
+      generator: (document.getElementById('main-tab-generator') || {}).style.display,
+      /* En de statics-wizard is niet gevuld: die had hier niets te doen. */
+      wizardLeeg: !wizState.data.strategy.marketingAngle
+    };
+  });
+  check('de knop opent de Scriptwriter', viaKnop.scriptwriter, 'block');
+  check('en niet de generator', viaKnop.generator, 'none');
+  check('de statics-wizard is niet aangeraakt', viaKnop.wizardLeeg, true);
+
+  const nietOverschrijven = await page.evaluate(() => {
+    const dir = document.getElementById('sw-direction');
+    dir.value = 'Hier zat iemand tien minuten aan';
+    crNaarScriptwriter();
+    return dir.value;
+  });
+  check('een richting die er al staat blijft staan', nietOverschrijven, 'Hier zat iemand tien minuten aan');
+
   console.log('\n  naar de wizard gaat het patroon, niet het werk van de ander');
   /* De duurste fout van de vier. Het patroon overnemen is de bedoeling; de
      copy, het beeld en de claim van een ander merk overnemen is het niet --
      die werken niet voor ons en ze zijn niet van ons. */
   const over = await page.evaluate(() => {
+    /* Terug naar de stilstaande advertentie: de controle hiervoor stond op de
+       video, en die gaat naar de Scriptwriter. */
+    _cr.open = window.__antwoord.advertenties[0];
     crNaarWizard();
     const d = wizState.data;
     return {
@@ -345,6 +495,95 @@ function ONDERSCHEP() {
      een advies van Rory. Dat hoort zichtbaar te zijn. */
   check('de herkomst staat op onderzoek', over.herkomst, 'onderzoek');
   check('met het merk waar het vandaan komt', over.bron.merk, 'Concurrent BV');
+
+  console.log('\n  de statics-wizard staat niet leeg als je binnenkomt');
+  /* De klacht was concreet: je komt binnen op stap 1, het productveld is leeg
+     en er is verder niets ingevuld -- terwijl er net een patroon gelezen is.
+     Wat we weten hoort te staan; wat we niet weten (welk van ONZE producten
+     dit wordt) blijft een besluit. */
+  const gevuld = await page.evaluate(() => {
+    wizReset(true);
+    _cr.open = window.__antwoord.advertenties[0];
+    _cr.patroon = Object.assign({}, window.__claude, { formaat: 'nieuwsartikel' });
+    crNaarWizard();
+    const d = wizState.data;
+    return {
+      formaat: d.format.formatId,
+      formaatHerkomst: wizState.source['format.formatId'],
+      richting: d.copy.direction,
+      richtingHerkomst: wizState.source['copy.direction'],
+      product: d.product.productId,
+      publiek: (wizState.onderzoekBron || {}).publiek
+    };
+  });
+  check('het formaat is vertaald en ingevuld', gevuld.formaat, 'news-headline-advertorial');
+  check('met de herkomst erbij', gevuld.formaatHerkomst, 'onderzoek');
+  check('de brief staat in het richtingsveld', /De oprichter rekent het voor/.test(gevuld.richting), true);
+  check('ook met herkomst', gevuld.richtingHerkomst, 'onderzoek');
+  check('het publiek is bewaard', /Mannen die te veel betalen/.test(gevuld.publiek || ''), true);
+  /* Welk product dit wordt staat niet in de advertentie van een ander. Dat
+     invullen zou een besluit verzinnen. */
+  check('en het product blijft een keuze', gevuld.product, '');
+
+  /* En ook hier: een richting die er al staat is werk van iemand. */
+  const staatAl = await page.evaluate(() => {
+    wizReset(true);
+    wizState.data.copy.direction = 'Dit had iemand al bedacht';
+    crNaarWizard();
+    return { richting: wizState.data.copy.direction,
+             herkomst: wizState.source['copy.direction'] };
+  });
+  check('een bestaande richting blijft staan', staatAl.richting, 'Dit had iemand al bedacht');
+  check('en krijgt geen herkomststempel die niet klopt', staatAl.herkomst, undefined);
+
+  const eenProduct = await page.evaluate(() => {
+    wizReset(true);
+    const bewaard = state.products;
+    state.products = [{ id: 'p-enig', name: 'Het enige product' }];
+    crNaarWizard();
+    const een = wizState.data.product.productId;
+    wizReset(true);
+    state.products = [{ id: 'p1', name: 'Een' }, { id: 'p2', name: 'Twee' }];
+    crNaarWizard();
+    const twee = wizState.data.product.productId;
+    state.products = bewaard;
+    return { een: een, twee: twee };
+  });
+  check('is er maar één product, dan is er niets te kiezen', eenProduct.een, 'p-enig');
+  check('zijn het er meer, dan kies je zelf', eenProduct.twee, '');
+
+  console.log('\n  en de wizard zegt waar het vandaan komt');
+  const regel = await page.evaluate(() => {
+    wizReset(true);
+    _cr.patroon = Object.assign({}, window.__claude, { formaat: 'nieuwsartikel' });
+    crNaarWizard();
+    wizRenderOnderzoek();
+    const el = document.getElementById('wiz-onderzoek');
+    const tekst = el ? el.textContent : '';
+    const zichtbaar = el ? el.style.display : null;
+    /* En weg is weg -- maar de ingevulde velden blijven, want daar werk je
+       inmiddels mee. */
+    wizOnderzoekWeg();
+    return { tekst: tekst, zichtbaar: zichtbaar,
+             naWeg: (document.getElementById('wiz-onderzoek') || {}).style.display,
+             veldenNaWeg: wizState.data.format.formatId };
+  });
+  check('de regel staat in beeld', regel.zichtbaar, 'block');
+  check('met het merk erbij', /Concurrent BV/.test(regel.tekst), true);
+  check('en hoeveel velden er al staan', /velden staan al ingevuld/.test(regel.tekst), true);
+  check('het zegt ook wat er NIET meekwam', /niet meegekomen/.test(regel.tekst), true);
+  check('en dat het product jouw keuze blijft', /kies je zelf/.test(regel.tekst), true);
+  check('weghalen haalt de regel weg', regel.naWeg, 'none');
+  check('maar niet de ingevulde velden', regel.veldenNaWeg, 'news-headline-advertorial');
+
+  const zonderOnderzoek = await page.evaluate(() => {
+    wizReset(true);
+    wizRenderOnderzoek();
+    const el = document.getElementById('wiz-onderzoek');
+    return { zichtbaar: el ? el.style.display : null, tekst: el ? el.textContent : 'x' };
+  });
+  check('vanaf nul staat er geen regel', zonderOnderzoek.zichtbaar, 'none');
+  check('en hij is ook echt leeg', zonderOnderzoek.tekst, '');
 
   console.log('\n  het beeld gaat via de worker, met het token');
   const beeld = await page.evaluate(() => {
