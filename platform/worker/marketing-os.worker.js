@@ -58,7 +58,7 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 24;
+const VERSIE = 25;
 const VERSIE_DATUM = '2026-09-01';
 const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
 
@@ -1601,43 +1601,136 @@ function ttEerste(obj, paden) {
 
    De oudere, platte namen staan er nog achter: ze kosten niets en een dienst
    die zijn vorm wijzigt is geen theoretisch geval. */
+/* De vorm van het antwoord is niet overal dezelfde. Op de gewone zoekopdracht
+   zit alles genest onder media, content en metrics; op de route van een
+   gevolgd merk zag ik dezelfde velden op een andere plek terug. Ik heb daar
+   een ronde lang naar geraden, en raden kost een ronde per poging.
+
+   Dit zoekt op NAAM in plaats van op plek: breedte eerst, zodat een veld dat
+   ondiep staat wint van eentje diep in een bijlage. De naam wordt eerst
+   gelijkgetrokken (kleine letters, geen streepjes), zodat `days_running`,
+   `daysRunning` en `DaysRunning` hetzelfde zijn -- maar `reachDelta7d` is
+   daarmee nog steeds niet `reach`, en dat is precies de bedoeling: een
+   groeicijfer dat als bereik binnenkomt is erger dan een leeg veld.
+
+   Het loopt niet oneindig door: zes lagen diep en vierhonderd knopen. Een
+   antwoord dat daar niet in past is geen antwoord dat wij aankunnen. */
+function ttNormNaam(naam) {
+  return String(naam).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function ttDiepVeld(wortel, namen, keur) {
+  const wil = namen.map(ttNormNaam);
+  const rij = [{ w: wortel, d: 0 }];
+  let gezien = 0;
+  while (rij.length) {
+    const knoop = rij.shift();
+    if (!knoop.w || typeof knoop.w !== 'object') continue;
+    if (knoop.d > 6 || ++gezien > 400) continue;
+    for (const sleutel of Object.keys(knoop.w)) {
+      const w = knoop.w[sleutel];
+      if (w === undefined || w === null || w === '') continue;
+      if (typeof w === 'object') { rij.push({ w: w, d: knoop.d + 1 }); continue; }
+      if (wil.indexOf(ttNormNaam(sleutel)) === -1) continue;
+      if (keur && !keur(w)) continue;
+      return w;
+    }
+  }
+  return null;
+}
+
+/* Eerst de plekken die we kennen, dan de naam waar hij ook staat. In die
+   volgorde, want een bekend pad is een zekerheid en een naamzoektocht is een
+   gok die meestal klopt. Keurt de keurmeester de gevonden waarde af, dan gaat
+   het zoeken door -- een beeld op een host die wij niet ophalen is voor het
+   scherm hetzelfde als geen beeld, en dan is doorzoeken beter dan opgeven. */
+function ttVeld(r, paden, namen, keur) {
+  const w = ttEerste(r, paden);
+  if (w !== null && (!keur || keur(w))) return w;
+  return ttDiepVeld(r, namen, keur);
+}
+
+/* Het laatste redmiddel voor het beeld: elke string in het antwoord die een
+   adres is op een host waar wij beelden vandaan halen. Dat is een grove greep,
+   en hij mag alleen grof zijn omdat de hostlijst hem tegenhoudt -- hij kan
+   niets opleveren dat de beeldproxy daarna zou weigeren. Zonder dit staat er
+   een lege kaart terwijl het beeld gewoon in het antwoord zit, onder een naam
+   die ik niet kende. */
+function ttDiepAdres(wortel) {
+  const rij = [{ w: wortel, d: 0 }];
+  let gezien = 0;
+  while (rij.length) {
+    const knoop = rij.shift();
+    if (!knoop.w || typeof knoop.w !== 'object') continue;
+    if (knoop.d > 6 || ++gezien > 400) continue;
+    for (const sleutel of Object.keys(knoop.w)) {
+      const w = knoop.w[sleutel];
+      if (w === undefined || w === null || w === '') continue;
+      if (typeof w === 'object') { rij.push({ w: w, d: knoop.d + 1 }); continue; }
+      /* Een logo of profielfoto is wel een adres op de goede host, maar het
+         is de advertentie niet. Dat als creatie tonen is een leugen met een
+         plaatje erbij. */
+      if (/logo|avatar|profile|icon|favicon/.test(ttNormNaam(sleutel))) continue;
+      if (typeof w === 'string' && beeldHostMag(w)) return w;
+    }
+  }
+  return null;
+}
+
 function ttNaarAdvertentie(rij) {
   const r = rij || {};
   return {
-    id: String(ttEerste(r, ['collationId', 'id', 'collation_id', 'adId', 'ad_id']) || ''),
-    merk: ttEerste(r, ['advertiser.name', 'brand', 'pageName', 'page_name', 'advertiserName']),
-    domein: ttEerste(r, ['content.landingPageDomain', 'domain', 'website.domain', 'shop.domain']),
-    beeld: ttEerste(r, ['media.mediaUrl', 'media.thumbnailUrl', 'mediaUrl', 'media_url',
-                        'media.url', 'thumbnailUrl', 'thumbnail_url', 'thumbnail']),
-    soort: ttEerste(r, ['media.type', 'mediaType', 'media_type']),
+    id: String(ttVeld(r, ['collationId', 'id', 'collation_id', 'adId', 'ad_id'],
+                       ['collationId', 'adId', 'adArchiveId', 'id']) || ''),
+    merk: ttVeld(r, ['advertiser.name', 'brand', 'pageName', 'page_name', 'advertiserName'],
+                    ['advertiserName', 'pageName', 'brandName', 'brand', 'advertiser']),
+    domein: ttVeld(r, ['content.landingPageDomain', 'domain', 'website.domain', 'shop.domain'],
+                      ['landingPageDomain', 'domain', 'website']),
+    beeld: ttVeld(r, ['media.mediaUrl', 'media.thumbnailUrl', 'mediaUrl', 'media_url',
+                      'media.url', 'thumbnailUrl', 'thumbnail_url', 'thumbnail'],
+                     ['mediaUrl', 'thumbnailUrl', 'thumbnail', 'imageUrl', 'image',
+                      'snapshotUrl', 'previewUrl', 'creativeUrl', 'videoPreviewImageUrl',
+                      'originalImageUrl', 'resizedImageUrl'],
+                     beeldHostMag) || ttDiepAdres(r),
+    soort: ttVeld(r, ['media.type', 'mediaType', 'media_type'], ['mediaType', 'creativeType']),
     copy: {
-      kop: ttEerste(r, ['content.title', 'title', 'headline', 'creative.title']),
-      tekst: ttEerste(r, ['content.body', 'body', 'description', 'adCopy', 'ad_copy', 'creative.body']),
-      cta: ttEerste(r, ['content.callToAction', 'cta', 'ctaType', 'callToAction', 'creative.cta'])
+      kop: ttVeld(r, ['content.title', 'title', 'headline', 'creative.title'],
+                     ['title', 'headline', 'linkTitle']),
+      tekst: ttVeld(r, ['content.body', 'body', 'description', 'adCopy', 'ad_copy', 'creative.body'],
+                       ['body', 'adCopy', 'primaryText', 'description', 'caption']),
+      cta: ttVeld(r, ['content.callToAction', 'cta', 'ctaType', 'callToAction', 'creative.cta'],
+                     ['callToAction', 'ctaType', 'ctaText', 'cta'])
     },
     /* Onbekend blijft null. Bereik komt uit de transparantierapportage van Meta
        en die bestaat alleen voor de EU en het VK -- buiten dat gebied is er
        niets, en een nul zou daar een meting suggereren die er niet is. */
-    bereik: adGetal(ttEerste(r, ['metrics.reach', 'reach', 'impressions'])),
-    dagen_actief: adGetal(ttEerste(r, ['daysRunning', 'days_running', 'activeDays'])),
+    bereik: adGetal(ttVeld(r, ['metrics.reach', 'reach', 'impressions'],
+                              ['reach', 'totalReach', 'impressions'])),
+    dagen_actief: adGetal(ttVeld(r, ['daysRunning', 'days_running', 'activeDays'],
+                                    ['daysRunning', 'activeDays', 'daysActive', 'runningDays'])),
     /* firstSeenAt en createdAt zijn twee verschillende dingen: wanneer de
        advertentie voor het eerst gezien is, en wanneer TrendTrack hem opnam.
        Die door elkaar halen maakt van een advertentie uit 2022 er een van
        vorige maand. */
-    eerst_gezien: ttEerste(r, ['firstSeenAt', 'firstSeen', 'first_seen']),
-    laatst_gezien: ttEerste(r, ['lastSeenAt', 'lastSeen', 'last_seen']),
-    varianten: adGetal(ttEerste(r, ['metrics.duplicates', 'duplicates', 'duplicateCount', 'variations'])),
+    eerst_gezien: ttVeld(r, ['firstSeenAt', 'firstSeen', 'first_seen'],
+                            ['firstSeenAt', 'firstSeen', 'startDate']),
+    laatst_gezien: ttVeld(r, ['lastSeenAt', 'lastSeen', 'last_seen'],
+                             ['lastSeenAt', 'lastSeen', 'endDate']),
+    varianten: adGetal(ttVeld(r, ['metrics.duplicates', 'duplicates', 'duplicateCount', 'variations'],
+                                 ['duplicates', 'duplicateCount', 'variations'])),
     /* Een schatting, en hij heet ook zo. TrendTrack rekent hem uit met een
        aangenomen CPM -- het is geen bedrag dat iemand betaald heeft. */
-    uitgave_schatting: adGetal(ttEerste(r, ['metrics.estimatedSpend', 'estimatedSpend'])),
-    groei_7d: adGetal(ttEerste(r, ['metrics.reachDelta7d', 'reachDelta7d'])),
+    uitgave_schatting: adGetal(ttVeld(r, ['metrics.estimatedSpend', 'estimatedSpend'],
+                                         ['estimatedSpend', 'spendEstimate'])),
+    groei_7d: adGetal(ttVeld(r, ['metrics.reachDelta7d', 'reachDelta7d'], ['reachDelta7d'])),
     /* De positie van de advertentie binnen de pagina van dat merk. Bij een
        gevolgd merk is dit het enige prestatiesignaal dat TrendTrack geeft --
        bereik en uitgave komen daar leeg terug. Lager is beter: rang 1 is de
        advertentie waar dat merk het meest op inzet. */
-    rang: adGetal(ttEerste(r, ['rank.currentRank', 'currentRank'])),
-    rang_delta: adGetal(ttEerste(r, ['rank.rankDelta', 'rankDelta'])),
-    land: ttEerste(r, ['audience.mainCountry', 'mainCountry', 'main_country', 'audience.targetedCountries.0']),
+    rang: adGetal(ttVeld(r, ['rank.currentRank', 'currentRank'], ['currentRank', 'rank'])),
+    rang_delta: adGetal(ttVeld(r, ['rank.rankDelta', 'rankDelta'], ['rankDelta'])),
+    land: ttVeld(r, ['audience.mainCountry', 'mainCountry', 'main_country', 'audience.targetedCountries.0'],
+                    ['mainCountry', 'country']),
     taal: ttEerste(r, ['language', 'ad_language']),
     actief: ttEerste(r, ['status', 'isActive', 'active'])
   };

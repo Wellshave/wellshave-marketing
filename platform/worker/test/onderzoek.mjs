@@ -483,6 +483,107 @@ const metBeeld = (await roep('/onderzoek/toplijst')).data;
 check('met beeld is er niets te melden', metBeeld.velden_zonder_beeld, undefined);
 check('en het beeld is er ook echt', metBeeld.advertenties[0].beeld !== null, true);
 
+console.log('\n  een veld wordt op naam gevonden, niet alleen op plek');
+/* Ik heb een ronde verspild met raden waar de velden op de merkroute stonden,
+   en dat raden kost elke keer een deploy. De namen bleken hetzelfde, de plek
+   niet. Zoek dus op naam: dan maakt het niet uit of TrendTrack morgen een laag
+   toevoegt of weghaalt. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{
+  adArchiveId: 'z-1',
+  /* Elk veld staat op een plek die wij niet kennen -- maar wel onder de naam
+     die de dienst overal gebruikt. */
+  snapshot: {
+    creatives: [{ resizedImageUrl: 'https://x.fbcdn.net/diep.jpg' }],
+    advertiserName: 'Diep BV',
+    body: { text: null, adCopy: 'De tekst stond drie lagen diep.' },
+    title: 'De kop stond er ook',
+    ctaText: 'SHOP_NOW'
+  },
+  /* En met een onderstreping, want dezelfde dienst schrijft hem op twee
+     manieren. De namen worden daarom eerst gelijkgetrokken. */
+  stats: { reach: 88000, days_running: 41 }
+}] };
+const diep = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('het id', diep.id, 'z-1');
+check('het merk', diep.merk, 'Diep BV');
+check('het beeld', diep.beeld, 'https://x.fbcdn.net/diep.jpg');
+check('de kop', diep.copy.kop, 'De kop stond er ook');
+check('de tekst', diep.copy.tekst, 'De tekst stond drie lagen diep.');
+check('de cta', diep.copy.cta, 'SHOP_NOW');
+check('het bereik', diep.bereik, 88000);
+check('de looptijd', diep.dagen_actief, 41);
+check('en er valt niets te melden over ontbrekende velden',
+  (await roep('/onderzoek/toplijst')).data.velden_zonder_beeld, undefined);
+
+console.log('\n  een groeicijfer is geen bereik');
+/* De naamvergelijking trekt hoofdletters en streepjes glad, en dat mag niet
+   doorslaan naar "lijkt erop". reachDelta7d is de verandering van het bereik,
+   niet het bereik: die als bereik aflezen zet een advertentie met duizend
+   groei boven eentje met vierhonderdduizend bereik. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'g1', stats: { reachDelta7d: 1200 },
+                      media: { mediaUrl: 'https://x.fbcdn.net/g.jpg' } }] };
+const groei = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('bereik blijft leeg', groei.bereik, null);
+check('en de groei staat waar hij hoort', groei.groei_7d, 1200);
+
+console.log('\n  een beeld dat wij niet kunnen ophalen telt niet als beeld');
+/* De beeldproxy haalt alleen op van hosts die wij kennen. Een uitlezer die
+   een adres op een andere host kiest levert een kaart met een gebroken plaatje
+   op, terwijl het bruikbare adres er gewoon naast stond. Doorzoeken dus. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'h1',
+  media: { mediaUrl: 'http://onveilig.example/nee.jpg' },
+  snapshot: { thumbnailUrl: 'https://x.fbcdn.net/wel.jpg' } }] };
+const host = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('het bruikbare adres wint', host.beeld, 'https://x.fbcdn.net/wel.jpg');
+
+console.log('\n  en anders elk adres in het antwoord, behalve het logo');
+/* Het laatste redmiddel: staat er geen veld met een naam die wij kennen, dan
+   nemen we het eerste adres dat op een toegelaten host staat. Grof, en het mag
+   grof zijn omdat de hostlijst hem tegenhoudt. Maar het logo van de
+   adverteerder is de advertentie niet -- dat tonen is een leugen met een
+   plaatje erbij. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'l1',
+  advertiser: { logoUrl: 'https://medias.trendtrack.io/p/253.jpg' },
+  bijlage: { onbekendVeld: 'https://x.fbcdn.net/echt.jpg' } }] };
+const laatste = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('het logo wordt overgeslagen', laatste.beeld, 'https://x.fbcdn.net/echt.jpg');
+
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'l2',
+  advertiser: { logoUrl: 'https://medias.trendtrack.io/p/253.jpg' } }] };
+const alleenLogo = (await roep('/onderzoek/toplijst')).data;
+check('en staat er alleen een logo, dan is er geen beeld',
+  alleenLogo.advertenties[0].beeld, null);
+check('waarna de veldnamen alsnog gemeld worden',
+  (alleenLogo.velden_zonder_beeld || []).indexOf('advertiser') > -1, true);
+
+console.log('\n  ondiep wint van diep, en leeg wint van niets');
+/* Twee valkuilen in dezelfde zoektocht. De eerste: wie diep begint vindt de
+   ondertitel uit een bijlage in plaats van de kop van de advertentie -- beide
+   heten `title`, en alleen de plek zegt welke de echte is. Breedte eerst dus:
+   wat dicht bij de wortel staat is de hoofdzaak.
+   De tweede: een veld dat er staat maar leeg is, is geen waarde. Stopt de
+   zoektocht daarop, dan levert een lege `title` een naamloze kaart op terwijl
+   de kop er verderop gewoon staat. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'o1',
+  media: { mediaUrl: 'https://x.fbcdn.net/o.jpg' },
+  card: { title: '' },
+  snapshot: { title: 'De kop van de advertentie' },
+  extra: { laag: { title: 'Een ondertitel, diep weggestopt' } } }] };
+const ondiep = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('de kop komt van dichtbij, niet van diep', ondiep.copy.kop, 'De kop van de advertentie');
+
 console.log('\n  de merken worden een voor een bevraagd, niet allemaal tegelijk');
 /* TrendTrack weigert gelijktijdige aanroepen met "Too many concurrent public
    API requests are already in flight". Elf van de dertien merken vielen
