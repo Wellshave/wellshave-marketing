@@ -60,7 +60,7 @@
    nummer. */
 const VERSIE = 28;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
+const VERSIE_WAT = 'het beeld en de video worden op naam gezocht in plaats van op een vaste plek, bij TrendTrack en bij Atria en Meta; een video is geen beeld meer en krijgt een eigen poort met doorspoelen; de vorige periode is op te vragen zodat "daalt hij" een vergelijking is en geen gok; en komt er geen beeld uit een rij, dan meldt hij zijn eigen veldnamen zodat de volgende reparatie een aflezing is';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
