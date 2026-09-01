@@ -141,6 +141,43 @@ function ONDERSCHEP() {
   check('maar staat niet in beeld', start.oudZichtbaar, false);
   check('de analyseknop is er nog', start.analyse, true);
 
+  console.log('\n  itereren is een eigen scherm, geen drie kolommen');
+  /* De drie kolommen van de studio horen bij het maken van een nieuwe static.
+     Bij itereren stel je niets in -- de advertentie bestaat al en de cijfers
+     komen uit de koppeling -- en er is geen resultaat tot je op genereren
+     drukt. Twee lege kolommen naast het enige dat ertoe doet. */
+  const kolommen = await page.evaluate(() => {
+    switchMainTab('iterate');
+    const zichtbaar = (sel) => {
+      const n = document.querySelector(sel);
+      if (!n) return null;
+      return getComputedStyle(n).display !== 'none';
+    };
+    const paneel = document.getElementById('iw-paneel');
+    const bron = document.getElementById('source-ad-section');
+    /* En de volgorde: eerst de cijfers ophalen, dan pas het uploadvak. Dat is
+       de volgorde waarin het werk gebeurt. */
+    const doos = paneel && paneel.closest('#iterate-options');
+    return {
+      configuratie: zichtbaar('.ws8-left'),
+      resultaat: zichtbaar('.ws8-right'),
+      werkblad: zichtbaar('.ws8-center'),
+      wizardEerst: !!(doos && bron &&
+        (doos.compareDocumentPosition(bron) & Node.DOCUMENT_POSITION_FOLLOWING) > 0)
+        || !!(doos && bron && parseInt(getComputedStyle(doos).order, 10) < parseInt(getComputedStyle(bron).order, 10)),
+      /* En bij Kopieer ad staan ze er gewoon nog: dit is een verschil per
+         scherm, geen verwijdering. Statics is hier niet de tegenproef -- daar
+         is de wizard het scherm en is de kolom om een andere reden weg. */
+      naKopieer: (function () { setMode('copy'); return zichtbaar('.ws8-left'); })()
+    };
+  });
+  check('de configuratiekolom is weg', kolommen.configuratie, false);
+  check('de resultaatkolom ook', kolommen.resultaat, false);
+  check('het werkblad blijft', kolommen.werkblad, true);
+  check('en de cijfers staan boven het uploadvak', kolommen.wizardEerst, true);
+  check('bij Kopieer ad staat de configuratie er gewoon', kolommen.naKopieer, true);
+  await page.evaluate(() => switchMainTab('iterate'));
+
   console.log('\n  ook als je via de modusknop binnenkomt');
   /* Twee ingangen naar hetzelfde scherm en maar een ervan tekent: dat zie je
      pas als iemand het meldt. */

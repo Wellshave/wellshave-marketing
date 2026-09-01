@@ -887,3 +887,28 @@ input:focus, select:focus, textarea:focus {
 }
 .cr-terug:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--gold-bright); }
 .cr-terug svg { flex: 0 0 auto; }
+
+/* ── Itereren is een eigen scherm, geen variant van de generator ──────────
+   De drie kolommen van de studio horen bij het maken van een nieuwe static:
+   links wat je instelt, midden waar je werkt, rechts wat eruit komt. Bij
+   itereren klopt dat niet. Je stelt niets in -- de advertentie bestaat al en
+   de cijfers komen uit Meta of Atria -- en er is geen resultaat tot je op
+   genereren drukt. Twee lege kolommen naast het enige dat ertoe doet.
+
+   De opbouw zelf blijft ongemoeid: die wordt bij het opstarten door JS gedaan
+   en alle ids en listeners hangen eraan. Hier verandert alleen wat je ziet. */
+body.iterate-mode-active .ws8-grid { grid-template-columns: minmax(0, 1fr); }
+body.iterate-mode-active .ws8-left,
+body.iterate-mode-active .ws8-right { display: none; }
+/* Een kolomnaam boven de enige kolom zegt niets. */
+body.iterate-mode-active .ws8-center > .ws8-zone-lbl { display: none; }
+body.iterate-mode-active .ws8-grid { max-width: 1180px; }
+
+/* En de volgorde: eerst de cijfers ophalen, dan pas de rest. Dat is de
+   volgorde waarin het werk gebeurt -- je kiest een advertentie, je ziet waar
+   hij lekt, en pas daarna gaat het over wat je ervan maakt. Het uploadvak
+   blijft eronder staan als terugval voor een advertentie die niet uit de
+   koppeling komt. */
+body.iterate-mode-active .ws8-center { display: flex; flex-direction: column; }
+body.iterate-mode-active #iterate-options { order: -2; }
+body.iterate-mode-active #source-ad-section { order: -1; }
