@@ -152,6 +152,174 @@ var NIEUWS_ARCHETYPEN = [
   }
 ];
 
+/* ── De voorbeeldweergave per archetype ────────────────────────────────────
+   Zes archetypes die alleen in woorden verschillen zijn zes keer hetzelfde
+   vakje op een scherm. Je kiest er pas een als je ziet waar je voor kiest.
+
+   WAAROM DIT EEN SCHETS IS EN GEEN FOTO. We hebben geen echte voorbeelden in
+   de repo staan; het onderzoek zit in de anatomie hierboven en niet in een
+   map met screenshots. Een beeldmodel er een laten verzinnen zou een plaatje
+   opleveren dat eruitziet als een referentie en het niet is -- en dat is
+   erger dan geen referentie, want niemand ziet het verschil terug.
+
+   Wat wel waar is per constructie: de indeling. Elke schets hieronder tekent
+   precies de elementen die in `anatomie` staan, in de volgorde waarin ze daar
+   staan. Verandert de anatomie, dan hoort de schets mee te veranderen -- de
+   test bewaakt dat ze niet uit elkaar lopen.
+
+   En zodra je wel een echt voorbeeld hebt, vervangt dat de schets. */
+
+var NIEUWS_SCHETS = {
+  /* Kicker, kop in serif, subkop, streep, byline, documentaire foto, leesknop. */
+  krantenkop:
+    '<rect x="10" y="9" width="26" height="4" class="s-vlak"/>' +
+    '<rect x="10" y="19" width="76" height="7" class="s-kop"/>' +
+    '<rect x="10" y="29" width="58" height="7" class="s-kop"/>' +
+    '<rect x="10" y="42" width="68" height="3" class="s-lijn"/>' +
+    '<line x1="10" y1="51" x2="90" y2="51" class="s-streep"/>' +
+    '<rect x="10" y="55" width="30" height="3" class="s-zacht"/>' +
+    '<rect x="10" y="64" width="80" height="42" class="s-foto"/>' +
+    '<rect x="18" y="94" width="44" height="7" rx="1" class="s-knop"/>',
+
+  /* Twee kolommen, initiaal, citaat tussen twee haarlijnen, folio, één foto. */
+  tijdschriftpagina:
+    '<rect x="10" y="10" width="34" height="30" class="s-foto"/>' +
+    '<rect x="52" y="10" width="10" height="10" class="s-kop"/>' +
+    '<rect x="64" y="11" width="26" height="3" class="s-lijn"/>' +
+    '<rect x="64" y="17" width="26" height="3" class="s-lijn"/>' +
+    '<rect x="52" y="24" width="38" height="3" class="s-lijn"/>' +
+    '<rect x="52" y="30" width="38" height="3" class="s-lijn"/>' +
+    '<rect x="52" y="36" width="30" height="3" class="s-lijn"/>' +
+    '<line x1="10" y1="50" x2="90" y2="50" class="s-streep"/>' +
+    '<rect x="18" y="56" width="64" height="4" class="s-zacht"/>' +
+    '<rect x="26" y="64" width="48" height="4" class="s-zacht"/>' +
+    '<line x1="10" y1="76" x2="90" y2="76" class="s-streep"/>' +
+    '<rect x="10" y="82" width="36" height="3" class="s-lijn"/>' +
+    '<rect x="10" y="88" width="36" height="3" class="s-lijn"/>' +
+    '<rect x="54" y="82" width="36" height="3" class="s-lijn"/>' +
+    '<rect x="54" y="88" width="30" height="3" class="s-lijn"/>' +
+    '<rect x="78" y="100" width="12" height="4" class="s-zacht"/>',
+
+  /* Alles van bovenaf op één ondergrond, met een cijfer op elk product. */
+  redactietest:
+    '<rect x="10" y="10" width="80" height="86" class="s-grond"/>' +
+    '<rect x="18" y="20" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="19" y="49" width="12" height="7" class="s-label"/>' +
+    '<rect x="43" y="20" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="44" y="49" width="12" height="7" class="s-label"/>' +
+    '<rect x="68" y="20" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="69" y="49" width="12" height="7" class="s-label"/>' +
+    '<rect x="18" y="62" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="19" y="91" width="12" height="7" class="s-label"/>' +
+    '<rect x="43" y="62" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="44" y="91" width="12" height="7" class="s-label"/>' +
+    '<rect x="68" y="62" width="14" height="26" rx="2" class="s-ding"/>' +
+    '<rect x="69" y="91" width="12" height="7" class="s-label"/>',
+
+  /* Smalle kapitalen, hard contrast, één detail omcirkeld. */
+  onthulling:
+    '<rect x="10" y="9" width="80" height="60" class="s-hard"/>' +
+    '<circle cx="62" cy="38" r="13" class="s-cirkel"/>' +
+    '<rect x="10" y="76" width="18" height="9" class="s-kop"/>' +
+    '<rect x="31" y="76" width="12" height="9" class="s-kop"/>' +
+    '<rect x="46" y="76" width="22" height="9" class="s-kop"/>' +
+    '<rect x="10" y="90" width="26" height="9" class="s-kop"/>' +
+    '<rect x="39" y="90" width="30" height="9" class="s-kop"/>',
+
+  /* Alleen tekst op een vlakke ondergrond. Geen product, geen foto. */
+  weetje:
+    '<rect x="6" y="6" width="88" height="102" class="s-grond"/>' +
+    '<rect x="18" y="34" width="64" height="8" class="s-kop"/>' +
+    '<rect x="18" y="48" width="56" height="8" class="s-kop"/>' +
+    '<rect x="18" y="62" width="38" height="8" class="s-kop"/>',
+
+  /* Eén documentaire foto, en verder niets. Geen woord, geen logo, geen knop. */
+  bericht:
+    '<rect x="6" y="6" width="88" height="102" class="s-foto"/>'
+};
+
+/* Een echt voorbeeld dat de schets vervangt, per archetype. Dit hoort bij het
+   merk en niet bij deze brief: welk voorbeeld je bij "de krantenkop" bewaart
+   verandert niet omdat je aan een andere advertentie werkt. */
+var NIEUWS_REF_SLEUTEL = 'nieuws_voorbeelden';
+
+function nieuwsVoorbeelden() {
+  try {
+    var s = localStorage.getItem((typeof STORAGE_PREFIX === 'string' ? STORAGE_PREFIX : '') + NIEUWS_REF_SLEUTEL);
+    return s ? (JSON.parse(s) || {}) : {};
+  } catch (e) { return {}; }
+}
+
+function nieuwsVoorbeeldZet(id, dataUrl) {
+  var alles = nieuwsVoorbeelden();
+  if (dataUrl) alles[id] = dataUrl; else delete alles[id];
+  try {
+    localStorage.setItem((typeof STORAGE_PREFIX === 'string' ? STORAGE_PREFIX : '') + NIEUWS_REF_SLEUTEL,
+      JSON.stringify(alles));
+  } catch (e) {
+    if (typeof toast === 'function') toast('Kon het voorbeeld niet bewaren: ' + e.message, true);
+    return false;
+  }
+  return true;
+}
+
+/* De weergave: het echte voorbeeld als dat er is, anders de schets. Nooit een
+   leeg vak -- dan is de kaart weer een kaart zonder beeld, en dat is precies
+   wat er mis was. */
+function nieuwsSchetsHtml(id) {
+  var echt = nieuwsVoorbeelden()[id];
+  if (echt) {
+    return '<span class="wiz-nieuwsbeeld echt"><img src="' + wizEsc(echt) + '" alt=""></span>';
+  }
+  var teken = NIEUWS_SCHETS[id];
+  if (!teken) return '<span class="wiz-nieuwsbeeld leeg"></span>';
+  return '<span class="wiz-nieuwsbeeld"><svg viewBox="0 0 100 114" ' +
+    'preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + teken + '</svg></span>';
+}
+
+function wizNieuwsVoorbeeldKies(id) {
+  var invoer = document.getElementById('nieuws-voorbeeld-invoer');
+  if (!invoer) return;
+  invoer.setAttribute('data-arch', id);
+  invoer.click();
+}
+
+function wizNieuwsVoorbeeldGelezen(e) {
+  var id = e.target.getAttribute('data-arch');
+  var bestand = e.target.files[0];
+  e.target.value = '';
+  if (!bestand || !id) return;
+  if (!bestand.type || bestand.type.indexOf('image/') !== 0) {
+    if (typeof toast === 'function') toast('Alleen afbeeldingen', true);
+    return;
+  }
+  var klaar = function (dataUrl) {
+    if (nieuwsVoorbeeldZet(id, dataUrl)) {
+      if (typeof toast === 'function') toast('Voorbeeld bewaard bij dit archetype');
+      if (typeof wizRender === 'function') wizRender();
+    }
+  };
+  /* Verkleinen voordat het de opslag in gaat: localStorage is klein, en zes
+     onverkleinde screenshots passen er niet in. Loopt het verkleinen mis, dan
+     gaat het bestand niet alsnog ongecomprimeerd naar binnen -- dan is de
+     melding beter dan een opslag die vol raakt en alles meeneemt. */
+  if (typeof compressImage === 'function') {
+    compressImage(bestand, 600, 0.8).then(klaar).catch(function (err) {
+      if (typeof toast === 'function') toast('Kon de afbeelding niet verwerken: ' + err.message, true);
+    });
+  } else {
+    var lezer = new FileReader();
+    lezer.onload = function () { klaar(String(lezer.result)); };
+    lezer.readAsDataURL(bestand);
+  }
+}
+
+function wizNieuwsVoorbeeldWeg(id) {
+  nieuwsVoorbeeldZet(id, null);
+  if (typeof toast === 'function') toast('Voorbeeld verwijderd, de schets staat er weer');
+  if (typeof wizRender === 'function') wizRender();
+}
+
 /* Welk archetype standaard bij welk formaat hoort. Een suggestie, geen slot:
    je kunt een weetje ook als krantenkop opmaken, en dat is een besluit dat de
    mens neemt. */
@@ -384,13 +552,22 @@ function wizRenderNieuwsstijl() {
     '<p class="wiz-refs-uitleg">A news-style static is six different pictures, not one. ' +
     'Pick the one this angle needs — it decides the typography, the photograph and what may not be on it.</p>';
 
+  /* Het beeld eerst, dan de naam. Zes archetypes die alleen in woorden
+     verschillen zijn zes keer hetzelfde vakje: je kiest er pas een als je ziet
+     waar je voor kiest. */
   h += '<div class="wiz-nieuwsrij">' + NIEUWS_ARCHETYPEN.map(function (a) {
     return '<button type="button" class="wiz-nieuwskaart' + (a.id === gekozen ? ' aan' : '') + '" ' +
       'onclick="wizNieuwsKies(\'' + a.id + '\')">' +
+      nieuwsSchetsHtml(a.id) +
       '<span class="wiz-nieuwskaart-t">' + wizEsc(a.label) + '</span>' +
       '<span class="wiz-nieuwskaart-k">' + wizEsc(a.kort) + '</span>' +
       '</button>';
   }).join('') + '</div>';
+  /* Eén invoerveld voor alle zes: welk archetype het betreft staat erop als
+     data-arch. Zes verborgen velden zouden zes plekken zijn waar er een
+     achterblijft. */
+  h += '<input type="file" id="nieuws-voorbeeld-invoer" accept="image/*" ' +
+    'style="display:none;" onchange="wizNieuwsVoorbeeldGelezen(event)">';
 
   /* Het gekozen archetype uitgeschreven. Niet in een uitklap: wat er straks op
      het beeld komt te staan hoort te lezen te zijn voordat je genereert. */
@@ -402,6 +579,18 @@ function wizRenderNieuwsstijl() {
       arch.anatomie.map(function (r) { return '<li>' + wizEsc(r) + '</li>'; }).join('') +
       '</ul></div>' +
       '<div class="wiz-nieuwsuit-r"><em>Left out</em>' + wizEsc(arch.weglaten) + '</div>' +
+      /* En de plek om de schets te vervangen door iets echts. Alleen bij het
+         gekozen archetype: zes uploadknoppen in een rij zijn zes knoppen die je
+         niet wilde. */
+      '<div class="wiz-nieuwsuit-r wiz-nieuwsvb"><em>Reference</em>' +
+        (nieuwsVoorbeelden()[arch.id]
+          ? 'Er staat een echt voorbeeld bij dit archetype. ' +
+            '<button type="button" class="wiz-nieuwsvb-k" onclick="wizNieuwsVoorbeeldWeg(\'' + arch.id + '\')">Verwijderen</button> ' +
+            '<button type="button" class="wiz-nieuwsvb-k" onclick="wizNieuwsVoorbeeldKies(\'' + arch.id + '\')">Vervangen</button>'
+          : 'De weergave hierboven is een schets van de indeling, geen echte advertentie. ' +
+            'Heb je een voorbeeld dat dit archetype goed laat zien? ' +
+            '<button type="button" class="wiz-nieuwsvb-k" onclick="wizNieuwsVoorbeeldKies(\'' + arch.id + '\')">Voorbeeld toevoegen</button>') +
+      '</div>' +
       '</div>';
   }
 
@@ -432,4 +621,11 @@ window.NIEUWS_AFZENDERS = NIEUWS_AFZENDERS; window.NIEUWS_STANDAARD = NIEUWS_STA
 window.wizNieuwsActief = wizNieuwsActief; window.wizNieuwsArchetype = wizNieuwsArchetype;
 window.wizNieuwsAfzender = wizNieuwsAfzender; window.wizNieuwsGaten = wizNieuwsGaten;
 window.wizNieuwsBrief = wizNieuwsBrief; window.wizNieuwsBeeldregel = wizNieuwsBeeldregel;
-window.wizRenderNieuwsstijl = wizRenderNieuwsstijl; window.wizNieuwsKies = wizNieuwsKies;
+window.wizRenderNieuwsstijl = wizRenderNieuwsstijl;
+window.NIEUWS_SCHETS = NIEUWS_SCHETS;
+window.nieuwsSchetsHtml = nieuwsSchetsHtml;
+window.nieuwsVoorbeelden = nieuwsVoorbeelden;
+window.nieuwsVoorbeeldZet = nieuwsVoorbeeldZet;
+window.wizNieuwsVoorbeeldKies = wizNieuwsVoorbeeldKies;
+window.wizNieuwsVoorbeeldGelezen = wizNieuwsVoorbeeldGelezen;
+window.wizNieuwsVoorbeeldWeg = wizNieuwsVoorbeeldWeg; window.wizNieuwsKies = wizNieuwsKies;

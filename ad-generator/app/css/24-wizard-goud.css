@@ -812,3 +812,45 @@
 #wiz-inline .wiz-nieuwsbron-u {
   margin: 7px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-faint);
 }
+
+/* ── De voorbeeldweergave bij de nieuwsstijl-archetypes ───────────────────
+   De schets staat bovenaan de kaart en krijgt de meeste ruimte: hij is de
+   reden dat de kaart bestaat. De naam eronder bevestigt wat je al ziet.
+
+   De schets is opzettelijk grafisch en niet fotografisch. Hij liegt niet over
+   wat hij is -- een indeling, geen advertentie -- en dat is precies wat je op
+   dit moment moet kiezen. Een echt voorbeeld vervangt hem zodra er een is. */
+#wiz-inline .wiz-nieuwsbeeld {
+  display: block; width: 100%; aspect-ratio: 100 / 114; overflow: hidden;
+  border-radius: 5px; background: #100e0b;
+  border: 1px solid rgba(var(--gold-rgb), .12); margin-bottom: 6px;
+}
+#wiz-inline .wiz-nieuwsbeeld svg { width: 100%; height: 100%; display: block; }
+#wiz-inline .wiz-nieuwsbeeld img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Een echt voorbeeld krijgt een eigen rand: je moet kunnen zien of je naar een
+   schets kijkt of naar iets wat werkelijk gedraaid heeft. */
+#wiz-inline .wiz-nieuwsbeeld.echt { border-color: rgba(var(--gold-rgb), .45); }
+
+/* De onderdelen van de schets. Bewust een beperkt palet: dit is een plattegrond
+   en geen plaatje, dus grijswaarden plus één goudtoon voor wat opvalt. */
+#wiz-inline .wiz-nieuwsbeeld .s-kop    { fill: #ddd8cc; }
+#wiz-inline .wiz-nieuwsbeeld .s-lijn   { fill: #6b6455; }
+#wiz-inline .wiz-nieuwsbeeld .s-zacht  { fill: #4c4739; }
+#wiz-inline .wiz-nieuwsbeeld .s-vlak   { fill: rgba(var(--gold-rgb), .75); }
+#wiz-inline .wiz-nieuwsbeeld .s-streep { stroke: #6b6455; stroke-width: 1; }
+#wiz-inline .wiz-nieuwsbeeld .s-foto   { fill: #37332b; }
+#wiz-inline .wiz-nieuwsbeeld .s-grond  { fill: #24211b; }
+#wiz-inline .wiz-nieuwsbeeld .s-hard   { fill: #4a4438; }
+#wiz-inline .wiz-nieuwsbeeld .s-ding   { fill: #554f42; }
+#wiz-inline .wiz-nieuwsbeeld .s-label  { fill: #ddd8cc; }
+#wiz-inline .wiz-nieuwsbeeld .s-knop   { fill: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-nieuwsbeeld .s-cirkel {
+  fill: none; stroke: rgba(var(--gold-rgb), .95); stroke-width: 2;
+}
+
+#wiz-inline .wiz-nieuwsvb { color: var(--text-faint); }
+#wiz-inline .wiz-nieuwsvb-k {
+  background: none; border: none; padding: 0; margin-left: 2px;
+  color: var(--gold); font-size: inherit; text-decoration: underline; cursor: pointer;
+}
+#wiz-inline .wiz-nieuwsvb-k:hover { color: var(--gold-bright); }

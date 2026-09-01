@@ -346,6 +346,89 @@ function OPZET() {
   check('met het label van de afzender, niet de sleutel',
     dossier.afzender, 'A real placement with a real publisher');
 
+  console.log('\n  elke stijl laat zien hoe hij eruitziet');
+  /* Zes archetypes die alleen in woorden verschillen zijn zes keer hetzelfde
+     vakje op een scherm. Je kiest er pas een als je ziet waar je voor kiest. */
+  const beelden = await page.evaluate(() => {
+    /* Het paneel zelf tekenen, net als het blok hierboven: de wizard staat op
+       dit moment op een andere stap, en dan is de rij kaarten niet in beeld. */
+    const d = document.createElement('div');
+    d.innerHTML = wizRenderNieuwsstijl();
+    const kaarten = [].slice.call(d.querySelectorAll('.wiz-nieuwskaart'));
+    return {
+      kaarten: kaarten.length,
+      metBeeld: kaarten.filter(k => k.querySelector('.wiz-nieuwsbeeld svg, .wiz-nieuwsbeeld img')).length,
+      /* Het beeld staat bovenaan, vóór de naam: het is de reden dat de kaart
+         bestaat, en een schets onder de tekst wordt niet gezien. */
+      beeldEerst: kaarten.every(k => {
+        const b = k.querySelector('.wiz-nieuwsbeeld'), t = k.querySelector('.wiz-nieuwskaart-t');
+        return b && t && (b.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) > 0;
+      }),
+      /* En elke schets is een andere schets. Zes keer hetzelfde plaatje is
+         erger dan geen plaatje: dan lijkt het of de archetypes niet verschillen. */
+      verschillend: new Set(kaarten.map(k => (k.querySelector('.wiz-nieuwsbeeld') || {}).innerHTML)).size
+    };
+  });
+  check('alle zes kaarten staan er', beelden.kaarten, 6);
+  check('en alle zes hebben een weergave', beelden.metBeeld, 6);
+  check('het beeld staat boven de naam', beelden.beeldEerst, true);
+  check('en geen twee zien er hetzelfde uit', beelden.verschillend, 6);
+
+  console.log('\n  de schets tekent wat de anatomie zegt, niet iets anders');
+  /* Dit is de controle die ertoe doet. De schets is waar per constructie zolang
+     hij de elementen tekent die in de anatomie staan. Verandert de anatomie en
+     de schets niet mee, dan toont het scherm een indeling die we niet meer
+     voorschrijven -- en dat ziet niemand, want een schets ziet er altijd
+     overtuigend uit. */
+  const trouw = await page.evaluate(() => {
+    const eis = {
+      /* per archetype: wat er in de schets MOET zitten, en wat er juist NIET in mag */
+      krantenkop:       { moet: ['s-foto', 's-knop', 's-streep', 's-kop'], mag_niet: [] },
+      tijdschriftpagina:{ moet: ['s-foto', 's-streep'], mag_niet: ['s-knop'] },
+      redactietest:     { moet: ['s-ding', 's-label', 's-grond'], mag_niet: ['s-knop'] },
+      onthulling:       { moet: ['s-cirkel', 's-kop'], mag_niet: ['s-knop'] },
+      /* Alleen tekst: geen product, geen model, geen foto. */
+      weetje:           { moet: ['s-kop', 's-grond'], mag_niet: ['s-foto', 's-knop', 's-ding'] },
+      /* Geen woord, geen logo, geen knop. Alleen de foto. */
+      bericht:          { moet: ['s-foto'], mag_niet: ['s-kop', 's-knop', 's-lijn', 's-label', 's-streep'] }
+    };
+    const fouten = [];
+    Object.keys(eis).forEach(id => {
+      const t = NIEUWS_SCHETS[id] || '';
+      eis[id].moet.forEach(k => { if (t.indexOf(k) === -1) fouten.push(id + ' mist ' + k); });
+      eis[id].mag_niet.forEach(k => { if (t.indexOf(k) > -1) fouten.push(id + ' heeft ' + k + ' terwijl dat niet mag'); });
+    });
+    /* En er is voor elk archetype een schets: een nieuw archetype zonder
+       weergave is een kaart die weer een leeg vakje is. */
+    NIEUWS_ARCHETYPEN.forEach(a => { if (!NIEUWS_SCHETS[a.id]) fouten.push(a.id + ' heeft geen schets'); });
+    return fouten;
+  });
+  check('elke schets klopt met zijn anatomie', trouw, []);
+
+  console.log('\n  een echt voorbeeld vervangt de schets');
+  const echt = await page.evaluate(() => {
+    const nep = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+    const voor = nieuwsSchetsHtml('krantenkop');
+    nieuwsVoorbeeldZet('krantenkop', nep);
+    const na = nieuwsSchetsHtml('krantenkop');
+    const anderArchetype = nieuwsSchetsHtml('weetje');
+    nieuwsVoorbeeldZet('krantenkop', null);
+    const terug = nieuwsSchetsHtml('krantenkop');
+    return {
+      voorSvg: voor.indexOf('<svg') > -1,
+      naImg: na.indexOf('<img') > -1 && na.indexOf(nep) > -1,
+      naGemarkeerd: na.indexOf('echt') > -1,
+      /* Alleen bij het archetype waar je hem zette. */
+      anderNogSchets: anderArchetype.indexOf('<svg') > -1,
+      terugSvg: terug.indexOf('<svg') > -1
+    };
+  });
+  check('zonder voorbeeld een schets', echt.voorSvg, true);
+  check('met voorbeeld het echte beeld', echt.naImg, true);
+  check('en dat is te zien aan de rand', echt.naGemarkeerd, true);
+  check('de andere archetypes houden hun schets', echt.anderNogSchets, true);
+  check('en verwijderen brengt de schets terug', echt.terugSvg, true);
+
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);
   await browser.close();
