@@ -51,8 +51,8 @@ async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }], ad_accounts: [] };
   atria = { accounts: null, ads: null, ad: null, summary: null, metrics: null, fout: null };
-  meta = { ad: null, adVorig: null, account: null, creative: null, creativeGooit: false, fout: null };
-  aanroepen = { atria: [], meta: [], vensters: [] };
+  meta = { ad: null, adVorig: null, account: null, creative: null, creativeGooit: false, fout: null, filterLeeg: false };
+  aanroepen = { atria: [], meta: [], vensters: [], gefilterd: 0 };
 }
 
 globalThis.fetch = async (url, opties) => {
@@ -114,6 +114,13 @@ globalThis.fetch = async (url, opties) => {
       if (isVorig) aanroepen.vensters.push(venster);
       else if (venster.since) aanroepen.vensters.push(venster);
       if (niveau === 'account') return { ok: true, json: async () => ({ data: meta.account || [] }) };
+      /* Gefilterd op één advertentie, of de hele lijst. Meta's filter op ad.id
+         geeft in de praktijk soms een lege set terug waar de ongefilterde
+         opvraag hem wél toont -- en dat is precies het geval dat we moeten
+         kunnen nabootsen. */
+      const gefilterd = /filtering=/.test(u);
+      if (gefilterd) aanroepen.gefilterd++;
+      if (gefilterd && meta.filterLeeg) return { ok: true, json: async () => ({ data: [] }) };
       return { ok: true, json: async () => ({ data: (isVorig ? meta.adVorig : meta.ad) || [] }) };
     }
     /* Het netwerk dat eruit ligt is iets anders dan een dienst die 'niet
@@ -564,6 +571,37 @@ await reset();
 atria.ad = atriaAd();
 const metBeeld = (await roep('/itereren/advertentie?bron=atria&account=aaaa1111&id=120001')).data;
 check('met beeld valt er niets te melden', metBeeld.advertentie.velden_zonder_beeld, undefined);
+
+console.log('\n  een leeg filter is geen leeg account');
+/* Dit stond letterlijk op het scherm: "Meta gaf geen cijfers voor advertentie
+   120241779363400577 in dit venster", direct nadat diezelfde advertentie in de
+   lijst eronder stond met € 991,98 en 32 bestellingen. Meta's filter op ad.id
+   geeft soms niets terug waar de ongefilterde opvraag hem wél toont. De lijst
+   kwam uit hetzelfde venster en hetzelfde account -- dus als hij daar staat,
+   staan de cijfers er, en dan is een tweede opvraag het antwoord en geen
+   foutmelding. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+meta.filterLeeg = true;
+const viaLijst = await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=14',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' });
+check('de advertentie komt er alsnog', viaLijst.status, 200);
+check('met haar cijfers', viaLijst.data.advertentie.cijfers.spend, 241.15);
+check('en er is wél eerst gefilterd gevraagd', aanroepen.gefilterd > 0, true);
+
+/* En als hij er ook in de brede opvraag niet staat, dan is het wél een fout --
+   met het account en het venster erbij, want zonder die twee is "geen cijfers"
+   niet na te zoeken. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd({ ad_id: '999' })];
+meta.filterLeeg = true;
+const echtNiets = await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=14',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' });
+check('dan is het een fout', echtNiets.status, 502);
+check('met het account erbij', /account 1\b/.test(echtNiets.data.error || ''), true);
+check('en het venster', /laatste 14 dagen/.test(echtNiets.data.error || ''), true);
 
 console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
 process.exit(fout ? 1 : 0);

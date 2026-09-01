@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 28;
+const VERSIE = 29;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'het beeld en de video worden op naam gezocht in plaats van op een vaste plek, bij TrendTrack en bij Atria en Meta; een video is geen beeld meer en krijgt een eigen poort met doorspoelen; de vorige periode is op te vragen zodat "daalt hij" een vergelijking is en geen gok; en komt er geen beeld uit een rij, dan meldt hij zijn eigen veldnamen zodat de volgende reparatie een aflezing is';
+const VERSIE_WAT = 'een advertentie kiezen werkt weer: Meta gaf op een filter soms niets terug waar de lijst hem wel toonde, dus wordt er nu breder nagevraagd voor er een fout komt; het beeld en de video worden op naam gezocht in plaats van op een vaste plek, bij TrendTrack en bij Atria en Meta; en /health zegt of je de live worker of de preview te pakken hebt';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1455,9 +1455,28 @@ async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
 }
 
 async function metaAdvertentie(env, account, adId, dagen) {
-  const rijen = await metaItereerRijen(env, account, dagen, 'ad', adId);
-  const rij = rijen[0];
-  if (!rij) throw new Error('Meta gaf geen cijfers voor advertentie ' + adId + ' in dit venster');
+  /* Eerst gefilterd vragen: dat is één rij in plaats van tweehonderd. Levert
+     dat niets op, dan NIET concluderen dat er geen cijfers zijn -- de lijst
+     waar je hem net uit koos kwam uit precies hetzelfde venster en hetzelfde
+     account, dus als hij daar staat, staan de cijfers er. Meta's filter op
+     ad.id geeft in de praktijk soms een lege set terug waar de ongefilterde
+     opvraag de advertentie wel toont; dan is een tweede, bredere opvraag het
+     antwoord en geen foutmelding.
+
+     Dit stond letterlijk op het scherm: "Meta gaf geen cijfers voor
+     advertentie 120241779363400577 in dit venster", direct nadat die
+     advertentie in de lijst eronder stond met € 991,98 en 32 bestellingen. */
+  let rijen = await metaItereerRijen(env, account, dagen, 'ad', adId);
+  let rij = rijen[0];
+  if (!rij) {
+    const alle = await metaItereerRijen(env, account, dagen, 'ad', null);
+    rij = alle.filter(function (r) { return String(r.ad_id) === String(adId); })[0] || null;
+  }
+  if (!rij) {
+    throw new Error('Meta gaf geen cijfers voor advertentie ' + adId +
+      ' in account ' + kaalAccount(account) + ' over de laatste ' + dagen + ' dagen. ' +
+      'Staat hij wel in de lijst, kies dan een ander venster.');
+  }
   const ad = { bron: 'meta', id: rij.ad_id || String(adId), naam: rij.ad_name || '(zonder naam)',
                staat: null, beeld: null, video: null, copy: null, cijfers: metaNaarCijfers(rij) };
   const cr = await metaCreative(env, ad.id);
