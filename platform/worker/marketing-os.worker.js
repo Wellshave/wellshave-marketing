@@ -58,7 +58,7 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 26;
+const VERSIE = 27;
 const VERSIE_DATUM = '2026-09-01';
 const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
 
@@ -486,9 +486,15 @@ async function accountVoorMerk(env, merk) {
 /* Tot 400 dagen en niet 365: de Creative Strategy Map begint op 4 augustus
    2025, en dat is net over een jaar. Op 365 blijft de eerste week van de map
    onbereikbaar -- precies de rijen waar het inhaalslagje om begonnen was. */
-function metaVenster(days) {
+function metaVenster(days, verschuif) {
   var n = Math.max(1, Math.min(Number(days) || 7, 400));
-  var eind = new Date();
+  /* Een venster dat een heel venster terug ligt. Nodig om "daalt hij" te
+     kunnen beantwoorden: dat is geen eigenschap van een advertentie maar een
+     vergelijking tussen twee periodes, en zonder de tweede periode is het een
+     gok met een pijltje erbij. De twee vensters raken elkaar en overlappen
+     niet -- overlap zou de daling deels tegen zichzelf wegstrepen. */
+  var v = Math.max(0, Number(verschuif) || 0);
+  var eind = new Date(Date.now() - v * 86400000);
   var start = new Date(eind.getTime() - (n - 1) * 86400000);
   var dag = function (d) { return d.toISOString().slice(0, 10); };
   return JSON.stringify({ since: dag(start), until: dag(eind) });
@@ -1314,12 +1320,12 @@ function metaNaarCijfers(rij) {
   });
 }
 
-async function metaItereerRijen(env, account, dagen, niveau, adId) {
+async function metaItereerRijen(env, account, dagen, niveau, adId, verschuif) {
   const p = new URLSearchParams({
     access_token: env.META_ACCESS_TOKEN,
     level: niveau,
     fields: META_ITEREER_VELDEN.concat(niveau === 'ad' ? ['ad_id', 'ad_name'] : []).join(','),
-    time_range: metaVenster(dagen),
+    time_range: metaVenster(dagen, verschuif),
     limit: '200'
   });
   if (adId) p.set('filtering', JSON.stringify([{ field: 'ad.id', operator: 'IN', value: [String(adId)] }]));
@@ -1352,11 +1358,39 @@ async function metaCreative(env, adId) {
   } catch (e) { return null; }
 }
 
-async function metaAdvertenties(env, account, dagen, limiet) {
-  const rijen = await metaItereerRijen(env, account, dagen, 'ad', null);
+/* De verandering tussen twee vensters, als verhouding. Null zodra een van de
+   twee ontbreekt of nul is: "van niets naar iets" is geen percentage, en een
+   deling door nul die als oneindig doorgaat wordt op het scherm een pijl
+   omhoog waar niets gemeten is. */
+function adTrend(nu, toen) {
+  const a = adGetal(nu), b = adGetal(toen);
+  if (a === null || b === null || b === 0) return null;
+  return a / b;
+}
+
+async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
+  /* De vorige periode erbij, maar alleen als ernaar gevraagd is: het is een
+     tweede aanroep bij Meta en die hoef je niet te doen om een lijst te tonen. */
+  const [rijen, vorige] = await Promise.all([
+    metaItereerRijen(env, account, dagen, 'ad', null),
+    vergelijk ? metaItereerRijen(env, account, dagen, 'ad', null, dagen).catch(function () { return null; })
+              : Promise.resolve(null)
+  ]);
+  const toen = {};
+  if (vorige) vorige.forEach(function (r) { if (r.ad_id) toen[r.ad_id] = metaNaarCijfers(r); });
   const uit = rijen.map(function (rij) {
-    return { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
-             staat: null, beeld: null, cijfers: metaNaarCijfers(rij) };
+    const ad = { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
+                 staat: null, beeld: null, cijfers: metaNaarCijfers(rij) };
+    if (vergelijk) {
+      /* Geen vorige periode is niet hetzelfde als een vlakke lijn. Een
+         advertentie die vorige week nog niet bestond hoort niet als "stabiel"
+         in de lijst te staan, en al helemaal niet als "dalend". */
+      const v = ad.id ? toen[ad.id] : null;
+      ad.vorige = v || null;
+      ad.trend = v ? { roas: adTrend(ad.cijfers.roas, v.roas),
+                       spend: adTrend(ad.cijfers.spend, v.spend) } : null;
+    }
+    return ad;
   });
   /* Op spend, want dat is waar de vraag over gaat: waar is geld aan uitgegeven
      en wat leverde het op. Een advertentie zonder spend heeft geen iteratie
@@ -2798,10 +2832,21 @@ export default {
         if (path === '/itereren/advertenties' && request.method === 'GET') {
           if (!account) return json({ error: 'account ontbreekt' }, 400);
           const limiet = url.searchParams.get('limiet');
+          const vergelijk = url.searchParams.get('vergelijk') === '1';
           const lijst = bron === 'atria'
             ? await atriaAdvertenties(env, account, dagen, url.searchParams.get('sorteer'), limiet)
-            : await metaAdvertenties(env, account, dagen, limiet);
-          return json({ bron: bron, dagen: dagen, advertenties: lijst });
+            : await metaAdvertenties(env, account, dagen, limiet, vergelijk);
+          /* Of "daalt hij" te beantwoorden is, en zo niet: waarom niet. Een
+             filter dat stil niets teruggeeft leest als "geen enkele advertentie
+             daalt" -- en dat is een geruststelling die wij niet gemeten hebben.
+             Atria kent alleen vaste periodes (last_7d en zo), dus daar is geen
+             vorige periode op te vragen. */
+          const uit = { bron: bron, dagen: dagen, advertenties: lijst,
+                        trend_beschikbaar: bron !== 'atria' };
+          if (bron === 'atria') {
+            uit.trend_reden = 'Atria levert alleen vaste periodes, geen vorige periode om tegen te vergelijken.';
+          }
+          return json(uit);
         }
 
         if (path === '/itereren/advertentie' && request.method === 'GET') {

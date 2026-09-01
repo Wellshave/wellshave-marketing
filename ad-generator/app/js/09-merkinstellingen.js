@@ -616,6 +616,16 @@ const ITERATE_ANALYSIS_TOOL = {
       funnel: { type: 'string' },
       hook_mechaniek: { type: 'string' },
       compositie: { type: 'string' },
+      /* De vier velden die het scherm laat zien maar die het gereedschap niet
+         kende. Ze stonden dus altijd leeg -- niet omdat het model ze niet kon
+         lezen, maar omdat er niets was om ze in te zetten. Ze zijn niet
+         verplicht: liever leeg dan ingevuld met wat er zou kunnen staan. */
+      persona: { type: 'string', description: 'wie wordt hier aangesproken, in een korte zin' },
+      angle: { type: 'string', description: 'de invalshoek, niet de headline' },
+      bewijs: { type: 'string', description: 'welke bewijsvorm de ad gebruikt (demonstratie, cijfer, getuige, autoriteit, voor-na, geen)' },
+      offer: { type: 'string', description: 'wat er precies wordt aangeboden' },
+      hoofdpersoon: { type: 'string', description: 'wie er in beeld is en in welke rol' },
+      narratief_perspectief: { type: 'string', description: 'vanuit wie het verhaal verteld wordt (eerste persoon, tweede persoon, merk, derde)' },
       headline_patroon: { type: 'string' },
       cta_aanpak: { type: 'string' },
       cijfer_diagnose: { type: 'string', description: 'funnel-analyse in 2 tot 4 zinnen met de concrete getallen erbij' },

@@ -339,6 +339,11 @@
         <div id="iterate-fields"></div>
         <button class="btn btn-small" id="iterate-save-btn" type="button" onclick="saveIterateData()" style="margin:10px 0 4px;">Opslaan</button>
       </div>
+      <!-- Vanaf stap 3 van de wizard. Het werkblad werkte al en verandert
+           niet; wat verandert is dat het pas in beeld komt als de advertentie
+           gekozen en gelezen is. Eerder tonen levert een scherm op waar je aan
+           het onderste eind begint. -->
+      <div id="iterate-werkblad" style="display:none;">
       <button class="btn btn-small" id="iterate-analyze-btn" type="button" onclick="analyzeWinningAd()" style="margin-bottom:6px;">Analyseer deze ad</button>
       <div class="iterate-analysis" id="iterate-analysis" style="display:none;"></div>
       <div class="field form-full">
@@ -355,6 +360,7 @@
         </div>
       </div>
       <div class="copy-nonneg"><strong>Blijft altijd intact:</strong> het winnende mechaniek en de kernboodschap van je ad, plus de merkbasis (Nederlands, mat zwart met goud, product uit referentiefotos, Trustpilot, Clarity Test). Je test alleen de aangevinkte elementen.</div>
+      </div>
     </div>
 
     <div class="copy-options" id="copy-options">

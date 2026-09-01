@@ -51,8 +51,8 @@ async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }], ad_accounts: [] };
   atria = { accounts: null, ads: null, ad: null, summary: null, metrics: null, fout: null };
-  meta = { ad: null, account: null, creative: null, creativeGooit: false, fout: null };
-  aanroepen = { atria: [], meta: [] };
+  meta = { ad: null, adVorig: null, account: null, creative: null, creativeGooit: false, fout: null };
+  aanroepen = { atria: [], meta: [], vensters: [] };
 }
 
 globalThis.fetch = async (url, opties) => {
@@ -103,7 +103,18 @@ globalThis.fetch = async (url, opties) => {
     if (meta.fout) return meta.fout;
     if (u.includes('/insights')) {
       const niveau = (u.match(/level=([a-z]+)/) || [])[1];
-      return { ok: true, json: async () => ({ data: niveau === 'account' ? (meta.account || []) : (meta.ad || []) }) };
+      /* Welk venster er gevraagd is. De vorige periode is een tweede aanroep
+         met een ander time_range -- en als de nabootsing daar hetzelfde op
+         antwoordt, meet je een trend van precies 1,00 en ziet alles er stabiel
+         uit terwijl er niets vergeleken is. */
+      let venster = {};
+      try { venster = JSON.parse(decodeURIComponent((u.match(/time_range=([^&]+)/) || [])[1] || '{}')); } catch (e) { }
+      const vandaag = new Date().toISOString().slice(0, 10);
+      const isVorig = venster.until && venster.until !== vandaag;
+      if (isVorig) aanroepen.vensters.push(venster);
+      else if (venster.since) aanroepen.vensters.push(venster);
+      if (niveau === 'account') return { ok: true, json: async () => ({ data: meta.account || [] }) };
+      return { ok: true, json: async () => ({ data: (isVorig ? meta.adVorig : meta.ad) || [] }) };
     }
     /* Het netwerk dat eruit ligt is iets anders dan een dienst die 'niet
        gevonden' zegt: het eerste gooit, het tweede antwoordt. Zonder allebei
@@ -410,6 +421,82 @@ const netwerkWeg = await roep('/itereren/advertentie?bron=meta&account=act_1&id=
 check('ook bij een netwerkfout komt de advertentie door', netwerkWeg.status, 200);
 check('nog steeds met zijn cijfers', netwerkWeg.data.advertentie.cijfers.aankopen, 22);
 check('en de diagnose is er ook', netwerkWeg.data.diagnose !== undefined, true);
+
+console.log('\n  daalt hij? dat is een vergelijking, geen eigenschap');
+/* "Dalende prestaties" bestaat niet op één advertentie in één venster. Het is
+   dit venster tegen het vorige, en zonder dat vorige venster is elk pijltje
+   omlaag verzonnen. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [
+  metaAd(),
+  metaAd({ ad_id: '120003', ad_name: 'WS - 158 - 4', spend: '512.40',
+           action_values: [{ action_type: 'omni_purchase', value: '1076.04' }] }),
+  /* Deze bestond vorige periode nog niet. */
+  metaAd({ ad_id: '120009', ad_name: 'WS - 170 - nieuw' })
+];
+meta.adVorig = [
+  metaAd({ action_values: [{ action_type: 'omni_purchase', value: '1200.00' }] }),
+  metaAd({ ad_id: '120003', ad_name: 'WS - 158 - 4', spend: '512.40',
+           action_values: [{ action_type: 'omni_purchase', value: '2152.08' }] })
+];
+const metTrend = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=30&vergelijk=1',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+const perId = {};
+metTrend.advertenties.forEach(a => { perId[a.id] = a; });
+check('de vergelijking is beschikbaar', metTrend.trend_beschikbaar, true);
+check('een advertentie die halveerde staat op 0,5', Math.round(perId['120003'].trend.roas * 100) / 100, 0.5);
+check('en eentje die iets steeg staat boven 1', perId['120001'].trend.roas > 1, true);
+/* Geen vorige periode is geen vlakke lijn. Een advertentie die vorige week nog
+   niet bestond hoort niet als "stabiel" in de lijst en al helemaal niet als
+   "dalend": dan wordt een lancering een probleem. */
+check('wie vorige periode niet bestond heeft geen trend', perId['120009'].trend, null);
+check('en ook geen vorige cijfers', perId['120009'].vorige, null);
+
+/* De twee vensters raken elkaar en overlappen niet. Overlap zou de daling
+   deels tegen zichzelf wegstrepen -- dan meet je hem wel, maar te klein. */
+const vensters = aanroepen.vensters.filter(v => v.since);
+check('er zijn twee vensters bevraagd', vensters.length >= 2, true);
+const nu = vensters[0], toen = vensters[1];
+check('het tweede venster ligt vóór het eerste', toen.until < nu.since, true);
+check('en ze sluiten op elkaar aan',
+  Math.round((new Date(nu.since) - new Date(toen.until)) / 86400000), 1);
+
+console.log('\n  zonder de vraag geen tweede aanroep');
+/* De vorige periode is een extra aanroep bij Meta. Die hoef je niet te doen om
+   een lijst te tonen, dus gebeurt hij alleen als ernaar gevraagd is. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+meta.adVorig = [metaAd()];
+const zonder = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('één aanroep', aanroepen.meta.filter(u => u.includes('/insights')).length, 1);
+check('en geen trendveld', zonder.advertenties[0].trend, undefined);
+
+console.log('\n  een deling door nul wordt geen pijl omhoog');
+/* Van niets naar iets is geen percentage. Een vorige ROAS van nul die als
+   deler doorgaat levert oneindig op, en oneindig wordt op het scherm een
+   advertentie die het spectaculair goed doet. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+meta.adVorig = [metaAd({ action_values: [{ action_type: 'omni_purchase', value: '0' }] })];
+const nul = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=30&vergelijk=1',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('geen trend uit een nul', nul.advertenties[0].trend.roas, null);
+check('maar de vorige cijfers staan er wel', nul.advertenties[0].vorige.roas, 0);
+
+console.log('\n  een bron die het niet kan zegt dat, in plaats van niets');
+/* Atria kent alleen vaste periodes. Een lijst zonder trend die er hetzelfde
+   uitziet als een lijst waarin niets daalt, is precies de geruststelling die
+   we niet gemeten hebben. */
+await reset();
+atria.ads = [atriaAd()];
+const viaAtriaTrend = (await roep('/itereren/advertenties?bron=atria&account=aaaa1111&dagen=30&vergelijk=1')).data;
+check('geen vergelijking bij Atria', viaAtriaTrend.trend_beschikbaar, false);
+check('met de reden erbij', /vaste periodes/.test(viaAtriaTrend.trend_reden || ''), true);
+check('en geen verzonnen trend op de advertentie', viaAtriaTrend.advertenties[0].trend, undefined);
 
 console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
 process.exit(fout ? 1 : 0);
