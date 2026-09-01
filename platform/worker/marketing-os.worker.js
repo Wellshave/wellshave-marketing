@@ -58,7 +58,7 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 25;
+const VERSIE = 26;
 const VERSIE_DATUM = '2026-09-01';
 const VERSIE_WAT = 'de merken een voor een in plaats van allemaal tegelijk (TrendTrack knijpt af), de naam van de adverteerder wint van het domein in de tracker, rangschikken op de advertentiepositie waar bereik ontbreekt, en een rij waar geen beeld uit komt meldt zijn eigen veldnamen zodat de volgende reparatie geen gokwerk is';
 
@@ -1656,7 +1656,7 @@ function ttVeld(r, paden, namen, keur) {
    niets opleveren dat de beeldproxy daarna zou weigeren. Zonder dit staat er
    een lege kaart terwijl het beeld gewoon in het antwoord zit, onder een naam
    die ik niet kende. */
-function ttDiepAdres(wortel) {
+function ttDiepAdres(wortel, keur) {
   const rij = [{ w: wortel, d: 0 }];
   let gezien = 0;
   while (rij.length) {
@@ -1671,11 +1671,26 @@ function ttDiepAdres(wortel) {
          is de advertentie niet. Dat als creatie tonen is een leugen met een
          plaatje erbij. */
       if (/logo|avatar|profile|icon|favicon/.test(ttNormNaam(sleutel))) continue;
-      if (typeof w === 'string' && beeldHostMag(w)) return w;
+      if (typeof w === 'string' && (keur || beeldHostMag)(w)) return w;
     }
   }
   return null;
 }
+
+/* Een advertentie met bewegend beeld heeft twee adressen: het bestand zelf en
+   een stilstaand voorbeeld. TrendTrack zet ze allebei onder `media`, en de
+   uitlezer pakte het eerste dat hij zag -- bij een video was dat de mp4. Die
+   in een <img> zetten levert een zwart vlak op: geen fout, geen melding, alleen
+   een kaart die leeg lijkt terwijl er een advertentie achter zit.
+
+   Vandaar deze scheiding. Een adres is een video of het is een beeld, nooit
+   allebei, en de uitlezer zoekt ze apart. */
+function ttIsVideoAdres(u) {
+  return typeof u === 'string' && /\.(mp4|m4v|mov|webm|m3u8)(\?|#|$)/i.test(u);
+}
+
+function ttBeeldMag(u) { return beeldHostMag(u) && !ttIsVideoAdres(u); }
+function ttVideoMag(u) { return beeldHostMag(u) && ttIsVideoAdres(u); }
 
 function ttNaarAdvertentie(rij) {
   const r = rij || {};
@@ -1691,7 +1706,13 @@ function ttNaarAdvertentie(rij) {
                      ['mediaUrl', 'thumbnailUrl', 'thumbnail', 'imageUrl', 'image',
                       'snapshotUrl', 'previewUrl', 'creativeUrl', 'videoPreviewImageUrl',
                       'originalImageUrl', 'resizedImageUrl'],
-                     beeldHostMag) || ttDiepAdres(r),
+                     ttBeeldMag) || ttDiepAdres(r, ttBeeldMag),
+    /* Het bestand zelf, als het er is. Zonder dit is een videoadvertentie een
+       zwart vlak met een kop eronder, en dat is precies de advertentie die je
+       wilt zien: hij draait al negentig dagen bij een concurrent. */
+    video: ttVeld(r, ['media.videoUrl', 'media.mediaUrl', 'videoUrl', 'video_url'],
+                     ['videoUrl', 'videoHdUrl', 'videoSdUrl', 'mediaUrl', 'video'],
+                     ttVideoMag) || ttDiepAdres(r, ttVideoMag),
     soort: ttVeld(r, ['media.type', 'mediaType', 'media_type'], ['mediaType', 'creativeType']),
     copy: {
       kop: ttVeld(r, ['content.title', 'title', 'headline', 'creative.title'],
@@ -1835,7 +1856,7 @@ async function ttToplijstMerken(env, o) {
            kennen komt uit een gereedschap dat het antwoord normaliseert, en de
            ruwe route kan andere namen gebruiken. Zonder dit is de volgende
            ronde weer raden; hiermee staat het in het antwoord. */
-        if (!ad.beeld) {
+        if (!ad.beeld && !ad.video) {
           Object.keys(r || {}).forEach(function (k) {
             if (sleutels.indexOf(k) === -1) sleutels.push(k);
           });
@@ -2858,6 +2879,33 @@ export default {
             status: 200,
             headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', ...cors }
           });
+        }
+
+        /* Hetzelfde, maar dan voor bewegend beeld. Een aparte ingang en geen
+           extra soort op /onderzoek/beeld: die weigert alles wat geen plaatje
+           is, en dat is precies de grens die je niet even oprekt omdat er nu
+           ook een video langskomt.
+
+           Het lichaam wordt doorgegeven, niet ingelezen: een advertentie van
+           dertig seconden past niet in het geheugen van een worker, en hoeft
+           dat ook niet. Een Range-verzoek gaat mee zodat de speler kan
+           doorspoelen; zonder dat kun je alleen van voren af aan kijken. */
+        if (path === '/onderzoek/video' && request.method === 'GET') {
+          const bron = url.searchParams.get('u') || '';
+          if (!beeldHostMag(bron)) return json({ error: 'dit adres wordt niet doorgelaten' }, 400);
+          const door = {};
+          const range = request.headers.get('range');
+          if (range) door['Range'] = range;
+          const r = await fetch(bron, { headers: door });
+          if (!r.ok && r.status !== 206) return json({ error: 'de video was niet op te halen (' + r.status + ')' }, 502);
+          const type = r.headers.get('content-type') || '';
+          if (!/^video\//.test(type)) return json({ error: 'dat adres gaf geen video terug' }, 400);
+          const uit = { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', 'Accept-Ranges': 'bytes', ...cors };
+          ['content-length', 'content-range'].forEach(function (h) {
+            const w = r.headers.get(h);
+            if (w) uit[h] = w;
+          });
+          return new Response(r.body, { status: r.status, headers: uit });
         }
       } catch (e) {
         return json({ error: String((e && e.message) || e).slice(0, 200), bron: 'trendtrack' }, 502);

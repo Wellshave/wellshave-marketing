@@ -732,6 +732,17 @@ input:focus, select:focus, textarea:focus {
 }
 .cr-beeld img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cr-beeld-leeg { font-size: 11.5px; color: var(--text-faint); }
+.cr-beeld-leeg.fout { color: var(--danger, #e07a6a); padding: 0 14px; text-align: center; line-height: 1.5; }
+/* Het speelmerk ligt OVER de poster, niet ernaast: het vak is een vierkant en
+   de poster vult het helemaal. Position absolute dus, met een vak dat relatief
+   staat. */
+.cr-beeld { position: relative; }
+.cr-speel {
+  position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: rgba(10, 10, 12, .72); color: var(--gold-bright);
+  border: 1px solid rgba(255, 255, 255, .14); backdrop-filter: blur(3px);
+}
 .cr-kaart-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
 .cr-merk { font-size: 12px; color: var(--gold-bright); font-weight: 600; }
 .cr-kop { font-size: 13px; color: var(--text); line-height: 1.45; }
@@ -751,6 +762,13 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; min-height: 200px;
 }
 .cr-detail-beeld img { width: 100%; display: block; }
+.cr-detail-beeld video { width: 100%; display: block; background: #000; }
+/* Terwijl de video binnenkomt staat de poster er al, met de melding erover. */
+.cr-detail-beeld { position: relative; }
+.cr-detail-beeld img + .cr-beeld-leeg {
+  position: absolute; inset: auto 0 0 0; padding: 8px 0;
+  background: rgba(10, 10, 12, .72); text-align: center;
+}
 .cr-detail-naast h3 { font-size: 17px; color: var(--gold-bright) !important; margin: 0 0 2px; }
 .cr-domein { font-size: 12px; color: var(--text-faint); margin-bottom: 14px; }
 .cr-feiten { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 12.5px; }

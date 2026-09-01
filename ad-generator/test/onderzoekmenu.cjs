@@ -66,7 +66,13 @@ function ONDERSCHEP() {
         bereik: 412000, dagen_actief: 96, varianten: 4, eerst_gezien: '2026-05-20', land: 'NL', taal: 'nl' },
       { id: 'c-901', merk: 'Zonder cijfers BV', domein: null, beeld: null, soort: 'image',
         copy: { kop: 'Een tweede', tekst: null, cta: null },
-        bereik: null, dagen_actief: null, varianten: null, eerst_gezien: null, land: null, taal: null }
+        bereik: null, dagen_actief: null, varianten: null, eerst_gezien: null, land: null, taal: null },
+      /* En eentje met bewegend beeld: het bestand apart, de poster apart. Dit
+         is de advertentie die als zwart vlak op het scherm stond. */
+      { id: 'c-902', merk: 'Bewegend BV', domein: 'bewegend.nl',
+        beeld: 'https://x.fbcdn.net/poster.jpg', video: 'https://x.fbcdn.net/film.mp4',
+        soort: 'video', copy: { kop: 'Kijk wat er gebeurt', tekst: null, cta: null },
+        bereik: null, dagen_actief: 40, varianten: null, eerst_gezien: null, land: null, taal: null }
     ]
   };
   window.__merken = [
@@ -89,6 +95,10 @@ function ONDERSCHEP() {
     }
     if (u.indexOf('/onderzoek/beeld') > -1) {
       return { ok: true, status: 200, blob: async () => new Blob(['x'], { type: 'image/jpeg' }) };
+    }
+    if (u.indexOf('/onderzoek/video') > -1) {
+      if (window.__videoStuk) return { ok: false, status: 502, json: async () => ({ error: 'de video was niet op te halen (404)' }) };
+      return { ok: true, status: 200, blob: async () => new Blob(['mp4'], { type: 'video/mp4' }) };
     }
     if (u.indexOf('/anthropic') > -1) {
       return { ok: true, status: 200,
@@ -194,7 +204,7 @@ function ONDERSCHEP() {
       url: (window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1)[0] || {}).url
     };
   });
-  check('twee kaarten', lijst.kaarten, 2);
+  check('drie kaarten', lijst.kaarten, 3);
   check('met het merk erop', /Concurrent BV/.test(lijst.tekst), true);
   check('en de vraag droeg het teamtoken', lijst.auth, 'Bearer token-van-de-baas');
   check('met de gekozen sortering', /sorteer=looptijd/.test(lijst.url), true);
@@ -613,6 +623,226 @@ function ONDERSCHEP() {
   check('geen [object Object] meer', /\[object Object\]/.test(teOud), false);
   check('er staat wat er moet gebeuren', /wrangler deploy/.test(teOud), true);
   check('en waaraan je ziet of het gelukt is', /versie 20 of hoger/.test(teOud), true);
+
+  console.log('\n  een videoadvertentie is geen zwart vlak');
+  /* Eerst de lijst terug: de controles hiervoor lieten hem gefilterd of leeg
+     achter, en dan meet ik iets anders dan ik denk. */
+  await page.evaluate(async () => { _cr.open = null; await crHaalLijst(); });
+  /* Dit is de fout waarmee dit begon: de mp4 stond in het beeldveld, het scherm
+     zette hem in een <img>, en er verscheen een zwart vlak zonder melding. Nu
+     staat de poster er, met een speelmerk erop zodat je ziet dat er iets te
+     zien is. */
+  const kaarten = await page.evaluate(() => {
+    const alle = [...document.querySelectorAll('.cr-kaart')];
+    return alle.map(k => ({ speel: !!k.querySelector('.cr-speel'), tekst: k.textContent }));
+  });
+  check('er staan drie kaarten om naar te kijken', kaarten.length, 3);
+  check('de videoadvertentie draagt een speelmerk', (kaarten[2] || {}).speel, true);
+  check('en een still niet', (kaarten[0] || {}).speel, false);
+
+  /* En het speelmerk overleeft het binnenkomen van de poster. De beelden komen
+     na de lijst binnen en vervingen eerst het hele vak -- inclusief het merk. */
+  const naBeeld = await page.evaluate(async () => {
+    await crLaadBeelden();
+    const k = document.querySelectorAll('.cr-kaart')[2];
+    return { speel: !!k.querySelector('.cr-speel'), plaatje: !!k.querySelector('img') };
+  });
+  check('de poster staat er', naBeeld.plaatje, true);
+  check('en het speelmerk staat er nog steeds', naBeeld.speel, true);
+
+  /* Openen en sluiten lopen via de geschiedenis, en die is asynchroon: na
+     crSluitAd komt er nog een popstate achteraan die het detail opnieuw zou
+     sluiten. Vandaar wachten tot het scherm werkelijk staat in plaats van op
+     een aantal milliseconden gokken. */
+  await page.evaluate(() => {
+    window.__wacht = async function (kies, aan) {
+      for (var i = 0; i < 60; i++) {
+        if (!!document.querySelector(kies) === aan) return true;
+        await new Promise(r => setTimeout(r, 25));
+      }
+      return false;
+    };
+  });
+
+  console.log('\n  het bestand komt pas als je de advertentie opent');
+  const voorOpenen = await page.evaluate(() =>
+    window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/video') > -1).length);
+  check('de lijst haalt geen films binnen', voorOpenen, 0);
+
+  const speler = await page.evaluate(async () => {
+    document.querySelectorAll('.cr-kaart')[2].click();
+    await window.__wacht('.cr-detail-beeld video', true);
+    const v = document.querySelector('.cr-detail-beeld video');
+    const g = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/video') > -1);
+    return {
+      speler: !!v,
+      poster: v ? /^blob:/.test(v.getAttribute('poster') || '') : null,
+      bron: v ? /^blob:/.test(v.getAttribute('src') || '') : null,
+      knoppen: v ? v.hasAttribute('controls') : null,
+      aantal: g.length,
+      /* Via onze eigen poort, met het token -- niet rechtstreeks naar Meta. */
+      viaOns: g.length ? /\/onderzoek\/video\?u=/.test(g[0].url) : null,
+      auth: g.length ? g[0].auth : null,
+      rechtstreeks: window.__gevraagd.filter(g => /^https:\/\/x\.fbcdn\.net\/film/.test(g.url)).length
+    };
+  });
+  check('er staat een speler', speler.speler, true);
+  check('met bedieningsknoppen', speler.knoppen, true);
+  check('het bestand komt uit een lokaal adres', speler.bron, true);
+  check('en de poster ook', speler.poster, true);
+  check('één keer opgehaald', speler.aantal, 1);
+  check('via onze eigen poort', speler.viaOns, true);
+  check('met het teamtoken', speler.auth, 'Bearer token-van-de-baas');
+  check('en niet rechtstreeks bij Meta', speler.rechtstreeks, 0);
+
+  /* Een tweede keer openen haalt hem niet opnieuw op. Een film van vijf mega
+     per klik op "terug" en weer terug is een rekening zonder doel. */
+  const nogmaals = await page.evaluate(async () => {
+    crSluitAd(false);
+    await window.__wacht('.cr-kaart', true);
+    document.querySelectorAll('.cr-kaart')[2].click();
+    await window.__wacht('.cr-detail-beeld video', true);
+    return window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/video') > -1).length;
+  });
+  check('en blijft daarna staan', nogmaals, 1);
+
+  console.log('\n  een video die niet komt zegt dat, en blijft niet laden');
+  const stukkeVideo = await page.evaluate(async () => {
+    crSluitAd(false);
+    await window.__wacht('.cr-kaart', true);
+    window.__videoStuk = true;
+    delete _cr.videos['https://x.fbcdn.net/film.mp4'];
+    document.querySelectorAll('.cr-kaart')[2].click();
+    await window.__wacht('.cr-detail-beeld', true);
+    /* Wachten tot het antwoord er is, en dus NIET op "video laden" -- die
+       stond er al voordat er iets misging. */
+    for (var i = 0; i < 80 && !/kwam niet binnen/.test(
+      (document.querySelector('.cr-detail-beeld') || {}).textContent || ''); i++) {
+      await new Promise(r => setTimeout(r, 25));
+    }
+    const t = (document.querySelector('.cr-detail-beeld') || {}).textContent || '(geen detail)';
+    window.__videoStuk = false;
+    return t;
+  });
+  check('de melding staat op het scherm', /De video kwam niet binnen/.test(stukkeVideo), true);
+  check('en hij staat niet eeuwig te laden', /video laden/.test(stukkeVideo), false);
+
+  console.log('\n  de beelden waar Nick naar kijkt');
+  /* Claude kijkt geen video. Wat hij krijgt zijn stilstaande beelden uit het
+     bestand, verspreid over de looptijd -- de hook vooraan, de CTA achteraan.
+     Zes keer hetzelfde beeld is de fout die je niet ziet: het antwoord ziet er
+     dan precies zo uit als een goed antwoord. */
+  const tijden = await page.evaluate(() => ({
+    zes: crFrameTijden(30, 6),
+    kort: crFrameTijden(3, 6),
+    /* Een video zonder bekende duur: één beeld, en dat is waar. Verzonnen
+       tijdstippen leveren zwarte beelden op. */
+    onbekend: crFrameTijden(Infinity, 6),
+    nul: crFrameTijden(0, 6)
+  }));
+  check('zes beelden over dertig seconden', tijden.zes.map(t => Math.round(t * 100) / 100), [0, 6, 12, 18, 24, 29.85]);
+  check('het laatste beeld valt net voor het einde', tijden.zes[5] < 30, true);
+  check('bij een korte video schuiven ze mee', tijden.kort.length, 6);
+  check('een onbekende duur levert één beeld', tijden.onbekend, [0]);
+  check('en een lege video ook', tijden.nul, [0]);
+
+  /* En de lus die de beelden werkelijk trekt. Een echte <video> valt hier niet
+     te maken zonder een echt bestand, dus staat er een dubbelganger die zich
+     gedraagt zoals de API belooft: springen naar een tijdstip, "seeked" melden,
+     en dan een ander beeld tonen. Wat hier bewaakt wordt is dat er per tijdstip
+     GEEN kopie van hetzelfde beeld uitkomt. */
+  const frames = await page.evaluate(async () => {
+    const doek = document.createElement('canvas');
+    doek.width = 40; doek.height = 40;
+    const ctx = doek.getContext('2d');
+    let t = 0;
+    Object.defineProperty(doek, 'duration', { value: 10 });
+    Object.defineProperty(doek, 'videoWidth', { value: 40 });
+    Object.defineProperty(doek, 'videoHeight', { value: 40 });
+    Object.defineProperty(doek, 'currentTime', {
+      get: () => t,
+      set: function (w) {
+        t = w;
+        /* Zoals een echte speler het doet: het beeld verandert PAS als het
+           springen klaar is. Wie meteen na het zetten van currentTime tekent,
+           tekent het vorige beeld -- en krijgt zes keer hetzelfde zonder dat er
+           iets misgaat dat je kunt zien. */
+        setTimeout(() => {
+          ctx.fillStyle = 'hsl(' + Math.round(w * 36) + ' 90% 50%)';
+          ctx.fillRect(0, 0, 40, 40);
+          doek.dispatchEvent(new Event('seeked'));
+        }, 2);
+      }
+    });
+    const uit = await crVideoFrames(doek, 4);
+    return { aantal: uit.length, tijden: uit.map(f => Math.round(f.t * 100) / 100),
+             mimes: [...new Set(uit.map(f => f.mime))],
+             verschillend: new Set(uit.map(f => f.b64)).size };
+  });
+  check('vier beelden', frames.aantal, 4);
+  check('op de goede tijdstippen', frames.tijden, [0, 3.33, 6.67, 9.85]);
+  check('als jpeg', frames.mimes, ['image/jpeg']);
+  check('en het zijn vier VERSCHILLENDE beelden', frames.verschillend, 4);
+
+  console.log('\n  en de prompt zegt wat Nick niet gezien heeft');
+  /* Dit is het veld dat stil verzonnen wordt. Bij een videoadvertentie zit het
+     mechanisme vaak in de voice-over, en die hoort hij niet. Staat dat er niet
+     bij, dan schrijft hij op wat er gezegd zou kunnen zijn -- en dat ziet er
+     precies zo uit als iets wat hij gelezen heeft. */
+  const videoPrompt = await page.evaluate(() =>
+    crPatroonPrompt(window.__antwoord.advertenties[2],
+      [{ t: 0 }, { t: 6 }, { t: 12 }, { t: 18 }, { t: 24 }, { t: 29.85 }]));
+  check('het zegt dat het een video is', /Dit is een VIDEO/.test(videoPrompt), true);
+  check('met hoeveel beelden', /6 stilstaande beelden/.test(videoPrompt), true);
+  check('en op welke seconden', /0s, 6s, 12s, 18s, 24s, 30s/.test(videoPrompt), true);
+  check('het geluid ontbreekt en dat staat er', /geluid NIET/.test(videoPrompt), true);
+  check('met wat dat betekent voor het mechanisme', /voice-over/.test(videoPrompt), true);
+  check('en de opdracht om het veld dan leeg te laten', /laat het veld dan leeg/.test(videoPrompt), true);
+
+  /* Bij een still staat er niets over video. Een prompt die altijd over
+     ontbrekend geluid praat leert het model dat het er niet toe doet. */
+  const stillPrompt = await page.evaluate(() => crPatroonPrompt(window.__antwoord.advertenties[0], null));
+  check('een still krijgt geen videoregels', /VIDEO|geluid/.test(stillPrompt), false);
+
+  console.log('\n  Nick krijgt de beelden, niet het bestand');
+  const gestuurd = await page.evaluate(async () => {
+    window.__videoStuk = false;
+    _cr.open = window.__antwoord.advertenties[2];
+    /* De eigen speler vervangen: een echt bestand valt hier niet te decoderen.
+       Wat we bewaken is dat de beelden meegaan en de film niet. */
+    const echteSpeler = window.crEigenSpeler;
+    window.crEigenSpeler = async () => {
+      const doek = document.createElement('canvas');
+      doek.width = 20; doek.height = 20;
+      const ctx = doek.getContext('2d');
+      let t = 0;
+      Object.defineProperty(doek, 'duration', { value: 12 });
+      Object.defineProperty(doek, 'videoWidth', { value: 20 });
+      Object.defineProperty(doek, 'videoHeight', { value: 20 });
+      Object.defineProperty(doek, 'currentTime', { get: () => t, set: function (w) {
+        t = w;
+        setTimeout(() => {
+          ctx.fillStyle = 'hsl(' + Math.round(w * 30) + ' 90% 50%)'; ctx.fillRect(0, 0, 20, 20);
+          doek.dispatchEvent(new Event('seeked'));
+        }, 2);
+      } });
+      return doek;
+    };
+    await crLeesPatroon();
+    window.crEigenSpeler = echteSpeler;
+    const v = window.__gevraagd.filter(g => g.url.indexOf('/anthropic') > -1).pop();
+    const b = JSON.parse(v.body);
+    const inhoud = b.messages[0].content;
+    return {
+      beelden: inhoud.filter(x => x.type === 'image').length,
+      tekst: inhoud.filter(x => x.type === 'text').map(x => x.text).join(''),
+      /* Het bestand zelf mag er niet in zitten -- geen blob-adres, geen mp4. */
+      geenFilm: !/blob:|\.mp4/.test(v.body)
+    };
+  });
+  check('zes beelden gingen mee', gestuurd.beelden, 6);
+  check('met de uitleg erbij', /Dit is een VIDEO/.test(gestuurd.tekst), true);
+  check('en het bestand zelf niet', gestuurd.geenFilm, true);
 
   console.log('\n  een fout van de bron komt op het scherm, niet in de console');
   const stuk = await page.evaluate(async () => {

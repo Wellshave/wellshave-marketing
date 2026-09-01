@@ -65,7 +65,12 @@ var _cr = {
   /* De beelden die we al opgehaald hebben, per adres. Zonder dit haalt elke
      hertekening ze opnieuw op, en dat is bij tien kaarten tien verzoeken per
      klik op een filterknop. */
-  beelden: {}
+  beelden: {},
+  /* En hetzelfde voor bewegend beeld, apart. Een video is groot genoeg om hem
+     niet twee keer te willen halen, en hij komt pas als je hem opent -- tien
+     kaarten die alvast tien films binnenhalen is een lijst die minutenlang
+     laadt voordat je iets ziet. */
+  videos: {}, videoBezig: false, videoFout: null
 };
 
 function crEsc(s) {
@@ -128,6 +133,125 @@ async function crBeeld(adres) {
   return _cr.beelden[adres];
 }
 
+/* Dezelfde route als het beeld, en om dezelfde reden: de proxy zit achter de
+   login, dus een <video src> werkt niet. Het verschil is dat dit pas gebeurt
+   als je een advertentie opent. Doorspoelen werkt daarna gewoon: de browser
+   heeft het hele bestand lokaal staan. */
+async function crVideoHaal(adres) {
+  if (!adres) return null;
+  if (_cr.videos[adres]) return _cr.videos[adres];
+  var o = { headers: {} };
+  if (window.__WG_TOKEN) o.headers['Authorization'] = 'Bearer ' + window.__WG_TOKEN;
+  var r = await fetch(crBasis() + '/onderzoek/video?u=' + encodeURIComponent(adres), o);
+  if (!r.ok) {
+    var d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    throw new Error((typeof wgFoutTekst === 'function') ? wgFoutTekst(d, r.status)
+      : ('de video was niet op te halen (' + r.status + ')'));
+  }
+  var blob = await r.blob();
+  _cr.videos[adres] = { url: URL.createObjectURL(blob), blob: blob };
+  return _cr.videos[adres];
+}
+
+/* De video wordt opgehaald zodra je een advertentie met bewegend beeld opent.
+   Niet bij het tekenen van de lijst: dan haal je tien films binnen voor de ene
+   die je wilt zien. */
+async function crOpenVideo() {
+  var ad = _cr.open;
+  if (!ad || !ad.video || _cr.videos[ad.video] || _cr.videoBezig) return;
+  _cr.videoBezig = true; _cr.videoFout = null; crRender();
+  try {
+    await crVideoHaal(ad.video);
+  } catch (e) {
+    _cr.videoFout = 'De video kwam niet binnen: ' + String((e && e.message) || e);
+  }
+  _cr.videoBezig = false;
+  crRender();
+}
+
+/* ── Wat Nick van een video te zien krijgt ─────────────────────────────── */
+
+/* Claude kijkt geen video. Wat we hem wél kunnen geven zijn stilstaande
+   beelden uit het bestand, in volgorde, met de seconde erbij. Dat is genoeg
+   voor het patroon: de hook staat in het eerste beeld, de bewijsvorm in het
+   midden, de CTA op het eind.
+
+   Wat er NIET bij zit is het geluid en de beweging. Bij een videoadvertentie
+   zit het mechanisme vaak precies daar -- in de voice-over die uitlegt hoe het
+   werkt. Dat staat in de prompt, zodat het veld leeg blijft in plaats van
+   ingevuld met een gok. */
+var CR_FRAMES = 6;
+
+function crFrameTijden(duur, aantal) {
+  var n = Math.max(1, aantal || CR_FRAMES);
+  /* Een video zonder bekende duur levert één beeld op: het eerste. Dat is
+     mager, maar het is waar -- verzonnen tijdstippen leveren zwarte beelden. */
+  if (!isFinite(duur) || !(duur > 0)) return [0];
+  if (n === 1) return [0];
+  var uit = [];
+  for (var i = 0; i < n; i++) {
+    /* Precies op het einde staan levert vaak een zwart beeld op, en juist daar
+       staat de CTA. Vandaar een tikje ervoor. */
+    uit.push(Math.min(i * (duur / (n - 1)), Math.max(0, duur - 0.15)));
+  }
+  return uit;
+}
+
+/* Naar één tijdstip springen en wachten tot het beeld er werkelijk staat.
+   Zonder het wachten teken je het vorige frame nog een keer: de canvas heeft
+   geen idee dat de speler nog aan het zoeken is. */
+function crSpringNaar(vid, t) {
+  return new Promise(function (klaar, mislukt) {
+    var op = setTimeout(function () { mislukt(new Error('het beeld op ' + t + 's kwam niet')); }, 5000);
+    var klaarmaken = function () {
+      clearTimeout(op); vid.removeEventListener('seeked', klaarmaken); klaar();
+    };
+    vid.addEventListener('seeked', klaarmaken);
+    vid.currentTime = t;
+  });
+}
+
+/* Een eigen speler, los van die op het scherm. De speler in de pagina wordt
+   opnieuw getekend zodra "Nick leest mee" verschijnt, en dan sta je frames te
+   trekken uit een element dat net vervangen is -- dat levert niets op, en het
+   levert het STIL niets op. Dit element hangt nergens aan en gaat nergens heen.
+   Het bestand staat al lokaal, dus dit kost geen tweede verzoek. */
+function crEigenSpeler(url) {
+  return new Promise(function (klaar, mislukt) {
+    var vid = document.createElement('video');
+    vid.preload = 'auto';
+    vid.muted = true;
+    vid.playsInline = true;
+    var op = setTimeout(function () { mislukt(new Error('de video liet zich niet openen')); }, 15000);
+    vid.addEventListener('loadeddata', function () { clearTimeout(op); klaar(vid); });
+    vid.addEventListener('error', function () { clearTimeout(op); mislukt(new Error('de video liet zich niet openen')); });
+    vid.src = url;
+  });
+}
+
+async function crVideoFrames(vid, aantal) {
+  var tijden = crFrameTijden(vid.duration, aantal);
+  var doek = document.createElement('canvas');
+  doek.width = vid.videoWidth || 640;
+  doek.height = vid.videoHeight || 640;
+  var ctx = doek.getContext('2d');
+  var uit = [];
+  for (var i = 0; i < tijden.length; i++) {
+    try {
+      await crSpringNaar(vid, tijden[i]);
+      ctx.drawImage(vid, 0, 0, doek.width, doek.height);
+      var data = doek.toDataURL('image/jpeg', 0.7);
+      var m = String(data).match(/^data:([^;]+);base64,(.+)$/);
+      if (m) uit.push({ t: tijden[i], mime: m[1], b64: m[2] });
+    } catch (e) {
+      /* Eén beeld dat niet komt is geen reden om de rest te laten vallen. Vijf
+         beelden zijn nog steeds vijf beelden meer dan geen. */
+    }
+  }
+  return uit;
+}
+
 function crBlobNaarBase64(blob) {
   return new Promise(function (klaar, mislukt) {
     var lezer = new FileReader();
@@ -164,10 +288,13 @@ async function crHaalMerken() {
 function crOpenAd(ad) {
   _cr.open = ad;
   _cr.patroon = null;
+  _cr.videoFout = null;
   try {
     history.pushState({ crOpen: true }, '', location.href);
   } catch (e) { /* geen geschiedenis is geen reden om niets te tonen */ }
   crRender();
+  /* Nu pas de video, en alleen deze ene. */
+  if (ad && ad.video) crOpenVideo();
 }
 
 function crSluitAd(viaGeschiedenis) {
@@ -254,7 +381,15 @@ async function crLaadBeelden() {
       var b = await crBeeld(ad.beeld);
       if (!b) continue;
       var vak = document.querySelector('.cr-kaart[data-i="' + i + '"] .cr-beeld');
-      if (vak) vak.innerHTML = '<img src="' + crEsc(b.url) + '" alt="">';
+      if (!vak) continue;
+      /* Alleen het lege vakje vervangen, nooit het hele blok: het speelmerk
+         staat ernaast en hoort te blijven staan. Met innerHTML verdween het,
+         en dan ziet een videoadvertentie er weer uit als een still. */
+      var oud = vak.querySelector('img');
+      var leegvak = vak.querySelector('.cr-beeld-leeg');
+      if (oud) oud.src = b.url;
+      else if (leegvak) leegvak.outerHTML = '<img src="' + crEsc(b.url) + '" alt="">';
+      else vak.insertAdjacentHTML('afterbegin', '<img src="' + crEsc(b.url) + '" alt="">');
     } catch (e) { /* een beeld dat niet komt is geen reden om te stoppen */ }
   }
 }
@@ -274,9 +409,14 @@ function crKaartHtml(ad, i) {
     regels.push('<b>+' + crGetal(ad.rang_delta) + '</b> gestegen');
   }
   if (ad.varianten != null) regels.push('<b>' + crGetal(ad.varianten) + '</b> varianten');
+  /* Een videoadvertentie zegt dat hij er een is. Zonder dit ziet hij eruit als
+     een still die toevallig niet laadt -- en dat was precies wat er gebeurde. */
+  var speel = ad.video ? '<span class="cr-speel" aria-hidden="true">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">' +
+    '<path d="M8 5v14l11-7z"/></svg></span>' : '';
+  var leeg = ad.beeld ? 'beeld laden…' : (ad.video ? 'video' : 'geen beeld');
   return '<button type="button" class="cr-kaart" data-i="' + i + '" data-action="cr-open">' +
-    '<div class="cr-beeld"><span class="cr-beeld-leeg">' +
-      (ad.beeld ? 'beeld laden…' : 'geen beeld') + '</span></div>' +
+    '<div class="cr-beeld"><span class="cr-beeld-leeg">' + leeg + '</span>' + speel + '</div>' +
     '<div class="cr-kaart-body">' +
       '<div class="cr-merk">' + crEsc(ad.merk || 'onbekend merk') + '</div>' +
       (ad.copy && ad.copy.kop ? '<div class="cr-kop">' + crEsc(ad.copy.kop) + '</div>' : '') +
@@ -426,7 +566,7 @@ function crDetailHtml() {
     'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg> Terug naar de lijst</button>';
   h += '<div class="cr-detail-boven">';
-  h += '<div class="cr-detail-beeld">' + (b ? '<img src="' + crEsc(b.url) + '" alt="">' : '<span class="cr-beeld-leeg">geen beeld</span>') + '</div>';
+  h += '<div class="cr-detail-beeld">' + crDetailBeeldHtml(ad, b) + '</div>';
   h += '<div class="cr-detail-naast">';
   h += '<h3>' + crEsc(ad.merk || 'onbekend merk') + '</h3>';
   if (ad.domein) h += '<div class="cr-domein">' + crEsc(ad.domein) + '</div>';
@@ -452,7 +592,9 @@ function crDetailHtml() {
 
   h += '<div class="cr-patroon">';
   if (_cr.patroonBezig) {
-    h += '<div class="cr-melding">Nick leest de advertentie…</div>';
+    h += '<div class="cr-melding">' +
+      (ad.video ? 'Nick bekijkt ' + CR_FRAMES + ' beelden uit de video…' : 'Nick leest de advertentie…') +
+      '</div>';
   } else if (_cr.patroon && _cr.patroon.fout) {
     h += '<div class="cr-melding fout">' + crEsc(_cr.patroon.fout) + '</div>' + crLeesKnop();
   } else if (_cr.patroon) {
@@ -460,10 +602,33 @@ function crDetailHtml() {
   } else {
     h += '<p class="cr-uitleg">Lees het patroon eronder: welke hoek, welk mechanisme, ' +
       'voor wie, en welk soort bewijs. Dat is wat je kunt overnemen — het beeld en de ' +
-      'copy van dit merk niet.</p>' + crLeesKnop();
+      'copy van dit merk niet.' +
+      (ad.video ? ' Bij een video kijkt Nick naar ' + CR_FRAMES + ' beelden uit het bestand. ' +
+        'Het geluid hoort hij niet, dus zit het mechanisme in de voice-over, dan blijft dat veld leeg.' : '') +
+      '</p>' + crLeesKnop();
   }
   h += '</div></div>';
   return h;
+}
+
+/* Bewegend beeld krijgt een speler, stilstaand beeld een plaatje, en een
+   advertentie waar we niets van hebben zegt dat gewoon. De poster van de video
+   is het beeld dat we al hadden: dan staat er iets terwijl het bestand nog
+   binnenkomt, in plaats van een zwart vlak. */
+function crDetailBeeldHtml(ad, b) {
+  if (ad.video) {
+    var v = _cr.videos[ad.video];
+    if (v) {
+      return '<video class="cr-video" controls playsinline preload="metadata" ' +
+        (b ? 'poster="' + crEsc(b.url) + '" ' : '') +
+        'src="' + crEsc(v.url) + '"></video>';
+    }
+    if (_cr.videoFout) return '<span class="cr-beeld-leeg fout">' + crEsc(_cr.videoFout) + '</span>';
+    return (b ? '<img src="' + crEsc(b.url) + '" alt="">' : '') +
+      '<span class="cr-beeld-leeg">video laden…</span>';
+  }
+  if (b) return '<img src="' + crEsc(b.url) + '" alt="">';
+  return '<span class="cr-beeld-leeg">geen beeld</span>';
 }
 
 function crLeesKnop() {
@@ -497,9 +662,20 @@ function crPatroonHtml(p) {
   return h;
 }
 
-function crPatroonPrompt(ad) {
+function crPatroonPrompt(ad, frames) {
   var d = [];
   d.push('Je kijkt naar een advertentie die op dit moment draait bij een ander merk.');
+  /* Wat Claude wel en niet gezien heeft, en dat expliciet. Zonder deze regels
+     leest hij zes losse plaatjes als zes advertenties, en vult hij het
+     mechanisme in met wat de voice-over gezegd zou kunnen hebben. Precies het
+     soort veld dat er ingevuld uitziet en verzonnen is. */
+  if (frames && frames.length) {
+    d.push('Dit is een VIDEO. Je krijgt ' + frames.length + ' stilstaande beelden uit die video, ' +
+      'in volgorde, op ' + frames.map(function (f) { return Math.round(f.t) + 's'; }).join(', ') + '.');
+    d.push('Je hoort het geluid NIET en je ziet de beweging niet. Bij een videoadvertentie zit ' +
+      'het mechanisme vaak juist in de voice-over. Kun je het niet uit de beelden of de copy ' +
+      'aflezen, laat het veld dan leeg -- schrijf niet op wat er gezegd zou kunnen zijn.');
+  }
   if (ad.dagen_actief) d.push('Hij loopt al ' + ad.dagen_actief + ' dagen.');
   if (ad.merk) d.push('Merk: ' + ad.merk + '.');
   if (ad.copy && ad.copy.kop) d.push('Kop: ' + ad.copy.kop);
@@ -514,7 +690,8 @@ function crPatroonPrompt(ad) {
     '  sophistication  - een van: s1, s2, s3, s4, s5\n' +
     '  publiek         - wie hier wordt aangesproken, in een zin\n' +
     '  bewijs          - welk soort bewijs gebruikt wordt (demonstratie, cijfer, getuige, autoriteit, voor-na, geen)\n' +
-    '  formaat         - de vorm (nieuwsartikel, advertorial, productfoto, vergelijking, meme, screenshot, anders)\n' +
+    '  formaat         - de vorm (nieuwsartikel, advertorial, productfoto, vergelijking, meme, screenshot, ' +
+    'talking head, demonstratie, UGC, voor-na, anders)\n' +
     '  waarom          - waarom dit werkt bij dit publiek, in twee zinnen\n\n' +
     'Weet je iets niet, laat het veld dan LEEG. Een verzonnen mechanisme ziet er precies zo uit ' +
     'als een gelezen mechanisme, en daar wordt een advertentie op gebouwd.\n' +
@@ -528,14 +705,28 @@ async function crLeesPatroon() {
   _cr.patroonBezig = true; _cr.patroon = null; crRender();
   try {
     var inhoud = [];
-    if (ad.beeld) {
+    var frames = null;
+    /* Bij bewegend beeld gaat de film zelf niet mee -- die kan Claude niet
+       lezen. Wat er wel heen gaat is een reeks stilstaande beelden uit die
+       film, en de prompt zegt erbij dat het er zes zijn en dat het geluid
+       ontbreekt. */
+    if (ad.video) {
+      var v = await crVideoHaal(ad.video);
+      if (v) {
+        frames = await crVideoFrames(await crEigenSpeler(v.url), CR_FRAMES);
+        frames.forEach(function (f) {
+          inhoud.push({ type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } });
+        });
+      }
+    }
+    if (!(frames && frames.length) && ad.beeld) {
       var b = await crBeeld(ad.beeld);
       if (b) {
         var beeld = await crBlobNaarBase64(b.blob);
         inhoud.push({ type: 'image', source: { type: 'base64', media_type: beeld.mime, data: beeld.b64 } });
       }
     }
-    inhoud.push({ type: 'text', text: crPatroonPrompt(ad) });
+    inhoud.push({ type: 'text', text: crPatroonPrompt(ad, frames) });
     var model = (document.getElementById('anthropic-model') || {}).value || 'claude-opus-5';
     var data = await fetchJsonWithRetry(crBasis() + '/anthropic', {
       method: 'POST',
@@ -647,4 +838,8 @@ window.crPatroonPrompt = crPatroonPrompt; window.crPatroonHtml = crPatroonHtml;
 window.crKaartHtml = crKaartHtml; window.crLijstHtml = crLijstHtml;
 window.crFilterHtml = crFilterHtml; window.crDetailHtml = crDetailHtml;
 window.crGetal = crGetal; window._cr = _cr;
+window.crFrameTijden = crFrameTijden; window.crVideoFrames = crVideoFrames;
+window.crDetailBeeldHtml = crDetailBeeldHtml; window.crOpenVideo = crOpenVideo;
+window.CR_FRAMES = CR_FRAMES; window.crEigenSpeler = crEigenSpeler;
+window.crVideoHaal = crVideoHaal;
 window.CR_SORTERINGEN = CR_SORTERINGEN; window.CR_PATROONVELDEN = CR_PATROONVELDEN;

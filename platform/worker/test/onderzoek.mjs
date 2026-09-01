@@ -50,7 +50,7 @@ async function reset() {
   tt = { rijen: [], fout: null, merken: [], merkAds: {}, merkFout: {},
          eenmaligAfknijpen: {}, gelijktijdig: 0, maxGelijktijdig: 0 };
   beeld = { type: 'image/jpeg', ok: true, body: 'JPEGDATA' };
-  aanroepen = { tt: [], extern: [] };
+  aanroepen = { tt: [], extern: [], range: [] };
 }
 
 globalThis.fetch = async (url, opties) => {
@@ -103,9 +103,13 @@ globalThis.fetch = async (url, opties) => {
   /* Alles wat de beeldproxy probeert op te halen. Dit is met opzet de
      vangnetregel: elke host die hier binnenkomt was er een die doorgelaten is. */
   aanroepen.extern.push(u);
+  aanroepen.range.push((opties && opties.headers && opties.headers.Range) || null);
+  const kop = { 'content-type': beeld.type };
+  if (beeld.extra) Object.assign(kop, beeld.extra);
   return {
-    ok: beeld.ok, status: beeld.ok ? 200 : 404,
-    headers: { get: (h) => (h.toLowerCase() === 'content-type' ? beeld.type : null) },
+    ok: beeld.ok, status: beeld.status || (beeld.ok ? 200 : 404),
+    headers: { get: (h) => (kop[h.toLowerCase()] !== undefined ? kop[h.toLowerCase()] : null) },
+    body: beeld.body,
     arrayBuffer: async () => new TextEncoder().encode(beeld.body).buffer,
     text: async () => beeld.body, json: async () => ({})
   };
@@ -583,6 +587,96 @@ tt.merkAds = { m1: [{ id: 'o1',
   extra: { laag: { title: 'Een ondertitel, diep weggestopt' } } }] };
 const ondiep = (await roep('/onderzoek/toplijst')).data.advertenties[0];
 check('de kop komt van dichtbij, niet van diep', ondiep.copy.kop, 'De kop van de advertentie');
+
+console.log('\n  een video is geen beeld, en een beeld is geen video');
+/* Dit ging stil mis en zag eruit als niets: bij een videoadvertentie stond de
+   mp4 in `media.mediaUrl`, de uitlezer pakte hem als beeld, en het scherm zette
+   hem in een <img>. Dat levert een zwart vlak op -- geen fout, geen melding,
+   alleen een kaart die leeg lijkt terwijl er een advertentie achter zit die al
+   maanden draait. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'v1', media: {
+  type: 'video',
+  mediaUrl: 'https://medias.trendtrack.io/facebook/video/abc.mp4',
+  thumbnailUrl: 'https://medias.trendtrack.io/facebook/image/abc.jpg' } }] };
+const vid = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('het bestand staat apart', vid.video, 'https://medias.trendtrack.io/facebook/video/abc.mp4');
+check('en het stilstaande voorbeeld is het beeld', vid.beeld, 'https://medias.trendtrack.io/facebook/image/abc.jpg');
+
+/* En andersom: een gewone advertentie krijgt geen video die er niet is. Een
+   speelknop op een still is een belofte die niet ingelost wordt. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [ttRij()] };
+const stil = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('een still heeft geen video', stil.video, null);
+check('en het beeld staat er gewoon', stil.beeld, 'https://medias.trendtrack.io/facebook/image/abc.jpg');
+
+/* Het gaat om waar het adres op EINDIGT, niet om wat er ergens in staat. Een
+   voorvertoning van een video staat in een map die "video" heet en heeft "mp4"
+   in de naam, maar het is een jpg. Wie op "komt het woord voor" toetst gooit
+   precies de stills weg die bij de videoadvertenties horen. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 's2', media: {
+  thumbnailUrl: 'https://medias.trendtrack.io/facebook/video/mp4-poster/abc.jpg' } }] };
+const poster = (await roep('/onderzoek/toplijst')).data.advertenties[0];
+check('een poster uit de videomap blijft een beeld',
+  poster.beeld, 'https://medias.trendtrack.io/facebook/video/mp4-poster/abc.jpg');
+check('en is geen video', poster.video, null);
+
+/* Staat er alleen een video en geen enkele still, dan is er geen beeld -- maar
+   dan valt er ook niets te melden over ontbrekende velden: we hebben de
+   advertentie gevonden, alleen niet als plaatje. */
+await reset();
+tt.merken = [{ id: 'm1', name: 'A' }];
+tt.merkAds = { m1: [{ id: 'v2', media: { mediaUrl: 'https://x.fbcdn.net/v.mp4' } }] };
+const alleenVideo = (await roep('/onderzoek/toplijst')).data;
+check('geen beeld', alleenVideo.advertenties[0].beeld, null);
+check('wel de video', alleenVideo.advertenties[0].video, 'https://x.fbcdn.net/v.mp4');
+check('en geen klacht over ontbrekende velden', alleenVideo.velden_zonder_beeld, undefined);
+
+console.log('\n  de video komt langs dezelfde poort, met dezelfde grens');
+await reset();
+beeld = { ok: true, type: 'video/mp4', body: 'MP4DATA' };
+const speel = await roep('/onderzoek/video?u=' + encodeURIComponent('https://x.fbcdn.net/v.mp4'));
+check('een video van Meta gaat erdoor', speel.status, 200);
+check('en komt terug als video', speel.type, 'video/mp4');
+
+/* Dezelfde adressen die de beeldproxy weigert. Een tweede ingang die iets
+   ruimer is dan de eerste is geen tweede ingang maar een gat. */
+await reset();
+beeld = { ok: true, type: 'video/mp4', body: 'MP4DATA' };
+const kwaadaardig = [
+  'https://kwaadaardig.nl/film.mp4',
+  'https://fbcdn.net.kwaadaardig.nl/film.mp4',
+  'http://scontent.xx.fbcdn.net/film.mp4',
+  'https://192.168.1.1/film.mp4',
+  'file:///etc/passwd'
+];
+for (const kwaad of kwaadaardig) {
+  const uit = await roep('/onderzoek/video?u=' + encodeURIComponent(kwaad));
+  check('  geweigerd: ' + kwaad, uit.status, 400);
+}
+check('  en niets opgehaald', aanroepen.extern.length, 0);
+
+/* En wat een toegelaten host teruggeeft moet ook een video zijn. Een host op de
+   lijst die HTML teruggeeft is geen reden om dat als film door te zetten. */
+await reset();
+beeld = { ok: true, type: 'text/html', body: '<html>' };
+const geenVideo = await roep('/onderzoek/video?u=' + encodeURIComponent('https://x.fbcdn.net/v.mp4'));
+check('geen video: geweigerd', geenVideo.status, 400);
+
+/* Doorspoelen. Zonder dat de Range meegaat kun je alleen van voren af aan
+   kijken, en dan is een advertentie van dertig seconden dertig seconden werk. */
+await reset();
+beeld = { ok: true, status: 206, type: 'video/mp4', body: 'BROK',
+          extra: { 'content-range': 'bytes 100-199/5000' } };
+const brok = await roep('/onderzoek/video?u=' + encodeURIComponent('https://x.fbcdn.net/v.mp4'),
+  { headers: { Authorization: 'Bearer baas', Range: 'bytes=100-199' } });
+check('de Range ging mee naar de bron', aanroepen.range[0], 'bytes=100-199');
+check('en het antwoord blijft een deelantwoord', brok.status, 206);
 
 console.log('\n  de merken worden een voor een bevraagd, niet allemaal tegelijk');
 /* TrendTrack weigert gelijktijdige aanroepen met "Too many concurrent public
