@@ -906,6 +906,110 @@ function ONDERSCHEP() {
   check('en wat je eraan kunt doen', /Upload de creative/.test(roryZonderBeeld.fout || ''), true);
   check('het staat ook op het scherm', /De analyse liep vast/.test(roryZonderBeeld.tekst), true);
 
+  console.log('\n  een iteratie op een video is een script, geen static');
+  /* Je kunt de hook van een video van dertig seconden niet testen met een
+     stilstaand beeld: dan test je iets anders en noem je het dezelfde test. Het
+     werkblad hieronder maakt statics, dus dat hoort hier niet in beeld. */
+  const stap3 = await page.evaluate(async () => {
+    const zicht = () => ['iterate-werkblad', 'source-ad-section', 'classic-form'].map(id => {
+      const el = document.getElementById(id);
+      return el ? getComputedStyle(el).display !== 'none' : null;
+    });
+    const uit = {};
+    _iw.tochStatic = false;
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: {}, video: 'https://x.fbcdn.net/f.mp4' };
+    _iw.stap = 3; iwRender();
+    uit.videoTekst = document.getElementById('iw-paneel').textContent;
+    uit.videoWerkblad = zicht();
+    uit.scriptknop = !!document.querySelector('[data-action="iw-script"]');
+
+    /* En bij een static verandert er niets: dat werkblad hoort daar wel. */
+    _iw.gekozen = { id: 's1', naam: 'Stil', cijfers: {}, beeld: 'https://x.fbcdn.net/1.jpg' };
+    iwRender();
+    uit.staticWerkblad = zicht();
+    uit.staticTekst = document.getElementById('iw-paneel').textContent;
+    return uit;
+  });
+  check('bij een video staat er dat het een script wordt',
+    /iteratie is een script/.test(stap3.videoTekst), true);
+  check('met de knop naar de Scriptwriter', stap3.scriptknop, true);
+  check('en het statics-werkblad blijft weg', stap3.videoWerkblad, [false, false, false]);
+  check('bij een static staat het werkblad er gewoon', stap3.staticWerkblad, [true, true, true]);
+  check('en gaat het over wat we testen', /Wat testen we/.test(stap3.staticTekst), true);
+
+  /* Toch statics mag, maar als besluit. Een uitzondering die je zelf aanzet is
+     iets anders dan een scherm dat het verkeerde ding aanbiedt. */
+  const toch = await page.evaluate(() => {
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: {}, video: 'https://x.fbcdn.net/f.mp4' };
+    _iw.stap = 3; _iw.tochStatic = false; iwRender();
+    document.querySelector('[data-action="iw-tochstatic"]').click();
+    const aan = getComputedStyle(document.getElementById('iterate-werkblad')).display !== 'none';
+    /* En een andere advertentie zet die uitzondering terug: hij hoort niet stil
+       mee te reizen naar de volgende keuze. */
+    _iw.stap = 2; iwRender();
+    document.querySelector('[data-action="iw-anders"]').click();
+    return { aan: aan, na: _iw.tochStatic };
+  });
+  check('je kunt er zelf voor kiezen', toch.aan, true);
+  check('en bij een andere advertentie staat hij weer uit', toch.na, false);
+
+  /* Ook als je die andere advertentie uit de lijst kiest in plaats van via de
+     terugknop: twee wegen naar dezelfde stap, en allebei horen ze de
+     uitzondering terug te zetten. */
+  const naKiezen = await page.evaluate(async () => {
+    _iw.tochStatic = true;
+    await iwHaalLijst();
+    await iwKies(0);
+    return _iw.tochStatic;
+  });
+  check('ook na een keuze uit de lijst', naKiezen, false);
+
+  console.log('\n  en de Scriptwriter krijgt de cijfers en de diagnose mee');
+  const naarScript = await page.evaluate(() => {
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', video: 'https://x.fbcdn.net/f.mp4',
+                    cijfers: { spend: 144.92, roas: 3.5, aankopen: 8 } };
+    _iw.dagen = 30;
+    _iw.diagnose = window.__detail.diagnose;
+    state.iterateAnalysis = {
+      funnel: 'TOF', format_mode: 'UGC Demo / How-To',
+      hook_mechaniek: 'Call-out via sociale spiegel', angle: 'Sociale spiegel',
+      persona: 'Nederlandse man 25-45', bewijs: 'Getuige',
+      vasthouden: ['De vrouwelijke getuige als bron', 'Geen product in de opening'],
+      creatieve_richting: 'Zelfde quote, drie andere werelden'
+    };
+    const dir = document.getElementById('sw-direction');
+    dir.value = '';
+    iwNaarScriptwriter();
+    return {
+      tab: document.getElementById('main-tab-scriptwriter').style.display,
+      funnel: document.getElementById('sw-funnel').value,
+      formaat: document.getElementById('sw-format').value,
+      richting: dir.value
+    };
+  });
+  check('de Scriptwriter staat open', naarScript.tab, 'block');
+  check('de funnel is overgenomen', naarScript.funnel, 'tof');
+  check('en het formaat', naarScript.formaat, 'UGC Demo / How-To');
+  check('de brief zegt dat het een iteratie op een video is',
+    /ITERATIE OP EEN DRAAIENDE VIDEOADVERTENTIE/.test(naarScript.richting), true);
+  /* De eerlijkheid die hier het meest kost: wij hebben het originele script
+     niet. Een brief die dat niet zegt levert een "herschrijving" op van iets
+     wat niemand gelezen heeft. */
+  check('en dat we het originele script NIET hebben',
+    /originele script hebben we niet/.test(naarScript.richting), true);
+  check('de hook gaat mee', /Call-out via sociale spiegel/.test(naarScript.richting), true);
+  check('wat vast moet blijven ook', /vrouwelijke getuige/.test(naarScript.richting), true);
+  check('en de cijfers', /144\.92/.test(naarScript.richting), true);
+  check('met de funnel-diagnose', /HET KNELPUNT ZIT/.test(naarScript.richting), true);
+
+  const alGevuld = await page.evaluate(() => {
+    const dir = document.getElementById('sw-direction');
+    dir.value = 'Hier zat iemand tien minuten aan';
+    iwNaarScriptwriter();
+    return dir.value;
+  });
+  check('een richting die er al staat blijft staan', alGevuld, 'Hier zat iemand tien minuten aan');
+
   console.log('\n  handmatig invullen kan nog steeds');
   const hand = await page.evaluate(() => {
     /* De handmatige weg staat in stap 1, in de kaart naast de koppeling. Eerst

@@ -47,7 +47,10 @@ var _iw = {
   analyseBezig: false, analyseFout: null,
   /* Waarom er geen beeld staat, als er geen beeld staat. Null betekent: er is
      er wel een, of we hebben het nog niet geprobeerd. */
-  beeldFout: null
+  beeldFout: null,
+  /* Bij een video maakt het statics-werkblad het verkeerde ding. Deze vlag zet
+     hem alsnog aan -- als besluit, niet als vergissing. */
+  tochStatic: false
 };
 
 function iwEsc(s) {
@@ -148,6 +151,9 @@ async function iwKies(i) {
     _iw.diagnose = uit.diagnose;
     _iw.stap = 2;
     _iw.analyseFout = null;
+    /* Een andere advertentie is een andere keuze. De uitzondering van de vorige
+       hoort niet stil mee te reizen. */
+    _iw.tochStatic = false;
     /* Het beeld van de advertentie wordt de bron-ad. Dat is de hele reden dat
        dit sneller is dan het oude formulier: je hoeft de static die je zelf
        hebt gemaakt niet opnieuw te uploaden om erop te kunnen itereren. */
@@ -737,6 +743,89 @@ function iwStap2Html() {
   return h;
 }
 
+/* ── Stap 3: waar de iteratie gemaakt wordt ────────────────────────────── */
+
+function iwIsVideo() {
+  return !!(_iw.gekozen && _iw.gekozen.video);
+}
+
+/* Een iteratie op een video is een script, geen static. Dat is niet een
+   voorkeur maar wat het werk is: je kunt de hook van een video van dertig
+   seconden niet testen met een stilstaand beeld -- dan test je iets anders en
+   noem je het dezelfde test. Het werkblad hieronder maakt statics, dus dat
+   hoort hier niet in beeld te komen.
+
+   Wat we NIET hebben is het originele script. We hebben zes beelden eruit, de
+   cijfers en Rory's lezing. De Scriptwriter krijgt dus een nieuwe opzet met dat
+   materiaal, en niet de itereer-modus die om een geplakt script vraagt: een
+   veld dat we alleen met een gereconstrueerd script kunnen vullen, is een veld
+   dat we verzinnen. */
+function iwStap3Html() {
+  if (!iwIsVideo()) {
+    return '<h3 class="iw-titel">3. Wat testen we</h3>' +
+      '<p class="iw-uitleg">De instellingen en het werkblad staan hieronder.</p>';
+  }
+  var h = '<h3 class="iw-titel">3. Deze iteratie is een script</h3>';
+  h += '<section class="iw-kaart">';
+  h += '<p class="iw-uitleg">Dit is een videoadvertentie. Een iteratie erop is een nieuw script, ' +
+    'geen static: de hook van een video test je niet met een stilstaand beeld.</p>';
+  h += '<p class="iw-uitleg">Wat meegaat naar de Scriptwriter: de cijfers, de funnel-diagnose, ' +
+    'wat er volgens Rory sterk aan is en wat er getest moet worden. ' +
+    'Het originele script hebben we niet — wel zes beelden eruit — dus dit wordt een nieuwe opzet ' +
+    'op hetzelfde mechanisme, en geen herschrijving van iets wat we niet gelezen hebben.</p>';
+  h += '<div class="iw-voet"><button type="button" class="iw-knop groot" data-action="iw-script">' +
+    'Ga verder in de Scriptwriter →</button></div>';
+  h += '<p class="iw-uitleg leeg"><button type="button" class="iw-link" data-action="iw-tochstatic">' +
+    'Toch statics maken van deze video</button> — bijvoorbeeld om één frame als losse ad te testen.</p>';
+  h += '</section>';
+  return h;
+}
+
+/* Alles wat we weten, klaargezet in de Scriptwriter. Wat we niet weten -- welk
+   van onze producten dit is -- blijft een keuze. */
+function iwNaarScriptwriter() {
+  if (!iwIsVideo()) return;
+  if (typeof switchMainTab !== 'function' || !document.getElementById('sw-direction')) {
+    _iw.fout = 'De Scriptwriter is hier niet beschikbaar.'; return iwRender();
+  }
+  switchMainTab('scriptwriter');
+  if (typeof setSwMode === 'function') setSwMode('new');
+
+  var a = (iwState() && iwState().iterateAnalysis) || {};
+  if (typeof crZetVeld === 'function') {
+    crZetVeld('sw-funnel', String(a.funnel || '').toLowerCase());
+    if (typeof crFormaatNaar === 'function' && typeof CR_FORMAAT_SCRIPT !== 'undefined') {
+      crZetVeld('sw-format', crFormaatNaar(CR_FORMAAT_SCRIPT, a.format_mode || a.archetype));
+    }
+  }
+  var dir = document.getElementById('sw-direction');
+  if (dir && !dir.value.trim()) dir.value = iwScriptBrief();
+  if (typeof toast === 'function') {
+    toast('De cijfers en de diagnose staan in de Scriptwriter. Kies je product en laat Theriot schrijven.');
+  }
+}
+
+function iwScriptBrief() {
+  var a = (iwState() && iwState().iterateAnalysis) || {};
+  var c = iwCijfertekst();
+  var r = [];
+  r.push('ITERATIE OP EEN DRAAIENDE VIDEOADVERTENTIE.');
+  if (_iw.gekozen) r.push('Advertentie: ' + _iw.gekozen.naam + '.');
+  r.push('Het originele script hebben we niet. Wat we hebben zijn zes beelden uit de video, ' +
+    'de cijfers uit de advertentiebeheerder en de lezing hieronder. Schrijf dus een nieuwe opzet ' +
+    'op hetzelfde mechanisme, en doe niet alsof je het oude script gelezen hebt.');
+  if (a.hook_mechaniek) r.push('Hook die er nu staat: ' + a.hook_mechaniek);
+  if (a.angle) r.push('Angle: ' + a.angle);
+  if (a.persona) r.push('Voor wie: ' + a.persona);
+  if (a.bewijs) r.push('Bewijsvorm: ' + a.bewijs);
+  if (Array.isArray(a.vasthouden) && a.vasthouden.length) {
+    r.push('Vasthouden: ' + a.vasthouden.join('; '));
+  }
+  if (a.creatieve_richting) r.push('Richting: ' + a.creatieve_richting);
+  if (c && c.text) r.push('\nDE CIJFERS EN DE FUNNEL:\n' + c.text);
+  return r.join('\n');
+}
+
 function iwRender() {
   var el = document.getElementById('iw-paneel');
   if (!el) return;
@@ -744,7 +833,7 @@ function iwRender() {
   if (_iw.fout) h += '<div class="iw-fout"><b>Dat lukte niet.</b><br>' + iwEsc(_iw.fout) + '</div>';
   if (_iw.stap === 1) h += iwStap1Html();
   else if (_iw.stap === 2) h += iwStap2Html();
-  else h += '<p class="iw-uitleg">De instellingen en het werkblad staan hieronder.</p>';
+  else h += iwStap3Html();
   el.innerHTML = h;
 
   iwToonWerkblad();
@@ -769,7 +858,10 @@ function iwToonWerkblad() {
     if (!el) return;
     /* Buiten het itereerscherm bepaalt dit niets: dan gaat de eigen stand van
        het element weer gelden. */
-    el.style.display = itereert ? (_iw.stap >= 3 ? 'block' : 'none') : '';
+    /* Bij een video maakt het werkblad het verkeerde ding. Het blijft weg tot
+       je er zelf voor kiest -- dan is het een besluit en geen vergissing. */
+    var mag = _iw.stap >= 3 && (!iwIsVideo() || _iw.tochStatic);
+    el.style.display = itereert ? (mag ? 'block' : 'none') : '';
   });
 }
 
@@ -835,6 +927,8 @@ function iwKlik(e) {
   else if (act === 'iw-preset') { _iw.preset = knop.getAttribute('data-id'); iwRender(); }
   else if (act === 'iw-bewaar') { iwBewaarToggle(knop.getAttribute('data-id')); iwRender(); }
   else if (act === 'iw-analyse') iwAnalyse();
+  else if (act === 'iw-script') iwNaarScriptwriter();
+  else if (act === 'iw-tochstatic') { _iw.tochStatic = true; iwRender(); }
   else if (act === 'iw-upload') {
     /* De terugval: zelf een beeld aanleveren. Dan zijn er geen cijfers uit de
        bron, dus komt het handmatige formulier erbij -- niet in plaats van de
@@ -854,7 +948,7 @@ function iwKlik(e) {
   else if (act === 'iw-kies') {
     iwKies(Number(knop.getAttribute('data-i'))).then(iwZetDimensies);
   } else if (act === 'iw-anders') {
-    _iw.gekozen = null; _iw.diagnose = null; _iw.stap = 1; iwRender();
+    _iw.gekozen = null; _iw.diagnose = null; _iw.stap = 1; _iw.tochStatic = false; iwRender();
   }
   else if (act === 'iw-handmatig') { _iw.handmatig = true; _iw.stap = 2; iwRender(); }
   else if (act === 'iw-koppeling') { _iw.handmatig = false; _iw.stap = 1; iwRender(); }
@@ -920,4 +1014,6 @@ window.iwFilter = iwFilter; window.iwBewaard = iwBewaard; window.iwBewaarToggle 
 window.iwStapperHtml = iwStapperHtml; window.iwStap1Html = iwStap1Html; window.iwStap2Html = iwStap2Html;
 window.iwAnalyse = iwAnalyse; window.iwState = iwState;
 window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN;
-window.iwZetBronVideo = iwZetBronVideo; window.IW_FRAMES = IW_FRAMES; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;
+window.iwZetBronVideo = iwZetBronVideo; window.IW_FRAMES = IW_FRAMES;
+window.iwIsVideo = iwIsVideo; window.iwStap3Html = iwStap3Html;
+window.iwNaarScriptwriter = iwNaarScriptwriter; window.iwScriptBrief = iwScriptBrief; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;
