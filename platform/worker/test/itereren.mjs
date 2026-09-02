@@ -51,7 +51,7 @@ async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }], ad_accounts: [] };
   atria = { accounts: null, ads: null, ad: null, summary: null, metrics: null, fout: null };
-  meta = { ad: null, adVorig: null, account: null, creative: null, creativeGooit: false, fout: null, filterLeeg: false };
+  meta = { ad: null, adVorig: null, account: null, creative: null, video: null, creativeGooit: false, fout: null, filterLeeg: false };
   aanroepen = { atria: [], meta: [], vensters: [], gefilterd: 0 };
 }
 
@@ -127,6 +127,11 @@ globalThis.fetch = async (url, opties) => {
        gevonden' zegt: het eerste gooit, het tweede antwoordt. Zonder allebei
        blijft het ene pad ongetest. */
     if (meta.creativeGooit) throw new Error('getaddrinfo ENOTFOUND graph.facebook.com');
+    /* De tweede opvraag: het afspeelbare adres van de video. Die loopt over
+       hetzelfde pad maar vraagt om andere velden. */
+    if (/fields=source/.test(u)) {
+      return { ok: true, json: async () => (meta.video || { error: { message: 'niet gevonden' } }) };
+    }
     return { ok: true, json: async () => (meta.creative || { error: { message: 'niet gevonden' } }) };
   }
 
@@ -602,6 +607,82 @@ const echtNiets = await roep('/itereren/advertentie?bron=meta&account=act_1&id=1
 check('dan is het een fout', echtNiets.status, 502);
 check('met het account erbij', /account 1\b/.test(echtNiets.data.error || ''), true);
 check('en het venster', /laatste 14 dagen/.test(echtNiets.data.error || ''), true);
+
+console.log('\n  bij een video zijn hook en hold de enige cijfers over de creative zelf');
+/* Zonder deze twee is een videoadvertentie op precies dezelfde manier te
+   beoordelen als een static -- en dan wordt een lek in de eerste drie seconden
+   nooit gevonden, want daar meet niets naar. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd({
+  impressions: '68000',
+  /* Twee regels in één veld: Meta splitst deze lijsten soms per soort. Wie
+     alleen de eerste leest telt de helft van de starts en rekent daarmee een
+     hook rate uit die te laag is -- en dan lijkt een werkende hook stuk. */
+  video_play_actions: [{ action_type: 'video_view', value: '20000' },
+                       { action_type: 'video_view_organic', value: '400' }],
+  video_thruplay_watched_actions: [{ action_type: 'video_view', value: '6800' }],
+  video_p25_watched_actions: [{ action_type: 'video_view', value: '10200' }],
+  video_p50_watched_actions: [{ action_type: 'video_view', value: '6120' }],
+  video_p75_watched_actions: [{ action_type: 'video_view', value: '3060' }],
+  video_p100_watched_actions: [{ action_type: 'video_view', value: '2040' }]
+})];
+meta.creative = { name: 'WS - 103 - 2 - New Vid', effective_status: 'ARCHIVED', creative: {} };
+const vid = (await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('de starts zijn opgeteld, niet de eerste regel gepakt',
+  vid.advertentie.cijfers.video_plays, 20400);
+/* 20.400 van 68.000 vertoningen = 30%. Tegen VERTONINGEN, want dat is de
+   noemer waarop hook en hold onderling vergelijkbaar zijn. */
+check('hook rate is starts gedeeld door vertoningen', vid.advertentie.cijfers.hook_rate, 30);
+check('hold rate is thruplays gedeeld door vertoningen', vid.advertentie.cijfers.hold_rate, 10);
+/* En de retentiecurve tegen wie hem STARTTE: 6.120 van 20.400 is 30%. */
+check('de helft haalt dertig procent van de starters', vid.doorkijk.p50, 30);
+check('en het eind tien', vid.doorkijk.p100, 10);
+
+console.log('\n  en bij een static blijven ze leeg, niet nul');
+/* Nul zou zeggen "niemand keek", en de waarheid is dat er niets te kijken viel. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+const stil = (await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('geen starts', stil.advertentie.cijfers.video_plays, null);
+check('geen hook rate', stil.advertentie.cijfers.hook_rate, null);
+check('geen hold rate', stil.advertentie.cijfers.hold_rate, null);
+check('en geen retentiecurve', stil.doorkijk, null);
+
+console.log('\n  de video van een Meta-advertentie is af te spelen');
+/* Er kwam alleen een thumbnail terug, want de opvraag vroeg er ook alleen om.
+   Dan staat er een stilstaand beeld waar beweging hoort -- en Rory leest die
+   ene frame alsof dat de advertentie is. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+meta.creative = { name: 'WS - 103 - 2 - New Vid', effective_status: 'ACTIVE',
+  creative: { video_id: '99887', thumbnail_url: 'https://x.fbcdn.net/thumb.jpg' } };
+meta.video = { source: 'https://video.xx.fbcdn.net/v/echt.mp4', picture: 'https://x.fbcdn.net/poster.jpg' };
+const speelbaar = (await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('het bestand komt mee', speelbaar.advertentie.video, 'https://video.xx.fbcdn.net/v/echt.mp4');
+/* En het is het BESTAND, niet het id. Een id kun je niet afspelen, en een veld
+   dat "video" heet en een nummer bevat is een veld dat het scherm stilzwijgend
+   negeert. */
+check('en niet het id', /^https:/.test(speelbaar.advertentie.video), true);
+check('en de thumbnail blijft de poster', speelbaar.advertentie.beeld, 'https://x.fbcdn.net/thumb.jpg');
+
+/* Valt die tweede opvraag om, dan gaat de advertentie door zonder video: geen
+   beeld is vervelend, geen cijfers is fataal en die hebben we al. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+meta.creative = { name: 'x', effective_status: 'ACTIVE',
+  creative: { video_id: '99887', thumbnail_url: 'https://x.fbcdn.net/thumb.jpg' } };
+meta.video = { error: { message: 'niet gevonden' } };
+const zonderBron = (await roep('/itereren/advertentie?bron=meta&account=act_1&id=120001&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('geen bestand', zonderBron.advertentie.video, null);
+check('maar de cijfers staan er wel', zonderBron.advertentie.cijfers.spend, 241.15);
 
 console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
 process.exit(fout ? 1 : 0);

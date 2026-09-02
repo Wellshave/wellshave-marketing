@@ -882,6 +882,19 @@ input:focus, select:focus, textarea:focus {
 .iw-tegel { display: flex; flex-direction: column; gap: 1px; }
 .iw-tegel-l { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
 .iw-tegel-w { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.iw-tegel-z { font-size: 10px; color: var(--text-faint); line-height: 1.3; margin-top: 1px; }
+
+/* Hoe ver ze komen: vier staafjes, geen tabel. Een retentiecurve lees je aan
+   de vorm en niet aan vier getallen onder elkaar. */
+.iw-doorkijk { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 4px; }
+.iw-dk-balk {
+  height: 5px; border-radius: 3px; background: var(--bg-elevated);
+  border: 1px solid var(--line); overflow: hidden; margin-bottom: 6px;
+}
+.iw-dk-balk i { display: block; height: 100%; background: var(--gold); }
+.iw-dk-w { font-size: 13px; color: var(--text); font-weight: 600; }
+.iw-dk-l { font-size: 10.5px; color: var(--text-faint); }
+.iw-dk-n { opacity: .75; }
 .iw-adacties { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .iw-knop.klein { padding: 6px 11px; font-size: 12px; text-decoration: none; display: inline-block; }
 .iw-knop.groot { padding: 11px 20px; font-size: 13.5px; }

@@ -50,7 +50,10 @@ var _iw = {
   beeldFout: null,
   /* Bij een video maakt het statics-werkblad het verkeerde ding. Deze vlag zet
      hem alsnog aan -- als besluit, niet als vergissing. */
-  tochStatic: false
+  tochStatic: false,
+  /* Hoe ver mensen in de video komen, en hoe ver ze dat in het hele account
+     doen. Null bij een static, en bij een video waar de bron het niet meet. */
+  doorkijk: null, normDoorkijk: null
 };
 
 function iwEsc(s) {
@@ -148,6 +151,8 @@ async function iwKies(i) {
       '&dagen=' + _iw.dagen);
     _iw.gekozen = uit.advertentie;
     _iw.norm = uit.norm;
+    _iw.doorkijk = uit.doorkijk || null;
+    _iw.normDoorkijk = uit.norm_doorkijk || null;
     _iw.diagnose = uit.diagnose;
     _iw.stap = 2;
     _iw.analyseFout = null;
@@ -267,6 +272,23 @@ async function iwZetBronAd(ad) {
 }
 
 /* ── De cijfers, in onze eigen woorden ─────────────────────────────────── */
+
+/* De twee cijfers die alleen over de video zelf gaan. De deling staat erbij en
+   dat is geen sier: "hold rate" betekent bij de ene tafel thruplay gedeeld door
+   vertoningen en bij de andere gedeeld door starts, en die twee schelen een
+   factor. Een percentage zonder zijn deling is een cijfer waar iemand anders
+   een andere conclusie uit trekt dan jij. */
+var IW_VIDEOCIJFERS = [
+  { sleutel: 'hook_rate', label: 'Hook rate', zegt: 'video plays ÷ vertoningen' },
+  { sleutel: 'hold_rate', label: 'Hold rate', zegt: 'ThruPlays ÷ vertoningen' }
+];
+
+var IW_DOORKIJK = [
+  { sleutel: 'p25', label: 'kwart' },
+  { sleutel: 'p50', label: 'helft' },
+  { sleutel: 'p75', label: 'driekwart' },
+  { sleutel: 'p100', label: 'uit' }
+];
 
 var IW_KERNCIJFERS = [
   { sleutel: 'spend', label: 'Uitgegeven', soort: 'geld' },
@@ -602,6 +624,47 @@ var IW_KAARTCIJFERS = [
   { sleutel: 'aankopen', label: 'Bestellingen' }
 ];
 
+/* Hoe ver ze komen. Alleen wat gemeten is, en met de norm van het account
+   ernaast waar die er is: 31% op de helft zegt niets tot je weet dat het
+   account op 44% zit. */
+function iwVideoHtml() {
+  var ad = _iw.gekozen;
+  if (!ad || !ad.cijfers) return '';
+  var tegels = IW_VIDEOCIJFERS.filter(function (c) {
+    var w = ad.cijfers[c.sleutel];
+    return w !== null && w !== undefined;
+  });
+  if (!tegels.length && !_iw.doorkijk) return '';
+
+  var h = '<section class="iw-kaart"><div class="iw-kaart-kop">' +
+    '<span class="iw-kaart-titel">Hoe ver komen ze in de video</span></div>';
+  if (tegels.length) {
+    h += '<div class="iw-kaartcijfers">';
+    tegels.forEach(function (c) {
+      h += '<div class="iw-tegel"><span class="iw-tegel-l">' + iwEsc(c.label) + '</span>' +
+        '<span class="iw-tegel-w">' + iwEsc(iwGetal(ad.cijfers[c.sleutel], 'procent')) + '</span>' +
+        '<span class="iw-tegel-z">' + iwEsc(c.zegt) + '</span></div>';
+    });
+    h += '</div>';
+  }
+  if (_iw.doorkijk) {
+    h += '<div class="iw-doorkijk">';
+    IW_DOORKIJK.forEach(function (d) {
+      var w = _iw.doorkijk[d.sleutel];
+      if (w === null || w === undefined) return;
+      var n = _iw.normDoorkijk ? _iw.normDoorkijk[d.sleutel] : null;
+      h += '<div class="iw-dk"><div class="iw-dk-balk"><i style="width:' +
+        Math.max(0, Math.min(100, w)) + '%"></i></div>' +
+        '<div class="iw-dk-w">' + iwEsc(iwGetal(w, 'procent')) + '</div>' +
+        '<div class="iw-dk-l">' + iwEsc(d.label) +
+        (n !== null && n !== undefined ? ' <span class="iw-dk-n">account ' + iwEsc(iwGetal(n, 'procent')) + '</span>' : '') +
+        '</div></div>';
+    });
+    h += '</div><p class="iw-uitleg leeg">Gemeten tegen wie de video gestart is, niet tegen de vertoningen.</p>';
+  }
+  return h + '</section>';
+}
+
 /* Een link naar de advertentie zoals hij bij de bron staat. Alleen bij Meta:
    daar bestaat een adres dat werkt. Bij Atria weet ik er geen, en een knop die
    nergens heen gaat is erger dan geen knop. */
@@ -730,7 +793,7 @@ function iwStap2Html() {
     return h;
   }
   h += '<div class="iw-kolommen smal-breed">';
-  h += iwAdkaartHtml();
+  h += iwAdkaartHtml() + iwVideoHtml();
   h += iwAnalyseHtml();
   h += '</div>';
   if (_iw.diagnose) {
@@ -969,6 +1032,26 @@ function iwCijfertekst() {
   var tekst = 'Advertentie: ' + ad.naam + '\nPeriode: laatste ' + _iw.dagen + ' dagen (' +
     (_iw.bron === 'atria' ? 'Atria' : 'Meta Ads') + ')\n\n' + regels.join('\n');
 
+  /* De videocijfers apart benoemd, met hun deling erbij. Zonder die deling
+     rekent het model met een andere hold rate dan het scherm toont. */
+  var vid = [];
+  IW_VIDEOCIJFERS.forEach(function (c) {
+    var w = ad.cijfers[c.sleutel];
+    if (w === null || w === undefined) return;
+    vid.push(c.label + ' (' + c.zegt + '): ' + iwGetal(w, 'procent'));
+  });
+  if (_iw.doorkijk) {
+    var curve = IW_DOORKIJK.filter(function (d2) {
+      return _iw.doorkijk[d2.sleutel] !== null && _iw.doorkijk[d2.sleutel] !== undefined;
+    }).map(function (d2) {
+      return d2.label + ' ' + iwGetal(_iw.doorkijk[d2.sleutel], 'procent');
+    });
+    if (curve.length) {
+      vid.push('Hoe ver ze komen, gemeten tegen wie hem startte: ' + curve.join(', ') + '.');
+    }
+  }
+  if (vid.length) tekst += '\n\nDE VIDEO ZELF:\n' + vid.join('\n');
+
   var d = _iw.diagnose;
   if (d) {
     tekst += '\n\nDE FUNNEL, GEMETEN TEGEN HETZELFDE ACCOUNT OVER HETZELFDE VENSTER:';
@@ -1016,4 +1099,6 @@ window.iwAnalyse = iwAnalyse; window.iwState = iwState;
 window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN;
 window.iwZetBronVideo = iwZetBronVideo; window.IW_FRAMES = IW_FRAMES;
 window.iwIsVideo = iwIsVideo; window.iwStap3Html = iwStap3Html;
+window.iwVideoHtml = iwVideoHtml; window.IW_VIDEOCIJFERS = IW_VIDEOCIJFERS;
+window.IW_DOORKIJK = IW_DOORKIJK;
 window.iwNaarScriptwriter = iwNaarScriptwriter; window.iwScriptBrief = iwScriptBrief; window.iwBronLink = iwBronLink; window.iwVerschilKort = iwVerschilKort;

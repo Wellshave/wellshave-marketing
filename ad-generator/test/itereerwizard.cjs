@@ -78,6 +78,19 @@ function ONDERSCHEP() {
   ] };
   /* Een advertentie die goed klikt maar lekt op de pagina. Dat is het geval
      waarin een nieuwe creative het probleem niet oplost. */
+  /* Een videoadvertentie met hook, hold en een retentiecurve. Los van het
+     stille geval hieronder, want dit is een ander scherm. */
+  window.__videoDetail = {
+    advertentie: { id: '120009', naam: 'WS - 103 - 2 - New Vid', beeld: 'https://x.fbcdn.net/p.jpg',
+      video: 'https://video.xx.fbcdn.net/v/echt.mp4', staat: 'ARCHIVED', copy: null,
+      cijfers: { spend: 509.50, impressions: 68000, klikken: 853, ctr: 2.52, aankopen: 23,
+                 roas: 2.91, cpa: 22.15, video_plays: 20400, video_thruplay: 6800,
+                 hook_rate: 30, hold_rate: 10 } },
+    norm: null,
+    doorkijk: { p25: 50, p50: 30, p75: 15, p100: 10 },
+    norm_doorkijk: { p25: 55, p50: 44, p75: 20, p100: 12 },
+    diagnose: null
+  };
   window.__detail = {
     advertentie: { id: '120001', naam: 'WS - 160 - 1', beeld: null, staat: 'ACTIVE', copy: null,
       cijfers: { spend: 241.15, impressions: 40270, reach: 28000, klikken: 542, ctr: 1.35,
@@ -905,6 +918,69 @@ function ONDERSCHEP() {
   check('met de oorzaak erbij', /geen beeldadres/.test(roryZonderBeeld.fout || ''), true);
   check('en wat je eraan kunt doen', /Upload de creative/.test(roryZonderBeeld.fout || ''), true);
   check('het staat ook op het scherm', /De analyse liep vast/.test(roryZonderBeeld.tekst), true);
+
+  console.log('\n  bij een video staan hook, hold en de retentiecurve op het scherm');
+  /* Zonder deze cijfers beoordeel je een video op precies dezelfde manier als
+     een static -- en dan wordt een lek in de eerste drie seconden nooit
+     gevonden, want daar meet niets naar. */
+  const videoCijfers = await page.evaluate(async () => {
+    const echteSpeler = window.crEigenSpeler;
+    window.crEigenSpeler = async () => {
+      const doek = document.createElement('canvas');
+      doek.width = 8; doek.height = 8;
+      const ctx = doek.getContext('2d');
+      let t = 0;
+      Object.defineProperty(doek, 'duration', { value: 27 });
+      Object.defineProperty(doek, 'videoWidth', { value: 8 });
+      Object.defineProperty(doek, 'videoHeight', { value: 8 });
+      Object.defineProperty(doek, 'currentTime', { get: () => t, set: function (w) {
+        t = w;
+        setTimeout(() => { ctx.fillStyle = 'hsl(' + Math.round(w * 13) + ' 90% 50%)';
+          ctx.fillRect(0, 0, 8, 8); doek.dispatchEvent(new Event('seeked')); }, 2);
+      } });
+      return doek;
+    };
+    const bewaard = window.__detail;
+    window.__detail = window.__videoDetail;
+    _iw.gekozen = null; _iw.tochStatic = false;
+    await iwHaalLijst();
+    await iwKies(0);
+    const tekst = document.getElementById('iw-paneel').textContent;
+    const balken = document.querySelectorAll('.iw-dk').length;
+    const naarModel = iwCijfertekst().text;
+    window.__detail = bewaard;
+    window.crEigenSpeler = echteSpeler;
+    return { tekst: tekst, balken: balken, model: naarModel };
+  });
+  check('de hook rate staat er', /Hook rate/.test(videoCijfers.tekst), true);
+  check('met zijn waarde', /30\.00%/.test(videoCijfers.tekst), true);
+  check('de hold rate ook', /Hold rate/.test(videoCijfers.tekst), true);
+  /* De deling staat erbij, en dat is geen sier: "hold rate" betekent bij de ene
+     tafel thruplay gedeeld door vertoningen en bij de andere gedeeld door
+     starts, en die twee schelen een factor. */
+  check('met de deling erbij', /ThruPlays ÷ vertoningen/.test(videoCijfers.tekst), true);
+  check('vier punten in de curve', videoCijfers.balken, 4);
+  check('met de norm van het account ernaast', /account 44\.00%/.test(videoCijfers.tekst), true);
+  check('en er staat waartegen de curve gemeten is',
+    /tegen wie de video gestart is/.test(videoCijfers.tekst), true);
+  /* En het model krijgt dezelfde cijfers MET dezelfde deling. Anders rekent hij
+     met een andere hold rate dan het scherm toont. */
+  check('het model krijgt de videocijfers', /DE VIDEO ZELF/.test(videoCijfers.model), true);
+  check('met de deling', /ThruPlays ÷ vertoningen/.test(videoCijfers.model), true);
+  check('en de curve', /helft 30\.00%/.test(videoCijfers.model), true);
+
+  /* Bij een static hoort er niets van te staan: nul zou zeggen "niemand keek",
+     en de waarheid is dat er niets te kijken viel. */
+  const staticCijfers = await page.evaluate(async () => {
+    _iw.gekozen = null; _iw.doorkijk = null; _iw.normDoorkijk = null;
+    await iwHaalLijst();
+    await iwKies(0);
+    return { tekst: document.getElementById('iw-paneel').textContent,
+             model: iwCijfertekst().text, balken: document.querySelectorAll('.iw-dk').length };
+  });
+  check('geen hook rate bij een static', /Hook rate/.test(staticCijfers.tekst), false);
+  check('geen curve', staticCijfers.balken, 0);
+  check('en het model krijgt er ook niets over', /DE VIDEO ZELF/.test(staticCijfers.model), false);
 
   console.log('\n  een iteratie op een video is een script, geen static');
   /* Je kunt de hook van een video van dertig seconden niet testen met een

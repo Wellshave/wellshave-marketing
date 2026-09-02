@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 29;
+const VERSIE = 30;
 const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'een advertentie kiezen werkt weer: Meta gaf op een filter soms niets terug waar de lijst hem wel toonde, dus wordt er nu breder nagevraagd voor er een fout komt; het beeld en de video worden op naam gezocht in plaats van op een vaste plek, bij TrendTrack en bij Atria en Meta; en /health zegt of je de live worker of de preview te pakken hebt';
+const VERSIE_WAT = 'video-iteratie: het bestand van een Meta-video komt mee zodat hij af te spelen is, en hook rate, hold rate en de retentiecurve staan erbij -- met hun deling erbij, want hold rate betekent aan twee tafels iets anders; verder werkt een advertentie kiezen weer (Meta gaf op een filter soms niets terug waar de lijst hem wel toonde)';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -421,6 +421,19 @@ async function sleutelOverzicht(env) {
 /* ============================================================
  * 4. Meta Ads
  * ============================================================ */
+
+/* De videocijfers komen als lijst met één soort erin ('video_view'). Optellen
+   in plaats van op naam zoeken: welke soort er precies in staat verschilt per
+   veld, en een vaste naam levert dan stil een leeg cijfer op. */
+function metaActieSom(lijst) {
+  if (!Array.isArray(lijst) || !lijst.length) return null;
+  let som = 0, gezien = false;
+  lijst.forEach(function (x) {
+    const w = adGetal(x && x.value);
+    if (w !== null) { som += w; gezien = true; }
+  });
+  return gezien ? som : null;
+}
 
 function metaActie(acties, naam) {
   if (!Array.isArray(acties)) return null;
@@ -1164,7 +1177,41 @@ function adAfgeleid(c) {
   if (u.cpm == null) { const s = adGetal(u.spend); u.cpm = s === null ? null : adDeel(s * 1000, u.impressions); }
   if (u.ctr == null) { const v = adDeel(u.klikken, u.impressions); u.ctr = v === null ? null : v * 100; }
   if (u.frequency == null) u.frequency = adDeel(u.impressions, u.reach);
+
+  /* Hook en hold. Twee cijfers die alleen over de video zelf gaan, en de enige
+     twee waarmee je een lek in de eerste seconden kunt zien. Beide tegen
+     VERTONINGEN, want dat is de noemer waarop ze in de praktijk gerapporteerd
+     worden en de enige waarop ze onderling te vergelijken zijn: van elke
+     honderd vertoningen startte X procent, en Y procent hield vol.
+
+     De definitie staat erbij en dat is geen sier. "Hold rate" betekent bij de
+     ene tafel thruplay/vertoningen en bij de andere thruplay/plays, en die
+     twee schelen een factor. Een percentage zonder zijn deling is een cijfer
+     waar iemand anders een andere conclusie uit trekt dan jij. */
+  if (u.hook_rate == null) {
+    const v = adDeel(u.video_plays, u.impressions);
+    u.hook_rate = v === null ? null : v * 100;
+  }
+  if (u.hold_rate == null) {
+    const v = adDeel(u.video_thruplay, u.impressions);
+    u.hold_rate = v === null ? null : v * 100;
+  }
   return u;
+}
+
+/* Hoeveel er nog kijkt op een kwart, de helft, driekwart en het eind -- gemeten
+   tegen wie hem gestart is. Null zodra we de starts niet weten: een
+   retentiecurve zonder noemer is een rijtje getallen. */
+function adDoorkijk(c) {
+  if (!c || c.video_plays === null || c.video_plays === undefined || !c.video_plays) return null;
+  const punt = function (w) {
+    const v = adDeel(w, c.video_plays);
+    return v === null ? null : Math.round(v * 1000) / 10;
+  };
+  const uit = { p25: punt(c.video_p25), p50: punt(c.video_p50),
+                p75: punt(c.video_p75), p100: punt(c.video_p100) };
+  const iets = Object.keys(uit).some(function (k) { return uit[k] !== null; });
+  return iets ? uit : null;
 }
 
 /* ---- Atria ------------------------------------------------------------- */
@@ -1191,7 +1238,17 @@ const ATRIA_MAAT = {
   omzet:       { ids: ['purchase_value', 'purchase_conversion_value', 'omni_purchase_value', 'revenue'], naam: /^(purchase (value|conversion value)|revenue)$/i },
   roas:        { ids: ['roas', 'purchase_roas', 'website_purchase_roas'], naam: /^(website )?(purchase )?roas$/i },
   aov:         { ids: ['aov', 'average_order_value'], naam: /^(aov|average order value)$/i },
-  cpa:         { ids: ['cpa', 'cost_per_purchase'], naam: /^(cpa|cost per purchase)$/i }
+  cpa:         { ids: ['cpa', 'cost_per_purchase'], naam: /^(cpa|cost per purchase)$/i },
+  /* De videocijfers. Of Atria ze levert hangt van het account af; staat een
+     maat er niet, dan blijft hij null en toont het scherm hem niet. Beter een
+     ontbrekend cijfer dan een cijfer uit een maat die er toevallig op lijkt. */
+  video_plays:    { ids: ['video_plays', 'video_play_actions', 'plays'], naam: /^video plays?$/i },
+  video_thruplay: { ids: ['thruplays', 'video_thruplay_watched', 'thruplay'], naam: /^thruplays?$/i },
+  video_p25:      { ids: ['video_p25_watched', 'video_watches_at_25'], naam: /^video watches at 25%$/i },
+  video_p50:      { ids: ['video_p50_watched', 'video_watches_at_50'], naam: /^video watches at 50%$/i },
+  video_p75:      { ids: ['video_p75_watched', 'video_watches_at_75'], naam: /^video watches at 75%$/i },
+  video_p100:     { ids: ['video_p100_watched', 'video_watches_at_100'], naam: /^video watches at 100%$/i },
+  video_seconden: { ids: ['video_avg_time_watched', 'avg_watch_time'], naam: /^(average )?(video )?watch time$/i }
 };
 
 function atriaMaten(metrics, namen) {
@@ -1343,7 +1400,21 @@ async function atriaNorm(env, account, dagen) {
    de periode die je opvraagt en telt dus niet op. */
 const META_ITEREER_VELDEN = ['spend', 'impressions', 'reach', 'frequency', 'clicks',
   'inline_link_clicks', 'ctr', 'cpc', 'cpm', 'actions', 'action_values',
-  'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking'];
+  'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
+  /* Bij een video zijn dit de enige twee cijfers die over de creative zelf
+     gaan: hoeveel mensen hem starten en hoeveel er blijven kijken. Zonder deze
+     velden is een videoadvertentie op precies dezelfde manier te beoordelen als
+     een static, en dat is precies waarom het lek in de eerste drie seconden
+     nooit gevonden werd.
+
+     Alleen velden die de huidige API kent. Eén onbekend veld laat de hele
+     opvraag stuklopen, en dan is er niet één cijfer meer -- ook de gewone
+     niet. video_3_sec_watched_actions staat er daarom NIET bij: die bestaat
+     niet meer. */
+  'video_play_actions', 'video_thruplay_watched_actions',
+  'video_p25_watched_actions', 'video_p50_watched_actions',
+  'video_p75_watched_actions', 'video_p100_watched_actions',
+  'video_avg_time_watched_actions'];
 
 function metaNaarCijfers(rij) {
   const acties = rij.actions, waarden = rij.action_values;
@@ -1364,6 +1435,16 @@ function metaNaarCijfers(rij) {
     atc: eerste(acties, ['omni_add_to_cart', 'add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart']),
     aankopen: eerste(acties, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
     omzet: eerste(waarden, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
+    /* De videocijfers komen ook als actielijst terug, met 'video_view' als
+       enige soort. Staat er niets, dan is het geen video -- en dan blijven deze
+       velden null in plaats van nul. */
+    video_plays: metaActieSom(rij.video_play_actions),
+    video_thruplay: metaActieSom(rij.video_thruplay_watched_actions),
+    video_p25: metaActieSom(rij.video_p25_watched_actions),
+    video_p50: metaActieSom(rij.video_p50_watched_actions),
+    video_p75: metaActieSom(rij.video_p75_watched_actions),
+    video_p100: metaActieSom(rij.video_p100_watched_actions),
+    video_seconden: metaActieSom(rij.video_avg_time_watched_actions),
     roas: null, aov: null, cpa: null
   });
 }
@@ -1387,21 +1468,48 @@ async function metaItereerRijen(env, account, dagen, niveau, adId, verschuif) {
    edges, dus dit is onvermijdelijk een tweede aanroep. Mislukt hij, dan gaat de
    advertentie zonder beeld door: geen beeld is vervelend, geen cijfers is fataal
    en die hebben we al. */
+/* Het afspeelbare adres van een Meta-video. `source` is een tijdelijk
+   ondertekend adres op fbcdn -- precies het soort adres dat de beeldpoort
+   doorlaat -- en `picture` is de poster. Mislukt dit, dan gaat de advertentie
+   door zonder video: geen beeld is vervelend, geen cijfers is fataal en die
+   hebben we al. */
+async function metaVideoBron(env, videoId) {
+  try {
+    const p = new URLSearchParams({ access_token: env.META_ACCESS_TOKEN, fields: 'source,picture' });
+    const r = await fetch(`${META_API}/${encodeURIComponent(videoId)}?${p}`);
+    const d = await r.json();
+    if (d.error) return null;
+    return { bron: d.source || null, poster: d.picture || null };
+  } catch (e) { return null; }
+}
+
 async function metaCreative(env, adId) {
   try {
     const p = new URLSearchParams({
       access_token: env.META_ACCESS_TOKEN,
-      fields: 'name,effective_status,creative{thumbnail_url,image_url,body,title,call_to_action_type}'
+      /* video_id en de story-spec erbij. Zonder die twee komt er bij een
+         videoadvertentie alleen een thumbnail terug, en dan staat er een
+         stilstaand beeld waar beweging hoort -- precies wat er op het scherm
+         gebeurde. De thumbnail blijft nodig als poster. */
+      fields: 'name,effective_status,creative{thumbnail_url,image_url,body,title,' +
+        'call_to_action_type,video_id,object_story_spec{video_data{video_id,image_url}},' +
+        'asset_feed_spec{videos{video_id,thumbnail_url}}}'
     });
     const r = await fetch(`${META_API}/${encodeURIComponent(adId)}?${p}`);
     const d = await r.json();
     if (d.error) return null;
     const c = d.creative || {};
+    /* Het id van de video, waar het ook staat. Meta zet hem op drie plekken,
+       afhankelijk van hoe de advertentie gemaakt is. */
+    const videoId = ttVeld(c, ['video_id', 'object_story_spec.video_data.video_id',
+                               'asset_feed_spec.videos.0.video_id'], ['videoId']);
+    const videoBron = videoId ? await metaVideoBron(env, videoId) : null;
     return {
       naam: d.name || null,
       staat: d.effective_status || null,
-      beeld: adBeeldUit(c),
-      video: adVideoUit(c),
+      beeld: adBeeldUit(c) || (videoBron && videoBron.poster) || null,
+      /* Het bestand zelf, niet het id. Een id kun je niet afspelen. */
+      video: (videoBron && videoBron.bron) || adVideoUit(c),
       velden: adVeldnamen(c),
       copy: { kop: c.title || null, tekst: c.body || null, cta: c.call_to_action_type || null }
     };
@@ -2951,6 +3059,10 @@ export default {
             bron: bron, dagen: dagen,
             advertentie: advertentie,
             norm: norm,
+            /* De retentiecurve staat apart: hij hoort bij de video en niet bij
+               de funnel, en hij is alleen te lezen als er starts zijn. */
+            doorkijk: adDoorkijk(advertentie.cijfers),
+            norm_doorkijk: adDoorkijk(norm),
             diagnose: adDiagnose(advertentie.cijfers, norm)
           });
         }
