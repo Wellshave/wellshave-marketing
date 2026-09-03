@@ -161,6 +161,12 @@ var wizState = {
   advised: {},
   /* Stappen waar de gebruiker het formulier heeft opengeklapt. */
   unfolded: {},
+  /* De voorproef van de blueprint: één goedkoop beeld om te zien of de
+     compositie klopt voordat er drie concepten gemaakt worden. Bewust NIET in
+     `data`, want alles daarin gaat naar localStorage -- en een base64-beeld
+     kan die opslag vol laten lopen, waarna de wizard stilletjes niets meer
+     bewaart. Na een verversing is hij weg; dat kost één goedkoop beeld. */
+  voorproef: null, voorproefBezig: false, voorproefFout: null,
   /* Waar dit werk vandaan komt als het is afgekeken bij een concurrent:
      welk merk, hoe lang die advertentie daar draait, welke vorm hij had en
      voor wie hij daar was. Null zolang je vanaf nul werkt. */
@@ -467,6 +473,8 @@ function wizReset(stil) {
   /* Ook de herkomst. Blijft die staan, dan zegt de regel bovenin dat er iets
      is overgenomen terwijl elk veld dat het betrof net leeggemaakt is. */
   wizState.onderzoekBron = null;
+  /* En de voorproef, want die hoort bij een blueprint die er niet meer is. */
+  wizState.voorproef = null; wizState.voorproefFout = null;
   wizState.current = 'product';
   wizSave();
   if (wizState.open) wizRender();

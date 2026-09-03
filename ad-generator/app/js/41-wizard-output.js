@@ -118,20 +118,138 @@ function wizRender_review() {
       '<button type="button" class="wiz-linkbtn" onclick="wizDescribeVisual()">Describe it</button></div>';
   }
 
-  var refs = (p && typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
-  var beeld = refs && ((refs.usage && refs.usage[0]) || (refs.lifestyle && refs.lifestyle[0]) || (refs.product && refs.product[0]));
-  rechts += wizPaneel('Visual preview',
-    '<div class="wiz-adpreview">' +
-      (beeld ? '<div class="wiz-adpreview-beeld"><img src="' + beeld + '" alt=""></div>' : '') +
-      '<div class="wiz-adpreview-tekst">' +
-        '<div class="wiz-copy-headline">' + wizEsc(d.copy.headline) + '</div>' +
-        (d.copy.supporting ? '<div class="wiz-copy-sub">' + wizEsc(d.copy.supporting) + '</div>' : '') +
-        (d.copy.cta ? '<div class="wiz-copy-cta">' + wizEsc(d.copy.cta) + '</div>' : '') +
-      '</div></div>' +
-    '<div class="wiz-vizvoorbeeld-bij">Layout impression from your decisions. Nothing has been generated yet.</div>');
+  rechts += wizVoorproefPaneel();
 
   return { links: links, rechts: rechts };
 }
+
+/* ── De voorproef ─────────────────────────────────────────────────────────
+ *
+ * Het vak "Visual preview" toonde een productfoto uit de bibliotheek met de
+ * copy eronder. Dat is een layout-indruk en geen concept: de blueprint
+ * beschrijft een man op de rand van een onopgemaakt bed met een vrouw op de
+ * achtergrond, en in het vak stond een packshot op wit. Twee dingen die niets
+ * met elkaar te maken hebben, met "preview" erboven.
+ *
+ * Dit maakt er één echt beeld van, vóór de drie concepten. Met opzet het
+ * goedkoopste model op lage kwaliteit: het is een voorproef, geen oplevering.
+ * Je kijkt of de compositie klopt en of de kop past -- niet of de huid goed is.
+ *
+ * Hij wordt NIET opgeslagen. Een base64-beeld in localStorage kan de opslag
+ * vol laten lopen, en dan slaat de wizard stilletjes niets meer op: je hele
+ * blueprint weg omdat er een voorproef in paste. Na een verversing maak je hem
+ * opnieuw, en dat kost één goedkoop beeld.
+ */
+var WIZ_VOORPROEF_MODEL = 'gpt-image-1-mini';
+
+function wizVoorproefPrompt() {
+  var d = wizState.data;
+  var r = [];
+  r.push('Render a realistic preview of this single social ad creative, as it would appear in the feed.');
+  if (d.review.visualDescription) r.push(d.review.visualDescription);
+  var f = wizFormat();
+  if (f) r.push('Format: ' + f.name + '.');
+  /* De copy hoort in het beeld, want de vraag die je aan een voorproef stelt is
+     of de kop past en leesbaar blijft naast wat er staat. Zonder de tekst kijk
+     je naar een foto en niet naar een advertentie. */
+  if (d.copy.headline) r.push('Headline text on the image, exactly: "' + d.copy.headline + '".');
+  if (d.copy.supporting) r.push('Smaller supporting line: "' + d.copy.supporting + '".');
+  if (d.copy.cta) r.push('Call to action element: "' + d.copy.cta + '".');
+  if (typeof buildSafeZoneInstruction === 'function') {
+    r.push(buildSafeZoneInstruction(d.product.placement));
+  }
+  r.push('This is a quick layout preview: composition, framing and text placement matter, ' +
+    'fine detail does not.');
+  return r.join(' ');
+}
+
+function wizVoorproefMaat() {
+  var kaart = (typeof SIZE_MAP !== 'undefined' && SIZE_MAP[WIZ_VOORPROEF_MODEL]) || null;
+  return (kaart && kaart[wizState.data.product.placement]) || '1024x1024';
+}
+
+async function wizVoorproef() {
+  if (wizState.voorproefBezig) return;
+  if (!wizState.data.review.visualDescription) {
+    wizState.voorproefFout = 'Rory has not described the ad yet — describe it first, ' +
+      'otherwise the preview is a guess at a guess.';
+    return wizRender();
+  }
+  var apiKey = (window.__WG_TEAMSERVER ? 'teamserver'
+    : ((document.getElementById('openai-key') || {}).value || '').trim());
+  if (!apiKey) {
+    wizState.voorproefFout = 'No OpenAI key set.';
+    return wizRender();
+  }
+  wizState.voorproefBezig = true;
+  wizState.voorproefFout = null;
+  wizRender();
+  var maat = wizVoorproefMaat();
+  try {
+    var data = await fetchJsonWithRetry((PROXY_BASE).replace(/\/$/, '') + '/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model: WIZ_VOORPROEF_MODEL,
+        prompt: wizVoorproefPrompt(),
+        size: maat,
+        quality: 'low',
+        n: 1
+      })
+    });
+    var b64 = data && data.data && data.data[0] && data.data[0].b64_json;
+    if (!b64) throw new Error('no image came back');
+    wizState.voorproef = { b64: b64, model: WIZ_VOORPROEF_MODEL, size: maat, ts: Date.now() };
+  } catch (e) {
+    wizState.voorproefFout = 'The preview failed: ' + String((e && e.message) || e);
+  }
+  wizState.voorproefBezig = false;
+  wizRender();
+}
+
+/* Het vak zelf. Zolang er geen voorproef is blijft de layout-indruk staan --
+   die zegt tenminste iets over de volgorde van de elementen -- maar met een
+   bijschrift dat hem noemt wat hij is. */
+function wizVoorproefPaneel() {
+  var d = wizState.data;
+  if (wizState.voorproefBezig) {
+    return wizPaneel('Visual preview',
+      '<div class="wiz-vizdenkt">Drawing a rough preview of the blueprint…</div>');
+  }
+  if (wizState.voorproef) {
+    var v = wizState.voorproef;
+    return wizPaneel('Visual preview',
+      '<div class="wiz-vizvoorbeeld"><img src="data:image/png;base64,' + v.b64 + '" alt=""></div>' +
+      '<div class="wiz-vizvoorbeeld-bij">A rough preview of the blueprint, drawn at low quality ' +
+      'on the cheapest model (' + wizEsc(v.model) + ', ' + wizEsc(v.size) + '). ' +
+      'It shows the composition and whether the headline fits — not the finish. ' +
+      'The three concepts come next, at your own quality setting.</div>' +
+      '<div class="wiz-actions"><button type="button" class="wiz-btn ghost small" ' +
+      'onclick="wizVoorproef()">Draw it again</button></div>');
+  }
+
+  var p = wizProduct();
+  var refs = (p && typeof normalizeRefs === 'function') ? normalizeRefs(p.references) : null;
+  var beeld = refs && ((refs.usage && refs.usage[0]) || (refs.lifestyle && refs.lifestyle[0]) || (refs.product && refs.product[0]));
+  var h = '<div class="wiz-adpreview">' +
+    (beeld ? '<div class="wiz-adpreview-beeld"><img src="' + beeld + '" alt=""></div>' : '') +
+    '<div class="wiz-adpreview-tekst">' +
+      '<div class="wiz-copy-headline">' + wizEsc(d.copy.headline) + '</div>' +
+      (d.copy.supporting ? '<div class="wiz-copy-sub">' + wizEsc(d.copy.supporting) + '</div>' : '') +
+      (d.copy.cta ? '<div class="wiz-copy-cta">' + wizEsc(d.copy.cta) + '</div>' : '') +
+    '</div></div>';
+  /* Precies zeggen wat dit is. "Visual preview" boven een packshot met de copy
+     eronder leest als "zo wordt de advertentie", en dat is het niet. */
+  h += '<div class="wiz-vizvoorbeeld-bij">This is the product photo from your library with the copy ' +
+    'underneath — the order of the elements, not the ad. Draw a real preview to see the concept.</div>';
+  if (wizState.voorproefFout) {
+    h += '<div class="wiz-warn"><div class="wiz-warn-t">' + wizEsc(wizState.voorproefFout) + '</div></div>';
+  }
+  h += '<div class="wiz-actions"><button type="button" class="wiz-btn small" ' +
+    'onclick="wizVoorproef()">Draw a preview of this blueprint</button></div>';
+  return wizPaneel('Visual preview', h);
+}
+
 
 function wizBriefGroep(titel, stap, regels) {
   var gevuld = (regels || []).filter(function (r) { return r && String(r).trim(); });
@@ -1319,6 +1437,9 @@ function wizHandOff() {
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
+window.wizVoorproef = wizVoorproef; window.wizVoorproefPaneel = wizVoorproefPaneel;
+window.wizVoorproefPrompt = wizVoorproefPrompt; window.wizVoorproefMaat = wizVoorproefMaat;
+window.WIZ_VOORPROEF_MODEL = WIZ_VOORPROEF_MODEL;
 window.wizRender_generate = wizRender_generate; window.wizBestemmingPaneel = wizBestemmingPaneel;
 window.wizAfter_review = wizAfter_review; window.wizAfter_concepts = wizAfter_concepts;
 window.wizAfter_generate = wizAfter_generate;

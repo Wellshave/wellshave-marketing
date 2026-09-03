@@ -460,6 +460,104 @@ const VULLEN = `
   check('dichtgeklapt staan alleen de hoofdvelden', uitklap.dicht <= 3, true);
   check('opengeklapt komen de extra velden erbij', uitklap.open > uitklap.dicht, true);
 
+  console.log('\n  de voorproef is een beeld, geen packshot met tekst eronder');
+  /* Het vak "Visual preview" toonde een productfoto uit de bibliotheek met de
+     copy eronder, terwijl de blueprint een man op de rand van een onopgemaakt
+     bed beschreef. Twee dingen die niets met elkaar te maken hebben, met
+     "preview" erboven -- en dat is precies het soort scherm waarop je een
+     generatie van drie beelden begint die je niet had willen maken. */
+  const voorproef = await page.evaluate(async vullen => {
+    wizReset(true);
+    eval(vullen);
+    wizState.data.review.visualDescription =
+      'A man in his early thirties sits on the edge of an unmade bed, holding the Groom Guard.';
+    wizState.data.copy.headline = 'Ze zegt er niets van. Die blik wel.';
+    wizState.data.copy.cta = 'Lees hoe je het veilig aanpakt';
+    wizState.data.product.placement = 'feed45';
+
+    var lees = function () {
+      var uit = wizRender_review();
+      var d = document.createElement('div');
+      d.innerHTML = (uit.links || '') + (uit.rechts || '');
+      return d;
+    };
+
+    /* Zolang er geen voorproef is: de layout-indruk blijft staan, maar het
+       bijschrift zegt wat het is in plaats van "preview". */
+    var voor = lees();
+    var uit = {
+      knopVooraf: !!voor.querySelector('[onclick*="wizVoorproef"]'),
+      bijschriftVooraf: (voor.querySelector('.wiz-vizvoorbeeld-bij') || {}).textContent || '',
+      beeldVooraf: !!voor.querySelector('.wiz-vizvoorbeeld img')
+    };
+
+    /* De prompt, vóór er geld aan uitgegeven wordt. */
+    uit.prompt = wizVoorproefPrompt();
+    uit.maat = wizVoorproefMaat();
+
+    var echt = window.fetchJsonWithRetry;
+    var gevraagd = null;
+    window.fetchJsonWithRetry = async function (url, opties) {
+      gevraagd = { url: String(url), body: JSON.parse(opties.body) };
+      return { data: [{ b64_json: 'AAECAwQ=' }] };
+    };
+    await wizVoorproef();
+    window.fetchJsonWithRetry = echt;
+    uit.gevraagd = gevraagd;
+
+    var na = lees();
+    uit.beeldNa = !!na.querySelector('.wiz-vizvoorbeeld img');
+    uit.bronNa = ((na.querySelector('.wiz-vizvoorbeeld img') || {}).getAttribute
+      ? na.querySelector('.wiz-vizvoorbeeld img').getAttribute('src') : '') || '';
+    uit.bijschriftNa = (na.querySelector('.wiz-vizvoorbeeld-bij') || {}).textContent || '';
+    /* En hij staat NIET in de opgeslagen staat: een base64-beeld kan de opslag
+       vol laten lopen, en dan bewaart de wizard stilletjes niets meer. */
+    wizSave();
+    var bewaard = localStorage.getItem(STORAGE_PREFIX + 'wizard_static_v1') || '';
+    uit.inOpslag = bewaard.indexOf('AAECAwQ=') > -1;
+    uit.opslagWerkt = bewaard.indexOf('unmade bed') > -1;
+    return uit;
+  }, VULLEN);
+
+  check('vooraf staat er een knop om er een te tekenen', voorproef.knopVooraf, true);
+  /* "Visual preview" boven een packshot leest als "zo wordt de advertentie". */
+  check('en het bijschrift zegt dat dit de ad niet is',
+    /not the ad/.test(voorproef.bijschriftVooraf), true);
+  check('de blueprint zit in de prompt', /unmade bed/.test(voorproef.prompt), true);
+  check('de kop ook, want daar kijk je naar', /Ze zegt er niets van/.test(voorproef.prompt), true);
+  check('en de CTA', /Lees hoe je het veilig aanpakt/.test(voorproef.prompt), true);
+  check('de maat volgt de plaatsing', voorproef.maat, '1024x1536');
+  /* Het goedkoopste model op lage kwaliteit: dit is een voorproef, geen
+     oplevering. Je kijkt of de compositie klopt, niet of de huid goed is. */
+  check('het goedkoopste model', (voorproef.gevraagd || {}).body.model, 'gpt-image-1-mini');
+  check('op lage kwaliteit', (voorproef.gevraagd || {}).body.quality, 'low');
+  check('en één beeld', (voorproef.gevraagd || {}).body.n, 1);
+  check('daarna staat het beeld er', voorproef.beeldNa, true);
+  check('als echt beeld en niet als productfoto', /^data:image\/png;base64,AAECAwQ=/.test(voorproef.bronNa), true);
+  check('met het model en de maat erbij', /gpt-image-1-mini, 1024x1536/.test(voorproef.bijschriftNa), true);
+  check('en de belofte dat de concepten nog komen',
+    /three concepts come next/.test(voorproef.bijschriftNa), true);
+  check('de voorproef gaat niet naar de opslag', voorproef.inOpslag, false);
+  check('maar de blueprint wel', voorproef.opslagWerkt, true);
+
+  console.log('\n  en zonder beschrijving wordt er niets getekend');
+  /* Een voorproef van een blueprint die Rory nog niet gelezen heeft is een gok
+     op een gok -- en hij kost wel geld. */
+  const zonderBeschrijving = await page.evaluate(async vullen => {
+    wizReset(true);
+    eval(vullen);
+    wizState.data.review.visualDescription = '';
+    var echt = window.fetchJsonWithRetry;
+    var geroepen = 0;
+    window.fetchJsonWithRetry = async function () { geroepen++; return { data: [{ b64_json: 'x' }] }; };
+    await wizVoorproef();
+    window.fetchJsonWithRetry = echt;
+    return { geroepen: geroepen, fout: wizState.voorproefFout, beeld: !!wizState.voorproef };
+  }, VULLEN);
+  check('er is niets gevraagd', zonderBeschrijving.geroepen, 0);
+  check('en er staat waarom', /describe it first/.test(zonderBeschrijving.fout || ''), true);
+  check('en geen half beeld', zonderBeschrijving.beeld, false);
+
   /* ── Stap 7, 8 en 9 ───────────────────────────────────────────────────── */
   console.log('\n  de blueprint, de concepten en het eindbeeld');
 

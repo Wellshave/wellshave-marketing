@@ -410,6 +410,13 @@
 .wiz-vizvoorbeeld { border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.3); }
 .wiz-vizvoorbeeld img { width: 100%; display: block; }
 .wiz-vizvoorbeeld-bij { margin-top: 9px; font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+/* Terwijl de voorproef getekend wordt. Een leeg vak zou zeggen dat er niets
+   gebeurt, en dit duurt tientallen seconden. */
+.wiz-vizdenkt {
+  padding: 34px 18px; text-align: center; font-size: 12.5px; color: var(--gold-bright);
+  border: 1px dashed rgba(var(--gold-rgb), .32); border-radius: 10px;
+  background: rgba(var(--gold-rgb), .04);
+}
 .wiz-adpreview { border-radius: 12px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
 .wiz-adpreview-beeld img { width: 100%; display: block; }
 .wiz-adpreview-tekst { padding: 18px; }
