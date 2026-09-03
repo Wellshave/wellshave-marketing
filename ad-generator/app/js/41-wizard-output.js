@@ -537,7 +537,7 @@ function wizRender_concepts() {
         (wizBeeldBezig[i]
           ? '<span class="wiz-concept-bezig"><span class="wiz-concept-spin"></span>' +
             '<span>Rendering…</span></span>'
-          : '<span class="wiz-concept-geenbeeld">no preview yet</span>') + '</span>' +
+          : '<span class="wiz-concept-geenbeeld">' + wizBeeldStand(i) + '</span>') + '</span>' +
       '<span class="wiz-concept-body">' +
         '<span class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</span>' +
         (c.hook_label_nl ? '<span class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</span>' : '') +
@@ -597,11 +597,43 @@ function wizToonBeeld(i) {
   var v = st.versions[st.currentIndex] || st.versions[0];
   if (!v || !v.b64) return false;
   vak.innerHTML = '<img class="wiz-beeld" alt="" src="data:' + (v.mime || 'image/png') +
-    ';base64,' + v.b64 + '">' +
-    (st.versions.length > 1
-      ? '<span class="wiz-beeld-v">version ' + (st.currentIndex + 1) + ' of ' + st.versions.length + '</span>'
-      : '');
+    ';base64,' + v.b64 + '">' + wizVersieBalk(i, st);
   return true;
+}
+
+/* Bladeren door de versies. Dit stond er als LABEL -- "version 2 of 2" -- en
+   verder niets: na een verfijning was de vorige versie onbereikbaar, terwijl
+   hij gewoon in state.generatedImages[i].versions staat. Je zag dat er twee
+   waren en kon er maar één zien.
+
+   Het zijn spans en geen knoppen, want in stap 8 zit dit vak in een button en
+   een knop in een knop is ongeldige html. Vandaar ook stopPropagation: anders
+   selecteer je het concept terwijl je terugbladert. */
+function wizVersieBalk(i, st) {
+  if (!st || !st.versions || st.versions.length < 2) return '';
+  var nu = st.currentIndex || 0;
+  var pijl = function (delta, teken, titel, uit) {
+    return '<span class="wiz-beeld-pijl' + (uit ? ' uit' : '') + '" role="button" tabindex="0"' +
+      (uit ? '' : ' onclick="event.stopPropagation();wizBeeldVersie(' + i + ',' + delta + ')"') +
+      ' title="' + titel + '">' + teken + '</span>';
+  };
+  return '<span class="wiz-beeld-v">' +
+    pijl(-1, '‹', 'previous version', nu <= 0) +
+    '<span class="wiz-beeld-v-t">version ' + (nu + 1) + ' of ' + st.versions.length + '</span>' +
+    pijl(1, '›', 'next version', nu >= st.versions.length - 1) +
+    '</span>';
+}
+
+function wizBeeldVersie(i, delta) {
+  var st = (state.generatedImages || {})[i];
+  if (!st || !st.versions || !st.versions.length) return;
+  var nieuw = (st.currentIndex || 0) + delta;
+  if (nieuw < 0 || nieuw >= st.versions.length) return;
+  st.currentIndex = nieuw;
+  wizToonBeeld(i);
+  /* Het bewerkpaneel toont wat er met DEZE versie gedaan is; blader je terug,
+     dan hoort dat mee te bewegen. */
+  if (typeof renderEditPanel === 'function') { try { renderEditPanel(i); } catch (e) { } }
 }
 
 function wizToonBewaardeBeelden() {
@@ -668,6 +700,9 @@ function wizPickConcept(i) {
    vlak met "geen beeld" terwijl de generator gewoon bezig was, en dan denk je
    dat er niets gebeurt -- precies de klacht. */
 var wizBeeldBezig = {};
+/* Welke beelden er langer over doen dan gewoonlijk. Apart van 'bezig', want
+   "hij loopt nog" en "hij loopt al twee minuten" vragen om een andere zin. */
+var wizBeeldTraag = {};
 
 /* De brug tussen de bewaarde concepten en de generator.
  *
@@ -703,12 +738,28 @@ function wizHerstelGeneratie() {
   return true;
 }
 
+/* Wat er op een kaart zonder beeld staat. Vier standen die er tot nu toe
+   identiek uitzagen -- allemaal "no preview yet" -- en die om vier verschillende
+   dingen vragen: wachten, geduld, opnieuw proberen, of iets repareren. */
+function wizBeeldStand(i) {
+  if (wizBeeldBezig[i]) {
+    return wizBeeldTraag[i]
+      ? 'still drawing — this is taking longer than usual'
+      : 'drawing…';
+  }
+  var fout = (state.imageErrors || {})[i];
+  if (fout) return 'failed: ' + wizEsc(String(fout)).slice(0, 160);
+  return 'no preview yet';
+}
+
 function wizPreview(i) {
   if (!wizHerstelGeneratie()) {
     if (typeof toast === 'function') toast('Work out the concepts first', true); return;
   }
   if (typeof generateImage !== 'function') return;
   wizBeeldBezig[i] = true;
+  delete wizBeeldTraag[i];
+  if (state.imageErrors) delete state.imageErrors[i];
   wizRender();
   generateImage(i);
   wizWachtOpBeeld(i);
@@ -716,17 +767,42 @@ function wizPreview(i) {
 
 
 /* De beeldgenerator meldt zichzelf niet af, dus kijken we of het beeld er is.
-   Elke seconde, en na twee minuten geven we het op en zeggen dat ook: eeuwig
-   "bezig" tonen is net zo misleidend als niets tonen. */
+   Elke seconde.
+
+   Dit stopte na twee minuten en tekende dan gewoon opnieuw -- waarna de kaart
+   terugviel op "no preview yet", precies dezelfde tekst als "nog niet
+   geprobeerd". Drie kaarten tegelijk door één proxy halen die twee minuten
+   makkelijk, dus dat gebeurde vaak, en het las als een knop die je nog moest
+   indrukken.
+
+   Nu: vijf minuten volhouden, en na twee minuten zeggen dat het langer duurt
+   dan gewoonlijk in plaats van te doen alsof er niets loopt. Loopt het écht
+   mis, dan staat de reden inmiddels in state.imageErrors en toont de kaart
+   die. */
+var WIZ_BEELD_TRAAG = 120;
+var WIZ_BEELD_OP = 300;
+
 function wizWachtOpBeeld(i, pogingen) {
   var n = pogingen || 0;
   if (!wizBeeldBezig[i]) return;
   var klaar = !!((state.generatedImages || {})[i] || {}).versions;
-  if (klaar || n > 120) {
+  var mislukt = !!((state.imageErrors || {})[i]);
+  if (klaar || mislukt || n > WIZ_BEELD_OP) {
     delete wizBeeldBezig[i];
+    if (!klaar && !mislukt) {
+      /* Opgegeven zonder uitslag. Dat is zelf een uitslag en hoort er te
+         staan, anders is hij niet te onderscheiden van niet begonnen. */
+      if (!state.imageErrors) state.imageErrors = {};
+      state.imageErrors[i] = 'Timed out after five minutes. The request may still be running at ' +
+        'OpenAI — try again, or generate this one on its own.';
+    }
     wizRender();
     return;
   }
+  /* Eén keer hertekenen zodra het langer duurt dan gewoonlijk, zodat de kaart
+     dat kan zeggen. Niet elke seconde: dat zou de knoppen onder je vinger weg
+     tekenen. */
+  if (n === WIZ_BEELD_TRAAG) { wizBeeldTraag[i] = true; wizRender(); }
   setTimeout(function () { wizWachtOpBeeld(i, n + 1); }, 1000);
 }
 
@@ -743,7 +819,13 @@ function wizPreviewAll() {
   var n = (wizState.data.concepts.list || []).length;
   var beelden = (state && state.generatedImages) || {};
   var todo = [];
-  for (var i = 0; i < n; i++) if (!beelden[i]) { wizBeeldBezig[i] = true; todo.push(i); }
+  for (var i = 0; i < n; i++) {
+    if (beelden[i]) continue;
+    wizBeeldBezig[i] = true;
+    delete wizBeeldTraag[i];
+    if (state.imageErrors) delete state.imageErrors[i];
+    todo.push(i);
+  }
   if (!todo.length) return;
   wizRender();
   todo.forEach(function (i) { generateImage(i); wizWachtOpBeeld(i); });
@@ -1446,6 +1528,8 @@ window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll; window.wizHerstelGeneratie = wizHerstelGeneratie;
+window.wizBeeldVersie = wizBeeldVersie; window.wizVersieBalk = wizVersieBalk;
+window.wizBeeldStand = wizBeeldStand;
 window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak;
 window.wizTweakFotoToe = wizTweakFotoToe;
 window.wizTweakFotoWeg = wizTweakFotoWeg; window.wizTweakFotoLees = wizTweakFotoLees;

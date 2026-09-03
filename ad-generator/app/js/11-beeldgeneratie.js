@@ -247,6 +247,9 @@ async function adTransformerRun(){
 }
 
 async function generateImage(varIndex) {
+  /* Een nieuwe poging wist de vorige uitslag. Blijft die staan, dan lees je bij
+     een geslaagde tweede poging nog steeds de fout van de eerste. */
+  if (state.imageErrors) delete state.imageErrors[varIndex];
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
@@ -445,11 +448,19 @@ async function generateImage(varIndex) {
       ts: Date.now()
     };
     state.generatedImages[varIndex] = { versions: [newVersion], currentIndex: 0 };
+    /* Gelukt, dus een eerdere mislukking van deze variatie is niet meer waar. */
+    if (state.imageErrors) delete state.imageErrors[varIndex];
     window._wgFresh = true;
     renderGeneratedImage(varIndex);
     notifyEditDone(varIndex, useBasePhoto ? 'Beeld klaar (op basis van eigen foto)' : 'Beeld klaar');
   } catch (err) {
     let msg = err.message;
+    /* De fout ook op de state, niet alleen in dit ene vak. De wizard toont dit
+       vak niet, dus daar viel de kaart stil terug op "no preview yet" -- exact
+       dezelfde tekst als "nog niet geprobeerd". Dan lees je een mislukking als
+       een knop die je nog moet indrukken. */
+    if (!state.imageErrors) state.imageErrors = {};
+    state.imageErrors[varIndex] = msg;
     let hint = '';
     if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
       hint = `<div style="margin-top: 12px; font-size: 12px; color: var(--text-dim); line-height: 1.6;">

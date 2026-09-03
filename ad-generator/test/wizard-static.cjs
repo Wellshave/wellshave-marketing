@@ -460,6 +460,133 @@ const VULLEN = `
   check('dichtgeklapt staan alleen de hoofdvelden', uitklap.dicht <= 3, true);
   check('opengeklapt komen de extra velden erbij', uitklap.open > uitklap.dicht, true);
 
+  console.log('\n  een kaart zonder beeld zegt WAAROM er geen beeld is');
+  /* Vier standen die er identiek uitzagen -- allemaal "no preview yet" -- en
+     die om vier verschillende dingen vragen: wachten, geduld, opnieuw
+     proberen, of iets repareren. Een mislukking die eruitziet als een knop die
+     je nog moet indrukken, druk je nog een keer in. */
+  const standen = await page.evaluate(() => {
+    state.imageErrors = {};
+    delete wizBeeldBezig[0]; delete wizBeeldTraag[0];
+    var uit = { nooit: wizBeeldStand(0) };
+    wizBeeldBezig[0] = true;
+    uit.bezig = wizBeeldStand(0);
+    wizBeeldTraag[0] = true;
+    uit.traag = wizBeeldStand(0);
+    delete wizBeeldBezig[0]; delete wizBeeldTraag[0];
+    state.imageErrors[0] = 'Failed to fetch';
+    uit.mislukt = wizBeeldStand(0);
+    state.imageErrors = {};
+    return uit;
+  });
+  check('nog niet geprobeerd', standen.nooit, 'no preview yet');
+  check('bezig', standen.bezig, 'drawing…');
+  check('langer dan gewoonlijk', /taking longer than usual/.test(standen.traag), true);
+  check('mislukt, met de reden erbij', /failed: Failed to fetch/.test(standen.mislukt), true);
+  /* De kern: vier verschillende zinnen. Vier keer dezelfde zin betekent dat je
+     nog steeds niets weet. */
+  check('en het zijn vier verschillende zinnen',
+    new Set([standen.nooit, standen.bezig, standen.traag, standen.mislukt]).size, 4);
+
+  console.log('\n  en een mislukking overleeft de volgende poging niet');
+  /* Blijft de oude fout staan, dan lees je bij een geslaagde tweede poging nog
+     steeds de mislukking van de eerste. */
+  const opnieuw = await page.evaluate(() => {
+    state.imageErrors = { 1: 'oude fout' };
+    var echt = window.generateImage;
+    window.generateImage = function () { };
+    wizState.data.concepts.list = [{ headline_nl: 'x' }, { headline_nl: 'y' }];
+    state.lastGenerated = { variations: wizState.data.concepts.list, metadata: {} };
+    wizPreview(1);
+    window.generateImage = echt;
+    var uit = { na: (state.imageErrors || {})[1], bezig: !!wizBeeldBezig[1] };
+    delete wizBeeldBezig[1];
+    state.imageErrors = {};
+    return uit;
+  });
+  check('de oude fout is weg', opnieuw.na, undefined);
+  check('en hij staat op bezig', opnieuw.bezig, true);
+
+  console.log('\n  en de generator legt zijn eigen mislukking vast');
+  /* De fout stond alleen in het resultatenvak van het klassieke scherm, en dat
+     toont de wizard niet. Daar viel de kaart stil terug op "no preview yet" --
+     dezelfde tekst als "nog niet geprobeerd". */
+  const vastgelegd = await page.evaluate(async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="gen-image-3"></div>');
+    state.imageErrors = {};
+    state.lastGenerated = { variations: [null, null, null, { image_prompt_en: 'x', headline_nl: 'h' }],
+                            metadata: { productId: null, placement: 'feed11', mode: 'auto' } };
+    state.generatedImages = {};
+    var echt = window.fetchJsonWithRetry;
+    window.fetchJsonWithRetry = async function () { throw new Error('Failed to fetch'); };
+    await generateImage(3);
+    var naFout = (state.imageErrors || {})[3];
+
+    /* En een geslaagde poging haalt hem weer weg -- ook als de fout ONDERWEG
+       ontstond. Dat is het geval dat er werkelijk toe doet: de wizard geeft na
+       vijf minuten op en noteert dat, en als het beeld daarna alsnog binnenkomt
+       hoort die notitie te verdwijnen. Anders staat er een mislukking onder een
+       beeld dat er gewoon is. */
+    window.fetchJsonWithRetry = async function () {
+      state.imageErrors[3] = 'Timed out after five minutes.';
+      return { data: [{ b64_json: 'AAA' }] };
+    };
+    await generateImage(3);
+    var naGoed = (state.imageErrors || {})[3];
+    window.fetchJsonWithRetry = echt;
+    document.getElementById('gen-image-3').remove();
+    state.generatedImages = {}; state.imageErrors = {};
+    return { naFout: naFout, naGoed: naGoed };
+  });
+  check('de reden staat op de state', /Failed to fetch/.test(vastgelegd.naFout || ''), true);
+  check('en verdwijnt zodra het wel lukt, ook als hij onderweg ontstond',
+    vastgelegd.naGoed, undefined);
+
+  console.log('\n  je kunt terug naar de vorige versie');
+  /* Na een verfijning stond er "version 2 of 2" en verder niets: de vorige
+     versie was onbereikbaar terwijl hij gewoon in de state stond. Je zag dat er
+     twee waren en kon er maar één zien. */
+  const versies = await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="gen-image-0"></div>');
+    state.generatedImages = { 0: { versions: [
+      { b64: 'AAA', mime: 'image/png' }, { b64: 'BBB', mime: 'image/png' }
+    ], currentIndex: 1 } };
+    wizToonBeeld(0);
+    var vak = document.getElementById('gen-image-0');
+    var uit = {
+      stand: (vak.querySelector('.wiz-beeld-v-t') || {}).textContent,
+      pijlen: vak.querySelectorAll('.wiz-beeld-pijl').length,
+      vooruitUit: vak.querySelectorAll('.wiz-beeld-pijl.uit').length,
+      beeld: (vak.querySelector('img') || {}).getAttribute('src')
+    };
+    wizBeeldVersie(0, -1);
+    vak = document.getElementById('gen-image-0');
+    uit.naTerug = (vak.querySelector('.wiz-beeld-v-t') || {}).textContent;
+    uit.beeldNaTerug = (vak.querySelector('img') || {}).getAttribute('src');
+    uit.terugUit = vak.querySelectorAll('.wiz-beeld-pijl.uit').length;
+    /* Voorbij het begin bladeren mag niets doen. */
+    wizBeeldVersie(0, -1);
+    uit.index = state.generatedImages[0].currentIndex;
+
+    /* Eén versie: geen balk. Pijlen bij één versie zijn twee knoppen die niets
+       doen. */
+    state.generatedImages = { 0: { versions: [{ b64: 'AAA' }], currentIndex: 0 } };
+    wizToonBeeld(0);
+    uit.eenVersie = document.getElementById('gen-image-0').querySelectorAll('.wiz-beeld-pijl').length;
+    document.getElementById('gen-image-0').remove();
+    state.generatedImages = {};
+    return uit;
+  });
+  check('de stand staat er', versies.stand, 'version 2 of 2');
+  check('met twee pijlen', versies.pijlen, 2);
+  check('waarvan vooruit uit staat', versies.vooruitUit, 1);
+  check('en versie 2 in beeld', /base64,BBB/.test(versies.beeld || ''), true);
+  check('terug brengt je bij versie 1', versies.naTerug, 'version 1 of 2');
+  check('met het bijbehorende beeld', /base64,AAA/.test(versies.beeldNaTerug || ''), true);
+  check('en dan staat terug uit', versies.terugUit, 1);
+  check('voorbij het begin gebeurt er niets', versies.index, 0);
+  check('bij één versie staan er geen pijlen', versies.eenVersie, 0);
+
   console.log('\n  tweeënveertig formaten, en niet één advertentie');
   /* De catalogus wist al welke formaten merkloos zijn, welke geen knop hebben
      en welke op bewijs leunen. Die vlaggen zetten een labeltje op de keuzekaart

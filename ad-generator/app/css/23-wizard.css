@@ -1157,7 +1157,21 @@
 
 /* Het beeld in de wizard: de foto en verder niets. */
 .wiz-beeld { display: block; width: 100%; height: auto; border-radius: 10px; }
-.wiz-beeld-v { display: block; margin-top: 4px; font-size: 11px; color: var(--text-faint); }
+/* De versiebalk: twee pijlen met de stand ertussen. Was een label; nu kun je
+   ook werkelijk terug naar de vorige versie. */
+.wiz-beeld-v {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 5px; font-size: 11px; color: var(--text-faint);
+}
+.wiz-beeld-v-t { min-width: 92px; text-align: center; }
+.wiz-beeld-pijl {
+  cursor: pointer; user-select: none; line-height: 1;
+  padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line);
+  color: var(--text-soft); font-size: 13px;
+}
+.wiz-beeld-pijl:hover { color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .45); }
+.wiz-beeld-pijl.uit { opacity: .3; cursor: default; }
+.wiz-beeld-pijl.uit:hover { color: var(--text-soft); border-color: var(--line); }
 
 /* Nick over een beeld dat er al staat. */
 .wiz-take-nick { display: block; margin-top: 8px; font-size: 12px; }
