@@ -534,14 +534,16 @@ function wizRender_concepts() {
          gestarte previews bleef er zichtbaar één over, namelijk de laatste,
          omdat daarna niets meer hertekende. */
       '<span class="wiz-concept-preview" id="gen-image-' + i + '">' +
-        (wizBeeldBezig[i]
-          ? '<span class="wiz-concept-bezig"><span class="wiz-concept-spin"></span>' +
-            '<span>Rendering…</span></span>'
-          : '<span class="wiz-concept-geenbeeld">' + wizBeeldStand(i) + '</span>') + '</span>' +
+        wizConceptBeeldvak(i) + '</span>' +
       '<span class="wiz-concept-body">' +
         '<span class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</span>' +
         (c.hook_label_nl ? '<span class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</span>' : '') +
         (c.visual_nl ? '<span class="wiz-concept-vis">' + wizEsc(c.visual_nl) + '</span>' : '') +
+        /* Een opnieuw geënsceneerd concept zegt dat zelf. Zonder deze regel
+           lees je een scene die je nooit goedgekeurd hebt als de scene die
+           Rory bedacht had. */
+        (c.herstage_nl ? '<span class="wiz-concept-herstage">Restaged after the filter refusal: ' +
+          wizEsc(c.herstage_nl) + '</span>' : '') +
         (c.reasoning_nl ? '<span class="wiz-concept-why"><em>Rory</em>' + wizEsc(c.reasoning_nl) + '</span>' : '') +
       '</span></button>';
   }).join('') + '</div>';
@@ -562,6 +564,29 @@ function wizRender_concepts() {
     '<button type="button" class="wiz-btn ghost small" onclick="wizGenerateConcepts()"' +
       (wizState.busy ? ' disabled' : '') + '>Work out three different ones</button>' +
     '</div>';
+  return h;
+}
+
+/* Het beeldvak van een conceptkaart. Vier standen, en bij een filterweigering
+   ook de enige knop die dan zin heeft.
+
+   Het is een span met role=button en geen <button>: deze kaart IS al een knop
+   en een knop in een knop is ongeldige html. stopPropagation hoort erbij,
+   anders selecteer je het concept terwijl je op herstage drukt. */
+function wizConceptBeeldvak(i) {
+  if (wizHerstageBezig[i]) {
+    return '<span class="wiz-concept-bezig"><span class="wiz-concept-spin"></span>' +
+      '<span>Rory is restaging this scene…</span></span>';
+  }
+  if (wizBeeldBezig[i]) {
+    return '<span class="wiz-concept-bezig"><span class="wiz-concept-spin"></span>' +
+      '<span>Rendering…</span></span>';
+  }
+  var h = '<span class="wiz-concept-geenbeeld">' + wizBeeldStand(i) + '</span>';
+  if (wizBeeldFilterGeweigerd(i)) {
+    h += '<span class="wiz-concept-herstel" role="button" tabindex="0" ' +
+      'onclick="event.stopPropagation();wizHerstage(' + i + ')">Restage this scene</span>';
+  }
   return h;
 }
 
@@ -748,8 +773,110 @@ function wizBeeldStand(i) {
       : 'drawing…';
   }
   var fout = (state.imageErrors || {})[i];
-  if (fout) return 'failed: ' + wizEsc(String(fout)).slice(0, 160);
+  if (fout) {
+    /* "failed: Your request was rejected by the safety system. If you believe
+       this is an error, contact us at help.openai.com and include the request
+       ID req_54ab..." -- daar staat alles in behalve wat je eraan kunt doen.
+       beeldWeigering zet er een diagnose voor in de plaats; herkent hij de
+       zin niet, dan blijft de rauwe tekst staan. */
+    var w = (typeof beeldWeigering === 'function') ? beeldWeigering(fout) : null;
+    if (w && w.oorzaak !== 'onbekend') {
+      return 'failed: ' + wizEsc(w.zin) + (w.verzoekId ? ' (' + wizEsc(w.verzoekId) + ')' : '');
+    }
+    return 'failed: ' + wizEsc(String(fout)).slice(0, 160);
+  }
   return 'no preview yet';
+}
+
+/* Waar een filterweigering om vraagt is niet "nog een keer", want dezelfde
+   prompt wordt opnieuw geweigerd. Hij vraagt om andere regie: dezelfde hoek,
+   dezelfde belofte, een ander toneel. Dat is werk voor Rory en niet voor de
+   knop 'opnieuw'. */
+function wizBeeldFilterGeweigerd(i) {
+  var fout = (state.imageErrors || {})[i];
+  if (!fout || typeof beeldWeigering !== 'function') return false;
+  var w = beeldWeigering(fout);
+  return !!w && w.oorzaak === 'contentfilter';
+}
+
+/* ── Opnieuw ensceneren na een filterweigering ─────────────────────────────
+ *
+ * Wat OpenAI weigert is de SCENE, niet de hoek. Een man op de rand van een bed
+ * met zijn shirt in zijn hand en een partner die vanuit bed toekijkt wordt als
+ * expliciet gelezen; dezelfde belofte, staand voor een badkamerspiegel, komt er
+ * gewoon doorheen. Twee van de drie concepten vielen daarop om, en op de kaart
+ * stond alleen "failed".
+ *
+ * Dus: Rory herschrijft de enscenering van dit ene concept. Wat vast blijft is
+ * de hook, de kop en de reden dat dit concept bestaat -- anders test je iets
+ * anders dan je goedkeurde. Wat er verandert komt op de kaart te staan, want
+ * een stilletjes vervangen scene is een tweede concept dat doet alsof het het
+ * eerste is. */
+var wizHerstageBezig = {};
+
+function wizHerstageBrief(c, w) {
+  return 'Een van de drie concepten is door het contentfilter van de beeldgenerator geweigerd. ' +
+    'De hoek, de belofte en de kop zijn goedgekeurd en blijven staan; alleen de ENSCENERING moet anders.\n\n' +
+    'De geweigerde melding: ' + (w && w.ruw ? w.ruw : 'rejected by the safety system') + '\n\n' +
+    'Concept:\n' +
+    'headline_nl: ' + (c.headline_nl || '') + '\n' +
+    'hook_label_nl: ' + (c.hook_label_nl || '') + '\n' +
+    'visual_nl (geweigerd): ' + (c.visual_nl || '') + '\n' +
+    'image_prompt_en (geweigerd): ' + (c.image_prompt_en || '') + '\n\n' +
+    'Wat een beeldfilter laat vallen: een ontkleed of half ontkleed lichaam in of op een bed, ' +
+    'een tweede persoon die vanuit bed toekijkt, aanraking tussen ontklede personen, een ' +
+    'slaapkamer als decor bij bloot. Wat wel doorkomt: dezelfde belofte in een badkamer, voor ' +
+    'een spiegel, staand, aangekleed of met alleen de romp in beeld buiten een slaapkamercontext.\n\n' +
+    'Herschrijf de enscenering zo dat het beeld dezelfde boodschap draagt en er wel doorheen komt. ' +
+    'Verzwak de hoek niet en verander de kop niet.\n\n' +
+    'Antwoord met UITSLUITEND JSON:\n' +
+    '{"visual_nl":"de nieuwe scene in het Nederlands","image_prompt_en":"de volledige nieuwe beeldprompt in het Engels, een regel",' +
+    '"wat_veranderde_nl":"een zin: wat er aan het toneel veranderd is en wat gelijk bleef"}';
+}
+
+function wizHerstage(i) {
+  if (wizHerstageBezig[i] || wizBeeldBezig[i]) return;
+  var lijst = wizState.data.concepts.list || [];
+  var c = lijst[i];
+  if (!c) return;
+  var fout = (state.imageErrors || {})[i];
+  var w = (typeof beeldWeigering === 'function') ? beeldWeigering(fout) : null;
+  var sleutel = (window.__WG_TEAMSERVER ? 'teamserver' : ((document.getElementById('anthropic-key') || {}).value || ''));
+  if (!sleutel) { if (typeof toast === 'function') toast('Fill in your Anthropic API key first', true); return; }
+
+  wizHerstageBezig[i] = true;
+  wizRender();
+  wizCall(SYSTEM_PROMPT, [{ role: 'user', content: wizHerstageBrief(c, w) }], 2000)
+    .then(function (data) {
+      var obj = wizParseJson(wizTextOf(data));
+      if (!obj || !obj.image_prompt_en) throw new Error('no new staging came back');
+      /* De oude scene bewaren, niet overschrijven: je moet kunnen zien waar dit
+         vandaan komt, net als bij de beeldversies. */
+      c.visual_nl_geweigerd = c.visual_nl || '';
+      c.visual_nl = obj.visual_nl || c.visual_nl;
+      c.image_prompt_en = obj.image_prompt_en;
+      c.herstage_nl = obj.wat_veranderde_nl || '';
+      /* state.lastGenerated draagt dezelfde objecten, maar niet gegarandeerd:
+         na een herstel uit localStorage is het een kopie. Dus expliciet. */
+      if (state.lastGenerated && state.lastGenerated.variations &&
+          state.lastGenerated.variations[i] &&
+          state.lastGenerated.variations[i] !== c) {
+        state.lastGenerated.variations[i].visual_nl = c.visual_nl;
+        state.lastGenerated.variations[i].image_prompt_en = c.image_prompt_en;
+      }
+      if (state.imageErrors) delete state.imageErrors[i];
+      wizSave();
+    })
+    .catch(function (err) {
+      if (typeof toast === 'function') toast('Restaging failed: ' + err.message, true);
+    })
+    .finally(function () {
+      delete wizHerstageBezig[i];
+      wizRender();
+      /* Alleen tekenen als het gelukt is: bij een mislukking staat de oude
+         weigering er nog en zou dit hem meteen weer laten weigeren. */
+      if (!(state.imageErrors || {})[i]) wizPreview(i);
+    });
 }
 
 function wizPreview(i) {
@@ -1519,6 +1646,8 @@ function wizHandOff() {
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
+window.wizHerstage = wizHerstage; window.wizHerstageBrief = wizHerstageBrief;
+window.wizConceptBeeldvak = wizConceptBeeldvak; window.wizBeeldFilterGeweigerd = wizBeeldFilterGeweigerd;
 window.wizVoorproef = wizVoorproef; window.wizVoorproefPaneel = wizVoorproefPaneel;
 window.wizVoorproefPrompt = wizVoorproefPrompt; window.wizVoorproefMaat = wizVoorproefMaat;
 window.WIZ_VOORPROEF_MODEL = WIZ_VOORPROEF_MODEL;

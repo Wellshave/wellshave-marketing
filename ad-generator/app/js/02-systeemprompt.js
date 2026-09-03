@@ -572,6 +572,7 @@ De prompt gaat naar OpenAI's gpt-image-2. Reference images van het product worde
 11. Eindigen met: "Style: Wellshave premium dark/gold aesthetic with dramatic lighting, no clutter, mobile-readable typography."
 12. GEEN em-dashes, alleen komma's
 13. Specificeer fotografie-stijl ("photorealistic product photography", "editorial commercial style", "UGC iPhone photo style" voor UGC, "cinematic lifestyle placement" voor Lifestyle-Placement)
+14. ENSCENERING DIE DOOR HET CONTENTFILTER KOMT. De beeldgenerator weigert een prompt die als seksueel gelezen kan worden, en dan komt er helemaal geen beeld. Bij grooming-producten is dat een reeel risico, want bloot en een slaapkamer liggen dichtbij. Vermijd daarom in image_prompt_en: een ontkleed of half ontkleed lichaam in of op een bed, een tweede persoon die vanuit bed toekijkt, aanraking tussen ontklede personen, en een slaapkamer als decor bij bloot. Wat wel doorkomt en dezelfde belofte draagt: een badkamer, een spiegel, staand, aangekleed, of alleen de romp in beeld buiten een slaapkamercontext. Dit is een regieregel en geen preutsheid: de hoek mag scherp blijven, het toneel moet alleen ergens anders staan.
 
 # OUTPUT FORMAT, STRICT JSON
 

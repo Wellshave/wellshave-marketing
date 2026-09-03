@@ -482,7 +482,10 @@ const VULLEN = `
   check('nog niet geprobeerd', standen.nooit, 'no preview yet');
   check('bezig', standen.bezig, 'drawing…');
   check('langer dan gewoonlijk', /taking longer than usual/.test(standen.traag), true);
-  check('mislukt, met de reden erbij', /failed: Failed to fetch/.test(standen.mislukt), true);
+  /* "failed: Failed to fetch" was al beter dan "no preview yet", maar het is
+     nog steeds de zin van de netwerklaag en niet van het scherm. */
+  check('mislukt, met de reden erbij',
+    /^failed: could not reach the image service/.test(standen.mislukt), true);
   /* De kern: vier verschillende zinnen. Vier keer dezelfde zin betekent dat je
      nog steeds niets weet. */
   check('en het zijn vier verschillende zinnen',
@@ -2532,6 +2535,193 @@ const VULLEN = `
   check('en met voor-en-na fixes', score.vraagtFixes, true);
   check('en de opdracht verbiedt vage complimenten', score.geenLegePraat, true);
   check('de twee assen staan in de scorekaart', score.draagtDeAssen, true);
+
+  /* ── Een geweigerde scene ────────────────────────────────────────────── */
+  console.log('\n  een filterweigering leest als een filterweigering');
+  /* Twee van de drie previews vielen om op "Your request was rejected by the
+     safety system. If you believe this is an error, contact us at
+     help.openai.com and include the request ID req_54ab7aa1deb345a0b1" -- en
+     op de kaart stond dat letterlijk. Daar staat alles in behalve wat er aan
+     de hand is: dat je sleutel, je tegoed en de proxy in orde zijn en dat
+     alleen deze ene enscenering geweigerd is. */
+  const weigering = await page.evaluate(() => {
+    var filter = beeldWeigering('Your request was rejected by the safety system. If you believe this ' +
+      'is an error, contact us at help.openai.com and include the request ID req_54ab7aa1deb345a0b1');
+    var netwerk = beeldWeigering('Failed to fetch');
+    var vreemd = beeldWeigering('Er ging iets stuk waar niemand op gerekend had');
+    return {
+      filterOorzaak: filter.oorzaak,
+      filterId: filter.verzoekId,
+      filterZin: filter.zin,
+      netwerkOorzaak: netwerk.oorzaak,
+      /* Een niet-herkende fout krijgt GEEN verzonnen diagnose. */
+      vreemdOorzaak: vreemd.oorzaak,
+      vreemdZin: vreemd.zin,
+      leeg: beeldWeigering(''),
+      niets: beeldWeigering(null),
+      /* Vier oorzaken, vier verschillende zinnen -- anders weet je nog niets. */
+      apart: new Set(['contentfilter', 'verificatie', 'tegoed', 'druk', 'netwerk', 'tijd'].map(function (o) {
+        return (BEELD_WEIGERINGEN.filter(function (r) { return r.oorzaak === o; })[0] || {}).zin;
+      })).size
+    };
+  });
+  check('een safety-weigering heet een contentfilter', weigering.filterOorzaak, 'contentfilter');
+  check('het verzoek-ID blijft bewaard', weigering.filterId, 'req_54ab7aa1deb345a0b1');
+  check('en de zin zegt dat sleutel en tegoed in orde zijn',
+    /content filter/.test(weigering.filterZin) && /credit/.test(weigering.filterZin), true);
+  check('een netwerkfout heet geen contentfilter', weigering.netwerkOorzaak, 'netwerk');
+  check('een onbekende fout krijgt geen verzonnen oorzaak', weigering.vreemdOorzaak, 'onbekend');
+  check('en houdt zijn eigen tekst', weigering.vreemdZin, 'Er ging iets stuk waar niemand op gerekend had');
+  check('geen melding is geen oorzaak', weigering.leeg, null);
+  check('en null ook niet', weigering.niets, null);
+  check('en de zes oorzaken zeggen zes verschillende dingen', weigering.apart, 6);
+
+  const filterkaart = await page.evaluate(() => {
+    state.imageErrors = {};
+    delete wizBeeldBezig[0]; delete wizBeeldTraag[0]; delete wizHerstageBezig[0];
+    state.imageErrors[0] = 'Your request was rejected by the safety system. Include the request ID req_1e2d2bba6c954698b7';
+    var uit = { stand: wizBeeldStand(0), vak: wizConceptBeeldvak(0), filter: wizBeeldFilterGeweigerd(0) };
+    state.imageErrors[0] = 'Failed to fetch';
+    uit.netwerkStand = wizBeeldStand(0);
+    uit.netwerkVak = wizConceptBeeldvak(0);
+    uit.netwerkFilter = wizBeeldFilterGeweigerd(0);
+    state.imageErrors = {};
+    uit.geenFoutVak = wizConceptBeeldvak(0);
+    return uit;
+  });
+  check('de kaart noemt het contentfilter', /content filter/.test(filterkaart.stand), true);
+  check('en niet meer de helpdesk van OpenAI', /help\.openai\.com/.test(filterkaart.stand), false);
+  /* En hij mag zich ook niet vermommen als een van de andere oorzaken: een
+     weigering die zegt dat de dienst onbereikbaar is, stuurt je de proxy in. */
+  check('en het is geen verkapte netwerkfout',
+    /reach the image service/.test(filterkaart.stand), false);
+  check('maar wel het verzoek-ID', /req_1e2d2bba6c954698b7/.test(filterkaart.stand), true);
+  check('en een netwerkfout zegt iets anders', filterkaart.netwerkStand === filterkaart.stand, false);
+  check('alleen bij een filterweigering staat er een herstage-knop',
+    [/Restage this scene/.test(filterkaart.vak), /Restage this scene/.test(filterkaart.netwerkVak),
+     /Restage this scene/.test(filterkaart.geenFoutVak)], [true, false, false]);
+  check('en de knop stopt de klik zodat je niet het concept selecteert',
+    /stopPropagation\(\);wizHerstage\(0\)/.test(filterkaart.vak), true);
+  check('wizBeeldFilterGeweigerd scheidt de twee', [filterkaart.filter, filterkaart.netwerkFilter], [true, false]);
+
+  const langEnBezig = await page.evaluate(() => {
+    state.imageErrors = {};
+    delete wizBeeldBezig[0]; delete wizHerstageBezig[0];
+    /* Een onbekende fout mag de kaart niet uit elkaar duwen: hij wordt
+       afgekapt. Herkende zinnen zijn kort genoeg en houden hun eind. */
+    state.imageErrors[0] = 'X'.repeat(400);
+    var lang = wizBeeldStand(0);
+    /* En terwijl Rory herschrijft staat er niet nog een keer dezelfde knop. */
+    wizHerstageBezig[0] = true;
+    var bezig = wizConceptBeeldvak(0);
+    delete wizHerstageBezig[0];
+    state.imageErrors = {};
+    return { lang: lang.length, bezig: bezig };
+  });
+  check('een onbekende fout wordt afgekapt', langEnBezig.lang <= 168, true);
+  check('tijdens het herschrijven zegt de kaart dat',
+    /Rory is restaging this scene/.test(langEnBezig.bezig), true);
+  check('en staat de knop er niet nog een keer',
+    /Restage this scene/.test(langEnBezig.bezig), false);
+
+  const herstageMislukt = await page.evaluate(async () => {
+    /* Mislukt het herschrijven zelf, dan staat de weigering er nog en mag hij
+       NIET opnieuw tekenen: dezelfde prompt levert dezelfde weigering op, en
+       dan betaal je twee keer voor hetzelfde antwoord. */
+    state.imageErrors = { 0: 'Your request was rejected by the safety system.' };
+    wizState.data.concepts.list = [{ headline_nl: 'x', image_prompt_en: 'y' }];
+    state.lastGenerated = { variations: [{ image_prompt_en: 'y' }], metadata: {} };
+    var echteCall = window.wizCall, echtePreview = window.wizPreview, getekend = 0;
+    window.wizPreview = function () { getekend++; };
+    window.wizCall = function () { return Promise.reject(new Error('stuk')); };
+    await wizHerstage(0);
+    await new Promise(function (r) { setTimeout(r, 30); });
+    /* Meteen meten: de tweede helft van deze test slaagt wel en zou de
+       uitslag van de eerste helft overschrijven. */
+    var naMislukking = { getekend: getekend, foutStaatEr: !!(state.imageErrors || {})[0] };
+    /* En twee keer drukken terwijl hij bezig is, is één aanroep. */
+    var aanroepen = 0;
+    window.wizCall = function () {
+      aanroepen++;
+      return new Promise(function (r) { setTimeout(function () {
+        r({ content: [{ type: 'text', text: '{"image_prompt_en":"z"}' }] }); }, 40);
+      });
+    };
+    wizHerstage(0); wizHerstage(0);
+    await new Promise(function (r) { setTimeout(r, 90); });
+    window.wizCall = echteCall; window.wizPreview = echtePreview;
+    var uit = { getekend: naMislukking.getekend, foutStaatEr: naMislukking.foutStaatEr, aanroepen: aanroepen };
+    state.imageErrors = {}; state.lastGenerated = null;
+    wizState.data.concepts.list = []; delete wizHerstageBezig[0];
+    return uit;
+  });
+  check('een mislukt herschrijven tekent niet opnieuw', herstageMislukt.getekend, 0);
+  check('en de weigering blijft staan', herstageMislukt.foutStaatEr, true);
+  check('twee keer drukken is één aanroep', herstageMislukt.aanroepen, 1);
+
+  console.log('\n  en Rory zet de scene opnieuw neer, zichtbaar');
+  /* De hoek is goedgekeurd, de scene niet. Herschrijft hij ook de kop, dan
+     test je iets anders dan je goedkeurde. En vervangt hij de scene stilletjes,
+     dan lees je een toneel dat je nooit gezien hebt als het toneel van Rory. */
+  const herstage = await page.evaluate(async () => {
+    state.imageErrors = { 0: 'Your request was rejected by the safety system. req_abc123' };
+    wizState.data.concepts.list = [{
+      headline_nl: 'Ze zegt er niets van. Die blik wel.',
+      hook_label_nl: 'Stilte van de partner',
+      visual_nl: 'Een man op de rand van een bed, shirt in zijn hand, partner kijkt toe.',
+      image_prompt_en: 'A man sitting bare-chested on the edge of an unmade bed'
+    }];
+    state.lastGenerated = { variations: [{ image_prompt_en: 'A man sitting bare-chested on the edge of an unmade bed' }],
+                            metadata: {} };
+    var brief = wizHerstageBrief(wizState.data.concepts.list[0], beeldWeigering(state.imageErrors[0]));
+
+    var echteCall = window.wizCall, echtePreview = window.wizPreview, getekend = 0;
+    window.wizPreview = function () { getekend++; };
+    window.wizCall = function () {
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({
+        visual_nl: 'Dezelfde man, staand voor de badkamerspiegel, shirt over zijn schouder.',
+        image_prompt_en: 'A man standing at a bathroom mirror, shirt over his shoulder',
+        wat_veranderde_nl: 'Slaapkamer werd badkamer, de partner is uit beeld; de hoek en de kop bleven.'
+      }) }] });
+    };
+    await wizHerstage(0);
+    await new Promise(function (r) { setTimeout(r, 30); });
+    var c = wizState.data.concepts.list[0];
+    window.wizCall = echteCall; window.wizPreview = echtePreview;
+    var uit = {
+      briefNoemtDeWeigering: /safety system/.test(brief),
+      briefVerbiedtHetBed: /bed/.test(brief) && /badkamer/.test(brief),
+      briefBeschermtDeKop: /verander de kop niet/i.test(brief),
+      kop: c.headline_nl,
+      prompt: c.image_prompt_en,
+      bewaardeOude: c.visual_nl_geweigerd,
+      uitleg: c.herstage_nl,
+      foutWeg: (state.imageErrors || {})[0],
+      doorgegeven: state.lastGenerated.variations[0].image_prompt_en,
+      getekend: getekend,
+      vak: (function () {
+        var h = wizRender_concepts();
+        return /Restaged after the filter refusal/.test(h) && /badkamerspiegel/.test(h);
+      })()
+    };
+    state.imageErrors = {}; state.lastGenerated = null;
+    wizState.data.concepts.list = [];
+    delete wizHerstageBezig[0];
+    return uit;
+  });
+  check('de brief noemt de echte weigering', herstage.briefNoemtDeWeigering, true);
+  check('en zegt wat er wel doorheen komt', herstage.briefVerbiedtHetBed, true);
+  check('en beschermt de goedgekeurde kop', herstage.briefBeschermtDeKop, true);
+  check('de kop blijft staan', herstage.kop, 'Ze zegt er niets van. Die blik wel.');
+  check('de beeldprompt is vervangen',
+    herstage.prompt, 'A man standing at a bathroom mirror, shirt over his shoulder');
+  check('de geweigerde scene blijft leesbaar',
+    /op de rand van een bed/.test(herstage.bewaardeOude), true);
+  check('en de kaart zegt zelf dat hij opnieuw geënsceneerd is', herstage.vak, true);
+  check('de weigering is weg', herstage.foutWeg, undefined);
+  check('de generator krijgt de nieuwe prompt', herstage.doorgegeven,
+    'A man standing at a bathroom mirror, shirt over his shoulder');
+  check('en hij tekent meteen opnieuw', herstage.getekend, 1);
 
   check('elke onclick in de wizard bestaat op window', losseHandlers, []);
   check('de pagina draaide zonder JavaScript-fouten', jsFouten, []);

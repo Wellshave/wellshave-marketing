@@ -246,6 +246,71 @@ async function adTransformerRun(){
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Waarom er geen beeld kwam -- en waarom dat verschil uitmaakt
+
+   Op de conceptenkaart stond tot nu toe "failed: " met daarachter de rauwe
+   zin van OpenAI. Bij een netwerkfout leest dat prima. Bij een weigering van
+   het contentfilter niet: dan staat er "Your request was rejected by the
+   safety system. If you believe this is an error, contact us at
+   help.openai.com and include the request ID req_54ab..." -- drie regels
+   waarin het enige bruikbare woord "safety" is, en waaruit je vooral niet
+   opmaakt dat je sleutel, je tegoed en de proxy in orde zijn en dat alleen
+   DEZE ene scene geweigerd is.
+
+   Dat onderscheid is de hele diagnose. Een filterweigering vraagt om een
+   andere regie; een verificatiefout om een instelling bij OpenAI; een
+   netwerkfout om de proxy. Drie keer "failed" laat je alle drie hetzelfde
+   proberen: nog een keer drukken.
+
+   Wat hier NIET gebeurt: een oorzaak verzinnen. Herkent hij de zin niet, dan
+   is de oorzaak 'onbekend' en blijft de rauwe tekst staan -- een verzonnen
+   diagnose is erger dan een lelijke. */
+var BEELD_WEIGERINGEN = [
+  /* De volgorde is de rangorde. Een filterweigering noemt soms ook "policy"
+     en "request"; de specifieke test hoort dus voor de algemene te staan. */
+  { oorzaak: 'contentfilter',
+    test: /safety system|content policy|moderation_blocked|rejected as a result of our safety/i,
+    zin: 'blocked by OpenAI\u2019s content filter \u2014 the scene as written reads as explicit. ' +
+         'Your key, credit and proxy are fine; only this staging was refused.' },
+  { oorzaak: 'verificatie',
+    test: /verify your organization|organization must be verified|verification/i,
+    zin: 'your OpenAI organisation is not verified for gpt-image \u2014 verify it on platform.openai.com, then try again.' },
+  { oorzaak: 'tegoed',
+    test: /insufficient_quota|billing|exceeded your current quota|payment/i,
+    zin: 'OpenAI refused on billing \u2014 the account is out of credit or over its quota.' },
+  { oorzaak: 'druk',
+    test: /rate limit|rate_limit|overload|too many requests/i,
+    zin: 'OpenAI is rate-limiting right now \u2014 wait a minute and draw it again.' },
+  { oorzaak: 'netwerk',
+    test: /failed to fetch|networkerror|proxy is niet bereikbaar/i,
+    zin: 'could not reach the image service \u2014 check that the proxy is running.' },
+  { oorzaak: 'tijd',
+    test: /timed out|timeout/i,
+    zin: 'gave up waiting \u2014 the request may still be running at OpenAI. Draw this one on its own.' }
+];
+
+/* Het verzoek-ID is het enige uit die rauwe zin dat je later nog nodig hebt:
+   zonder dat nummer kan OpenAI een weigering niet terugzoeken. */
+function beeldVerzoekId(tekst) {
+  var m = /\breq_[A-Za-z0-9]+/.exec(String(tekst || ''));
+  return m ? m[0] : null;
+}
+
+function beeldWeigering(tekst) {
+  var t = String(tekst == null ? '' : tekst);
+  /* Geen tekst is geen oorzaak. Hier een stand verzinnen zou van "er is niets
+     gebeurd" een mislukking maken. */
+  if (!t.trim()) return null;
+  for (var i = 0; i < BEELD_WEIGERINGEN.length; i++) {
+    if (BEELD_WEIGERINGEN[i].test.test(t)) {
+      return { oorzaak: BEELD_WEIGERINGEN[i].oorzaak, zin: BEELD_WEIGERINGEN[i].zin,
+               ruw: t, verzoekId: beeldVerzoekId(t) };
+    }
+  }
+  return { oorzaak: 'onbekend', zin: t, ruw: t, verzoekId: beeldVerzoekId(t) };
+}
+
 async function generateImage(varIndex) {
   /* Een nieuwe poging wist de vorige uitslag. Blijft die staan, dan lees je bij
      een geslaagde tweede poging nog steeds de fout van de eerste. */

@@ -635,11 +635,23 @@
 .wiz-concept:hover { border-color: var(--hairline-strong); }
 .wiz-concept.on { border-color: var(--gold); background: var(--gold-haze); }
 .wiz-concept-preview {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   min-height: 180px; background: rgba(0, 0, 0, 0.35); padding: 10px;
 }
 .wiz-concept-preview img { max-width: 100%; border-radius: 8px; display: block; }
-.wiz-concept-geenbeeld { color: var(--text-faint); font-size: 12px; }
+.wiz-concept-geenbeeld { color: var(--text-faint); font-size: 12px; text-align: center; }
+/* De enige knop die zin heeft na een filterweigering. Nog een keer op
+   'genereren' drukken levert exact dezelfde weigering op. */
+.wiz-concept-herstel {
+  font-size: 11px; letter-spacing: 0.04em; color: var(--gold); cursor: pointer;
+  border: 1px solid var(--gold); border-radius: 999px; padding: 4px 12px;
+  background: transparent; transition: background .15s;
+}
+.wiz-concept-herstel:hover, .wiz-concept-herstel:focus-visible { background: var(--gold-haze); }
+.wiz-concept-herstage {
+  font-size: 11.5px; color: var(--text-soft); line-height: 1.5;
+  border-left: 2px solid var(--gold); padding-left: 8px;
+}
 .wiz-concept-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .wiz-concept-h { font-size: 15px; color: var(--text); line-height: 1.35; }
 .wiz-concept-hook {
