@@ -613,11 +613,84 @@ function wizRender_format() {
       '</button>';
   }).join('') + '</div>';
 
+  h += wizBuitenDeLijntjes(sel);
+
   h += '<div class="wiz-actions">' +
     '<button type="button" class="wiz-btn ghost small" onclick="wizToggleAllFormats()">' +
     (alles ? 'Back to the shortlist' : 'View all formats (' + AD_FORMATS.length + ')') + '</button>' +
     wizHerzie('format') + '</div>';
   return h;
+}
+
+/* ── Wanneer de nette layout de conventie IS ───────────────────────────────
+ *
+ * Elke ad kwam er hetzelfde uit: vette kop, body eronder, knop, soms een
+ * Trustpilot. Dat is niet altijd fout -- bij BOF en retargeting doet die knop
+ * werk -- maar bij een uitgekeken markt is diezelfde layout precies wat
+ * iedereen doet, en dan zegt hij niets meer. Hij leest als behang.
+ *
+ * Dit is geen keuze die het scherm maakt. Het is een opmerking op het moment
+ * dat hij ertoe doet, met de reden erbij, en drie formaten die het anders
+ * doen. De nette layout blijft gewoon kiesbaar; hij is hier alleen niet meer
+ * vanzelfsprekend.
+ *
+ * Twee ingangen, want er zijn twee redenen om de vorm te breken en ze vragen
+ * om iets anders:
+ *   - SOPHISTICATION 4-5: de markt heeft de claim al honderd keer gezien. De
+ *     vorm moet anders, niet de belofte.
+ *   - KOUD EN PROBLEEMBEWUST: "eruitzien als een advertentie" is hier het
+ *     handicap. Native koopt aandacht die een ontworpen layout niet koopt.
+ * ------------------------------------------------------------------------ */
+
+var WIZ_BUITEN = {
+  sophistication: {
+    /* Vier formaten die de conventie breken zonder de boodschap te verliezen. */
+    formaten: ['review-screenshot', 'whatsapp-chat', 'news-headline-advertorial', 'ugly-ad'],
+    zegt: 'This market has seen the claim before. At stage 4 and 5 the polished ad layout IS the ' +
+      'category convention: everyone runs it, so it stops being a signal. What has to change here is ' +
+      'the form, not the promise.'
+  },
+  koud: {
+    formaten: ['review-screenshot', 'notification-screenshot', 'tweet-reddit-screenshot', 'meme-format'],
+    zegt: 'Cold and problem-aware. Looking like an ad is the handicap here — a native or lo-fi form ' +
+      'buys attention that a designed layout cannot.'
+  }
+};
+
+function wizBuitenReden() {
+  var a = wizState.data.audience;
+  var soph = String(a.sophistication || '');
+  if (soph === 's4' || soph === 's5') return 'sophistication';
+  var aw = String(a.awareness || '');
+  var funnel = String(wizState.data.product.funnel || '');
+  if ((aw === 'unaware' || aw === 'problem') && (!funnel || funnel === 'tof')) return 'koud';
+  return null;
+}
+
+function wizBuitenDeLijntjes(sel) {
+  var reden = wizBuitenReden();
+  if (!reden) return '';
+  var b = WIZ_BUITEN[reden];
+  if (typeof AD_FORMATS === 'undefined') return '';
+  var lijst = AD_FORMATS.filter(function (x) { return b.formaten.indexOf(x.id) !== -1; });
+  if (!lijst.length) return '';
+  /* Staat er al een formaat dat de conventie breekt, dan is de opmerking
+     gemaakt en hoeft hij niet nog een keer. Een advies dat blijft staan nadat
+     je het opgevolgd hebt, leest als een advies dat je niet opgevolgd hebt. */
+  var gekozen = AD_FORMATS.filter(function (x) { return x.id === sel; })[0];
+  if (gekozen && gekozen.brandless) return '';
+
+  return '<div class="wiz-buiten">' +
+    '<div class="wiz-buiten-kop">Worth breaking the template here</div>' +
+    '<div class="wiz-buiten-tekst">' + wizEsc(b.zegt) + '</div>' +
+    '<div class="wiz-buiten-lijst">' + lijst.map(function (x) {
+      return '<button type="button" class="wiz-btn ghost small" ' +
+        'onclick="wizPick(\'format\',\'formatId\',\'' + wizEsc(x.id) + '\')">' +
+        wizEsc(x.name) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="wiz-buiten-bij">The polished layout stays a valid answer — at BOF and retargeting ' +
+    'it is the right one. Here it is just no longer the obvious one.</div>' +
+    '</div>';
 }
 
 /* Welke miniatuur bij een format hoort. Afgeleid van de categorie, zodat een
@@ -632,6 +705,8 @@ function wizWireVorm(f) {
 }
 
 function wizToggleAllFormats() { wizState.showAllFormats = !wizState.showAllFormats; wizRender(); }
+window.wizBuitenDeLijntjes = wizBuitenDeLijntjes; window.wizBuitenReden = wizBuitenReden;
+window.WIZ_BUITEN = WIZ_BUITEN;
 
 /* ── Stap 5: Visuele richting ───────────────────────────────────────────────
  *

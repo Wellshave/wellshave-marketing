@@ -460,6 +460,131 @@ const VULLEN = `
   check('dichtgeklapt staan alleen de hoofdvelden', uitklap.dicht <= 3, true);
   check('opengeklapt komen de extra velden erbij', uitklap.open > uitklap.dicht, true);
 
+  console.log('\n  tweeënveertig formaten, en niet één advertentie');
+  /* De catalogus wist al welke formaten merkloos zijn, welke geen knop hebben
+     en welke op bewijs leunen. Die vlaggen zetten een labeltje op de keuzekaart
+     en bereikten de beeldprompt nooit -- dus kon je "Review screenshot" kiezen
+     en kwam er een huisstijlblok met gouden knop uit. */
+  const anatomie = await page.evaluate(() => {
+    const regel = (id) => formaatBeeldregel(id);
+    return {
+      screenshot: regel('review-screenshot'),
+      chat: regel('whatsapp-chat'),
+      benefit: regel('benefit-stack'),
+      onbekend: regel('bestaat-niet'),
+      auto: regel('auto'),
+      leeg: regel(''),
+      knopScreenshot: formaatWilKnop('review-screenshot'),
+      knopBenefit: formaatWilKnop('benefit-stack'),
+      merkScreenshot: formaatWilMerk('review-screenshot'),
+      merkBenefit: formaatWilMerk('benefit-stack'),
+      /* Elk formaat in de catalogus hoort een anatomie te hebben. Eentje
+         zonder valt stil terug op de nette DR-layout, en dat is precies de
+         fout die dit moet wegnemen. */
+      zonderAnatomie: AD_FORMATS.filter(f => !FORMAAT_ANATOMIE[f.id]).map(f => f.id)
+    };
+  });
+  check('elk formaat in de catalogus heeft een anatomie', anatomie.zonderAnatomie, []);
+  check('een screenshot krijgt zijn eigen anatomie', /screenshot of a review interface/.test(anatomie.screenshot), true);
+  check('met de opdracht er niet ontworpen uit te zien', /must NOT look like a designed/i.test(anatomie.screenshot), true);
+  /* De drie vlaggen, in woorden die het beeldmodel begrijpt. */
+  check('merkloos betekent geen wordmark', /No wordmark or logo/.test(anatomie.screenshot), true);
+  check('geen knop betekent geen knop', /No CTA button/.test(anatomie.chat), true);
+  check('en de chat heeft zijn eigen anatomie', /message bubbles/.test(anatomie.chat), true);
+  /* En andersom: een formaat dat de template WEL wil, houdt hem. */
+  check('een benefit stack blijft een merkad', /No wordmark/.test(anatomie.benefit), false);
+  check('en houdt zijn knop', /No CTA button/.test(anatomie.benefit), false);
+  check('maar krijgt wel zijn eigen opbouw', /check marks/.test(anatomie.benefit), true);
+  /* Onbekend blijft leeg: iets verzinnen is erger dan zwijgen. */
+  check('een onbekend formaat levert geen regel', anatomie.onbekend, '');
+  check('auto ook niet', anatomie.auto, '');
+  check('en leeg ook niet', anatomie.leeg, '');
+  check('de knopvlag klopt', [anatomie.knopScreenshot, anatomie.knopBenefit], [false, true]);
+  check('de merkvlag ook', [anatomie.merkScreenshot, anatomie.merkBenefit], [false, true]);
+
+  console.log('\n  en de layoutregel noemt alleen wat er werkelijk is');
+  /* De regel noemde de wordmark en de knop altijd bij naam, alsof ze er waren.
+     Bij een screenshot of een meme is dat een opdracht om ze erbij te tekenen. */
+  const layout = await page.evaluate(() => {
+    const bouw = (id) => {
+      const wilKnop = formaatWilKnop(id), wilMerk = formaatWilMerk(id);
+      return ['every piece of text']
+        .concat(wilMerk ? ['the WELLSHAVE wordmark'] : [])
+        .concat(wilKnop ? ['the CTA button'] : []).join(', ');
+    };
+    return { screenshot: bouw('review-screenshot'), benefit: bouw('benefit-stack') };
+  });
+  check('bij een screenshot geen wordmark en geen knop', layout.screenshot, 'every piece of text');
+  check('bij een benefit stack allebei wel',
+    layout.benefit, 'every piece of text, the WELLSHAVE wordmark, the CTA button');
+
+  console.log('\n  Rory zegt wanneer de nette layout de conventie is');
+  /* Niet altijd, en niet als keuze van het scherm: een opmerking op het moment
+     dat hij ertoe doet, met de reden erbij. */
+  const buiten = await page.evaluate(vullen => {
+    wizReset(true);
+    eval(vullen);
+    const lees = () => {
+      const d = document.createElement('div');
+      const uit = wizRender_format();
+      d.innerHTML = (typeof uit === 'string') ? uit : ((uit.links || '') + (uit.rechts || ''));
+      return d;
+    };
+    const uit = {};
+    /* Uitgekeken markt: de vorm moet anders, niet de belofte. */
+    wizState.data.audience.sophistication = 's4';
+    wizState.data.audience.awareness = 'solution';
+    wizState.data.product.funnel = 'mof';
+    wizState.data.format.formatId = 'benefit-stack';
+    uit.s4 = lees().textContent;
+    uit.s4reden = wizBuitenReden();
+
+    /* Koud en probleembewust: eruitzien als een advertentie is het handicap. */
+    wizState.data.audience.sophistication = 's2';
+    wizState.data.audience.awareness = 'problem';
+    wizState.data.product.funnel = 'tof';
+    uit.koud = lees().textContent;
+    uit.koudReden = wizBuitenReden();
+
+    /* Warme markt, lage sophistication, BOF: hier doet die knop werk en hoort
+       er geen opmerking te staan. */
+    wizState.data.audience.sophistication = 's2';
+    wizState.data.audience.awareness = 'product';
+    wizState.data.product.funnel = 'bof';
+    uit.warm = lees().textContent;
+    uit.warmReden = wizBuitenReden();
+
+    /* En probleembewust verkeer bij BOF: dat is retargeting, geen koud
+       publiek. Daar doet die knop werk en hoort er niets te staan -- de reden
+       om de vorm te breken is "koud", niet "probleembewust". */
+    wizState.data.audience.awareness = 'problem';
+    wizState.data.product.funnel = 'bof';
+    uit.warmProbleem = lees().textContent;
+    uit.warmProbleemReden = wizBuitenReden();
+
+    /* En zodra je het advies opvolgt is de opmerking gemaakt. Een advies dat
+       blijft staan nadat je het opgevolgd hebt, leest als een advies dat je
+       niet opgevolgd hebt. */
+    wizState.data.audience.sophistication = 's4';
+    wizState.data.format.formatId = 'review-screenshot';
+    uit.naKeuze = lees().textContent;
+    return uit;
+  }, VULLEN);
+  check('bij s4 staat de opmerking er', /Worth breaking the template/.test(buiten.s4), true);
+  check('met de reden', /category convention/.test(buiten.s4), true);
+  check('en drie formaten die het anders doen', /WhatsApp/.test(buiten.s4), true);
+  check('de reden is sophistication', buiten.s4reden, 'sophistication');
+  check('bij koud problem-aware ook', /Worth breaking the template/.test(buiten.koud), true);
+  check('met een andere reden', /Looking like an ad is the handicap/.test(buiten.koud), true);
+  check('en die heet koud', buiten.koudReden, 'koud');
+  /* De nette layout blijft geldig, en dat staat er ook. */
+  check('bij BOF staat er niets', /Worth breaking the template/.test(buiten.warm), false);
+  check('en er is geen reden', buiten.warmReden, null);
+  check('probleembewust bij BOF is retargeting, geen koud publiek',
+    /Worth breaking the template/.test(buiten.warmProbleem), false);
+  check('dus ook daar geen reden', buiten.warmProbleemReden, null);
+  check('opgevolgd advies verdwijnt', /Worth breaking the template/.test(buiten.naKeuze), false);
+
   console.log('\n  de voorproef is een beeld, geen packshot met tekst eronder');
   /* Het vak "Visual preview" toonde een productfoto uit de bibliotheek met de
      copy eronder, terwijl de blueprint een man op de rand van een onopgemaakt

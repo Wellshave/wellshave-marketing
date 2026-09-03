@@ -264,7 +264,22 @@ async function generateImage(varIndex) {
   const size = SIZE_MAP[model][metadata.placement];
   const safeZone = buildSafeZoneInstruction(metadata.placement);
   const textOverlay = buildTextOverlayInstruction(variation);
-  let layoutPriority = 'LAYOUT PRIORITY (read first): every piece of text, the WELLSHAVE wordmark and the CTA button must sit fully inside the safe area, inset from all edges, never flush against the top or bottom edge. See SAFE ZONE REQUIREMENTS below. ';
+  /* De layoutregel noemde de wordmark en de knop altijd bij naam, alsof ze er
+     waren -- bij een screenshot, een meme of een chat is dat een opdracht om ze
+     erbij te tekenen. Nu noemt hij alleen wat dit formaat werkelijk draagt. */
+  const wilKnop = (typeof formaatWilKnop === 'function') ? formaatWilKnop(metadata.mode) : true;
+  const wilMerk = (typeof formaatWilMerk === 'function') ? formaatWilMerk(metadata.mode) : true;
+  const dragers = ['every piece of text']
+    .concat(wilMerk ? ['the WELLSHAVE wordmark'] : [])
+    .concat(wilKnop ? ['the CTA button'] : []);
+  let layoutPriority = 'LAYOUT PRIORITY (read first): ' + dragers.join(', ') +
+    ' must sit fully inside the safe area, inset from all edges, never flush against the top or bottom edge. ' +
+    'See SAFE ZONE REQUIREMENTS below. ';
+  /* En wat dit formaat IS. Zonder deze regel weet het model wel dat het
+     "WhatsApp-chat" heet en niet hoe dat eruitziet -- en dan valt het terug op
+     wat het het vaakst gezien heeft, en dat is de nette DR-layout. */
+  const anatomie = (typeof formaatBeeldregel === 'function') ? formaatBeeldregel(metadata.mode) : '';
+  if (anatomie) layoutPriority += anatomie + ' ';
   /* Bij een redactioneel formaat is de anatomie geen smaak maar het formaat
      zelf: welke typografie, welke foto, welke knop, en wat er beslist NIET op
      mag -- geen verzonnen uitgever, geen geleend logo, geen zegel. Die regels
