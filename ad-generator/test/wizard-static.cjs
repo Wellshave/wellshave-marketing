@@ -545,50 +545,77 @@ const VULLEN = `
   check('en verdwijnt zodra het wel lukt, ook als hij onderweg ontstond',
     vastgelegd.naGoed, undefined);
 
-  console.log('\n  je kunt terug naar de vorige versie');
-  /* Na een verfijning stond er "version 2 of 2" en verder niets: de vorige
-     versie was onbereikbaar terwijl hij gewoon in de state stond. Je zag dat er
-     twee waren en kon er maar één zien. */
+  console.log('\n  je kunt naar elke versie terug, in één klik');
+  /* Eerst stond er "version 2 of 2" als LABEL en verder niets: de vorige versie
+     was onbereikbaar terwijl hij gewoon in de state stond. Daarna werden het
+     twee pijlen, maar die zaten als flex-buur NAAST de foto en liepen de kaart
+     uit -- de melding "hij glitcht". Nu: een strook duimnagels onder de foto,
+     waarin je ziet welke versies er zijn en er een aanklikt. */
   const versies = await page.evaluate(() => {
-    document.body.insertAdjacentHTML('beforeend', '<div id="gen-image-0"></div>');
+    /* Met de echte klasse, want de vraag is juist hoe de CONTAINER de foto en
+       de strook naast of onder elkaar zet. */
+    document.body.insertAdjacentHTML('beforeend',
+      '<div id="gen-image-0" class="wiz-final-preview"></div>');
     state.generatedImages = { 0: { versions: [
-      { b64: 'AAA', mime: 'image/png' }, { b64: 'BBB', mime: 'image/png' }
-    ], currentIndex: 1 } };
+      { b64: 'AAA', mime: 'image/png' }, { b64: 'BBB', mime: 'image/png' },
+      { b64: 'CCC', mime: 'image/png' }
+    ], currentIndex: 2 } };
     wizToonBeeld(0);
     var vak = document.getElementById('gen-image-0');
+    var duimen = function () { return vak.querySelectorAll('.wiz-beeld-duim'); };
     var uit = {
       stand: (vak.querySelector('.wiz-beeld-v-t') || {}).textContent,
-      pijlen: vak.querySelectorAll('.wiz-beeld-pijl').length,
-      vooruitUit: vak.querySelectorAll('.wiz-beeld-pijl.uit').length,
-      beeld: (vak.querySelector('img') || {}).getAttribute('src')
+      aantal: duimen().length,
+      /* Elke duimnagel toont zijn eigen versie, niet drie keer dezelfde. */
+      bronnen: Array.prototype.map.call(duimen(), function (d) {
+        return ((d.querySelector('img') || {}).getAttribute('src') || '').slice(-3);
+      }),
+      nummers: Array.prototype.map.call(duimen(), function (d) {
+        return (d.querySelector('em') || {}).textContent;
+      }),
+      actief: vak.querySelectorAll('.wiz-beeld-duim.on').length,
+      actiefIndex: Array.prototype.findIndex.call(duimen(), function (d) {
+        return d.classList.contains('on'); }),
+      beeld: ((vak.querySelector('img.wiz-beeld') || {}).getAttribute('src') || '').slice(-3),
+      /* De strook staat ONDER de foto, niet ernaast: de container is een kolom.
+         Ernaast betekende dat hij de kaart uitliep. */
+      richting: getComputedStyle(vak).flexDirection
     };
-    wizBeeldVersie(0, -1);
+    /* Eén klik terug naar de eerste versie. */
+    wizBeeldNaar(0, 0);
     vak = document.getElementById('gen-image-0');
-    uit.naTerug = (vak.querySelector('.wiz-beeld-v-t') || {}).textContent;
-    uit.beeldNaTerug = (vak.querySelector('img') || {}).getAttribute('src');
-    uit.terugUit = vak.querySelectorAll('.wiz-beeld-pijl.uit').length;
-    /* Voorbij het begin bladeren mag niets doen. */
-    wizBeeldVersie(0, -1);
+    uit.naKlik = (vak.querySelector('.wiz-beeld-v-t') || {}).textContent;
+    uit.beeldNaKlik = ((vak.querySelector('img.wiz-beeld') || {}).getAttribute('src') || '').slice(-3);
+    uit.actiefNaKlik = Array.prototype.findIndex.call(vak.querySelectorAll('.wiz-beeld-duim'),
+      function (d) { return d.classList.contains('on'); });
+    /* Buiten de lijst wijzen doet niets. */
+    wizBeeldNaar(0, 9); wizBeeldNaar(0, -1);
     uit.index = state.generatedImages[0].currentIndex;
+    /* En de klik selecteert niet per ongeluk het concept eronder. */
+    uit.stopt = /stopPropagation\(\);wizBeeldNaar\(0,0\)/.test(vak.innerHTML);
 
-    /* Eén versie: geen balk. Pijlen bij één versie zijn twee knoppen die niets
-       doen. */
+    /* Eén versie: geen strook. Een strook van één is een knop die niets doet. */
     state.generatedImages = { 0: { versions: [{ b64: 'AAA' }], currentIndex: 0 } };
     wizToonBeeld(0);
-    uit.eenVersie = document.getElementById('gen-image-0').querySelectorAll('.wiz-beeld-pijl').length;
+    uit.eenVersie = document.getElementById('gen-image-0').querySelectorAll('.wiz-beeld-duim').length;
     document.getElementById('gen-image-0').remove();
     state.generatedImages = {};
     return uit;
   });
-  check('de stand staat er', versies.stand, 'version 2 of 2');
-  check('met twee pijlen', versies.pijlen, 2);
-  check('waarvan vooruit uit staat', versies.vooruitUit, 1);
-  check('en versie 2 in beeld', /base64,BBB/.test(versies.beeld || ''), true);
-  check('terug brengt je bij versie 1', versies.naTerug, 'version 1 of 2');
-  check('met het bijbehorende beeld', /base64,AAA/.test(versies.beeldNaTerug || ''), true);
-  check('en dan staat terug uit', versies.terugUit, 1);
-  check('voorbij het begin gebeurt er niets', versies.index, 0);
-  check('bij één versie staan er geen pijlen', versies.eenVersie, 0);
+  check('de stand staat er', versies.stand, 'version 3 of 3');
+  check('met een duimnagel per versie', versies.aantal, 3);
+  check('elke duimnagel toont zijn eigen versie', versies.bronnen, ['AAA', 'BBB', 'CCC']);
+  check('en draagt zijn nummer', versies.nummers, ['1', '2', '3']);
+  check('er is er precies één actief', versies.actief, 1);
+  check('en dat is de derde', versies.actiefIndex, 2);
+  check('met versie 3 in beeld', versies.beeld, 'CCC');
+  check('de strook staat onder de foto', versies.richting, 'column');
+  check('één klik brengt je bij versie 1', versies.naKlik, 'version 1 of 3');
+  check('met het bijbehorende beeld', versies.beeldNaKlik, 'AAA');
+  check('en de eerste duimnagel is nu de actieve', versies.actiefNaKlik, 0);
+  check('buiten de lijst wijzen doet niets', versies.index, 0);
+  check('en de klik selecteert het concept niet', versies.stopt, true);
+  check('bij één versie staat er geen strook', versies.eenVersie, 0);
 
   console.log('\n  tweeënveertig formaten, en niet één advertentie');
   /* De catalogus wist al welke formaten merkloos zijn, welke geen knop hebben
@@ -2910,6 +2937,40 @@ const VULLEN = `
   check('er staat geen kaart met een dode knop', doodsekaarten.dodeKnop, false);
   check('maar de startknop', doodsekaarten.startknop, true);
   check('en tekenen reserveert zelf geen variaties', doodsekaarten.naTekenen, [1, 2, 3]);
+
+  console.log('\n  Nick heeft een gezicht, net als Rory');
+  /* Rory had een portret, Nick een letter in een cirkel -- dat leest als twee
+     soorten deelnemers terwijl ze dezelfde rol hebben aan weerszijden van de
+     beslissing. */
+  const portret = await page.evaluate(() => {
+    var nick = teamPortret('nick'), rory = teamPortret('rory');
+    var vak = document.createElement('div');
+    vak.innerHTML = nick;
+    var img = vak.querySelector('img');
+    wizScore.nick = { voor: 0, verdict: 'Dit spendt niet.', zwak: [], prompt: 'x' };
+    var kop = wizRenderNick(0);
+    wizScore.nick = null;
+    return {
+      nickBestand: img ? img.getAttribute('src') : null,
+      roryBestand: (rory.match(/src="([^"]+)"/) || [])[1],
+      /* De letter blijft eronder liggen: mist het bestand, dan haalt onerror de
+         foto weg en staat de letter er weer. Zonder dat is een ontbrekend
+         portret een leeg gaatje. */
+      letter: (vak.querySelector('i') || {}).textContent,
+      valtTerug: /onerror="this\.remove\(\)"/.test(nick),
+      /* Een naam die niet bestaat krijgt geen verzonnen portret. */
+      onbekend: teamPortret('kevin'),
+      leeg: teamPortret(''),
+      inKop: /wiz-nick-foto/.test(kop) && /Nick on this picture/.test(kop)
+    };
+  });
+  check('Nick wijst naar zijn eigen bestand', portret.nickBestand, 'img/nick.jpg');
+  check('en Rory naar het zijne', portret.roryBestand, 'img/rory.jpg');
+  check('de letter ligt eronder', portret.letter, 'N');
+  check('en komt terug als het bestand mist', portret.valtTerug, true);
+  check('een onbekende naam krijgt geen portret', portret.onbekend, '');
+  check('en een lege naam ook niet', portret.leeg, '');
+  check('zijn oordeel draagt zijn gezicht', portret.inKop, true);
 
   check('elke onclick in de wizard bestaat op window', losseHandlers, []);
   check('de pagina draaide zonder JavaScript-fouten', jsFouten, []);

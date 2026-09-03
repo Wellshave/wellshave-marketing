@@ -585,3 +585,33 @@ function wgWorkerTeOud(status, tekst, wat) {
 window.wgFoutTekst = wgFoutTekst;
 window.wgFoutUitpakken = wgFoutUitpakken;
 window.wgWorkerTeOud = wgWorkerTeOud;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Het gezicht bij een naam
+
+   Rory had een portret, Nick een letter in een cirkel. Dat leest als twee
+   soorten deelnemers: een met een gezicht en een die het systeem zelf is --
+   terwijl Nick precies dezelfde rol heeft, alleen aan de andere kant van de
+   beslissing (Rory bepaalt wat er gemaakt wordt, Nick of het geld gaat
+   opnemen).
+
+   Eén functie voor allebei, zodat er nooit meer een plek is waar de een wel
+   en de ander geen gezicht heeft. De letter blijft eronder liggen: mist het
+   bestand, dan haalt onerror de foto weg en staat de letter er weer. Zo is een
+   ontbrekend portret een gaatje in de vormgeving en geen kapot scherm. */
+var TEAM_PORTRET = {
+  rory: { bestand: 'img/rory.jpg', letter: 'R', naam: 'Rory' },
+  nick: { bestand: 'img/nick.jpg', letter: 'N', naam: 'Nick Theriot' }
+};
+
+function teamPortret(wie, klasse) {
+  var p = TEAM_PORTRET[String(wie || '').toLowerCase()];
+  /* Geen bekende naam betekent geen portret. Een verzonnen letter zou een
+     deelnemer suggereren die niet bestaat. */
+  if (!p) return '';
+  return '<span class="' + (klasse || 'team-portret') + '" aria-hidden="true">' +
+    '<img src="' + p.bestand + '" alt="" onerror="this.remove()"><i>' + p.letter + '</i></span>';
+}
+
+window.TEAM_PORTRET = TEAM_PORTRET;
+window.teamPortret = teamPortret;

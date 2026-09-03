@@ -677,16 +677,28 @@ function wizToonBeeld(i) {
 function wizVersieBalk(i, st) {
   if (!st || !st.versions || st.versions.length < 2) return '';
   var nu = st.currentIndex || 0;
-  var pijl = function (delta, teken, titel, uit) {
-    return '<span class="wiz-beeld-pijl' + (uit ? ' uit' : '') + '" role="button" tabindex="0"' +
-      (uit ? '' : ' onclick="event.stopPropagation();wizBeeldVersie(' + i + ',' + delta + ')"') +
-      ' title="' + titel + '">' + teken + '</span>';
-  };
-  return '<span class="wiz-beeld-v">' +
-    pijl(-1, '‹', 'previous version', nu <= 0) +
+  var duimen = st.versions.map(function (v, n) {
+    var bron = v && v.b64 ? ('data:' + (v.mime || 'image/png') + ';base64,' + v.b64) : '';
+    return '<span class="wiz-beeld-duim' + (n === nu ? ' on' : '') + '" role="button" tabindex="0"' +
+      ' title="version ' + (n + 1) + '"' +
+      ' onclick="event.stopPropagation();wizBeeldNaar(' + i + ',' + n + ')">' +
+      (bron ? '<img src="' + bron + '" alt="">' : '') +
+      '<em>' + (n + 1) + '</em></span>';
+  }).join('');
+  return '<span class="wiz-beeld-v">' + duimen +
     '<span class="wiz-beeld-v-t">version ' + (nu + 1) + ' of ' + st.versions.length + '</span>' +
-    pijl(1, '›', 'next version', nu >= st.versions.length - 1) +
     '</span>';
+}
+
+/* Rechtstreeks naar een versie. wizBeeldVersie(i, delta) blijft bestaan voor
+   wie met de pijltjes werkt; deze is wat de strook gebruikt. */
+function wizBeeldNaar(i, n) {
+  var st = (state.generatedImages || {})[i];
+  if (!st || !st.versions || !st.versions.length) return;
+  if (n < 0 || n >= st.versions.length) return;
+  st.currentIndex = n;
+  wizToonBeeld(i);
+  if (typeof renderEditPanel === 'function') { try { renderEditPanel(i); } catch (e) { } }
 }
 
 function wizBeeldVersie(i, delta) {
@@ -1522,6 +1534,7 @@ function wizRender_generate() {
          de foto, niet over het idee. */
       (heeft ? '<button type="button" class="wiz-linkbtn wiz-take-nick" ' +
         'onclick="wizNickHerprompt(' + i + ')"' + (wizState.busy ? ' disabled' : '') + '>' +
+        (typeof teamPortret === 'function' ? teamPortret('nick', 'wiz-nick-foto klein') : '') +
         (wizState.busy ? 'Nick is looking…' : 'Ask Nick if this picture will spend') + '</button>' : '') +
       (typeof wizRenderNick === 'function' ? wizRenderNick(i) : '') +
       '</div>';
@@ -1781,7 +1794,7 @@ window.wizAfter_generate = wizAfter_generate;
 window.wizDescribeVisual = wizDescribeVisual; window.wizApproveBlueprint = wizApproveBlueprint;
 window.wizGenerateConcepts = wizGenerateConcepts; window.wizPickConcept = wizPickConcept;
 window.wizPreview = wizPreview; window.wizPreviewAll = wizPreviewAll; window.wizHerstelGeneratie = wizHerstelGeneratie;
-window.wizBeeldVersie = wizBeeldVersie; window.wizVersieBalk = wizVersieBalk;
+window.wizBeeldVersie = wizBeeldVersie; window.wizBeeldNaar = wizBeeldNaar; window.wizVersieBalk = wizVersieBalk;
 window.wizBeeldStand = wizBeeldStand;
 window.wizTweak = wizTweak; window.wizOpenTweak = wizOpenTweak;
 window.wizTweakFotoToe = wizTweakFotoToe;

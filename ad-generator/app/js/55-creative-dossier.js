@@ -88,7 +88,8 @@ function dosOordeelHtml(item) {
      niet een leeg kader dat eruitziet alsof er iets kapot is. */
   if (!geveld.length && !cijfer) {
     return '<div class="dos-kaart dos-oordeel leeg">' +
-      '<div class="dos-oordeel-kop"><span class="dos-avatar" aria-hidden="true">N</span>' +
+      '<div class="dos-oordeel-kop">' +
+      (typeof teamPortret === 'function' ? teamPortret('nick', 'dos-avatar') : '<span class="dos-avatar">N</span>') +
       '<span class="dos-naam">Nicks oordeel</span></div>' +
       '<p class="dos-leegtekst">Nog niet beoordeeld. Nick kijkt naar de vier assen waarop een static ' +
       'wel of niet gaat spenden, en zegt welke het zwakst is.</p>' +
@@ -108,7 +109,7 @@ function dosOordeelHtml(item) {
   var zwak = (typeof nickZwakstePunt === 'function') ? nickZwakstePunt(item) : null;
   return '<div class="dos-kaart dos-oordeel">' +
     '<div class="dos-oordeel-kop">' +
-      '<span class="dos-avatar" aria-hidden="true">N</span>' +
+      (typeof teamPortret === 'function' ? teamPortret('nick', 'dos-avatar') : '<span class="dos-avatar">N</span>') +
       '<span class="dos-naam">Nicks oordeel</span>' +
       (cijfer ? '<span class="dos-cijfer">' + dosEsc(cijfer) + '<small>/5</small></span>' : '') +
     '</div>' +

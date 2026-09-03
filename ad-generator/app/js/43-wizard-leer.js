@@ -637,7 +637,9 @@ function wizRenderNick(i) {
   var n = wizScore.nick;
   if (!n || n.voor !== i) return '';
   return '<div class="wiz-nick">' +
-    '<div class="wiz-nick-k">Nick on this picture</div>' +
+    '<div class="wiz-nick-k">' +
+    (typeof teamPortret === 'function' ? teamPortret('nick', 'wiz-nick-foto') : '') +
+    '<span>Nick on this picture</span></div>' +
     '<div class="wiz-nick-v">' + wizEsc(n.verdict) + '</div>' +
     ((n.zwak || []).length
       ? '<ul class="wiz-nick-z">' + (n.zwak || []).map(function (z) {

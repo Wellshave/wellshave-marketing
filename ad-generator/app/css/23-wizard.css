@@ -694,10 +694,13 @@
 .wiz-final-head { margin-bottom: 14px; }
 .wiz-final-h { font-size: 20px; color: var(--text); }
 .wiz-final-vis { font-size: 13px; color: var(--text-faint); margin-top: 5px; line-height: 1.5; }
+/* Een KOLOM, en dat was de glitch: dit was een rij, dus de versiestrook ging
+   als flex-buur naast de foto staan en liep de kaart uit. */
 .wiz-final-preview {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   min-height: 280px; padding: 16px; border-radius: 14px;
   background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hairline);
+  overflow: hidden;
 }
 .wiz-final-preview img { max-width: 100%; border-radius: 10px; display: block; }
 
@@ -1179,21 +1182,28 @@
 
 /* Het beeld in de wizard: de foto en verder niets. */
 .wiz-beeld { display: block; width: 100%; height: auto; border-radius: 10px; }
-/* De versiebalk: twee pijlen met de stand ertussen. Was een label; nu kun je
-   ook werkelijk terug naar de vorige versie. */
+/* De versiestrook: een duimnagel per versie, onder de foto. Twee pijlen waren
+   twee klikken en een gok; hier zie je wat er is en klik je erheen. Scrollt
+   zelf als er veel versies zijn, zodat de kaart niet meegroeit. */
 .wiz-beeld-v {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-top: 5px; font-size: 11px; color: var(--text-faint);
+  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+  width: 100%; max-width: 100%; overflow-x: auto; padding-bottom: 2px;
+  font-size: 11px; color: var(--text-faint);
 }
-.wiz-beeld-v-t { min-width: 92px; text-align: center; }
-.wiz-beeld-pijl {
-  cursor: pointer; user-select: none; line-height: 1;
-  padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line);
-  color: var(--text-soft); font-size: 13px;
+.wiz-beeld-v-t { margin-left: auto; padding-left: 8px; white-space: nowrap; }
+.wiz-beeld-duim {
+  position: relative; flex: 0 0 auto; width: 38px; height: 38px;
+  border-radius: 7px; overflow: hidden; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(0, 0, 0, .35);
+  transition: border-color .15s, transform .15s;
 }
-.wiz-beeld-pijl:hover { color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .45); }
-.wiz-beeld-pijl.uit { opacity: .3; cursor: default; }
-.wiz-beeld-pijl.uit:hover { color: var(--text-soft); border-color: var(--line); }
+.wiz-beeld-duim img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wiz-beeld-duim em {
+  position: absolute; right: 2px; bottom: 1px; font-style: normal; font-size: 9px;
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
+}
+.wiz-beeld-duim:hover, .wiz-beeld-duim:focus-visible { border-color: rgba(var(--gold-rgb), .45); }
+.wiz-beeld-duim.on { border-color: var(--gold); transform: translateY(-1px); }
 
 /* Nick over een beeld dat er al staat. */
 .wiz-take-nick { display: block; margin-top: 8px; font-size: 12px; }
@@ -1262,3 +1272,19 @@
 .wiz-buiten-tekst { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
 .wiz-buiten-lijst { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 0 8px; }
 .wiz-buiten-bij { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+
+/* Nick krijgt hetzelfde gezicht als Rory. De letter ligt eronder: mist het
+   bestand, dan haalt onerror de foto weg en staat de letter er weer. */
+.wiz-nick-foto, .lib-nick-foto, .team-portret {
+  position: relative; overflow: hidden; display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%; vertical-align: middle;
+  margin-right: 7px; flex: 0 0 auto;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  color: var(--gold); font-size: 10px; line-height: 1;
+}
+.wiz-nick-foto img, .lib-nick-foto img, .team-portret img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.wiz-nick-foto i, .lib-nick-foto i, .team-portret i { font-style: normal; }
+.wiz-nick-foto.klein { width: 18px; height: 18px; font-size: 9px; margin-right: 6px; }
+.wiz-nick-k { display: flex; align-items: center; }

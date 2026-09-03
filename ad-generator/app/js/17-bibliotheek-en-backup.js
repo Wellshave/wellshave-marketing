@@ -687,6 +687,7 @@ function libNickKnopHtml(item){
   }).join(', ');
   return `<div class="lib-nick">`
     + `<button class="btn btn-small" data-action="nick-analyse" data-id="${item.id}"${bezig ? ' disabled' : ''}>`
+    + (typeof teamPortret === 'function' ? teamPortret('nick', 'lib-nick-foto') : '')
     + (bezig ? 'Nick kijkt ernaar…' : 'Laat Nick Theriot deze creative analyseren') + `</button>`
     + (bezig ? '' : `<span class="lib-nick-wat">Nog leeg: ${escapeHtml(wat)}</span>`)
     + `</div>`;
