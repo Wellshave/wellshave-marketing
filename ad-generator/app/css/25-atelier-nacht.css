@@ -671,7 +671,60 @@ input:focus, select:focus, textarea:focus {
    De breekpunten hangen aan de container en niet aan het venster, om
    dezelfde reden als bij het dossier: het vlak bepaalt hoeveel kolommen er
    passen, en het venster weet dat niet. */
-.cr-wrap { container-type: inline-size; container-name: research; max-width: 1240px; }
+/* Geen kolom van 1240 meer met de halve pagina leeg ernaast: het scherm is een
+   werkbank. Links de knoppen, rechts de uitslag, en de uitslag krijgt alles wat
+   er over is. */
+.cr-wrap { container-type: inline-size; container-name: research; max-width: none; }
+.cr-werk { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
+@container research (min-width: 900px) {
+  .cr-werk { grid-template-columns: 320px minmax(0, 1fr); gap: 32px; }
+  /* De rail blijft staan terwijl je door de kaarten scrollt: anders scrol je
+     terug naar boven voor elke filterklik. */
+  .cr-rail { position: sticky; top: 12px; }
+}
+/* De kaarten tellen hun kolommen tegen HUN vlak, niet tegen het scherm: met de
+   rail ernaast is dat vierhonderd pixels minder. */
+.cr-uitslag { container-type: inline-size; container-name: crlijst; min-width: 0; }
+.cr-blok { display: flex; flex-direction: column; gap: 8px; padding: 12px 0 2px; border-top: 1px solid var(--hairline); }
+.cr-blok:first-of-type { border-top: none; }
+.cr-bloklabel {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint);
+}
+.cr-filterrij.klein { gap: 6px; }
+
+/* De merken als lijst met logo's. Dertien knoppen naast elkaar is een muur;
+   onder elkaar met een logo ervoor lees je in een oogopslag wie er meedoet. */
+.cr-merken { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; }
+.cr-merkknop {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 6px 9px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; color: var(--text-soft); font-size: 12.5px; cursor: pointer;
+}
+.cr-merkknop:hover { border-color: var(--line); color: var(--text); }
+/* Aan = zelf aangevinkt. Mee = er is niets gekozen, dus doet iedereen mee --
+   dat is iets anders dan aangevinkt en hoort er ook anders uit te zien. */
+.cr-merkknop.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .1); color: var(--gold-bright); }
+.cr-merkknop.mee { color: var(--text-soft); }
+.cr-merkknop.mee .cr-logo { opacity: .75; }
+.cr-merknaam { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-merkgetal { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* Het logo komt van het domein dat bij de naam hoort. Laadt het niet, dan haalt
+   onerror de foto weg en blijft de beginletter staan. */
+.cr-logo {
+  position: relative; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px;
+  overflow: hidden; display: inline-grid; place-items: center;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-size: 10px;
+}
+.cr-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.cr-logo i { font-style: normal; }
+
+/* Filteren over wat er al binnen is. Boven de kaarten, want het gaat over die
+   kaarten en niet over de volgende ophaalronde. */
+.cr-toonfilter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px;
+}
 .cr-intro h2 { font-size: 22px; color: var(--gold-bright) !important; margin: 0 0 6px; }
 .cr-intro p { font-size: 13.5px; color: var(--text-soft); line-height: 1.6; max-width: 62ch; margin: 0 0 20px; }
 
@@ -721,8 +774,9 @@ input:focus, select:focus, textarea:focus {
 .cr-melding.fout { border-color: rgba(189, 15, 15, .5); color: #e88; border-style: solid; }
 
 .cr-raster { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@container research (min-width: 620px) { .cr-raster { grid-template-columns: repeat(2, 1fr); } }
-@container research (min-width: 940px) { .cr-raster { grid-template-columns: repeat(3, 1fr); } }
+@container crlijst (min-width: 520px) { .cr-raster { grid-template-columns: repeat(2, 1fr); } }
+@container crlijst (min-width: 820px) { .cr-raster { grid-template-columns: repeat(3, 1fr); } }
+@container crlijst (min-width: 1180px) { .cr-raster { grid-template-columns: repeat(4, 1fr); } }
 
 .cr-kaart {
   display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;

@@ -56,7 +56,14 @@ var _cr = {
      draait er bij onze concurrenten" zijn twee verschillende vragen, en de
      tweede is de vraag die je stelt: de hele markt levert een Duitse
      kinderopvang op, de Brand Tracker levert Manscaped en BALZY. */
-  bereik: 'brandtracker', merk: '', merken: null,
+  bereik: 'brandtracker',
+  /* Welke merken je analyseert. Leeg betekent: alle gevolgde merken. Dit was
+     een enkele keuze -- een merk of alles -- en daartussen zit precies wat je
+     wilt: de vier concurrenten van Wellshine zonder die van Wellshave erbij. */
+  merkSel: [], merken: null, mappen: null,
+  /* Filters over de opgehaalde lijst. Ze vragen niets nieuws op: ze verbergen
+     wat je nu niet wilt zien, en zeggen dat ook. */
+  toonSoort: '', minDagen: 0,
   sorteer: 'looptijd', dagen: 14, land: 'NL', taal: '', soort: '', zoek: '', limiet: 10,
   lijst: null, voorbehoud: null, venster: null, dagenGevraagd: null,
   hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null, bereikMismatch: null,
@@ -271,6 +278,9 @@ async function crHaalMerken() {
   try {
     var uit = await crVraag('/onderzoek/merken');
     _cr.merken = uit.merken || [];
+    /* Mappen komen alleen als de bron ze geeft. Geen mappen is geen fout: dan
+       staan de merken er zonder groepen. */
+    _cr.mappen = uit.mappen || [];
   } catch (e) {
     /* Geen merkenlijst is vervelend maar niet fataal: je kunt nog steeds op
        alle merken tegelijk analyseren. */
@@ -324,7 +334,7 @@ async function crHaalLijst() {
       bereik: _cr.bereik, sorteer: _cr.sorteer, dagen: String(_cr.dagen), limiet: String(_cr.limiet)
     });
     if (_cr.bereik === 'brandtracker') {
-      if (_cr.merk) p.set('merk', _cr.merk);
+      if ((_cr.merkSel || []).length) p.set('merken', _cr.merkSel.join(','));
     } else {
       /* De filters op land, taal en soort horen bij de hele markt. Bij de Brand
          Tracker zijn ze zinloos: je hebt die merken zelf uitgekozen. */
@@ -431,6 +441,99 @@ var CR_BEREIKEN = [
     zegt: 'Alles wat TrendTrack heeft. Bruikbaar om een hoek te vinden buiten de categorie, maar de meeste treffers gaan niet over ons.' }
 ];
 
+/* ── Het logo van een merk ──────────────────────────────────────────────────
+ *
+ * TrendTrack levert geen logo. Wat het wel levert is een lijst domeinen, en
+ * daar zit het logo achter -- maar niet in het eerste domein: bij manscaped.com
+ * staat amazon.co.uk vooraan, want dat is waar hun advertenties heen linken.
+ * Het logo van Amazon boven Manscaped is erger dan geen logo, dus:
+ *
+ *   1. de naam zelf als hij een domein IS (manscaped.com);
+ *   2. anders het domein dat bij de naam hoort (BALZY -> balzy.nl,
+ *      Freebird -> myfreebird.com);
+ *   3. anders geen logo, alleen de beginletter.
+ *
+ * Nooit "dan maar het eerste domein". Dat is precies hoe je Mercado Libre als
+ * logo van Skull Shaver in beeld krijgt. */
+function crSlug(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function crMerkDomein(m) {
+  if (!m) return '';
+  var naam = String(m.naam || '');
+  if (/^[a-z0-9-]+(\.[a-z]{2,}){1,2}$/i.test(naam.trim())) return naam.trim().toLowerCase();
+  var slug = crSlug(naam);
+  if (!slug) return '';
+  var kandidaten = (m.domeinen && m.domeinen.length ? m.domeinen : [m.domein]).filter(Boolean);
+  for (var i = 0; i < kandidaten.length; i++) {
+    var host = String(kandidaten[i]).toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+    var kern = crSlug(host.split('/')[0].split('.')[0]);
+    if (!kern) continue;
+    if (kern === slug || kern.indexOf(slug) === 0 || slug.indexOf(kern) === 0 ||
+        kern.indexOf(slug) > -1) {
+      return host.split('/')[0];
+    }
+  }
+  return '';
+}
+
+function crLogoHtml(m) {
+  var domein = crMerkDomein(m);
+  var letter = crEsc(String(m && m.naam || '?').replace(/^[^a-z0-9]*/i, '').charAt(0).toUpperCase() || '?');
+  return '<span class="cr-logo" aria-hidden="true">' +
+    (domein ? '<img src="https://www.google.com/s2/favicons?sz=64&domain=' + crEsc(domein) +
+      '" alt="" loading="lazy" onerror="this.remove()">' : '') +
+    '<i>' + letter + '</i></span>';
+}
+
+/* Welke merken er nu gekozen zijn. Leeg is alles -- en dat staat er dan ook,
+   zodat "geen selectie" niet leest als "geen merken". */
+function crGekozenMerken() {
+  var alle = _cr.merken || [];
+  var sel = _cr.merkSel || [];
+  if (!sel.length) return alle;
+  return alle.filter(function (m) { return sel.indexOf(m.id) !== -1; });
+}
+
+function crMerkKnopHtml(m) {
+  var aan = (_cr.merkSel || []).indexOf(m.id) !== -1;
+  var alles = !(_cr.merkSel || []).length;
+  return '<button type="button" class="cr-merkknop' + (aan ? ' aan' : (alles ? ' mee' : '')) + '" ' +
+    'data-action="cr-merk" data-id="' + crEsc(m.id) + '" ' +
+    'title="' + crEsc(m.naam || '') + (m.domein ? ' · ' + crEsc(m.domein) : '') + '">' +
+    crLogoHtml(m) +
+    '<span class="cr-merknaam">' + crEsc(m.naam || m.id) + '</span>' +
+    (m.actieve_ads != null ? '<span class="cr-merkgetal">' + crGetal(m.actieve_ads) + '</span>' : '') +
+    '</button>';
+}
+
+/* De merken van één map, als die map er is. De mappen komen uit de Brand
+   Tracker zelf: in dit account Wellshave en Wellshine, elk met hun eigen
+   concurrenten. Zonder mappen staat deze rij er niet -- er valt dan niets te
+   groeperen dat wij niet zouden verzinnen. */
+function crMapMerken(mapId) {
+  return (_cr.merken || []).filter(function (m) {
+    return String(m.map_id) === String(mapId);
+  });
+}
+
+function crMappenRij() {
+  var mappen = (_cr.mappen || []).filter(function (f) { return crMapMerken(f.id).length; });
+  if (!mappen.length) return '';
+  var h = '<div class="cr-filterrij klein">';
+  mappen.forEach(function (f) {
+    var leden = crMapMerken(f.id).map(function (m) { return m.id; });
+    var aan = leden.length && leden.every(function (id) { return (_cr.merkSel || []).indexOf(id) !== -1; }) &&
+      (_cr.merkSel || []).length === leden.length;
+    h += '<button type="button" class="cr-keuze klein' + (aan ? ' aan' : '') + '" ' +
+      'data-action="cr-map" data-id="' + crEsc(f.id) + '">' + crEsc(f.naam) +
+      ' <span class="cr-letop">' + leden.length + '</span></button>';
+  });
+  h += '</div>';
+  return h;
+}
+
 function crFilterHtml() {
   var h = '<div class="cr-filters">';
   /* Het bereik eerst: dat bepaalt waar de rest van de filters over gaat, en
@@ -443,19 +546,25 @@ function crFilterHtml() {
   h += '</div>';
   var bActief = CR_BEREIKEN.filter(function (b) { return b.id === _cr.bereik; })[0];
   if (bActief) h += '<p class="cr-uitleg">' + crEsc(bActief.zegt) + '</p>';
-  /* Bij de Brand Tracker: alle merken, of inzoomen op er een. */
+
+  /* Bij de Brand Tracker: kies zelf welke merken meedoen. */
   if (_cr.bereik === 'brandtracker' && _cr.merken && _cr.merken.length) {
-    h += '<div class="cr-filterrij">';
-    h += '<button type="button" class="cr-keuze klein' + (!_cr.merk ? ' aan' : '') +
-      '" data-action="cr-merk" data-id="">Alle ' + _cr.merken.length + ' merken</button>';
-    _cr.merken.forEach(function (m) {
-      h += '<button type="button" class="cr-keuze klein' + (_cr.merk === m.id ? ' aan' : '') +
-        '" data-action="cr-merk" data-id="' + crEsc(m.id) + '">' + crEsc(m.naam) +
-        (m.actieve_ads != null ? ' <span class="cr-letop">' + crGetal(m.actieve_ads) + '</span>' : '') +
-        '</button>';
-    });
+    var gekozen = (_cr.merkSel || []).length;
+    h += '<div class="cr-blok">' +
+      '<div class="cr-bloklabel">Merken' +
+      '<span class="cr-letop">' + (gekozen ? (gekozen + ' van ' + _cr.merken.length + ' gekozen')
+        : ('alle ' + _cr.merken.length)) + '</span></div>';
+    h += crMappenRij();
+    h += '<div class="cr-merken">' + _cr.merken.map(crMerkKnopHtml).join('') + '</div>';
+    h += '<div class="cr-filterrij klein">' +
+      '<button type="button" class="cr-keuze klein' + (gekozen ? '' : ' aan') +
+      '" data-action="cr-merk-alles">Alle merken</button>' +
+      (gekozen ? '<button type="button" class="cr-keuze klein" data-action="cr-merk-geen">Selectie wissen</button>' : '') +
+      '</div>';
     h += '</div>';
   }
+
+  h += '<div class="cr-blok"><div class="cr-bloklabel">Sorteren op</div>';
   h += '<div class="cr-filterrij">';
   CR_SORTERINGEN.forEach(function (s) {
     h += '<button type="button" class="cr-keuze' + (_cr.sorteer === s.id ? ' aan' : '') + '" ' +
@@ -470,7 +579,9 @@ function crFilterHtml() {
     h += '<p class="cr-uitleg">' + crEsc(actief.zegt) +
       ' <span class="cr-letop">' + crEsc(actief.let_op) + '</span></p>';
   }
-  h += '<div class="cr-filterrij">';
+  h += '</div>';
+
+  h += '<div class="cr-blok"><div class="cr-bloklabel">Venster</div><div class="cr-filterrij klein">';
   CR_VENSTERS.forEach(function (v) {
     h += '<button type="button" class="cr-keuze klein' + (_cr.dagen === v.id ? ' aan' : '') + '" ' +
       'data-action="cr-dagen" data-id="' + v.id + '">' + crEsc(v.label) + '</button>';
@@ -482,22 +593,58 @@ function crFilterHtml() {
         'data-action="cr-soort" data-id="' + s + '">' + label + '</button>';
     });
   }
-  h += '</div>';
-  h += '<div class="cr-filterrij">';
+  h += '</div></div>';
+
   /* Zoeken op een woord en filteren op land horen bij de hele markt. Bij de
      Brand Tracker zijn ze zinloos -- die merken heb je zelf uitgekozen -- en een
      filter dat niets doet is erger dan een filter dat er niet is. */
   if (_cr.bereik === 'markt') {
-    h += '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="Zoekwoord in de advertentietekst (leeg = alles)" value="' + crEsc(_cr.zoek) + '">' +
-      '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="Land" value="' + crEsc(_cr.land) + '">';
+    h += '<div class="cr-filterrij">' +
+      '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="Zoekwoord in de advertentietekst (leeg = alles)" value="' + crEsc(_cr.zoek) + '">' +
+      '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="Land" value="' + crEsc(_cr.land) + '">' +
+      '</div>';
   }
-  h += '<button type="button" class="cr-knop" data-action="cr-haal"' + (_cr.bezig ? ' disabled' : '') + '>' +
-      (_cr.bezig ? 'Bezig…' : (_cr.bereik === 'brandtracker' ? 'Analyseer onze Brand Tracker' : 'Analyseer de hele markt')) + '</button>' +
-    '</div>';
+  h += '<button type="button" class="cr-knop groot" data-action="cr-haal"' + (_cr.bezig ? ' disabled' : '') + '>' +
+      (_cr.bezig ? 'Bezig…' : (_cr.bereik === 'brandtracker'
+        ? ('Analyseer ' + ((_cr.merkSel || []).length ? ((_cr.merkSel || []).length + ' merk' +
+            ((_cr.merkSel || []).length === 1 ? '' : 'en')) : 'onze Brand Tracker'))
+        : 'Analyseer de hele markt')) + '</button>';
   h += '</div>';
   return h;
 }
 
+/* ── Filteren over wat er al binnen is ──────────────────────────────────────
+ *
+ * Deze twee vragen niets nieuws op bij TrendTrack: ze verbergen wat je nu niet
+ * wilt zien in de lijst die er staat. Dat verschil staat op het scherm, want
+ * "geen video's gevonden" en "video's verborgen" zijn twee heel verschillende
+ * uitslagen. */
+function crZichtbaar() {
+  var lijst = _cr.lijst || [];
+  return lijst.filter(function (ad) {
+    if (_cr.toonSoort === 'video' && !ad.video) return false;
+    if (_cr.toonSoort === 'image' && ad.video) return false;
+    if (_cr.minDagen && !(ad.dagen_actief >= _cr.minDagen)) return false;
+    return true;
+  });
+}
+
+var CR_MINDAGEN = [0, 30, 90, 180];
+
+function crToonFilterHtml() {
+  if (!_cr.lijst || !_cr.lijst.length) return '';
+  var h = '<div class="cr-toonfilter"><span class="cr-bloklabel">Toon</span>';
+  [['', 'Alles'], ['image', 'Beeld'], ['video', 'Video']].forEach(function (p) {
+    h += '<button type="button" class="cr-keuze klein' + (_cr.toonSoort === p[0] ? ' aan' : '') +
+      '" data-action="cr-toonsoort" data-id="' + p[0] + '">' + p[1] + '</button>';
+  });
+  CR_MINDAGEN.forEach(function (d) {
+    h += '<button type="button" class="cr-keuze klein' + (_cr.minDagen === d ? ' aan' : '') +
+      '" data-action="cr-mindagen" data-id="' + d + '">' +
+      (d ? (d + '+ dagen') : 'Elke looptijd') + '</button>';
+  });
+  return h + '</div>';
+}
 function crLijstHtml() {
   if (_cr.bezig) return '<div class="cr-melding">Bezig met ophalen bij TrendTrack…</div>';
   if (_cr.fout) {
@@ -550,7 +697,24 @@ function crLijstHtml() {
       'De bron gebruikte deze velden: <b>' + crEsc(_cr.veldenZonderBeeld.join(', ')) + '</b>. ' +
       'Stuur die regel door, dan weet ik waar het beeld zit.</p>';
   }
-  h += '<div class="cr-raster">' + _cr.lijst.map(crKaartHtml).join('') + '</div>';
+  h += crToonFilterHtml();
+  /* De lijst zoals hij nu getoond wordt, en gezegd hoeveel er verborgen is.
+     Een gefilterde lijst die zich voordoet als de hele lijst is de manier
+     waarop je concludeert dat er weinig video draait. */
+  var zichtbaar = crZichtbaar();
+  var verborgen = _cr.lijst.length - zichtbaar.length;
+  if (!zichtbaar.length) {
+    return h + '<div class="cr-melding">Er zijn ' + _cr.lijst.length +
+      ' advertenties opgehaald, maar dit filter verbergt ze allemaal. ' +
+      'Zet het filter terug op alles.</div>';
+  }
+  if (verborgen > 0) {
+    h += '<p class="cr-venstermelding">' + verborgen + ' van de ' + _cr.lijst.length +
+      ' opgehaalde advertenties staan hier niet: die vallen buiten dit filter.</p>';
+  }
+  h += '<div class="cr-raster">' + zichtbaar.map(function (ad) {
+    return crKaartHtml(ad, _cr.lijst.indexOf(ad));
+  }).join('') + '</div>';
   return h;
 }
 
@@ -949,10 +1113,19 @@ function crNaarWizard() {
 
 /* ── Tekenen en klikken ────────────────────────────────────────────────── */
 
+/* Het scherm is een werkbank, geen formulier: links waar je aan draait, rechts
+   wat eruit komt, en dat rechts krijgt de hele breedte. Het stond onder elkaar
+   in een kolom van zeshonderd pixels, met de halve pagina leeg ernaast -- en
+   dan lees je vier filterrijen alsof het een vragenlijst is die je eerst moet
+   invullen. */
 function crRender() {
   var el = document.getElementById('cr-inhoud');
   if (!el) return;
-  el.innerHTML = _cr.open ? crDetailHtml() : (crFilterHtml() + crLijstHtml());
+  el.innerHTML = _cr.open ? crDetailHtml() :
+    ('<div class="cr-werk">' +
+       '<div class="cr-rail">' + crFilterHtml() + '</div>' +
+       '<div class="cr-uitslag">' + crLijstHtml() + '</div>' +
+     '</div>');
 }
 
 function crKlik(e) {
@@ -967,7 +1140,27 @@ function crKlik(e) {
     _cr.lijst = null; _cr.open = null; _cr.hoeGerangschikt = null;
     crRender();
     if (_cr.bereik === 'brandtracker' && !_cr.merken) crHaalMerken();
-  } else if (act === 'cr-merk') { _cr.merk = knop.getAttribute('data-id'); _cr.lijst = null; crRender(); }
+  } else if (act === 'cr-merk') {
+    /* Aan- en uitzetten, niet vervangen. Een merk kiezen betekende de vorige
+       laten vallen, en dat is precies de keuze die je niet wilt maken. */
+    var id = knop.getAttribute('data-id');
+    var sel = (_cr.merkSel || []).slice();
+    var pos = sel.indexOf(id);
+    if (pos === -1) sel.push(id); else sel.splice(pos, 1);
+    _cr.merkSel = sel; _cr.lijst = null; crRender();
+  } else if (act === 'cr-merk-alles') { _cr.merkSel = []; _cr.lijst = null; crRender(); }
+  else if (act === 'cr-merk-geen') { _cr.merkSel = []; _cr.lijst = null; crRender(); }
+  else if (act === 'cr-map') {
+    /* Een map is een selectie in een klik: alle concurrenten van Wellshine, of
+       die van Wellshave. Nog een keer drukken zet hem uit. */
+    var leden = crMapMerken(knop.getAttribute('data-id')).map(function (m) { return m.id; });
+    var alAan = leden.length && leden.every(function (x) { return (_cr.merkSel || []).indexOf(x) !== -1; }) &&
+      (_cr.merkSel || []).length === leden.length;
+    _cr.merkSel = alAan ? [] : leden;
+    _cr.lijst = null; crRender();
+  }
+  else if (act === 'cr-toonsoort') { _cr.toonSoort = knop.getAttribute('data-id'); crRender(); crLaadBeelden(); }
+  else if (act === 'cr-mindagen') { _cr.minDagen = Number(knop.getAttribute('data-id')); crRender(); crLaadBeelden(); }
   else if (act === 'cr-sorteer') { _cr.sorteer = knop.getAttribute('data-id'); crRender(); }
   else if (act === 'cr-dagen') { _cr.dagen = Number(knop.getAttribute('data-id')); crRender(); }
   else if (act === 'cr-soort') { _cr.soort = knop.getAttribute('data-id'); crRender(); }
@@ -1008,6 +1201,10 @@ window.crPatroonPrompt = crPatroonPrompt; window.crPatroonHtml = crPatroonHtml;
 window.crKaartHtml = crKaartHtml; window.crLijstHtml = crLijstHtml;
 window.crFilterHtml = crFilterHtml; window.crDetailHtml = crDetailHtml;
 window.crGetal = crGetal; window._cr = _cr;
+window.crMerkDomein = crMerkDomein; window.crLogoHtml = crLogoHtml; window.crSlug = crSlug;
+window.crZichtbaar = crZichtbaar; window.crToonFilterHtml = crToonFilterHtml;
+window.crMapMerken = crMapMerken; window.crMappenRij = crMappenRij;
+window.crGekozenMerken = crGekozenMerken; window.CR_MINDAGEN = CR_MINDAGEN;
 window.crFrameTijden = crFrameTijden; window.crVideoFrames = crVideoFrames;
 window.crDetailBeeldHtml = crDetailBeeldHtml; window.crOpenVideo = crOpenVideo;
 window.CR_FRAMES = CR_FRAMES; window.crEigenSpeler = crEigenSpeler;

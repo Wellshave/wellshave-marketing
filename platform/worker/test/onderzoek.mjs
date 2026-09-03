@@ -47,7 +47,7 @@ let db, tt, beeld, aanroepen;
 async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }] };
-  tt = { rijen: [], fout: null, merken: [], merkAds: {}, merkFout: {},
+  tt = { rijen: [], fout: null, merken: [], mappen: [], mappenStuk: false, merkAds: {}, merkFout: {},
          eenmaligAfknijpen: {}, gelijktijdig: 0, maxGelijktijdig: 0 };
   beeld = { type: 'image/jpeg', ok: true, body: 'JPEGDATA' };
   aanroepen = { tt: [], extern: [], range: [] };
@@ -75,6 +75,10 @@ globalThis.fetch = async (url, opties) => {
       methode: (opties && opties.method) || 'GET',
       body: (opties && opties.body) ? JSON.parse(opties.body) : null });
     if (tt.fout) return tt.fout;
+    if (/\/brandtracker-folders$/.test(u.split('?')[0]) || /\/brandtrackers\/folders$/.test(u.split('?')[0])) {
+      if (tt.mappenStuk) return { ok: false, status: 404, text: async () => '{"message":"not found"}' };
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: tt.mappen || [] }) };
+    }
     if (/\/v1\/brandtrackers$/.test(u.split('?')[0])) {
       return { ok: true, status: 200, text: async () => JSON.stringify({ data: tt.merken }) };
     }
@@ -415,6 +419,65 @@ check('de merknaam komt van de adverteerder', vanManscaped.merk, 'MANSCAPED');
 const zonderNaam = bt.advertenties.filter(a => a.merk_id === 'm1' && a.dagen_actief === null)[0];
 check('zonder naam bij de advertentie valt hij terug op de tracker',
   zonderNaam ? zonderNaam.merk : null, 'manscaped.com');
+
+console.log('\n  je kiest zelf welke merken meedoen');
+/* Het was een merk OF alle merken. Daartussen zit de vraag die je stelt: de
+   concurrenten van Wellshine, zonder die van Wellshave erbij. */
+const alleenBalzy = (await roep('/onderzoek/toplijst?sorteer=looptijd&merken=m2')).data;
+check('met een merk komt alleen dat merk terug',
+  alleenBalzy.merken_gebruikt, ['BALZY']);
+check('en alleen zijn advertenties', alleenBalzy.advertenties.every(a => a.merk_id === 'm2'), true);
+const tweeMerken = (await roep('/onderzoek/toplijst?sorteer=looptijd&merken=m1,m2')).data;
+check('met twee merken komen ze allebei', tweeMerken.merken_gebruikt.sort(), ['BALZY', 'manscaped.com']);
+/* Een id dat niet bestaat levert geen stille hele lijst op. Dat is het gevaar
+   bij een filter dat leegvalt: je vraagt om een merk en krijgt de markt. */
+const nietBestaand = (await roep('/onderzoek/toplijst?sorteer=looptijd&merken=bestaat-niet')).data;
+check('een onbekend merk levert niets, niet alles', nietBestaand.advertenties.length, 0);
+/* En het is een lege lijst, geen foutmelding: de laag erboven telde velden die
+   op dit pad ontbraken. Zolang je alleen "alles" kon kiezen was dat pad
+   onbereikbaar; met een eigen selectie is het gewoon een merk dat niet meer
+   gevolgd wordt. */
+check('en dat is een lege lijst, geen fout', nietBestaand.error, undefined);
+check('met de merken er nog bij', nietBestaand.merken.length, 2);
+/* En de oude parameter blijft werken: een console die nog merk= stuurt hoort
+   niet stil de hele Brand Tracker terug te krijgen. */
+const oudeParam = (await roep('/onderzoek/toplijst?sorteer=looptijd&merk=m2')).data;
+check('de oude merk-parameter werkt nog', oudeParam.merken_gebruikt, ['BALZY']);
+
+console.log('\n  de mappen van de Brand Tracker komen mee');
+/* Wellshave en Wellshine hebben elk hun eigen concurrenten. Zonder die
+   indeling analyseer je twee markten tegelijk, en dus geen van beide. */
+tt.mappen = [
+  { id: 13318, name: 'Wellshave', brandtrackerCount: 7 },
+  { id: 14127, name: 'Wellshine', brandtrackerCount: 4 },
+  /* Een map zonder naam is geen map: als knop zou hij leeg zijn, en een lege
+     knop die stilletjes je hele selectie omgooit is erger dan geen knop. */
+  { id: 99999, brandtrackerCount: 1 },
+  { name: 'Zonder id', brandtrackerCount: 2 }
+];
+const metMappen = (await roep('/onderzoek/merken')).data;
+check('de mappen staan in het antwoord', metMappen.mappen.map(m => m.naam), ['Wellshave', 'Wellshine']);
+check('met hun id', metMappen.mappen[0].id, 13318);
+check('en een map zonder naam of id telt niet mee', metMappen.mappen.length, 2);
+check('en de merken staan er nog steeds', metMappen.merken.length, 2);
+/* Levert de bron geen mappen, dan zijn er geen mappen -- en verder niets aan de
+   hand. Een verzonnen indeling zou erger zijn dan geen indeling, en een fout
+   hier zou de hele merkenlijst meenemen. */
+tt.mappenStuk = true;
+const zonderMappen = (await roep('/onderzoek/merken')).data;
+check('geen mappen is geen fout', zonderMappen.mappen, []);
+check('en de merken komen gewoon', zonderMappen.merken.length, 2);
+tt.mappenStuk = false;
+/* De domeinen komen mee: het scherm kiest daaruit het domein dat bij de naam
+   hoort. Het eerste domein is vaak de landingsplek en niet het merk. */
+tt.merken = [
+  { id: 'm1', name: 'manscaped.com', domain: 'amazon.co.uk',
+    domains: ['amazon.co.uk', 'manscaped.com'], folderId: 13318, counts: { activeAds: 155 } },
+  { id: 'm2', name: 'BALZY', domain: 'balzy.nl', domains: ['balzy.nl'], folderId: 13318, counts: { activeAds: 428 } }
+];
+const metDomeinen = (await roep('/onderzoek/merken')).data;
+check('alle domeinen komen mee', metDomeinen.merken[0].domeinen, ['amazon.co.uk', 'manscaped.com']);
+check('en de map van het merk', metDomeinen.merken[0].map_id, 13318);
 
 console.log('\n  en het zegt eerlijk wat voor rangschikking dit is');
 /* TrendTrack kent bij een gevolgd merk geen sortering op looptijd. We halen per

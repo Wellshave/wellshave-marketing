@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 30;
-const VERSIE_DATUM = '2026-09-01';
-const VERSIE_WAT = 'video-iteratie: het bestand van een Meta-video komt mee zodat hij af te spelen is, en hook rate, hold rate en de retentiecurve staan erbij -- met hun deling erbij, want hold rate betekent aan twee tafels iets anders; verder werkt een advertentie kiezen weer (Meta gaf op een filter soms niets terug waar de lijst hem wel toonde)';
+const VERSIE = 31;
+const VERSIE_DATUM = '2026-09-03';
+const VERSIE_WAT = 'creative research: je kiest zelf welke merken je analyseert (meerdere tegelijk) en de mappen van de Brand Tracker komen mee, zodat de concurrenten van Wellshave en die van Wellshine uit elkaar te houden zijn; per merk komen alle domeinen mee zodat het scherm het juiste logo kan kiezen';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -2001,6 +2001,37 @@ async function ttMetGeduld(env, pad, params) {
   }
 }
 
+/* De mappen waarin de Brand Tracker zelf zijn merken heeft gelegd.
+ *
+ * In dit account zijn dat Wellshave en Wellshine: twee merken met elk hun
+ * eigen concurrenten. Zonder die indeling staan hun tegenstanders op een hoop
+ * en analyseer je de scheerconcurrenten samen met die van de haardroger --
+ * twee markten in een lijst, en dan is de uitkomst van geen van beide.
+ *
+ * Deze route is niet gedocumenteerd in wat wij van TrendTrack in handen
+ * hebben. Levert hij niets, dan zijn er geen mappen en verder niets aan de
+ * hand: het scherm toont dan de merken zonder groepen. Een verzonnen indeling
+ * zou erger zijn dan geen indeling. */
+async function ttMappen(env) {
+  let rijen = [];
+  try {
+    const d = await ttHaal(env, '/v1/brandtracker-folders');
+    rijen = d.data || d.items || d.results || [];
+  } catch (e) {
+    try {
+      const d2 = await ttHaal(env, '/v1/brandtrackers/folders');
+      rijen = d2.data || d2.items || d2.results || [];
+    } catch (e2) { return []; }
+  }
+  return (Array.isArray(rijen) ? rijen : []).map(function (f) {
+    return {
+      id: ttEerste(f, ['id', 'folderId', 'folder_id']),
+      naam: ttEerste(f, ['name', 'naam', 'title']),
+      aantal: adGetal(ttEerste(f, ['brandtrackerCount', 'brandtrackersCount', 'count']))
+    };
+  }).filter(function (f) { return f.id != null && f.naam; });
+}
+
 async function ttMerken(env) {
   const d = await ttHaal(env, '/v1/brandtrackers');
   const rijen = d.data || d.items || d.results || [];
@@ -2009,6 +2040,17 @@ async function ttMerken(env) {
       id: ttEerste(m, ['id', 'brandtrackerId', 'brandtracker_id']),
       naam: ttEerste(m, ['name', 'brand', 'naam']),
       domein: ttEerste(m, ['domain', 'website']),
+      /* Alle domeinen, niet alleen het eerste. Het eerste is vaak de
+         landingsplek en niet het merk zelf: bij manscaped.com staat er
+         amazon.co.uk. Het scherm kiest hieruit het domein dat bij de naam
+         hoort, en toont anders geen logo -- het logo van Amazon boven
+         Manscaped is erger dan een letter. */
+      domeinen: (function () {
+        const lijst = ttEerste(m, ['domains', 'websites']);
+        return Array.isArray(lijst) ? lijst.filter(Boolean).map(String) : [];
+      })(),
+      map_id: ttEerste(m, ['folderId', 'folder_id', 'folder.id', 'brandtrackerFolderId']),
+      map: ttEerste(m, ['folderName', 'folder.name', 'folder_name']),
       actieve_ads: adGetal(ttEerste(m, ['counts.activeAds', 'activeAds', 'active_ads'])),
       nieuw_7d: adGetal(ttEerste(m, ['counts.newAdsLast7Days', 'newAdsLast7Days'])),
       adverteert: ttEerste(m, ['status.advertising', 'advertising'])
@@ -2037,9 +2079,20 @@ const TT_MERK_SLEUTEL = {
 
 async function ttToplijstMerken(env, o) {
   const alle = await ttMerken(env);
-  const gekozen = o.merk ? alle.filter(function (m) { return m.id === o.merk; }) : alle;
+  /* Een merk, een handvol merken, of alles. Het was er een of alles, en dat is
+     precies de keuze die je niet wilt maken: de concurrenten van het ene merk
+     analyseren betekent de andere er even uit laten. */
+  const wil = String(o.merken || o.merk || '').split(',')
+    .map(function (x) { return x.trim(); }).filter(Boolean);
+  const gekozen = wil.length ? alle.filter(function (m) { return wil.indexOf(m.id) !== -1; }) : alle;
   if (!gekozen.length) {
-    return { merken: alle, advertenties: [], gebruikt: [] };
+    /* Dezelfde vorm als een geslaagde ronde. Hij miste mislukt en
+       sleutels_zonder_beeld, en de laag erboven telt die -- wat een lege
+       selectie in een foutmelding veranderde in plaats van in een lege lijst.
+       Onbereikbaar zolang je alleen "alles" kon kiezen; met een eigen selectie
+       is het gewoon een merk dat niet meer gevolgd wordt. */
+    return { merken: alle, advertenties: [], gebruikt: [], mislukt: [],
+             per_merk: 0, sortBy: null, sleutels_zonder_beeld: [] };
   }
   /* Per merk een handvol, niet per merk een lijst. Dertien merken maal twintig
      is tweehonderdzestig advertenties en evenzoveel credits, voor een scherm
@@ -3094,6 +3147,7 @@ export default {
             min_dagen: url.searchParams.get('min_dagen'),
             bereik: url.searchParams.get('bereik'),
             merk: url.searchParams.get('merk'),
+            merken: url.searchParams.get('merken'),
             per_merk: url.searchParams.get('per_merk')
           }));
         }
@@ -3101,7 +3155,13 @@ export default {
         /* De gevolgde merken apart, zodat het scherm ze kan tonen zonder eerst
            een hele analyse te draaien. */
         if (path === '/onderzoek/merken' && request.method === 'GET') {
-          return json({ merken: await ttMerken(env) });
+          /* De mappen erbij, want daarin zit de enige indeling die er echt is:
+             welke concurrent bij welk van onze merken hoort. Komen ze niet,
+             dan is de lijst gewoon een lijst. */
+          const merken = await ttMerken(env);
+          let mappen = [];
+          try { mappen = await ttMappen(env); } catch (e) { mappen = []; }
+          return json({ merken: merken, mappen: mappen });
         }
 
         /* Het beeld van een concurrent, opgehaald door de worker omdat de

@@ -76,8 +76,23 @@ function ONDERSCHEP() {
     ]
   };
   window.__merken = [
-    { id: 'm1', naam: 'Manscaped', domein: 'manscaped.com', actieve_ads: 155 },
-    { id: 'm2', naam: 'BALZY', domein: 'balzy.nl', actieve_ads: 428 }
+    /* Het eerste domein is bij TrendTrack vaak de landingsplek en niet het merk:
+       bij manscaped.com staat amazon.co.uk vooraan. Daarom staat die val hier
+       in de fixture. */
+    { id: 'm1', naam: 'Manscaped', domein: 'amazon.co.uk',
+      domeinen: ['amazon.co.uk', 'manscaped.com'], map_id: 13318, actieve_ads: 155 },
+    { id: 'm2', naam: 'BALZY', domein: 'balzy.nl', domeinen: ['balzy.nl'],
+      map_id: 13318, actieve_ads: 428 },
+    { id: 'm3', naam: 'Cloud Nine', domein: 'cloudninehair.com',
+      domeinen: ['cloudninehair.com'], map_id: 14127, actieve_ads: 1165 },
+    /* En een merk waarvan geen enkel domein bij de naam hoort: dat hoort GEEN
+       logo te krijgen, want dat wordt het logo van een ander bedrijf. */
+    { id: 'm4', naam: 'Skull Shaver', domein: 'mercadolibre.com.mx',
+      domeinen: ['mercadolibre.com.mx'], map_id: null, actieve_ads: 106 }
+  ];
+  window.__mappen = [
+    { id: 13318, naam: 'Wellshave', aantal: 2 },
+    { id: 14127, naam: 'Wellshine', aantal: 1 }
   ];
   window.__claude = { hoek: 'De oprichter rekent het voor', mechanisme: 'Direct van fabriek naar deur',
     awareness: 'problem', sophistication: 's4', publiek: 'Mannen die te veel betalen voor mesjes',
@@ -88,7 +103,7 @@ function ONDERSCHEP() {
     window.__gevraagd.push({ url: u, auth: (opties && opties.headers && opties.headers.Authorization) || null,
       body: (opties && opties.body) || null });
     if (u.indexOf('/onderzoek/merken') > -1) {
-      return { ok: true, status: 200, json: async () => ({ merken: window.__merken }) };
+      return { ok: true, status: 200, json: async () => ({ merken: window.__merken, mappen: window.__mappen }) };
     }
     if (u.indexOf('/onderzoek/toplijst') > -1) {
       return { ok: true, status: 200, json: async () => window.__antwoord };
@@ -627,7 +642,7 @@ function ONDERSCHEP() {
   });
   check('de vraag gaat naar de Brand Tracker', bereik.gevraagdBereik, 'brandtracker');
   check('en de knop zegt dat ook', /Brand Tracker/.test(bereik.knop), true);
-  check('de gevolgde merken staan er, plus "alle"', bereik.merkknoppen, 3);
+  check('elk gevolgd merk heeft zijn eigen knop', bereik.merkknoppen, 4);
   check('met hun naam', /Manscaped/.test(bereik.tekst) && /BALZY/.test(bereik.tekst), true);
   check('geen zoekveld bij de Brand Tracker', bereik.zoekveld, false);
   check('en geen landfilter', bereik.landveld, false);
@@ -655,18 +670,162 @@ function ONDERSCHEP() {
     await crHaalLijst();
   });
 
-  console.log('\n  op een enkel merk inzoomen');
-  const eenMerk = await page.evaluate(async () => {
-    document.querySelector('[data-action="cr-merk"][data-id="m2"]').click();
+  console.log('\n  het scherm gebruikt de hele breedte');
+  /* Het stond in een kolom met de halve pagina leeg ernaast: vier filterrijen
+     boven elkaar, en dan pas de kaarten. Nu links de knoppen, rechts de
+     uitslag -- en die uitslag telt zijn kolommen tegen zijn eigen vlak. */
+  const breed = await page.evaluate(async () => {
+    /* Zichtbaar zetten voor we meten: een vak dat niet getekend wordt is nul
+       pixels breed, en dan slaagt een breedtecontrole zonder iets te meten. */
+    switchMainTab('research');
     await crHaalLijst();
-    const vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
-    return (vraag.url.match(/merk=([a-z0-9]+)/) || [])[1];
+    var el = document.getElementById('cr-inhoud');
+    var werk = el.querySelector('.cr-werk');
+    var rail = el.querySelector('.cr-rail');
+    var uitslag = el.querySelector('.cr-uitslag');
+    return {
+      erIsEenWerkbank: !!werk && !!rail && !!uitslag,
+      /* Twee kolommen naast elkaar, niet onder elkaar. */
+      naastElkaar: !!(rail && uitslag) &&
+        rail.getBoundingClientRect().width > 100 &&
+        Math.abs(rail.getBoundingClientRect().top - uitslag.getBoundingClientRect().top) < 40 &&
+        uitslag.getBoundingClientRect().left >= rail.getBoundingClientRect().right,
+      /* En de uitslag is breder dan de rail: hij krijgt wat er over is. */
+      /* Twee keer de rail, minstens. Een uitslag die net iets breder is dan de
+         knoppenkolom is nog steeds het smalle scherm waar de klacht over ging. */
+      uitslagBreder: !!(rail && uitslag) &&
+        uitslag.getBoundingClientRect().width > rail.getBoundingClientRect().width * 2,
+      /* En de kaarten staan naast elkaar, niet onder elkaar: dat is waar die
+         breedte voor is. */
+      kolommen: (function () {
+        var k = uitslag ? uitslag.querySelectorAll('.cr-kaart') : [];
+        if (k.length < 2) return 0;
+        var eerste = k[0].getBoundingClientRect().top, n = 0;
+        for (var i = 0; i < k.length; i++) {
+          if (Math.abs(k[i].getBoundingClientRect().top - eerste) < 4) n++;
+        }
+        return n;
+      })(),
+      /* De kaarten meten tegen hun eigen vlak; zonder eigen container tellen ze
+         de rail mee en passen er te veel kolommen. */
+      eigenContainer: uitslag ? getComputedStyle(uitslag).containerName : '',
+      /* En de filters staan in de rail, niet boven de kaarten. */
+      filtersInRail: !!(rail && rail.querySelector('[data-action="cr-haal"]'))
+    };
   });
-  check('het merk gaat mee in de vraag', eenMerk, 'm2');
-  await page.evaluate(async () => {
-    document.querySelector('[data-action="cr-merk"][data-id=""]').click();
+  check('er is een werkbank met twee kolommen', breed.erIsEenWerkbank, true);
+  check('en ze staan naast elkaar', breed.naastElkaar, true);
+  check('de uitslag krijgt minstens twee keer de rail', breed.uitslagBreder, true);
+  check('en de kaarten staan naast elkaar', breed.kolommen >= 2, true);
+  check('en meet zijn kolommen tegen zijn eigen vlak', breed.eigenContainer, 'crlijst');
+  check('de filters staan in de rail', breed.filtersInRail, true);
+
+  console.log('\n  je kiest zelf welke merken meedoen');
+  /* Het was een merk OF alles. Daartussen zit precies wat je wilt: de
+     concurrenten van het ene merk zonder die van het andere erbij. */
+  const keuze = await page.evaluate(async () => {
+    var el = document.getElementById('cr-inhoud');
+    el.querySelector('[data-action="cr-merk"][data-id="m2"]').click();
+    el.querySelector('[data-action="cr-merk"][data-id="m3"]').click();
     await crHaalLijst();
+    var vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
+    var twee = (vraag.url.match(/merken=([^&]+)/) || [])[1];
+    /* Nog een keer drukken zet hem weer uit. */
+    el = document.getElementById('cr-inhoud');
+    el.querySelector('[data-action="cr-merk"][data-id="m3"]').click();
+    var naUit = (_cr.merkSel || []).slice();
+    /* Leeg is alles, en dan gaat er geen merkfilter mee. */
+    document.getElementById('cr-inhoud').querySelector('[data-action="cr-merk-alles"]').click();
+    await crHaalLijst();
+    var alles = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
+    return {
+      twee: decodeURIComponent(twee || ''),
+      naUit: naUit,
+      allesHeeftGeenFilter: /merken=/.test(alles.url),
+      /* En bij niets gekozen doet iedereen mee -- dat is iets anders dan
+         niemand, en het scherm hoort dat te zeggen. */
+      allesTelt: crGekozenMerken().length
+    };
   });
+  check('twee merken gaan samen mee in de vraag', keuze.twee, 'm2,m3');
+  check('nog een keer drukken zet er een uit', keuze.naUit, ['m2']);
+  check('alle merken betekent geen merkfilter', keuze.allesHeeftGeenFilter, false);
+  check('en dan doen ze allemaal mee', keuze.allesTelt, 4);
+
+  console.log('\n  de mappen van de Brand Tracker zijn de echte groepen');
+  /* Wellshave en Wellshine hebben elk hun eigen concurrenten. Op een hoop is
+     dat een analyse van twee markten tegelijk, en dus van geen van beide. */
+  const mappen = await page.evaluate(async () => {
+    var el = document.getElementById('cr-inhoud');
+    var knoppen = el.querySelectorAll('[data-action="cr-map"]');
+    el.querySelector('[data-action="cr-map"][data-id="13318"]').click();
+    var naMap = (_cr.merkSel || []).slice();
+    /* Nog een keer op dezelfde map: terug naar alles. */
+    document.getElementById('cr-inhoud').querySelector('[data-action="cr-map"][data-id="13318"]').click();
+    var naTweede = (_cr.merkSel || []).slice();
+    /* Geen mappen van de bron betekent geen groepen op het scherm -- ze hier
+       verzinnen zou een indeling suggereren die niemand gemaakt heeft. */
+    var bewaard = _cr.mappen;
+    _cr.mappen = [];
+    var zonder = crMappenRij();
+    _cr.mappen = bewaard;
+    return { aantal: knoppen.length, naMap: naMap, naTweede: naTweede, zonder: zonder };
+  });
+  check('elke map is een knop', mappen.aantal, 2);
+  check('een map kiest zijn merken in één klik', mappen.naMap, ['m1', 'm2']);
+  check('en nog een keer drukken zet hem uit', mappen.naTweede, []);
+  check('zonder mappen staat er geen rij', mappen.zonder, '');
+
+  console.log('\n  het logo komt van het domein dat bij de naam hoort');
+  /* Het eerste domein is vaak de landingsplek. Het logo van Amazon boven
+     Manscaped is erger dan geen logo. */
+  const logos = await page.evaluate(() => {
+    var m = window.__merken;
+    return {
+      manscaped: crMerkDomein(m[0]),
+      balzy: crMerkDomein(m[1]),
+      cloudnine: crMerkDomein(m[2]),
+      /* Geen enkel domein hoort bij deze naam: dan geen logo. */
+      skull: crMerkDomein(m[3]),
+      skullHtml: /<img/.test(crLogoHtml(m[3])),
+      letter: (crLogoHtml(m[3]).match(/<i>([^<]*)<\/i>/) || [])[1],
+      manscapedHtml: /favicons\?sz=64&domain=manscaped\.com/.test(crLogoHtml(m[0])),
+      valtTerug: /onerror="this\.remove\(\)"/.test(crLogoHtml(m[0]))
+    };
+  });
+  check('manscaped krijgt zijn eigen domein, niet amazon', logos.manscaped, 'manscaped.com');
+  check('balzy ook', logos.balzy, 'balzy.nl');
+  check('en een naam met een spatie vindt zijn domein', logos.cloudnine, 'cloudninehair.com');
+  check('een merk zonder passend domein krijgt er geen', logos.skull, '');
+  check('en dus geen vreemd logo', logos.skullHtml, false);
+  check('maar wel zijn beginletter', logos.letter, 'S');
+  check('het logo hangt aan het juiste domein', logos.manscapedHtml, true);
+  check('en valt terug op de letter als het niet laadt', logos.valtTerug, true);
+
+  console.log('\n  filteren over wat er al binnen is');
+  /* Dit vraagt niets nieuws op: het verbergt wat je nu niet wilt zien. En dat
+     verschil hoort op het scherm te staan -- "geen video gevonden" en "video
+     verborgen" zijn twee heel verschillende uitslagen. */
+  const toon = await page.evaluate(async () => {
+    await crHaalLijst();
+    var alles = crZichtbaar().length;
+    _cr.toonSoort = 'video';
+    var video = crZichtbaar().length;
+    crRender();
+    var melding = document.getElementById('cr-inhoud').textContent;
+    _cr.toonSoort = '';
+    _cr.minDagen = 180;
+    var lang = crZichtbaar().length;
+    _cr.minDagen = 0;
+    crRender();
+    return { alles: alles, video: video, lang: lang,
+             zegtVerborgen: /staan hier niet/.test(melding) };
+  });
+  check('zonder filter zie je alles', toon.alles > 0, true);
+  check('op video blijft de video over', toon.video, 1);
+  check('en dat is minder dan alles', toon.video < toon.alles, true);
+  check('het scherm zegt hoeveel er verborgen is', toon.zegtVerborgen, true);
+  check('en een lange looptijd filtert de korte weg', toon.lang < toon.alles, true);
 
   console.log('\n  de weg terug werkt, ook met de knop van de browser');
   /* Een detailweergave zonder weg terug is een doodlopende weg, en de eerste
