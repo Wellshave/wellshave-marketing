@@ -33,17 +33,9 @@
    wizard; wat daar gemaakt wordt, wordt daar bewaard.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-var CR_SORTERINGEN = [
-  { id: 'looptijd', label: 'Draait het langst',
-    zegt: 'Al maanden in de lucht. Er zit een budget achter dat elke dag opnieuw verlengd wordt -- het betrouwbaarste openbare signaal dat er is.',
-    let_op: 'Ook het traagste: wat hier bovenaan staat heeft de rest van de markt inmiddels ook gezien.' },
-  { id: 'bereik', label: 'Grootste bereik',
-    zegt: 'Het grootste publiek in dit venster.',
-    let_op: 'Zegt hoe groot hij is, niet hoe lang hij al werkt. Een dure lancering staat hier ook bovenaan.' },
-  { id: 'groei', label: 'Schaalt nu op',
-    zegt: 'Hier wordt op dit moment geld op bijgezet.',
-    let_op: 'Het vroegste signaal en het onbetrouwbaarste: dit kan over drie dagen stilstaan.' }
-];
+/* De sorteringen staan niet meer los: ze zijn onderdeel van de
+   onderzoeksdoelen (CR_DOELEN, verderop). Een doel ZET de sortering, zodat er
+   geen tweede lijst is die uit de pas kan lopen met wat het scherm belooft. */
 
 var CR_VENSTERS = [
   { id: 7, label: '7 dagen' },
@@ -64,6 +56,12 @@ var _cr = {
   /* Filters over de opgehaalde lijst. Ze vragen niets nieuws op: ze verbergen
      wat je nu niet wilt zien, en zeggen dat ook. */
   toonSoort: '', minDagen: 0,
+  /* De bouwtoestand: welk merk je onderzoekt, wat je wilt ontdekken, en of de
+     geavanceerde filters open staan. Het onderzoeksdoel is een voorkeuze over
+     de bestaande knoppen (sortering, minimale looptijd, soort) en geen tweede
+     mechaniek ernaast -- anders lopen de twee uit elkaar zodra er een filter
+     bij komt. */
+  context: '', doel: 'looptijd', merkZoek: '', meerFilters: false,
   sorteer: 'looptijd', dagen: 14, land: 'NL', taal: '', soort: '', zoek: '', limiet: 10,
   lijst: null, voorbehoud: null, venster: null, dagenGevraagd: null,
   hoeGerangschikt: null, merkenGebruikt: null, merkenMislukt: null, bereikMismatch: null,
@@ -534,83 +532,346 @@ function crMappenRij() {
   return h;
 }
 
-function crFilterHtml() {
-  var h = '<div class="cr-filters">';
-  /* Het bereik eerst: dat bepaalt waar de rest van de filters over gaat, en
-     het is de keuze die het vaakst verkeerd stond. */
-  h += '<div class="cr-filterrij">';
-  CR_BEREIKEN.forEach(function (b) {
-    h += '<button type="button" class="cr-keuze' + (_cr.bereik === b.id ? ' aan' : '') + '" ' +
-      'data-action="cr-bereik" data-id="' + b.id + '">' + crEsc(b.label) + '</button>';
-  });
-  h += '</div>';
-  var bActief = CR_BEREIKEN.filter(function (b) { return b.id === _cr.bereik; })[0];
-  if (bActief) h += '<p class="cr-uitleg">' + crEsc(bActief.zegt) + '</p>';
+/* ── Wat wil je ontdekken ───────────────────────────────────────────────────
+ *
+ * Een onderzoeksdoel is een VOORKEUZE over de knoppen die er al zijn: welke
+ * sortering, welke minimale looptijd, welk soort beeld. Geen tweede mechaniek
+ * ernaast, want dan lopen die twee uit elkaar zodra er een filter bij komt --
+ * en dan zegt de kaart iets anders dan de vraag die weggaat.
+ *
+ * En het belangrijkste: een doel dat wij niet kunnen uitvoeren staat er als
+ * NIET beschikbaar, met de reden erbij. Een kaart die je kunt aanklikken en
+ * die vervolgens gewoon de standaardlijst oplevert is erger dan een kaart die
+ * er niet is: dan denk je dat je iets gemeten hebt. */
+var CR_DOELEN = [
+  { id: 'looptijd', label: 'Draait het langst', kort: 'Ads die al maanden lopen',
+    zet: { sorteer: 'looptijd', minDagen: 0, toonSoort: '' },
+    zegt: 'Al maanden in de lucht. Er zit een budget achter dat elke dag opnieuw verlengd wordt -- het betrouwbaarste openbare signaal dat er is.',
+    let_op: 'Ook het traagste: wat hier bovenaan staat heeft de rest van de markt inmiddels ook gezien.' },
+  { id: 'evergreen', label: 'Evergreen winners', kort: 'Al langer dan drie maanden actief',
+    zet: { sorteer: 'looptijd', minDagen: 90, toonSoort: '' },
+    zegt: 'Hetzelfde signaal, maar alleen wat de drie maanden gehaald heeft. Dit is de bodem van hun account: wat hier staat is uitgetest.',
+    let_op: 'De strengste snede, dus vaak een korte lijst. Is hij leeg, dan is dat ook een uitslag.' },
+  { id: 'bereik', label: 'Grootste bereik', kort: 'Ads met het grootste publiek',
+    zet: { sorteer: 'bereik', minDagen: 0, toonSoort: '' },
+    zegt: 'Het grootste publiek in dit venster.',
+    let_op: 'Zegt hoe groot hij is, niet hoe lang hij al werkt. Een dure lancering staat hier ook bovenaan. Bij gevolgde merken geeft TrendTrack geen bereik; dan wordt er op positie gerangschikt.' },
+  { id: 'groei', label: 'Schaalt nu op', kort: 'Ads die nu duidelijk opschalen',
+    zet: { sorteer: 'groei', minDagen: 0, toonSoort: '' },
+    zegt: 'Hier wordt op dit moment geld op bijgezet.',
+    let_op: 'Het vroegste signaal en het onbetrouwbaarste: dit kan over drie dagen stilstaan.' },
+  { id: 'statisch', label: 'Alleen statics', kort: 'Stilstaand beeld',
+    zet: { sorteer: 'looptijd', minDagen: 0, toonSoort: 'image' },
+    zegt: 'Alleen stilstaand beeld, gerangschikt op looptijd. Dit is de lijst waar je een static uit bouwt.',
+    let_op: 'Bij gevolgde merken filtert dit de opgehaalde lijst, niet de bron: je ziet dus de statics uit hun topadvertenties.' },
+  { id: 'videos', label: 'Alleen video', kort: 'Bewegend beeld',
+    zet: { sorteer: 'looptijd', minDagen: 0, toonSoort: 'video' },
+    zegt: 'Alleen bewegend beeld, gerangschikt op looptijd. Dit is de lijst waar je een script uit bouwt.',
+    let_op: 'Bij gevolgde merken filtert dit de opgehaalde lijst, niet de bron.' },
+  /* Hieronder: doelen die pas kunnen als er over de opgehaalde set geanalyseerd
+     wordt. Ze staan er wel, want ze horen bij dit menu -- maar uitgegrijsd en
+     met de reden erbij. */
+  { id: 'concepten', label: 'Meest herhaalde concepten', kort: 'Welke uitvoering telkens terugkomt',
+    nog_niet: 'Dit is geen filter bij de bron maar een analyse over de opgehaalde advertenties. Komt in de resultatenstap.' },
+  { id: 'hoeken', label: 'Terugkerende hoeken', kort: 'Welke belofte telkens terugkomt',
+    nog_niet: 'Dit is geen filter bij de bron maar een analyse over de opgehaalde advertenties. Komt in de resultatenstap.' },
+  { id: 'aanbiedingen', label: 'Aanbiedingen & acties', kort: 'Bundels, korting, verzending',
+    nog_niet: 'Vraagt om het lezen van de advertentieteksten van de hele set. Komt in de resultatenstap.' }
+];
 
-  /* Bij de Brand Tracker: kies zelf welke merken meedoen. */
-  if (_cr.bereik === 'brandtracker' && _cr.merken && _cr.merken.length) {
-    var gekozen = (_cr.merkSel || []).length;
-    h += '<div class="cr-blok">' +
-      '<div class="cr-bloklabel">Merken' +
-      '<span class="cr-letop">' + (gekozen ? (gekozen + ' van ' + _cr.merken.length + ' gekozen')
-        : ('alle ' + _cr.merken.length)) + '</span></div>';
-    h += crMappenRij();
-    h += '<div class="cr-merken">' + _cr.merken.map(crMerkKnopHtml).join('') + '</div>';
-    h += '<div class="cr-filterrij klein">' +
-      '<button type="button" class="cr-keuze klein' + (gekozen ? '' : ' aan') +
-      '" data-action="cr-merk-alles">Alle merken</button>' +
-      (gekozen ? '<button type="button" class="cr-keuze klein" data-action="cr-merk-geen">Selectie wissen</button>' : '') +
-      '</div>';
-    h += '</div>';
+function crDoel(id) {
+  return CR_DOELEN.filter(function (d) { return d.id === (id || _cr.doel); })[0] || CR_DOELEN[0];
+}
+
+/* Het doel toepassen op de knoppen die de vraag werkelijk sturen. Alleen als
+   het doel uitvoerbaar is -- een doel dat nog niet kan verandert niets, want
+   dan zou de lijst iets anders zijn dan het kaartje belooft. */
+function crZetDoel(id) {
+  var d = CR_DOELEN.filter(function (x) { return x.id === id; })[0];
+  if (!d || d.nog_niet) return false;
+  _cr.doel = d.id;
+  _cr.sorteer = d.zet.sorteer;
+  _cr.minDagen = d.zet.minDagen;
+  _cr.toonSoort = d.zet.toonSoort;
+  return true;
+}
+
+/* ── De merkcontext ─────────────────────────────────────────────────────────
+ *
+ * Voor welk van onze merken doe je dit onderzoek? Dat is geen sier: de
+ * concurrenten van Wellshave en die van Wellshine zijn twee verschillende
+ * markten, en ze samen analyseren levert een uitkomst op die bij geen van
+ * beide hoort.
+ *
+ * De contexten komen uit de mappen van de Brand Tracker zelf. Zijn die er
+ * niet, dan is er geen context om te kiezen en staat dit blok er niet -- twee
+ * merken verzinnen die TrendTrack niet kent is precies het soort indeling dat
+ * later niet blijkt te kloppen. */
+function crContexten() {
+  return (_cr.mappen || []).filter(function (f) { return crMapMerken(f.id).length; });
+}
+
+function crContextHtml() {
+  var ctx = crContexten();
+  var h = '<section class="cr-blok"><div class="cr-bloknr">1</div>' +
+    '<div class="cr-bloktitel">Voor welk merk doe je onderzoek?</div>';
+  if (!ctx.length) {
+    h += '<p class="cr-uitleg">De Brand Tracker geeft geen mappen terug, dus er is geen indeling ' +
+      'in merken om uit te kiezen. Je concurrenten staan hiernaast op een rij.</p>';
+    h += crMarktKaartHtml();
+    return h + '</section>';
   }
-
-  h += '<div class="cr-blok"><div class="cr-bloklabel">Sorteren op</div>';
-  h += '<div class="cr-filterrij">';
-  CR_SORTERINGEN.forEach(function (s) {
-    h += '<button type="button" class="cr-keuze' + (_cr.sorteer === s.id ? ' aan' : '') + '" ' +
-      'data-action="cr-sorteer" data-id="' + s.id + '">' + crEsc(s.label) + '</button>';
+  /* De hele Brand Tracker, zonder in te zoomen op een van onze merken. Deze
+     stond er niet, en zonder hem was "Ander merk" een eenrichtingsdeur: je kon
+     naar de hele markt en niet meer terug. */
+  var alleAan = (_cr.bereik === 'brandtracker' && !_cr.context);
+  h += '<button type="button" class="cr-contextkaart' + (alleAan ? ' aan' : '') + '" ' +
+    'data-action="cr-bereik" data-id="brandtracker">' +
+    '<span class="cr-contextnaam">Alle gevolgde merken</span>' +
+    '<span class="cr-contextsub">' + ((_cr.merken || []).length || 0) +
+    ' merken in onze Brand Tracker</span></button>';
+  ctx.forEach(function (f) {
+    var leden = crMapMerken(f.id);
+    var aan = (_cr.context === String(f.id));
+    h += '<button type="button" class="cr-contextkaart' + (aan ? ' aan' : '') + '" ' +
+      'data-action="cr-context" data-id="' + crEsc(f.id) + '">' +
+      '<span class="cr-contextnaam">' + crEsc(f.naam) + '</span>' +
+      '<span class="cr-contextsub">' + leden.length + ' concurrent' + (leden.length === 1 ? '' : 'en') +
+      ' gevolgd</span></button>';
   });
-  h += '</div>';
-  /* Onder de knoppen staat wat de gekozen sortering meet, en waar hij tekort
-     schiet. Allebei -- een optie die alleen zijn sterke kant noemt is reclame,
-     geen uitleg. */
-  var actief = CR_SORTERINGEN.filter(function (s) { return s.id === _cr.sorteer; })[0];
-  if (actief) {
-    h += '<p class="cr-uitleg">' + crEsc(actief.zegt) +
-      ' <span class="cr-letop">' + crEsc(actief.let_op) + '</span></p>';
-  }
-  h += '</div>';
+  h += crMarktKaartHtml();
+  return h + '</section>';
+}
 
-  h += '<div class="cr-blok"><div class="cr-bloklabel">Venster</div><div class="cr-filterrij klein">';
+function crMarktKaartHtml() {
+  var aan = (_cr.bereik === 'markt');
+  return '<button type="button" class="cr-contextkaart stil' + (aan ? ' aan' : '') + '" ' +
+    'data-action="cr-bereik" data-id="markt">' +
+    '<span class="cr-contextnaam">Ander merk</span>' +
+    '<span class="cr-contextsub">De hele markt van TrendTrack, buiten onze Brand Tracker om</span>' +
+    '</button>';
+}
+
+/* ── De concurrenten ────────────────────────────────────────────────────────
+ *
+ * Kaarten en geen pillen: een pil met alleen een naam dwingt je de lijst te
+ * lezen, een kaart met logo en aantal laat je hem scannen. En het aantal
+ * actieve ads is geen versiering -- een merk met elf advertenties en een merk
+ * met veertienhonderd vragen om een ander soort aandacht. */
+function crMerkenBlokHtml() {
+  var h = '<section class="cr-blok breed"><div class="cr-bloknr">2</div>' +
+    '<div class="cr-bloktitel">Selecteer concurrenten</div>';
+  if (_cr.bereik === 'markt') {
+    h += '<p class="cr-uitleg">Bij de hele markt kies je geen merken: je zoekt op een woord en een land. ' +
+      'Die velden staan bij de filters hieronder.</p></section>';
+    return h;
+  }
+  if (!_cr.merken) {
+    return h + '<p class="cr-uitleg">De gevolgde merken worden opgehaald…</p></section>';
+  }
+  if (!_cr.merken.length) {
+    return h + '<p class="cr-uitleg">Er staan geen merken in de Brand Tracker. Voeg ze daar toe, ' +
+      'dan verschijnen ze hier.</p></section>';
+  }
+  var zoek = crSlug(_cr.merkZoek);
+  var lijst = _cr.merken.filter(function (m) {
+    return !zoek || crSlug(m.naam).indexOf(zoek) > -1 || crSlug(m.domein).indexOf(zoek) > -1;
+  });
+  var gekozen = (_cr.merkSel || []).length;
+
+  h += '<div class="cr-merkbalk">' +
+    '<input type="text" id="cr-merkzoek" class="cr-invoer" placeholder="Zoek een merk…" ' +
+      'value="' + crEsc(_cr.merkZoek) + '" data-action="cr-merkzoek">' +
+    '<span class="cr-merkstand">' + (gekozen
+      ? (gekozen + ' merk' + (gekozen === 1 ? '' : 'en') + ' geselecteerd')
+      : ('alle ' + _cr.merken.length + ' merken')) + '</span>' +
+    '</div>';
+
+  h += '<div class="cr-snelrij">';
+  crContexten().forEach(function (f) {
+    var leden = crMapMerken(f.id).map(function (m) { return m.id; });
+    var aan = leden.length && (_cr.merkSel || []).length === leden.length &&
+      leden.every(function (id) { return (_cr.merkSel || []).indexOf(id) !== -1; });
+    h += '<button type="button" class="cr-snel' + (aan ? ' aan' : '') + '" ' +
+      'data-action="cr-map" data-id="' + crEsc(f.id) + '">' +
+      'Concurrenten van ' + crEsc(f.naam) + '</button>';
+  });
+  h += '<button type="button" class="cr-snel" data-action="cr-merk-alles">Selecteer alle</button>' +
+    (gekozen ? '<button type="button" class="cr-snel" data-action="cr-merk-geen">Wis selectie</button>' : '') +
+    '</div>';
+
+  if (!lijst.length) {
+    h += '<p class="cr-uitleg">Geen merk met "' + crEsc(_cr.merkZoek) + '" in de naam. ' +
+      'De andere ' + _cr.merken.length + ' staan er nog; wis het zoekwoord om ze te zien.</p>';
+  } else {
+    h += '<div class="cr-merkraster">' + lijst.map(crMerkKaartHtml).join('') + '</div>';
+  }
+  return h + '</section>';
+}
+
+function crMerkKaartHtml(m) {
+  var aan = (_cr.merkSel || []).indexOf(m.id) !== -1;
+  var alles = !(_cr.merkSel || []).length;
+  return '<button type="button" class="cr-merkkaart' + (aan ? ' aan' : (alles ? ' mee' : '')) + '" ' +
+    'data-action="cr-merk" data-id="' + crEsc(m.id) + '" aria-pressed="' + (aan ? 'true' : 'false') + '">' +
+    crLogoHtml(m) +
+    '<span class="cr-merkkaart-t">' +
+      '<span class="cr-merknaam">' + crEsc(m.naam || m.id) + '</span>' +
+      '<span class="cr-merksub">' + (m.actieve_ads != null
+        ? (crGetal(m.actieve_ads) + ' actieve ads') : (crEsc(m.domein || '') || 'geen telling')) + '</span>' +
+    '</span>' +
+    '<span class="cr-vink" aria-hidden="true"></span>' +
+    '</button>';
+}
+
+/* ── Wat wil je ontdekken ───────────────────────────────────────────────── */
+function crDoelenBlokHtml() {
+  var h = '<section class="cr-blok"><div class="cr-bloknr">3</div>' +
+    '<div class="cr-bloktitel">Wat wil je ontdekken?</div>';
+  var zichtbaar = _cr.meerDoelen ? CR_DOELEN : CR_DOELEN.slice(0, 4);
+  zichtbaar.forEach(function (d) {
+    var aan = (_cr.doel === d.id);
+    h += '<button type="button" class="cr-doel' + (aan ? ' aan' : '') + (d.nog_niet ? ' nogniet' : '') + '" ' +
+      'data-action="cr-doel" data-id="' + crEsc(d.id) + '"' + (d.nog_niet ? ' disabled' : '') + '>' +
+      '<span class="cr-doelnaam">' + crEsc(d.label) + '</span>' +
+      '<span class="cr-doelsub">' + crEsc(d.nog_niet || d.kort) + '</span>' +
+      '</button>';
+  });
+  h += '<button type="button" class="cr-meer" data-action="cr-meerdoelen">' +
+    (_cr.meerDoelen ? 'Minder doelen' : 'Meer doelen') + '</button>';
+  var d = crDoel();
+  if (d) {
+    h += '<p class="cr-uitleg">' + crEsc(d.nog_niet || d.zegt) +
+      (d.let_op ? ' <span class="cr-letop">' + crEsc(d.let_op) + '</span>' : '') + '</p>';
+  }
+  return h + '</section>';
+}
+
+/* ── Filters, en wat er nog niet is ─────────────────────────────────────── */
+function crFiltersBlokHtml() {
+  var h = '<section class="cr-blok breed"><div class="cr-bloknr">4</div>' +
+    '<div class="cr-bloktitel">Filters &amp; instellingen</div>';
+  h += '<div class="cr-velden">';
+  h += '<label class="cr-veld"><span>Tijdvenster</span><div class="cr-filterrij klein">';
   CR_VENSTERS.forEach(function (v) {
     h += '<button type="button" class="cr-keuze klein' + (_cr.dagen === v.id ? ' aan' : '') + '" ' +
       'data-action="cr-dagen" data-id="' + v.id + '">' + crEsc(v.label) + '</button>';
   });
+  h += '</div></label>';
+  h += '<label class="cr-veld"><span>Formaat</span><div class="cr-filterrij klein">';
+  [['', 'Alles'], ['image', 'Static'], ['video', 'Video']].forEach(function (p) {
+    h += '<button type="button" class="cr-keuze klein' + (_cr.toonSoort === p[0] ? ' aan' : '') +
+      '" data-action="cr-toonsoort" data-id="' + p[0] + '">' + p[1] + '</button>';
+  });
+  h += '</div></label>';
+  /* Platform staat vast en dat hoort te lezen te zijn. Een keuzelijst met een
+     optie is een belofte dat er meer komt; een vaste chip zegt wat het is. */
+  h += '<label class="cr-veld"><span>Platform</span>' +
+    '<span class="cr-vast">Meta · Facebook &amp; Instagram<em>de enige bron die TrendTrack ons hier geeft</em></span>' +
+    '</label>';
   if (_cr.bereik === 'markt') {
-    ['', 'image', 'video'].forEach(function (s) {
-      var label = s === '' ? 'Alles' : (s === 'image' ? 'Beeld' : 'Video');
-      h += '<button type="button" class="cr-keuze klein' + (_cr.soort === s ? ' aan' : '') + '" ' +
-        'data-action="cr-soort" data-id="' + s + '">' + label + '</button>';
-    });
+    h += '<label class="cr-veld"><span>Land</span>' +
+      '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="NL" value="' + crEsc(_cr.land) + '"></label>';
+    h += '<label class="cr-veld breed"><span>Zoekwoord in de advertentietekst</span>' +
+      '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="leeg = alles" value="' + crEsc(_cr.zoek) + '"></label>';
   }
-  h += '</div></div>';
-
-  /* Zoeken op een woord en filteren op land horen bij de hele markt. Bij de
-     Brand Tracker zijn ze zinloos -- die merken heb je zelf uitgekozen -- en een
-     filter dat niets doet is erger dan een filter dat er niet is. */
-  if (_cr.bereik === 'markt') {
-    h += '<div class="cr-filterrij">' +
-      '<input type="text" id="cr-zoek" class="cr-invoer" placeholder="Zoekwoord in de advertentietekst (leeg = alles)" value="' + crEsc(_cr.zoek) + '">' +
-      '<input type="text" id="cr-land" class="cr-invoer kort" placeholder="Land" value="' + crEsc(_cr.land) + '">' +
-      '</div>';
-  }
-  h += '<button type="button" class="cr-knop groot" data-action="cr-haal"' + (_cr.bezig ? ' disabled' : '') + '>' +
-      (_cr.bezig ? 'Bezig…' : (_cr.bereik === 'brandtracker'
-        ? ('Analyseer ' + ((_cr.merkSel || []).length ? ((_cr.merkSel || []).length + ' merk' +
-            ((_cr.merkSel || []).length === 1 ? '' : 'en')) : 'onze Brand Tracker'))
-        : 'Analyseer de hele markt')) + '</button>';
   h += '</div>';
-  return h;
+
+  h += '<button type="button" class="cr-meer" data-action="cr-meerfilters">' +
+    (_cr.meerFilters ? 'Minder filters' : 'Meer filters') + '</button>';
+  if (_cr.meerFilters) {
+    h += '<div class="cr-velden">';
+    h += '<label class="cr-veld"><span>Minimale looptijd</span><div class="cr-filterrij klein">';
+    CR_MINDAGEN.forEach(function (dg) {
+      h += '<button type="button" class="cr-keuze klein' + (_cr.minDagen === dg ? ' aan' : '') +
+        '" data-action="cr-mindagen" data-id="' + dg + '">' + (dg ? (dg + '+ dagen') : 'Alles') + '</button>';
+    });
+    h += '</div></label>';
+    if (_cr.bereik === 'markt') {
+      h += '<label class="cr-veld"><span>Taal</span>' +
+        '<input type="text" id="cr-taal" class="cr-invoer kort" placeholder="nl" value="' + crEsc(_cr.taal) + '"></label>';
+    }
+    h += '</div>';
+    /* Wat er NIET is. Dit hoort erbij te staan: anders zoek je naar een filter
+       dat niet bestaat en denk je dat je het over het hoofd ziet. */
+    h += '<p class="cr-uitleg">Nog niet mogelijk via deze bron: CTA-type, landingspagina, ' +
+      'aantal duplicaten, partner-badge en een eigen datumbereik. ' +
+      '<span class="cr-letop">Ze staan hier bewust niet als knop -- een filter dat niets doet is erger dan een filter dat er niet is.</span></p>';
+  }
+  return h + '</section>';
+}
+
+/* ── De scope, en de knop ───────────────────────────────────────────────── */
+function crScopeHtml() {
+  var merken = crGekozenMerken();
+  var d = crDoel();
+  var regels = [];
+  if (_cr.bereik === 'markt') {
+    regels.push(['bron', 'De hele markt van TrendTrack']);
+    if (_cr.land) regels.push(['land', _cr.land]);
+    if (_cr.zoek) regels.push(['zoekwoord', _cr.zoek]);
+  } else {
+    regels.push(['bron', 'Onze Brand Tracker']);
+    var ctx = crContexten().filter(function (f) { return String(f.id) === _cr.context; })[0];
+    if (ctx) regels.push(['merk', ctx.naam]);
+    regels.push(['concurrenten', (_cr.merkSel || []).length
+      ? (merken.length + ' van de ' + (_cr.merken || []).length)
+      : ('alle ' + ((_cr.merken || []).length || 0))]);
+  }
+  regels.push(['doel', d.label]);
+  regels.push(['venster', _cr.dagen + ' dagen']);
+  regels.push(['platform', 'Meta']);
+  if (_cr.toonSoort) regels.push(['formaat', _cr.toonSoort === 'video' ? 'Video' : 'Static']);
+  if (_cr.minDagen) regels.push(['looptijd', _cr.minDagen + '+ dagen']);
+
+  var kan = (_cr.bereik === 'markt') || !!(_cr.merken && _cr.merken.length);
+  return '<aside class="cr-scope"><div class="cr-bloktitel">Onderzoeksscope</div>' +
+    '<dl class="cr-scopelijst">' + regels.map(function (r) {
+      return '<div><dt>' + crEsc(r[0]) + '</dt><dd>' + crEsc(r[1]) + '</dd></div>';
+    }).join('') + '</dl>' +
+    '<button type="button" class="cr-knop groot" data-action="cr-haal"' +
+      (_cr.bezig || !kan ? ' disabled' : '') + '>' +
+      (_cr.bezig ? 'Bezig…' : 'Analyseer met TrendTrack') + '</button>' +
+    (kan ? '' : '<p class="cr-uitleg">Er zijn nog geen merken opgehaald.</p>') +
+    '</aside>';
+}
+
+/* Wat er straks gebeurt, in gewone taal. Dit is geen decoratie: het verschil
+   tussen "hij doet iets" en "hij haalt advertenties op, groepeert ze en zoekt
+   het patroon" is het verschil tussen wachten en weten waarop je wacht. */
+function crRoryHtml() {
+  return '<div class="cr-rory">' +
+    (typeof teamPortret === 'function' ? teamPortret('rory', 'cr-rory-foto') : '') +
+    '<div class="cr-rory-t"><b>Rory gaat aan de slag</b>' +
+    '<span>Hij haalt de advertenties op die nu draaien, zet ze op een rij naar het doel dat je koos, ' +
+    'en leest daarna het patroon onder de advertentie die je aanklikt.</span></div>' +
+    '<div class="cr-stappen">' +
+      '<span>Ads ophalen</span><span>Rangschikken</span><span>Patroon lezen</span>' +
+    '</div></div>';
+}
+
+function crStapperHtml() {
+  var stap = _cr.lijst ? 3 : (_cr.bezig ? 2 : 1);
+  var namen = ['Bouw onderzoek', 'Analyse', 'Resultaten'];
+  return '<ol class="cr-stapper">' + namen.map(function (n, i) {
+    var nr = i + 1;
+    return '<li class="' + (nr === stap ? 'nu' : (nr < stap ? 'af' : '')) + '">' +
+      '<span class="cr-stapnr">' + nr + '</span>' + crEsc(n) + '</li>';
+  }).join('') + '</ol>';
+}
+
+function crBouwHtml() {
+  return '<div class="cr-bouw">' +
+    '<div class="cr-bouwkop"><div><h3>Bouw je onderzoek</h3>' +
+      '<p>Stel je onderzoek samen en laat TrendTrack het werk doen.</p></div>' +
+      crStapperHtml() + '</div>' +
+    '<div class="cr-bouwraster">' +
+      crContextHtml() + crMerkenBlokHtml() + crDoelenBlokHtml() +
+    '</div>' +
+    '<div class="cr-bouwonder">' +
+      '<div>' + crFiltersBlokHtml() + crRoryHtml() + '</div>' +
+      crScopeHtml() +
+    '</div></div>';
 }
 
 /* ── Filteren over wat er al binnen is ──────────────────────────────────────
@@ -1113,19 +1374,35 @@ function crNaarWizard() {
 
 /* ── Tekenen en klikken ────────────────────────────────────────────────── */
 
-/* Het scherm is een werkbank, geen formulier: links waar je aan draait, rechts
-   wat eruit komt, en dat rechts krijgt de hele breedte. Het stond onder elkaar
-   in een kolom van zeshonderd pixels, met de halve pagina leeg ernaast -- en
-   dan lees je vier filterrijen alsof het een vragenlijst is die je eerst moet
-   invullen. */
+/* Het scherm is een werkbank en geen formulier. Bovenin bouw je het onderzoek
+   -- merk, concurrenten, doel, filters -- en daaronder komt wat eruit rolt. Het
+   was een kolom filterrijen met de halve pagina leeg ernaast, en dan lees je
+   die rijen als een vragenlijst die je eerst moet invullen.
+
+   De bouwer blijft staan zolang er nog geen uitslag is; hij klapt in zodra die
+   er wel is (dat is de volgende stap in deze verbouwing). */
 function crRender() {
   var el = document.getElementById('cr-inhoud');
   if (!el) return;
   el.innerHTML = _cr.open ? crDetailHtml() :
     ('<div class="cr-werk">' +
-       '<div class="cr-rail">' + crFilterHtml() + '</div>' +
+       crBouwHtml() +
        '<div class="cr-uitslag">' + crLijstHtml() + '</div>' +
      '</div>');
+  /* Het zoekveld houdt zijn plek in de tekst: na een hertekening staat de
+     cursor anders vooraan en typ je achterstevoren. */
+  var z = document.getElementById('cr-merkzoek');
+  if (z && _cr.merkZoekActief) { z.focus(); z.setSelectionRange(z.value.length, z.value.length); }
+}
+
+/* Zoeken op merknaam. Een eigen luisteraar en geen knop: je typt, de lijst
+   krimpt mee. */
+function crTyp(e) {
+  var el = e.target;
+  if (!el || el.id !== 'cr-merkzoek') return;
+  _cr.merkZoek = el.value;
+  _cr.merkZoekActief = true;
+  crRender();
 }
 
 function crKlik(e) {
@@ -1138,6 +1415,11 @@ function crKlik(e) {
        iets anders zegt is precies hoe je naar de markt kijkt in de
        veronderstelling dat het je concurrenten zijn. */
     _cr.lijst = null; _cr.open = null; _cr.hoeGerangschikt = null;
+    /* Terug naar de Brand Tracker betekent: geen merk uitgelicht en geen
+       selectie van dat merk meer. Anders sta je op "alle gevolgde merken"
+       terwijl er nog vier van Wellshine aangevinkt staan. */
+    _cr.context = '';
+    if (_cr.bereik === 'brandtracker') _cr.merkSel = [];
     crRender();
     if (_cr.bereik === 'brandtracker' && !_cr.merken) crHaalMerken();
   } else if (act === 'cr-merk') {
@@ -1161,13 +1443,29 @@ function crKlik(e) {
   }
   else if (act === 'cr-toonsoort') { _cr.toonSoort = knop.getAttribute('data-id'); crRender(); crLaadBeelden(); }
   else if (act === 'cr-mindagen') { _cr.minDagen = Number(knop.getAttribute('data-id')); crRender(); crLaadBeelden(); }
-  else if (act === 'cr-sorteer') { _cr.sorteer = knop.getAttribute('data-id'); crRender(); }
+  else if (act === 'cr-doel') {
+    /* Een doel dat nog niet kan verandert niets. Hem laten "aanstaan" zou een
+       lijst opleveren die iets anders is dan het kaartje belooft. */
+    if (crZetDoel(knop.getAttribute('data-id'))) { _cr.lijst = null; crRender(); }
+  }
+  else if (act === 'cr-meerdoelen') { _cr.meerDoelen = !_cr.meerDoelen; crRender(); }
+  else if (act === 'cr-meerfilters') { _cr.meerFilters = !_cr.meerFilters; crRender(); }
+  else if (act === 'cr-context') {
+    /* Een merkcontext kiezen betekent: zijn concurrenten selecteren. Dat is de
+       hele reden dat die mappen er zijn. */
+    _cr.context = knop.getAttribute('data-id');
+    _cr.bereik = 'brandtracker';
+    _cr.merkSel = crMapMerken(_cr.context).map(function (m) { return m.id; });
+    _cr.lijst = null; crRender();
+  }
   else if (act === 'cr-dagen') { _cr.dagen = Number(knop.getAttribute('data-id')); crRender(); }
   else if (act === 'cr-soort') { _cr.soort = knop.getAttribute('data-id'); crRender(); }
   else if (act === 'cr-haal') {
-    var z = document.getElementById('cr-zoek'), l = document.getElementById('cr-land');
+    var z = document.getElementById('cr-zoek'), l = document.getElementById('cr-land'),
+        t = document.getElementById('cr-taal');
     if (z) _cr.zoek = z.value.trim();
     if (l) _cr.land = l.value.trim().toUpperCase();
+    if (t) _cr.taal = t.value.trim();
     crHaalLijst();
   } else if (act === 'cr-open') {
     crOpenAd(_cr.lijst[Number(knop.getAttribute('data-i'))]);
@@ -1181,7 +1479,11 @@ function crKlik(e) {
 
 function renderCreativeResearch() {
   var el = document.getElementById('cr-inhoud');
-  if (el && !el._crGebonden) { el.addEventListener('click', crKlik); el._crGebonden = true; }
+  if (el && !el._crGebonden) {
+    el.addEventListener('click', crKlik);
+    el.addEventListener('input', crTyp);
+    el._crGebonden = true;
+  }
   crRender();
   /* De gevolgde merken staan er meteen, zonder dat je eerst een analyse hoeft
      te draaien: dan weet je wat je gaat bevragen voordat je credits uitgeeft. */
@@ -1199,7 +1501,13 @@ window.crZetVeld = crZetVeld; window.crBrief = crBrief;
 window.CR_FORMAAT_STATIC = CR_FORMAAT_STATIC; window.CR_FORMAAT_SCRIPT = CR_FORMAAT_SCRIPT;
 window.crPatroonPrompt = crPatroonPrompt; window.crPatroonHtml = crPatroonHtml;
 window.crKaartHtml = crKaartHtml; window.crLijstHtml = crLijstHtml;
-window.crFilterHtml = crFilterHtml; window.crDetailHtml = crDetailHtml;
+window.crDetailHtml = crDetailHtml;
+window.crBouwHtml = crBouwHtml; window.crContextHtml = crContextHtml;
+window.crMerkenBlokHtml = crMerkenBlokHtml; window.crDoelenBlokHtml = crDoelenBlokHtml;
+window.crFiltersBlokHtml = crFiltersBlokHtml; window.crScopeHtml = crScopeHtml;
+window.crMerkKaartHtml = crMerkKaartHtml; window.crContexten = crContexten;
+window.crTyp = crTyp; window.crStapperHtml = crStapperHtml; window.crRoryHtml = crRoryHtml;
+window.CR_DOELEN = CR_DOELEN; window.crDoel = crDoel; window.crZetDoel = crZetDoel;
 window.crGetal = crGetal; window._cr = _cr;
 window.crMerkDomein = crMerkDomein; window.crLogoHtml = crLogoHtml; window.crSlug = crSlug;
 window.crZichtbaar = crZichtbaar; window.crToonFilterHtml = crToonFilterHtml;
@@ -1209,4 +1517,4 @@ window.crFrameTijden = crFrameTijden; window.crVideoFrames = crVideoFrames;
 window.crDetailBeeldHtml = crDetailBeeldHtml; window.crOpenVideo = crOpenVideo;
 window.CR_FRAMES = CR_FRAMES; window.crEigenSpeler = crEigenSpeler;
 window.crVideoHaal = crVideoHaal;
-window.CR_SORTERINGEN = CR_SORTERINGEN; window.CR_PATROONVELDEN = CR_PATROONVELDEN;
+window.CR_PATROONVELDEN = CR_PATROONVELDEN;

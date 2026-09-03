@@ -173,37 +173,65 @@ function ONDERSCHEP() {
   check('met de knop uit', weer.knopUit, true);
   await page.evaluate(() => switchMainTab('research'));
 
-  console.log('\n  elke sortering zegt wat hij meet, en wat niet');
+  console.log('\n  elk onderzoeksdoel zegt wat het meet, en wat niet');
   /* Een optie die alleen zijn sterke kant noemt is reclame. De keerzijde staat
      er daarom bij, en dat is precies het soort regel dat bij een herschrijving
-     stilletjes sneuvelt. */
-  const sorteringen = await page.evaluate(() => {
-    /* Van elke sortering nagaan of BEIDE helften werkelijk op het scherm komen.
-       Alleen controleren dat het veld bestaat is niet genoeg: dan blijft dit
-       blok groen terwijl de keerzijde nergens getekend wordt, en dat is precies
-       de regel die bij een herschrijving als eerste sneuvelt. */
-    const getekend = CR_SORTERINGEN.map(s => {
-      _cr.sorteer = s.id;
-      const html = crFilterHtml();
-      const el = document.createElement('div');
-      el.innerHTML = html;
-      const t = el.textContent;
-      return { id: s.id, zegt: t.indexOf(s.zegt) > -1, letop: t.indexOf(s.let_op) > -1 };
+     stilletjes sneuvelt. En een doel dat wij niet kunnen uitvoeren hoort niet
+     aanklikbaar te zijn: een kaart die stil de standaardlijst oplevert laat je
+     denken dat je iets gemeten hebt. */
+  const doelen = await page.evaluate(() => {
+    var bewaard = _cr.doel, bewaardMeer = _cr.meerDoelen;
+    _cr.meerDoelen = true;
+    var getekend = CR_DOELEN.map(d => {
+      if (!d.nog_niet) crZetDoel(d.id);
+      var el = document.createElement('div');
+      el.innerHTML = crDoelenBlokHtml();
+      var t = el.textContent;
+      return { id: d.id,
+               zegt: d.nog_niet ? t.indexOf(d.nog_niet) > -1 : t.indexOf(d.zegt) > -1,
+               letop: d.nog_niet ? true : t.indexOf(d.let_op) > -1 };
     });
-    _cr.sorteer = 'looptijd';
+    /* De niet-uitvoerbare doelen staan uit, en veranderen niets als je ze toch
+       aanklikt. */
+    crZetDoel('looptijd');
+    var voor = { doel: _cr.doel, sorteer: _cr.sorteer };
+    /* Netjes weigeren, niet klappen: een doel dat nog niet kan hoort false te
+       geven en niets aan te raken. */
+    var geweigerd;
+    try { geweigerd = crZetDoel('concepten'); } catch (e) { geweigerd = 'stuk: ' + e.message; }
+    var na = { doel: _cr.doel, sorteer: _cr.sorteer };
+    var el2 = document.createElement('div');
+    el2.innerHTML = crDoelenBlokHtml();
+    var uit = el2.querySelectorAll('.cr-doel[disabled]').length;
+    /* En een doel dat wél kan zet de knoppen die de vraag sturen. */
+    crZetDoel('evergreen');
+    var evergreen = { sorteer: _cr.sorteer, minDagen: _cr.minDagen };
+    crZetDoel('videos');
+    var video = { sorteer: _cr.sorteer, soort: _cr.toonSoort };
+    /* En een doel dat een ANDERE sortering vraagt zet die ook werkelijk om --
+       anders vraag je om wat er opschaalt en krijg je wat er het langst loopt. */
+    crZetDoel('groei');
+    var groei = _cr.sorteer;
+    _cr.doel = bewaard; _cr.meerDoelen = bewaardMeer; crZetDoel(bewaard);
     return {
-      aantal: CR_SORTERINGEN.length,
-      allemaalUitleg: CR_SORTERINGEN.filter(s => s.zegt && s.zegt.length > 30).length,
-      allemaalKeerzijde: CR_SORTERINGEN.filter(s => s.let_op && s.let_op.length > 25).length,
+      aantal: CR_DOELEN.length,
+      uitvoerbaar: CR_DOELEN.filter(d => !d.nog_niet).length,
       zonderZegt: getekend.filter(g => !g.zegt).map(g => g.id),
-      zonderLetop: getekend.filter(g => !g.letop).map(g => g.id)
+      zonderLetop: getekend.filter(g => !g.letop).map(g => g.id),
+      geweigerd, voor, na, uit, evergreen, video, groei
     };
   });
-  check('drie sorteringen', sorteringen.aantal, 3);
-  check('elk met uitleg', sorteringen.allemaalUitleg, 3);
-  check('en elk met een keerzijde', sorteringen.allemaalKeerzijde, 3);
-  check('elke uitleg komt ook werkelijk in beeld', sorteringen.zonderZegt, []);
-  check('en elke keerzijde ook', sorteringen.zonderLetop, []);
+  check('de drie oude sorteringen zijn er nog, plus nieuwe doelen',
+    doelen.uitvoerbaar >= 6 && doelen.aantal > doelen.uitvoerbaar, true);
+  check('elke uitleg komt ook werkelijk in beeld', doelen.zonderZegt, []);
+  check('en elke keerzijde ook', doelen.zonderLetop, []);
+  check('een doel dat nog niet kan wordt geweigerd', doelen.geweigerd, false);
+  check('en verandert dus niets', doelen.na, doelen.voor);
+  check('het staat ook zichtbaar uit', doelen.uit >= 3, true);
+  check('evergreen zet de minimale looptijd op negentig dagen',
+    doelen.evergreen, { sorteer: 'looptijd', minDagen: 90 });
+  check('en video zet het formaat op video', doelen.video, { sorteer: 'looptijd', soort: 'video' });
+  check('opschalen zet de sortering echt om', doelen.groei, 'groei');
 
   console.log('\n  de lijst komt binnen');
   const lijst = await page.evaluate(async () => {
@@ -631,6 +659,11 @@ function ONDERSCHEP() {
     return {
       gevraagdBereik: (vraag.url.match(/bereik=([a-z]+)/) || [])[1],
       knop: (el.querySelector('[data-action="cr-haal"]') || {}).textContent,
+      /* Welke bron er geanalyseerd wordt staat in de scope, naast de knop. Dit
+         was de tekst OP de knop; het hoort ergens te staan, want een lijst van
+         de hele markt die doorgaat voor je concurrenten is de fout die dit
+         scherm nutteloos maakte. */
+      scope: (el.querySelector('.cr-scope') || {}).textContent || '',
       merkknoppen: el.querySelectorAll('[data-action="cr-merk"]').length,
       tekst: el.textContent,
       /* Zoeken op een woord en filteren op land horen bij de hele markt. Bij de
@@ -641,7 +674,8 @@ function ONDERSCHEP() {
     };
   });
   check('de vraag gaat naar de Brand Tracker', bereik.gevraagdBereik, 'brandtracker');
-  check('en de knop zegt dat ook', /Brand Tracker/.test(bereik.knop), true);
+  check('en de scope zegt dat ook', /Brand Tracker/.test(bereik.scope), true);
+  check('met een knop die zegt wat hij doet', /Analyseer/.test(bereik.knop), true);
   check('elk gevolgd merk heeft zijn eigen knop', bereik.merkknoppen, 4);
   check('met hun naam', /Manscaped/.test(bereik.tekst) && /BALZY/.test(bereik.tekst), true);
   check('geen zoekveld bij de Brand Tracker', bereik.zoekveld, false);
@@ -659,44 +693,50 @@ function ONDERSCHEP() {
     const vraag = window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/toplijst') > -1).pop();
     return { lijstWeg, bereik: (vraag.url.match(/bereik=([a-z]+)/) || [])[1],
              zoekveld: !!document.getElementById('cr-zoek'),
-             knop: (el.querySelector('[data-action="cr-haal"]') || {}).textContent };
+             scope: (el.querySelector('.cr-scope') || {}).textContent || '' };
   });
   check('de oude lijst is weg bij het wisselen', markt.lijstWeg, true);
   check('en de vraag gaat naar de markt', markt.bereik, 'markt');
   check('daar is het zoekveld er wel', markt.zoekveld, true);
-  check('en de knop zegt het', /hele markt/.test(markt.knop), true);
+  check('en de scope zegt het', /hele markt/.test(markt.scope), true);
   await page.evaluate(async () => {
     document.querySelector('[data-action="cr-bereik"][data-id="brandtracker"]').click();
     await crHaalLijst();
   });
 
-  console.log('\n  het scherm gebruikt de hele breedte');
-  /* Het stond in een kolom met de halve pagina leeg ernaast: vier filterrijen
-     boven elkaar, en dan pas de kaarten. Nu links de knoppen, rechts de
-     uitslag -- en die uitslag telt zijn kolommen tegen zijn eigen vlak. */
+  console.log('\n  het scherm is een onderzoeksbouwer over de volle breedte');
+  /* Het stond in een kolom met de halve pagina leeg ernaast: filterrijen onder
+     elkaar, en dan pas de kaarten. Nu bouw je bovenin het onderzoek -- merk,
+     concurrenten, doel -- naast elkaar, en daaronder komt de uitslag. */
   const breed = await page.evaluate(async () => {
     /* Zichtbaar zetten voor we meten: een vak dat niet getekend wordt is nul
        pixels breed, en dan slaagt een breedtecontrole zonder iets te meten. */
     switchMainTab('research');
     await crHaalLijst();
     var el = document.getElementById('cr-inhoud');
-    var werk = el.querySelector('.cr-werk');
-    var rail = el.querySelector('.cr-rail');
+    var raster = el.querySelector('.cr-bouwraster');
+    var blokken = raster ? raster.querySelectorAll(':scope > .cr-blok') : [];
     var uitslag = el.querySelector('.cr-uitslag');
+    var scope = el.querySelector('.cr-scope');
+    var breedte = function (n) { return n ? n.getBoundingClientRect().width : 0; };
     return {
-      erIsEenWerkbank: !!werk && !!rail && !!uitslag,
-      /* Twee kolommen naast elkaar, niet onder elkaar. */
-      naastElkaar: !!(rail && uitslag) &&
-        rail.getBoundingClientRect().width > 100 &&
-        Math.abs(rail.getBoundingClientRect().top - uitslag.getBoundingClientRect().top) < 40 &&
-        uitslag.getBoundingClientRect().left >= rail.getBoundingClientRect().right,
-      /* En de uitslag is breder dan de rail: hij krijgt wat er over is. */
-      /* Twee keer de rail, minstens. Een uitslag die net iets breder is dan de
-         knoppenkolom is nog steeds het smalle scherm waar de klacht over ging. */
-      uitslagBreder: !!(rail && uitslag) &&
-        uitslag.getBoundingClientRect().width > rail.getBoundingClientRect().width * 2,
-      /* En de kaarten staan naast elkaar, niet onder elkaar: dat is waar die
-         breedte voor is. */
+      bouwer: !!el.querySelector('.cr-bouw'),
+      blokken: blokken.length,
+      /* De drie bouwblokken staan naast elkaar, niet onder elkaar. */
+      naastElkaar: blokken.length === 3 &&
+        breedte(blokken[0]) > 100 &&
+        Math.abs(blokken[0].getBoundingClientRect().top - blokken[2].getBoundingClientRect().top) < 4,
+      /* Het middenblok (de concurrenten) is het breedst: daar zit het werk. */
+      middenBreedst: blokken.length === 3 &&
+        breedte(blokken[1]) > breedte(blokken[0]) && breedte(blokken[1]) > breedte(blokken[2]),
+      /* En de uitslag loopt over de volle breedte eronder. */
+      uitslagOnder: !!uitslag && !!raster &&
+        uitslag.getBoundingClientRect().top > raster.getBoundingClientRect().bottom - 1 &&
+        breedte(uitslag) > breedte(raster) * 0.95,
+      eigenContainer: uitslag ? getComputedStyle(uitslag).containerName : '',
+      /* De scope staat naast de filters en zegt wat er straks gevraagd wordt. */
+      scopeErnaast: !!scope && breedte(scope) > 100,
+      /* De kaarten staan naast elkaar; dat is waar die breedte voor is. */
       kolommen: (function () {
         var k = uitslag ? uitslag.querySelectorAll('.cr-kaart') : [];
         if (k.length < 2) return 0;
@@ -705,20 +745,17 @@ function ONDERSCHEP() {
           if (Math.abs(k[i].getBoundingClientRect().top - eerste) < 4) n++;
         }
         return n;
-      })(),
-      /* De kaarten meten tegen hun eigen vlak; zonder eigen container tellen ze
-         de rail mee en passen er te veel kolommen. */
-      eigenContainer: uitslag ? getComputedStyle(uitslag).containerName : '',
-      /* En de filters staan in de rail, niet boven de kaarten. */
-      filtersInRail: !!(rail && rail.querySelector('[data-action="cr-haal"]'))
+      })()
     };
   });
-  check('er is een werkbank met twee kolommen', breed.erIsEenWerkbank, true);
-  check('en ze staan naast elkaar', breed.naastElkaar, true);
-  check('de uitslag krijgt minstens twee keer de rail', breed.uitslagBreder, true);
-  check('en de kaarten staan naast elkaar', breed.kolommen >= 2, true);
+  check('er is een onderzoeksbouwer', breed.bouwer, true);
+  check('met drie blokken', breed.blokken, 3);
+  check('die naast elkaar staan', breed.naastElkaar, true);
+  check('en de concurrenten krijgen de meeste ruimte', breed.middenBreedst, true);
+  check('de uitslag staat eronder, over de volle breedte', breed.uitslagOnder, true);
   check('en meet zijn kolommen tegen zijn eigen vlak', breed.eigenContainer, 'crlijst');
-  check('de filters staan in de rail', breed.filtersInRail, true);
+  check('de scope staat erbij', breed.scopeErnaast, true);
+  check('en de kaarten staan naast elkaar', breed.kolommen >= 2, true);
 
   console.log('\n  je kiest zelf welke merken meedoen');
   /* Het was een merk OF alles. Daartussen zit precies wat je wilt: de
@@ -751,6 +788,90 @@ function ONDERSCHEP() {
   check('nog een keer drukken zet er een uit', keuze.naUit, ['m2']);
   check('alle merken betekent geen merkfilter', keuze.allesHeeftGeenFilter, false);
   check('en dan doen ze allemaal mee', keuze.allesTelt, 4);
+
+  console.log('\n  de merkcontext kiest zijn eigen concurrenten');
+  /* Voor welk van onze merken doe je dit onderzoek? Dat is geen sier: de
+     concurrenten van Wellshave en die van Wellshine zijn twee markten. */
+  const context = await page.evaluate(() => {
+    var el = document.getElementById('cr-inhoud');
+    var kaarten = el.querySelectorAll('[data-action="cr-context"]');
+    el.querySelector('[data-action="cr-context"][data-id="13318"]').click();
+    var na = { sel: (_cr.merkSel || []).slice(), context: _cr.context, bereik: _cr.bereik };
+    /* En terug naar alles laat geen selectie van dat merk achter: dan sta je op
+       "alle gevolgde merken" terwijl er nog vier aangevinkt staan. */
+    document.getElementById('cr-inhoud')
+      .querySelector('[data-action="cr-bereik"][data-id="brandtracker"]').click();
+    var terug = { sel: (_cr.merkSel || []).slice(), context: _cr.context };
+    /* De hele markt is geen eenrichtingsdeur: er is een weg terug. */
+    document.getElementById('cr-inhoud')
+      .querySelector('[data-action="cr-bereik"][data-id="markt"]').click();
+    var wegTerug = !!document.getElementById('cr-inhoud')
+      .querySelector('[data-action="cr-bereik"][data-id="brandtracker"]');
+    document.getElementById('cr-inhoud')
+      .querySelector('[data-action="cr-bereik"][data-id="brandtracker"]').click();
+    return { kaarten: kaarten.length, na: na, terug: terug, wegTerug: wegTerug };
+  });
+  check('elke map is een merkcontext, plus alles en de markt', context.kaarten, 2);
+  check('een context selecteert zijn concurrenten', context.na.sel, ['m1', 'm2']);
+  check('en zet het bereik op de Brand Tracker', context.na.bereik, 'brandtracker');
+  check('terug naar alles laat geen selectie achter', context.terug, { sel: [], context: '' });
+  check('en vanaf de hele markt is er een weg terug', context.wegTerug, true);
+
+  console.log('\n  de concurrenten zijn kaarten, geen pillen');
+  const merkkaarten = await page.evaluate(() => {
+    var el = document.getElementById('cr-inhoud');
+    var kaart = el.querySelector('.cr-merkkaart');
+    var uit = {
+      aantal: el.querySelectorAll('.cr-merkkaart').length,
+      /* Logo, naam en telling op elke kaart: dat is wat je laat scannen. */
+      heeftLogo: !!kaart.querySelector('.cr-logo'),
+      naam: (kaart.querySelector('.cr-merknaam') || {}).textContent,
+      telling: (kaart.querySelector('.cr-merksub') || {}).textContent,
+      /* En de keuze is te zien zonder de randkleur met de buurman te
+         vergelijken. */
+      gedrukt: kaart.getAttribute('aria-pressed')
+    };
+    kaart.click();
+    var na = document.getElementById('cr-inhoud').querySelector('.cr-merkkaart');
+    uit.naKlik = na.getAttribute('aria-pressed');
+    uit.markering = na.classList.contains('aan');
+    /* Zoeken krimpt de lijst en laat de rest staan. */
+    _cr.merkZoek = 'balz';
+    crRender();
+    uit.naZoek = document.getElementById('cr-inhoud').querySelectorAll('.cr-merkkaart').length;
+    _cr.merkZoek = 'zzzz';
+    crRender();
+    uit.geenTreffer = document.getElementById('cr-inhoud').querySelectorAll('.cr-merkkaart').length;
+    uit.zegtHetOok = /Geen merk met/.test(document.getElementById('cr-inhoud').textContent);
+    _cr.merkZoek = '';
+    _cr.merkSel = [];
+    crRender();
+    return uit;
+  });
+  check('elk merk krijgt een kaart', merkkaarten.aantal, 4);
+  check('met een logo', merkkaarten.heeftLogo, true);
+  check('een naam', merkkaarten.naam, 'Manscaped');
+  check('en het aantal actieve ads', merkkaarten.telling, '155 actieve ads');
+  check('de kaart zegt of hij aan staat', [merkkaarten.gedrukt, merkkaarten.naKlik], ['false', 'true']);
+  check('en toont dat ook', merkkaarten.markering, true);
+  check('zoeken krimpt de lijst', merkkaarten.naZoek, 1);
+  check('geen treffer laat de andere merken staan', merkkaarten.geenTreffer, 0);
+  check('en zegt dat het er wel zijn', merkkaarten.zegtHetOok, true);
+
+  console.log('\n  de scope zegt wat er straks gevraagd wordt');
+  /* Een knop met "Analyseer" zonder te zeggen waarover is precies hoe je de
+     hele markt analyseert in de veronderstelling dat het je concurrenten zijn. */
+  const scope = await page.evaluate(() => {
+    _cr.merkSel = ['m2']; crZetDoel('evergreen'); _cr.dagen = 30; crRender();
+    var t = document.getElementById('cr-inhoud').querySelector('.cr-scope').textContent;
+    _cr.merkSel = []; crZetDoel('looptijd'); _cr.dagen = 14; crRender();
+    return t;
+  });
+  check('de scope noemt de bron', /Brand Tracker/.test(scope), true);
+  check('hoeveel merken', /1 van de 4/.test(scope), true);
+  check('het doel', /Evergreen winners/.test(scope), true);
+  check('het venster', /30 dagen/.test(scope), true);
+  check('en de minimale looptijd die het doel zette', /90\+ dagen/.test(scope), true);
 
   console.log('\n  de mappen van de Brand Tracker zijn de echte groepen');
   /* Wellshave en Wellshine hebben elk hun eigen concurrenten. Op een hoop is

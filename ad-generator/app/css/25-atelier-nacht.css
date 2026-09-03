@@ -675,13 +675,10 @@ input:focus, select:focus, textarea:focus {
    werkbank. Links de knoppen, rechts de uitslag, en de uitslag krijgt alles wat
    er over is. */
 .cr-wrap { container-type: inline-size; container-name: research; max-width: none; }
-.cr-werk { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
-@container research (min-width: 900px) {
-  .cr-werk { grid-template-columns: 320px minmax(0, 1fr); gap: 32px; }
-  /* De rail blijft staan terwijl je door de kaarten scrollt: anders scrol je
-     terug naar boven voor elke filterklik. */
-  .cr-rail { position: sticky; top: 12px; }
-}
+/* Bouwer boven, uitslag eronder. Het was een smalle rail met de kaarten
+   ernaast; de bouwer heeft die breedte zelf nodig -- dertien merkkaarten in een
+   kolom van driehonderd is weer een lijst om doorheen te scrollen. */
+.cr-werk { display: flex; flex-direction: column; gap: 26px; }
 /* De kaarten tellen hun kolommen tegen HUN vlak, niet tegen het scherm: met de
    rail ernaast is dat vierhonderd pixels minder. */
 .cr-uitslag { container-type: inline-size; container-name: crlijst; min-width: 0; }
@@ -719,6 +716,153 @@ input:focus, select:focus, textarea:focus {
 }
 .cr-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .cr-logo i { font-style: normal; }
+
+/* ── De onderzoeksbouwer ────────────────────────────────────────────────────
+   Vier blokken die samen een vraag stellen, en rechts wat die vraag is. Het was
+   een stapel filterrijen; nu is de volgorde van het scherm de volgorde van de
+   beslissing: voor welk merk, tegen wie, waarnaar, en met welke marges. */
+.cr-bouw { display: flex; flex-direction: column; gap: 16px; margin-bottom: 26px; }
+.cr-bouwkop { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.cr-bouwkop h3 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 19px; color: var(--text); }
+.cr-bouwkop p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-faint); }
+
+.cr-stapper { display: flex; align-items: center; gap: 18px; list-style: none; margin: 0; padding: 0; }
+.cr-stapper li {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-faint);
+  padding-bottom: 6px; border-bottom: 2px solid transparent;
+}
+.cr-stapper li.nu { color: var(--gold-bright); border-bottom-color: var(--gold); }
+.cr-stapper li.af { color: var(--text-soft); }
+.cr-stapnr {
+  width: 19px; height: 19px; border-radius: 50%; display: inline-grid; place-items: center;
+  font-size: 10.5px; border: 1px solid currentColor;
+}
+.cr-stapper li.nu .cr-stapnr { background: var(--gold); border-color: var(--gold); color: #14120c; }
+
+/* Drie blokken naast elkaar: context, concurrenten (breed), doel. */
+.cr-bouwraster { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.cr-bouwonder { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+@container research (min-width: 900px) {
+  .cr-bouwraster { grid-template-columns: 250px minmax(0, 1fr) 280px; }
+  .cr-bouwonder { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+.cr-blok {
+  position: relative; display: flex; flex-direction: column; gap: 9px;
+  padding: 16px 16px 18px; border-radius: 14px;
+  border: 1px solid var(--hairline); background: rgba(255, 255, 255, .015);
+}
+.cr-bloknr {
+  position: absolute; top: 14px; right: 16px;
+  font-size: 10px; color: var(--text-faint); letter-spacing: .1em;
+}
+.cr-bloktitel { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+
+/* Voor welk van onze merken. Een kaart en geen radioknop: hier begint het
+   onderzoek en dat mag je zien. */
+.cr-contextkaart {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 11px 13px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer;
+}
+.cr-contextkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-contextkaart.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-contextkaart.stil { background: transparent; border-style: dashed; }
+.cr-contextnaam { font-size: 13.5px; color: var(--text); }
+.cr-contextkaart.aan .cr-contextnaam { color: var(--gold-bright); }
+.cr-contextsub { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+
+/* De concurrenten als kaarten. Een pil met alleen een naam dwingt je de lijst
+   te lezen; een kaart met logo en aantal laat je hem scannen. */
+.cr-merkbalk { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cr-merkbalk .cr-invoer { flex: 1 1 200px; }
+.cr-merkstand { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+.cr-snelrij { display: flex; flex-wrap: wrap; gap: 6px; }
+.cr-snel {
+  font-size: 11.5px; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--text-soft); cursor: pointer;
+}
+.cr-snel:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.cr-snel.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+
+.cr-merkraster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@container research (min-width: 1180px) { .cr-merkraster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container research (min-width: 900px) and (max-width: 1179px) { .cr-merkraster { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cr-merkkaart {
+  position: relative; display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 9px 11px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer; min-width: 0;
+}
+.cr-merkkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-merkkaart.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-merkkaart .cr-logo { width: 30px; height: 30px; border-radius: 8px; font-size: 12px; }
+.cr-merkkaart-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.cr-merkkaart .cr-merknaam { font-size: 12.5px; color: var(--text); }
+.cr-merkkaart.aan .cr-merknaam { color: var(--gold-bright); }
+.cr-merksub { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Het vinkje bevestigt de keuze. Zonder markering moet je de randkleur
+   vergelijken met de buurman om te zien wat aan staat. */
+.cr-vink { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line); flex: 0 0 auto; }
+.cr-merkkaart.aan .cr-vink { border-color: var(--gold); background: var(--gold); position: relative; }
+.cr-merkkaart.aan .cr-vink::after {
+  content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+  border: solid #14120c; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg);
+}
+
+/* De onderzoeksdoelen. */
+.cr-doel {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer;
+}
+.cr-doel:hover:not(:disabled) { border-color: rgba(var(--gold-rgb), .5); }
+.cr-doel.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-doelnaam { font-size: 12.5px; color: var(--text); }
+.cr-doel.aan .cr-doelnaam { color: var(--gold-bright); }
+.cr-doelsub { font-size: 11px; color: var(--text-faint); }
+/* Nog niet beschikbaar, en dat is te zien én te lezen. Een kaart die je kunt
+   aanklikken en die stil de standaardlijst oplevert is erger dan een kaart die
+   uitstaat: dan denk je dat je iets gemeten hebt. */
+.cr-doel.nogniet { opacity: .45; cursor: not-allowed; border-style: dashed; }
+.cr-meer {
+  align-self: flex-start; background: none; border: none; padding: 2px 0;
+  color: var(--gold); font-size: 11.5px; cursor: pointer; text-decoration: underline;
+}
+
+.cr-velden { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.cr-veld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cr-veld.breed { grid-column: 1 / -1; }
+.cr-veld > span:first-child { font-size: 11px; color: var(--text-faint); letter-spacing: .04em; }
+.cr-vast {
+  display: flex; flex-direction: column; gap: 2px; padding: 7px 11px; border-radius: 8px;
+  border: 1px dashed var(--line); color: var(--text-soft); font-size: 12px;
+}
+.cr-vast em { font-style: normal; font-size: 10.5px; color: var(--text-faint); }
+
+/* De scope: wat er straks werkelijk gevraagd wordt, in woorden. */
+.cr-scope {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border-radius: 14px; border: 1px solid rgba(var(--gold-rgb), .28);
+  background: rgba(var(--gold-rgb), .045);
+}
+.cr-scopelijst { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cr-scopelijst > div { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.cr-scopelijst dt { color: var(--text-faint); min-width: 92px; }
+.cr-scopelijst dd { margin: 0; color: var(--text); }
+.cr-scope .cr-knop { width: 100%; }
+
+.cr-rory { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px;
+  padding: 12px 14px; border-radius: 12px; border: 1px solid var(--hairline); }
+.cr-rory-foto { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
+  position: relative; overflow: hidden; display: inline-grid; place-items: center;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26); color: var(--gold); }
+.cr-rory-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cr-rory-foto i { font-style: normal; font-size: 12px; }
+.cr-rory-t { display: flex; flex-direction: column; gap: 2px; flex: 1 1 240px; min-width: 0; }
+.cr-rory-t b { font-size: 12.5px; color: var(--text); font-weight: 600; }
+.cr-rory-t span { font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+.cr-stappen { display: flex; gap: 14px; flex-wrap: wrap; }
+.cr-stappen span { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px; }
+.cr-stappen span::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
 
 /* Filteren over wat er al binnen is. Boven de kaarten, want het gaat over die
    kaarten en niet over de volgende ophaalronde. */
