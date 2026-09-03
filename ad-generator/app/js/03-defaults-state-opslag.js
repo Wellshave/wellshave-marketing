@@ -378,7 +378,7 @@ function wgpOrder(){ return wgp.mode==='vary' ? WGP_ORDER_VARY : (wgp.mode==='id
 var WGP_NAMEN = { start:'Start', braindump:'Idee', winner:'Winner', varywhat:'Variabele', product:'Product', persona:'Persona', angle:'Angle', format:'Format', scene:'Scene', plan:'Plan' };
 var WGP_AW_MAP = { 'Unaware':'unaware', 'Problem Aware':'problem', 'Solution Aware':'solution', 'Product Aware':'product', 'Most Aware':'most' };
 
-function wgpModel(){ var el=document.getElementById('anthropic-model'); return (el && el.value) || 'claude-fable-5'; }
+function wgpModel(){ var el=document.getElementById('anthropic-model'); return (el && el.value) || 'claude-opus-5'; }
 function wgpEsc(t){ return escapeHtml(t==null?'':String(t)); }
 function wgpSet(key,val){ if(val==null||String(val).trim()===''){ return; } wgp.sel[key]=String(val).trim(); }
 function wgpLbl(key){ var v=wgp.sel[key]; if(!v) return ''; return v.length>46?v.slice(0,46)+'...':v; }

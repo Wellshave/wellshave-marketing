@@ -2930,12 +2930,28 @@ textarea.field-value.mono:focus {
   letter-spacing: -0.02em;
 }
 .library-item .lib-meta { font-size: 12px; color: var(--text-soft); font-weight: 500; }
+/* De knoppenrij onder een bewaarde creative.
+   Dit was een flexrij zonder wrap, dus bij een smalle kaart werden de knoppen
+   samengeknepen tot ze hun eigen tekst over drie regels braken. Vijf knoppen
+   met elk een andere hoogte, dat leest als kapot en niet als een rij.
+   Nu breekt de RIJ in plaats van het woord: elke knop houdt zijn tekst op
+   een regel, en past hij niet meer, dan zakt hij naar de volgende regel. */
 .library-item .lib-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--hairline);
+}
+.library-item .lib-actions .btn { white-space: nowrap; }
+/* Verwijderen hoort niet tussen de dingen die je wél wilt doen. Rechts, en
+   vierkant, zodat een misklik minder voor de hand ligt. */
+.library-item .lib-actions .btn-danger {
+  margin-left: auto;
+  min-width: 34px;
+  padding-left: 10px; padding-right: 10px;
 }
 .library-item .lib-content {
   display: grid;

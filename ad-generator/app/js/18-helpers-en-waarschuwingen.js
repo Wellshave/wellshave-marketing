@@ -517,3 +517,101 @@ function useConceptSuggestion(conceptText) {
   input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+
+/* ── Een foutmelding leesbaar maken ──────────────────────────────────────
+   Dit is de vijfde keer dat hetzelfde patroon toeslaat: er komt een object
+   binnen waar tekst verwacht werd, String() maakt er "[object Object]" van,
+   en dat komt zo op het scherm. Geen foutmelding, geen waarschuwing -- alleen
+   een zin die niets zegt op de plek waar hoorde te staan wat er mis is.
+
+   Eerder was het het Score-veld in het dossier; nu de foutmelding van de
+   worker, die bij een onbekende route {error: {message: "..."}} teruggeeft
+   terwijl hij bij een geweigerde login {error: "unauthorized"} geeft. Twee
+   vormen, en de ene sloopt het scherm.
+
+   Deze functie geeft NOOIT "[object Object]" terug. Vindt hij geen bruikbare
+   tekst, dan zegt hij dat er iets misging en welke status erbij hoorde -- dat
+   is minder, maar het is waar en je kunt ermee verder. */
+function wgFoutTekst(data, status) {
+  var uit = wgFoutUitpakken(data);
+  if (uit) return uit;
+  if (status) return 'de server antwoordde met ' + status + ' zonder uitleg';
+  return 'er ging iets mis, zonder verdere uitleg';
+}
+
+function wgFoutUitpakken(w, diepte) {
+  var d = diepte || 0;
+  if (w === null || w === undefined) return '';
+  /* Drie lagen diep is ruim: {error:{error:{message}}} bestaat, dieper niet.
+     Zonder grens is een kringverwijzing een vastloper. */
+  if (d > 3) return '';
+  if (typeof w === 'string') {
+    var t = w.trim();
+    return (t && t !== '[object Object]') ? t : '';
+  }
+  if (typeof w === 'number' || typeof w === 'boolean') return String(w);
+  if (Array.isArray(w)) {
+    var stukken = w.map(function (x) { return wgFoutUitpakken(x, d + 1); }).filter(Boolean);
+    return stukken.join(' , ');
+  }
+  if (typeof w === 'object') {
+    /* De volgorde is de volgorde waarin diensten hun melding zetten. message
+       eerst: dat is bijna altijd de zin die voor een mens bedoeld is. */
+    var sleutels = ['message', 'error', 'melding', 'detail', 'description', 'hint', 'reason', 'type'];
+    for (var i = 0; i < sleutels.length; i++) {
+      if (w[sleutels[i]] !== undefined) {
+        var g = wgFoutUitpakken(w[sleutels[i]], d + 1);
+        if (g) return g;
+      }
+    }
+  }
+  return '';
+}
+
+/* En de melding die hoort bij de fout die je nu het vaakst krijgt: de console
+   is uitgerold en de worker nog niet. Dan bestaat de route wel in de browser
+   en niet op de server, en antwoordt de worker met zijn algemene 404 -- een
+   zin over /systeem en /anthropic waar de lezer niets aan heeft.
+
+   Dit vertaalt dat naar wat er werkelijk moet gebeuren. */
+function wgWorkerTeOud(status, tekst, wat) {
+  if (status !== 404) return null;
+  if (!/Gebruik \/systeem|onbekend .*endpoint/i.test(String(tekst || ''))) return null;
+  return 'De worker kent ' + (wat || 'deze route') + ' nog niet. De console is bijgewerkt en de ' +
+    'worker nog niet: rol hem uit met  npx wrangler deploy --config platform/worker/wrangler.toml  ' +
+    'en controleer daarna op /health of er versie 20 of hoger staat.';
+}
+
+window.wgFoutTekst = wgFoutTekst;
+window.wgFoutUitpakken = wgFoutUitpakken;
+window.wgWorkerTeOud = wgWorkerTeOud;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Het gezicht bij een naam
+
+   Rory had een portret, Nick een letter in een cirkel. Dat leest als twee
+   soorten deelnemers: een met een gezicht en een die het systeem zelf is --
+   terwijl Nick precies dezelfde rol heeft, alleen aan de andere kant van de
+   beslissing (Rory bepaalt wat er gemaakt wordt, Nick of het geld gaat
+   opnemen).
+
+   Eén functie voor allebei, zodat er nooit meer een plek is waar de een wel
+   en de ander geen gezicht heeft. De letter blijft eronder liggen: mist het
+   bestand, dan haalt onerror de foto weg en staat de letter er weer. Zo is een
+   ontbrekend portret een gaatje in de vormgeving en geen kapot scherm. */
+var TEAM_PORTRET = {
+  rory: { bestand: 'img/rory.jpg', letter: 'R', naam: 'Rory' },
+  nick: { bestand: 'img/nick.jpg', letter: 'N', naam: 'Nick Theriot' }
+};
+
+function teamPortret(wie, klasse) {
+  var p = TEAM_PORTRET[String(wie || '').toLowerCase()];
+  /* Geen bekende naam betekent geen portret. Een verzonnen letter zou een
+     deelnemer suggereren die niet bestaat. */
+  if (!p) return '';
+  return '<span class="' + (klasse || 'team-portret') + '" aria-hidden="true">' +
+    '<img src="' + p.bestand + '" alt="" onerror="this.remove()"><i>' + p.letter + '</i></span>';
+}
+
+window.TEAM_PORTRET = TEAM_PORTRET;
+window.teamPortret = teamPortret;

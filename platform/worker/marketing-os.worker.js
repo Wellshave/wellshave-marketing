@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 16;
-const VERSIE_DATUM = '2026-08-14';
-const VERSIE_WAT = 'zonder agents: geen model besluit hier nog iets. De negen agents, hun tools en de tool-lus zijn eruit; wat blijft is een takenwachtrij met systeemtaken (/systeem/*), de publicatieketen met een mens als aanvrager, en Creative Deconstruction als losse vraag';
+const VERSIE = 31;
+const VERSIE_DATUM = '2026-09-03';
+const VERSIE_WAT = 'creative research: je kiest zelf welke merken je analyseert (meerdere tegelijk) en de mappen van de Brand Tracker komen mee, zodat de concurrenten van Wellshave en die van Wellshine uit elkaar te houden zijn; per merk komen alle domeinen mee zodat het scherm het juiste logo kan kiezen';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -70,10 +70,18 @@ const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
    omzeilen ervan. */
 const ORIGINS = ['https://wellshave-adgen.netlify.app', 'https://wellshave-werkbank.netlify.app',
                  'http://localhost:8823', 'http://127.0.0.1:8823'];
+/* De deploy previews van diezelfde twee sites draaien dezelfde console en dus
+   dezelfde lange calls; via de tussenstap sneuvelt het uitwerken van drie
+   concepten op de dertig seconden. Alleen previews van deze twee sites, en
+   toegang blijft hoe dan ook een ingelogd en goedgekeurd teamaccount. */
+const ORIGIN_PATROON = /^https:\/\/deploy-preview-\d+--wellshave-(adgen|werkbank)\.netlify\.app$/;
+const originMag = (o) => ORIGINS.includes(o) || ORIGIN_PATROON.test(o);
 
-const MODEL = 'claude-fable-5';
-const FALLBACK_MODEL = 'claude-opus-4-8';
+const MODEL = 'claude-opus-5';
+const FALLBACK_MODEL = 'claude-fable-5';
 const META_API = 'https://graph.facebook.com/v21.0';
+const ATRIA_API = 'https://api.tryatria.com';
+const TRENDTRACK_API = 'https://api.trendtrack.io';
 
 /* De Facebook-pagina waaronder de advertenties hangen. Geverifieerd tegen het
    account: bestaande creatives hebben een object_story_id die hiermee begint. */
@@ -154,8 +162,278 @@ async function sbPublic(env, table, query) {
 }
 
 /* ============================================================
+ * 3. Sleutelbeheer — de API-sleutels, versleuteld in de database
+ * ============================================================
+ *
+ * Waarom dit bestaat: een sleutel wisselen vroeg een terminal met wrangler
+ * erin, en dat heeft niet iedereen die het wel mag beslissen. Nu kan het via
+ * het adminmenu in de console.
+ *
+ * Waarom het niet gewoon een tabel met tekst is: dan verplaatst het probleem
+ * zich van de broncode naar de database, en leest iedereen met een dump of
+ * een gelekte Supabase-sleutel je API-sleutels mee. Dus staat de waarde
+ * versleuteld met AES-GCM, en staat de hoofdsleutel waarmee dat gebeurt als
+ * Worker secret (SLEUTEL_MASTER). Twee dingen op twee plekken; je hebt ze
+ * allebei nodig.
+ *
+ * De leesvolgorde is expres deze:
+ *   1. de database, want dat is wat je via het scherm zet;
+ *   2. het Worker secret, als daar niets staat.
+ * Zo blijft een bestaande opzet werken en is dit een toevoeging in plaats van
+ * een omschakeling met een moment waarop niets het doet.
+ */
+
+/* De waarde kort bijhouden. De worker leeft per aanroep, maar binnen een
+   aanroep kan dezelfde sleutel meerdere keren gevraagd worden en dan is een
+   tweede databaseronde weggegooid werk. Zestig seconden is lang genoeg om dat
+   te schelen en kort genoeg dat een wissel meteen aankomt. */
+const _sleutelCache = new Map(); // naam -> { exp, waarde, bron }
+
+function b64naarBytes(b64) {
+  const bin = atob(b64);
+  const uit = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) uit[i] = bin.charCodeAt(i);
+  return uit;
+}
+function bytesNaarB64(bytes) {
+  let bin = '';
+  const b = new Uint8Array(bytes);
+  for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+  return btoa(bin);
+}
+
+/* De hoofdsleutel als AES-GCM-sleutel. SLEUTEL_MASTER is willekeurige tekst;
+   die wordt gehasht naar precies 256 bits, zodat elke lengte werkt en niemand
+   een wachtwoord van exact 32 tekens hoeft te verzinnen. */
+async function masterSleutel(env) {
+  if (!env.SLEUTEL_MASTER) return null;
+  const ruw = new TextEncoder().encode(env.SLEUTEL_MASTER);
+  const hash = await crypto.subtle.digest('SHA-256', ruw);
+  return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function versleutel(env, tekst) {
+  const k = await masterSleutel(env);
+  if (!k) throw new Error('SLEUTEL_MASTER ontbreekt op deze worker');
+  /* Een nieuwe nonce per keer. Twee keer dezelfde nonce met dezelfde sleutel
+     is de ene fout die AES-GCM echt breekt, dus hij wordt nooit hergebruikt
+     en nooit afgeleid van de inhoud. */
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce }, k, new TextEncoder().encode(tekst));
+  return { cipher: bytesNaarB64(cipher), nonce: bytesNaarB64(nonce) };
+}
+
+async function ontsleutel(env, cipherB64, nonceB64) {
+  const k = await masterSleutel(env);
+  if (!k) return null;
+  try {
+    const plat = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: b64naarBytes(nonceB64) }, k, b64naarBytes(cipherB64));
+    return new TextDecoder().decode(plat);
+  } catch (e) {
+    /* Mislukt ontsleutelen betekent bijna altijd: SLEUTEL_MASTER is gewisseld
+       nadat deze rij geschreven werd. De rij is dan niet stuk maar onleesbaar,
+       en de sleutel moet opnieuw gezet worden. Null teruggeven en laten
+       terugvallen op het Worker secret -- een uitzondering hier zou de hele
+       console platleggen om iets wat op te lossen is. */
+    return null;
+  }
+}
+
+/* De sleutel die de worker werkelijk moet gebruiken. */
+async function sleutelVan(env, naam) {
+  const nu = Date.now();
+  const c = _sleutelCache.get(naam);
+  if (c && c.exp > nu) return c.waarde;
+
+  let waarde = null, bron = null;
+  if (env.SUPABASE_SERVICE_KEY && env.SLEUTEL_MASTER) {
+    try {
+      const rijen = await sbSelect(env, 'systeem_geheimen',
+        'naam=eq.' + encodeURIComponent(naam) + '&select=cipher,nonce');
+      if (rijen && rijen[0]) {
+        waarde = await ontsleutel(env, rijen[0].cipher, rijen[0].nonce);
+        if (waarde) bron = 'database';
+      }
+    } catch (e) { /* database onbereikbaar: dan het secret, niet niets */ }
+  }
+  if (!waarde && env[naam]) { waarde = env[naam]; bron = 'worker secret'; }
+
+  _sleutelCache.set(naam, { exp: nu + 60000, waarde: waarde, bron: bron });
+  return waarde;
+}
+
+/* Waar een sleutel vandaan komt, zonder hem te lezen. Voor het scherm. */
+async function sleutelHerkomst(env, naam) {
+  await sleutelVan(env, naam); // vult de cache, inclusief bron
+  const c = _sleutelCache.get(naam);
+  return (c && c.bron) || 'ontbreekt';
+}
+
+/* Ziet dit eruit als een sleutel van deze dienst? Niet om slim te zijn, maar
+   omdat de meest voorkomende fout een meegeplakte spatie of een half
+   gekopieerde sleutel is. Die sla je liever niet op om er een dag later
+   achter te komen dat de console "invalid" zegt. */
+function sleutelVormKlopt(naam, waarde) {
+  const w = String(waarde || '').trim();
+  if (naam === 'ANTHROPIC_KEY') return /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(w);
+  if (naam === 'OPENAI_KEY') return /^sk-[A-Za-z0-9_-]{20,}$/.test(w);
+  if (naam === 'ATRIA_API_KEY') return /^atria-sk_[A-Za-z0-9_-]{16,}$/.test(w);
+  /* TrendTrack schrijft geen voorvoegsel voor. Dan blijft alleen de vorm over
+     die elke sleutel heeft: lang genoeg, en zonder spaties of regeleindes --
+     precies wat er misgaat bij plakken uit een e-mail of een chatvenster. */
+  if (naam === 'TRENDTRACK_API_KEY') return /^[A-Za-z0-9._-]{24,}$/.test(w);
+  return false;
+}
+
+/* De sleutels die dit systeem kent. Eén lijst, want drie plekken die elk hun
+   eigen lijstje bijhouden lopen uit elkaar: dan staat er een sleutel in het
+   menu die de worker weigert op te slaan, of andersom. */
+const SLEUTELNAMEN = ['ANTHROPIC_KEY', 'OPENAI_KEY', 'ATRIA_API_KEY', 'TRENDTRACK_API_KEY'];
+
+/* De foutmelding van de dienst inkorten tot iets bruikbaars. Voluit
+   doorgeven kan de sleutel bevatten die je net probeerde: sommige diensten
+   echoen hem terug in hun melding, en dan staat hij alsnog in beeld. */
+function kortDeFout(tekst, status, sleutel) {
+  let bericht = '';
+  try { const o = JSON.parse(tekst); bericht = (o.error && (o.error.message || o.error.type)) || ''; } catch (e) { }
+  if (!bericht) { try { const o = JSON.parse(tekst); bericht = o.message || o.error || ''; } catch (e) { } }
+  /* En de details erbij. "Request validation failed" zonder te zeggen WELK veld
+     faalde kostte een halve ochtend zoeken -- de dienst stuurt dat wel mee, in
+     een veld dat we niet lazen. Elke vorm die diensten hiervoor gebruiken staat
+     hieronder; wat er niet is wordt overgeslagen. */
+  try {
+    const o = JSON.parse(tekst);
+    const details = o.errors || o.details || o.detail || o.issues || (o.error && (o.error.errors || o.error.details));
+    const stukken = [];
+    (Array.isArray(details) ? details : (details ? [details] : [])).forEach(function (d) {
+      if (typeof d === 'string') { stukken.push(d); return; }
+      if (d && typeof d === 'object') {
+        const waar = d.path || d.field || d.param || d.loc || '';
+        const wat = d.message || d.msg || d.reason || d.code || '';
+        const zin = [Array.isArray(waar) ? waar.join('.') : waar, wat].filter(Boolean).join(': ');
+        if (zin) stukken.push(zin);
+      }
+    });
+    if (stukken.length) bericht = (bericht ? bericht + ' — ' : '') + stukken.join('; ');
+    if (!bericht && o.errorMessage) bericht = String(o.errorMessage);
+  } catch (e) { }
+  bericht = String(bericht);
+  /* De sleutel die we net gebruikt hebben letterlijk wegstrepen. De patronen
+     hieronder dekken alleen diensten met een herkenbaar voorvoegsel, en dat is
+     precies waar dit misging: een TrendTrack-sleutel heeft er geen, dus die
+     kwam gewoon mee in de melding op het scherm. De waarde die we in de hand
+     hebben is de enige maskering die altijd klopt. */
+  if (sleutel && String(sleutel).length > 7) {
+    bericht = bericht.split(String(sleutel)).join('<sleutel>');
+  }
+  bericht = bericht
+    .replace(/atria-sk_[A-Za-z0-9_-]{8,}/g, '<sleutel>')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<sleutel>')
+    .slice(0, 140);
+  return bericht || ('de dienst antwoordde met ' + status);
+}
+
+/* Werkt hij ook echt? Dit is de vraag die /health niet beantwoordde, en dat
+   heeft een halve dag gekost: het veld was gevuld, dus alles stond groen,
+   terwijl de sleutel al ingetrokken was. Een zo klein mogelijke aanroep. */
+async function sleutelWerkt(env, naam) {
+  const sleutel = await sleutelVan(env, naam);
+  if (!sleutel) return { geldig: false, reden: 'er staat geen sleutel' };
+  try {
+    if (naam === 'ANTHROPIC_KEY') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': sleutel, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'x' }] })
+      });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
+    }
+    if (naam === 'TRENDTRACK_API_KEY') {
+      /* /v1/me is bij TrendTrack met opzet ongemeten: hij kost geen credits en
+         zegt precies wat je wilt weten -- op welke werkruimte deze sleutel
+         uitkomt. Een zoekopdracht als proef zou credits verbranden. */
+      const r = await fetch(TRENDTRACK_API + '/v1/me', { headers: { 'Authorization': 'Bearer ' + sleutel } });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
+    }
+    if (naam === 'ATRIA_API_KEY') {
+      /* De goedkoopste vraag die Atria kent: welke advertentieaccounts hangen
+         aan deze werkruimte. Geen paginering, geen credits. */
+      const r = await fetch(ATRIA_API + '/open/v1/ad-accounts', { headers: { 'X-API-Key': sleutel } });
+      if (r.ok) return { geldig: true, reden: null };
+      return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
+    }
+    const r = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': 'Bearer ' + sleutel } });
+    if (r.ok) return { geldig: true, reden: null };
+    return { geldig: false, reden: kortDeFout(await r.text(), r.status, sleutel) };
+  } catch (e) {
+    return { geldig: false, reden: 'de dienst was niet bereikbaar' };
+  }
+}
+
+/* Zetten. Geeft terug wat het scherm mag weten -- nooit de waarde zelf. */
+async function sleutelZet(env, naam, waarde, wie) {
+  const w = String(waarde || '').trim();
+  if (!sleutelVormKlopt(naam, w)) {
+    return { error: 'dat ziet er niet uit als een ' + naam + '. Controleer of de hele sleutel geplakt is.', status: 400 };
+  }
+  if (!env.SLEUTEL_MASTER) {
+    return { error: 'SLEUTEL_MASTER ontbreekt op deze worker. Zet hem eenmalig met: npx wrangler secret put SLEUTEL_MASTER', status: 500 };
+  }
+  const enc = await versleutel(env, w);
+  await sbInsert(env, 'systeem_geheimen', [{
+    naam: naam, cipher: enc.cipher, nonce: enc.nonce,
+    staart: w.slice(-4), gezet_door: wie, gezet_op: new Date().toISOString()
+  }], { onConflict: 'naam' });
+  /* De cache meteen leeg, anders blijft de oude sleutel nog een minuut in
+     gebruik en denkt de beheerder dat het niet gewerkt heeft. */
+  _sleutelCache.delete(naam);
+  return { ok: true, naam: naam, staart: w.slice(-4) };
+}
+
+/* Wat er over de sleutels te vertellen valt zonder er iets van prijs te
+   geven: waar hij vandaan komt, aan welke staart je hem herkent, wie hem
+   wanneer heeft gezet. */
+async function sleutelOverzicht(env) {
+  let rijen = [];
+  try {
+    rijen = await sbSelect(env, 'systeem_geheimen', 'select=naam,staart,gezet_door,gezet_op');
+  } catch (e) { rijen = []; }
+  const perNaam = {};
+  rijen.forEach(function (r) { perNaam[r.naam] = r; });
+  const uit = [];
+  for (const naam of SLEUTELNAMEN) {
+    const r = perNaam[naam] || {};
+    uit.push({
+      naam: naam,
+      bron: await sleutelHerkomst(env, naam),
+      staart: r.staart || null,
+      gezet_door: r.gezet_door || null,
+      gezet_op: r.gezet_op || null
+    });
+  }
+  return { sleutels: uit, master: !!env.SLEUTEL_MASTER };
+}
+
+/* ============================================================
  * 4. Meta Ads
  * ============================================================ */
+
+/* De videocijfers komen als lijst met één soort erin ('video_view'). Optellen
+   in plaats van op naam zoeken: welke soort er precies in staat verschilt per
+   veld, en een vaste naam levert dan stil een leeg cijfer op. */
+function metaActieSom(lijst) {
+  if (!Array.isArray(lijst) || !lijst.length) return null;
+  let som = 0, gezien = false;
+  lijst.forEach(function (x) {
+    const w = adGetal(x && x.value);
+    if (w !== null) { som += w; gezien = true; }
+  });
+  return gezien ? som : null;
+}
 
 function metaActie(acties, naam) {
   if (!Array.isArray(acties)) return null;
@@ -221,9 +499,15 @@ async function accountVoorMerk(env, merk) {
 /* Tot 400 dagen en niet 365: de Creative Strategy Map begint op 4 augustus
    2025, en dat is net over een jaar. Op 365 blijft de eerste week van de map
    onbereikbaar -- precies de rijen waar het inhaalslagje om begonnen was. */
-function metaVenster(days) {
+function metaVenster(days, verschuif) {
   var n = Math.max(1, Math.min(Number(days) || 7, 400));
-  var eind = new Date();
+  /* Een venster dat een heel venster terug ligt. Nodig om "daalt hij" te
+     kunnen beantwoorden: dat is geen eigenschap van een advertentie maar een
+     vergelijking tussen twee periodes, en zonder de tweede periode is het een
+     gok met een pijltje erbij. De twee vensters raken elkaar en overlappen
+     niet -- overlap zou de daling deels tegen zichzelf wegstrepen. */
+  var v = Math.max(0, Number(verschuif) || 0);
+  var eind = new Date(Date.now() - v * 86400000);
   var start = new Date(eind.getTime() - (n - 1) * 86400000);
   var dag = function (d) { return d.toISOString().slice(0, 10); };
   return JSON.stringify({ since: dag(start), until: dag(eind) });
@@ -343,7 +627,52 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
   const stukken = vensterStukken(days, venster);
   const mislukt = [];
 
-  for (const venster of stukken) {
+  /* Een geweigerd venster wordt gehalveerd en opnieuw geprobeerd.
+   *
+   * Meta keurt een verzoek niet alleen af op inhoud maar ook op omvang. Op
+   * accountniveau is een venster van dertig dagen dertig rijen; op
+   * advertentieniveau met time_increment=1 zijn het er duizenden, en dan komt
+   * er "An unknown error occurred" terug -- een generieke fout die niets zegt
+   * over wat er mis is. Dat is precies wat er gebeurde: accountniveau vulde
+   * netjes door terwijl advertentieniveau maandenlang niets opleverde, en de
+   * dekking zag er daardoor half uit zonder dat iets "kapot" was.
+   *
+   * Een vast kleiner venster was de andere optie. Dat lost het vandaag op en
+   * breekt weer zodra het aantal advertenties groeit. Halveren past zich aan:
+   * een blok dat te zwaar is valt uiteen tot het licht genoeg is, en een blok
+   * dat in één keer kan blijft één verzoek.
+   *
+   * De bodem ligt op één dag. Weigert Meta een enkele dag, dan is het niet de
+   * omvang en heeft verder knippen geen zin. */
+  const werk = stukken.slice();
+  let gesplitst = 0;
+  /* Tellen hoeveel vensters écht iets opleverden. Vergelijken op aantallen
+     (mislukt tegenover stukken) kan niet meer zodra er gesplitst wordt: één
+     geweigerd venster van dertig dagen wordt dan vijf mislukkingen terwijl
+     `stukken` er nog steeds één telt. Die vergelijking gaf géén fout bij nul
+     rijen, en dat is precies de stille storing waar dit bestand tegen gebouwd
+     is. Dus turven we het enige wat telt: is er ooit iets binnengekomen. */
+  let gelukt = 0;
+  const GRENS_SPLITSEN = 200;
+
+  const halveer = (v) => {
+    let o;
+    try { o = JSON.parse(v); } catch (e) { return null; }
+    const van = new Date(o.since + 'T00:00:00Z');
+    const tot = new Date(o.until + 'T00:00:00Z');
+    const dagen = Math.round((tot - van) / 86400000) + 1;
+    if (dagen < 2) return null;
+    const helft = Math.floor(dagen / 2);
+    const midden = new Date(van.getTime() + (helft - 1) * 86400000);
+    const dag = (d) => d.toISOString().slice(0, 10);
+    return [
+      JSON.stringify({ since: dag(van), until: dag(midden) }),
+      JSON.stringify({ since: dag(new Date(midden.getTime() + 86400000)), until: dag(tot) })
+    ];
+  };
+
+  while (werk.length) {
+  const venster = werk.shift();
   let data = null;
   for (let poging = 0; poging <= 5; poging++) {
     const r = await fetch(`${META_API}/act_${account}/insights?${bouw(lijst, venster)}`);
@@ -359,10 +688,18 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
     const m = /\(#100\)\s+([a-z0-9_]+)\s+is not valid for fields param/i.exec(bericht)
            || /nonexisting field \(([a-z0-9_]+)\)/i.exec(bericht);
     const weg = m && lijst.indexOf(m[1]) > -1 ? m[1] : null;
-    /* Eén stuk dat weigert mag de andere dertien niet meenemen. Bij één stuk
-       is dit precies het oude gedrag: de fout gaat naar boven. */
+    /* Eén stuk dat weigert mag de andere dertien niet meenemen. */
     if (!weg) {
-      if (stukken.length === 1) throw new Error('Meta: ' + bericht);
+      /* Eerst kleiner proberen: dit is meestal geen inhoudelijke afkeuring
+         maar een venster dat te zwaar is. */
+      const helften = gesplitst < GRENS_SPLITSEN ? halveer(venster) : null;
+      if (helften) {
+        gesplitst++;
+        werk.unshift(helften[0], helften[1]);
+        data = null;
+        break;
+      }
+      if (stukken.length === 1 && !gesplitst) throw new Error('Meta: ' + bericht);
       mislukt.push({ venster: venster, reden: bericht.slice(0, 160) });
       data = null;
       break;
@@ -373,7 +710,7 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
     data = null;
   }
   if (!data || data.error) {
-    if (stukken.length === 1) {
+    if (stukken.length === 1 && !gesplitst) {
       throw new Error('Meta: te veel onbruikbare velden (' + gesneuveld.join(', ')
         + ') — controleer de API-versie ' + META_API.split('/').pop() + ' en het token');
     }
@@ -390,6 +727,7 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
      De grens van veertig pagina's is een noodrem, geen verwachting: bij 500
      per pagina zijn dat 20.000 rijen. Wordt hij geraakt, dan is dat te zien in
      plaats van te raden. */
+  gelukt++;
   rijen.push(...(data.data || []));
   let volgende = data.paging && data.paging.next;
   let paginas = 1;
@@ -418,6 +756,12 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
   }
   } /* volgend stuk */
 
+  if (gesplitst) {
+    await logEvent(env, ctx || {}, 'info',
+      `Meta weigerde ${gesplitst} venster(s) voor ${account} op ${level}-niveau; opgeknipt en alsnog opgehaald`,
+      { gesplitst: gesplitst, level: level, account: account, rijen: rijen.length });
+  }
+
   if (gesneuveld.length) {
     /* Geen throw: er zijn wél cijfers, ze zijn alleen smaller. Wel luid, want
        dit is de enige plek waar zichtbaar wordt dat Meta iets heeft geschrapt. */
@@ -428,13 +772,13 @@ async function metaInsights(env, level, days, accountId, ctx, venster) {
      eerste ziet de map er compleet uit terwijl er maanden ontbreken. Daarom
      luid, met de vensters erbij zodat je weet wélke maanden. */
   if (mislukt.length) {
-    if (mislukt.length === stukken.length) {
-      throw new Error('Meta: geen enkel venster gelukt (' + stukken.length + ' geprobeerd) — '
+    if (!gelukt) {
+      throw new Error('Meta: geen enkel venster gelukt (' + mislukt.length + ' geprobeerd) — '
         + mislukt[0].reden);
     }
     await logEvent(env, ctx || {}, 'warn',
-      `Meta gaf ${mislukt.length} van de ${stukken.length} vensters niet voor ${account}; die periodes ontbreken`,
-      { mislukt: mislukt, level: level, account: account });
+      `Meta gaf ${mislukt.length} venster(s) niet voor ${account} op ${level}-niveau; die periodes ontbreken`,
+      { mislukt: mislukt, level: level, account: account, gelukt: gelukt });
   }
 
   return rijen.map(row => {
@@ -772,6 +1116,1184 @@ async function metaPublish(env, publicationId, gebruiker, direct_aan) {
   }
 }
 
+
+/* ============================================================
+ * 4c. Itereren: de advertentie waarop je voortbouwt
+ *
+ * Itereren begon met een formulier van dertig velden die je met de hand
+ * overtikte uit Ads Manager, of uit een screenshot liet uitlezen. Dat is niet
+ * alleen werk, het is ook de plek waar cijfers stilletjes verkeerd worden: een
+ * komma waar een punt hoort, een percentage dat als getal binnenkomt, een
+ * venster van 30 dagen in het ene veld en 7 in het andere.
+ *
+ * Hier komen ze uit de bron. Twee bronnen, een vorm:
+ *
+ *   ATRIA levert in een aanroep de advertenties van je eigen account,
+ *   gerangschikt op een KPI, met thumbnail, en bij de drill-down ook de copy
+ *   en de CTA. Dat is precies de vraag die de itereerwizard stelt.
+ *
+ *   META GRAPH is de bron waar Atria zelf ook uit put. Hij kost meer aanroepen
+ *   -- cijfers, dan de advertentie, dan de creative -- maar hij werkt zonder
+ *   Atria-abonnement en het token staat er al.
+ *
+ * DRIE REGELS DIE HIER OVERAL GELDEN:
+ *
+ *   1. ONBEKEND IS NULL, NOOIT NUL. Een maat die de bron niet gaf mag niet als
+ *      gemeten nul in beeld komen. Dan lijkt "we weten het niet" op "het is nul
+ *      keer gebeurd", en daar wordt een verkeerde iteratie op gebouwd.
+ *
+ *   2. DE NORM KOMT UIT HET ACCOUNT ZELF. Er staat in dit bestand geen enkele
+ *      grens voor wat een goede CTR of een goede ROAS is. Elke stap wordt
+ *      vergeleken met hetzelfde account over hetzelfde venster. Een vaste grens
+ *      veroudert stil; het account veroudert mee.
+ *
+ *   3. TE WEINIG DATA IS EEN UITSLAG. Een conversiepercentage op zeven klikken
+ *      is ruis, en ruis die eruitziet als een oordeel is erger dan geen
+ *      oordeel.
+ * ============================================================ */
+
+function adGetal(x) {
+  if (x === null || x === undefined || x === '') return null;
+  const n = Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* Delen dat weigert te doen alsof. Geen teller, geen noemer of een noemer van
+   nul: dan is de uitkomst niet nul maar onbekend. */
+function adDeel(teller, noemer) {
+  const t = adGetal(teller), n = adGetal(noemer);
+  if (t === null || n === null || n === 0) return null;
+  return t / n;
+}
+
+/* Wat je kunt uitrekenen als de bron het niet gaf. Uitsluitend uit maten die
+   er wel staan -- een afgeleide van een gok is een gok. */
+function adAfgeleid(c) {
+  const u = Object.assign({}, c);
+  if (u.roas == null) u.roas = adDeel(u.omzet, u.spend);
+  if (u.aov == null) u.aov = adDeel(u.omzet, u.aankopen);
+  if (u.cpa == null) u.cpa = adDeel(u.spend, u.aankopen);
+  if (u.cpc == null) u.cpc = adDeel(u.spend, u.klikken);
+  if (u.cpm == null) { const s = adGetal(u.spend); u.cpm = s === null ? null : adDeel(s * 1000, u.impressions); }
+  if (u.ctr == null) { const v = adDeel(u.klikken, u.impressions); u.ctr = v === null ? null : v * 100; }
+  if (u.frequency == null) u.frequency = adDeel(u.impressions, u.reach);
+
+  /* Hook en hold. Twee cijfers die alleen over de video zelf gaan, en de enige
+     twee waarmee je een lek in de eerste seconden kunt zien. Beide tegen
+     VERTONINGEN, want dat is de noemer waarop ze in de praktijk gerapporteerd
+     worden en de enige waarop ze onderling te vergelijken zijn: van elke
+     honderd vertoningen startte X procent, en Y procent hield vol.
+
+     De definitie staat erbij en dat is geen sier. "Hold rate" betekent bij de
+     ene tafel thruplay/vertoningen en bij de andere thruplay/plays, en die
+     twee schelen een factor. Een percentage zonder zijn deling is een cijfer
+     waar iemand anders een andere conclusie uit trekt dan jij. */
+  if (u.hook_rate == null) {
+    const v = adDeel(u.video_plays, u.impressions);
+    u.hook_rate = v === null ? null : v * 100;
+  }
+  if (u.hold_rate == null) {
+    const v = adDeel(u.video_thruplay, u.impressions);
+    u.hold_rate = v === null ? null : v * 100;
+  }
+  return u;
+}
+
+/* Hoeveel er nog kijkt op een kwart, de helft, driekwart en het eind -- gemeten
+   tegen wie hem gestart is. Null zodra we de starts niet weten: een
+   retentiecurve zonder noemer is een rijtje getallen. */
+function adDoorkijk(c) {
+  if (!c || c.video_plays === null || c.video_plays === undefined || !c.video_plays) return null;
+  const punt = function (w) {
+    const v = adDeel(w, c.video_plays);
+    return v === null ? null : Math.round(v * 1000) / 10;
+  };
+  const uit = { p25: punt(c.video_p25), p50: punt(c.video_p50),
+                p75: punt(c.video_p75), p100: punt(c.video_p100) };
+  const iets = Object.keys(uit).some(function (k) { return uit[k] !== null; });
+  return iets ? uit : null;
+}
+
+/* ---- Atria ------------------------------------------------------------- */
+
+const ATRIA_PERIODES = { 7: 'last_7d', 14: 'last_14d', 30: 'last_30d', 90: 'last_90d' };
+function atriaPeriode(dagen) { return ATRIA_PERIODES[Number(dagen)] || 'last_30d'; }
+
+/* Atria noemt zijn maten met een id en geeft in metric_names de naam die de
+   gebruiker eraan gaf. Namen zijn te wijzigen en kunnen botsen, dus eerst het
+   id; pas als dat niets oplevert de naam. Staat een maat er niet, dan blijft
+   hij null -- er wordt niets overgenomen uit iets wat er toevallig op lijkt. */
+const ATRIA_MAAT = {
+  spend:       { ids: ['spend', 'cost'], naam: /^(spend|amount spent|cost)$/i },
+  impressions: { ids: ['impressions'], naam: /^impressions$/i },
+  reach:       { ids: ['reach'], naam: /^reach$/i },
+  frequency:   { ids: ['frequency'], naam: /^frequency$/i },
+  klikken:     { ids: ['link_clicks', 'inline_link_clicks', 'outbound_clicks', 'clicks'], naam: /^(link |outbound )?clicks$/i },
+  ctr:         { ids: ['link_ctr', 'ctr', 'outbound_ctr'], naam: /^(link |outbound )?ctr$/i },
+  cpm:         { ids: ['cpm'], naam: /^cpm$/i },
+  cpc:         { ids: ['cost_per_link_click', 'cpc'], naam: /^(cpc|cost per (link )?click)$/i },
+  lpv:         { ids: ['landing_page_views', 'landing_page_view', 'lpv'], naam: /^landing page views?$/i },
+  atc:         { ids: ['add_to_cart', 'adds_to_cart', 'omni_add_to_cart'], naam: /^adds? to cart$/i },
+  aankopen:    { ids: ['purchases', 'purchase', 'omni_purchase', 'website_purchase'], naam: /^purchases?$/i },
+  omzet:       { ids: ['purchase_value', 'purchase_conversion_value', 'omni_purchase_value', 'revenue'], naam: /^(purchase (value|conversion value)|revenue)$/i },
+  roas:        { ids: ['roas', 'purchase_roas', 'website_purchase_roas'], naam: /^(website )?(purchase )?roas$/i },
+  aov:         { ids: ['aov', 'average_order_value'], naam: /^(aov|average order value)$/i },
+  cpa:         { ids: ['cpa', 'cost_per_purchase'], naam: /^(cpa|cost per purchase)$/i },
+  /* De videocijfers. Of Atria ze levert hangt van het account af; staat een
+     maat er niet, dan blijft hij null en toont het scherm hem niet. Beter een
+     ontbrekend cijfer dan een cijfer uit een maat die er toevallig op lijkt. */
+  video_plays:    { ids: ['video_plays', 'video_play_actions', 'plays'], naam: /^video plays?$/i },
+  video_thruplay: { ids: ['thruplays', 'video_thruplay_watched', 'thruplay'], naam: /^thruplays?$/i },
+  video_p25:      { ids: ['video_p25_watched', 'video_watches_at_25'], naam: /^video watches at 25%$/i },
+  video_p50:      { ids: ['video_p50_watched', 'video_watches_at_50'], naam: /^video watches at 50%$/i },
+  video_p75:      { ids: ['video_p75_watched', 'video_watches_at_75'], naam: /^video watches at 75%$/i },
+  video_p100:     { ids: ['video_p100_watched', 'video_watches_at_100'], naam: /^video watches at 100%$/i },
+  video_seconden: { ids: ['video_avg_time_watched', 'avg_watch_time'], naam: /^(average )?(video )?watch time$/i }
+};
+
+function atriaMaten(metrics, namen) {
+  const m = metrics || {}, n = namen || {}, uit = {};
+  Object.keys(ATRIA_MAAT).forEach(function (veld) {
+    const spec = ATRIA_MAAT[veld];
+    let w = null;
+    for (const id of spec.ids) {
+      if (m[id] !== undefined && m[id] !== null) { w = m[id]; break; }
+    }
+    if (w === null) {
+      const sleutel = Object.keys(n).find(function (id) {
+        return m[id] !== undefined && m[id] !== null && spec.naam.test(String(n[id] || ''));
+      });
+      if (sleutel !== undefined) w = m[sleutel];
+    }
+    uit[veld] = adGetal(w);
+  });
+  return uit;
+}
+
+async function atriaHaal(env, pad, params) {
+  const sleutel = await sleutelVan(env, 'ATRIA_API_KEY');
+  if (!sleutel) throw new Error('er staat geen ATRIA_API_KEY. Zet hem in het adminmenu of als Worker secret.');
+  const q = params ? ('?' + new URLSearchParams(params)) : '';
+  const r = await fetch(ATRIA_API + pad + q, { headers: { 'X-API-Key': sleutel } });
+  const tekst = await r.text();
+  /* Atria heeft twee foutvormen: de gateway antwoordt plat bij 401, 429 en 5xx,
+     en de dienst zelf pakt alles in een envelop met een code die niet nul is.
+     Alleen naar de HTTP-status kijken laat de tweede soort erdoorheen als
+     succes, en dan krijgt het scherm een lege lijst zonder uitleg. */
+  if (!r.ok) throw new Error('Atria: ' + kortDeFout(tekst, r.status, sleutel));
+  let data;
+  try { data = JSON.parse(tekst); } catch (e) { throw new Error('Atria gaf geen JSON terug'); }
+  if (data && data.code !== undefined && data.code !== 0) {
+    throw new Error('Atria: ' + String(data.message || ('code ' + data.code)).slice(0, 140));
+  }
+  return (data && data.data !== undefined) ? data.data : data;
+}
+
+async function atriaAccounts(env) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts');
+  return (d.items || []).map(function (a) {
+    return {
+      id: a.id, account_id: a.ad_account_id || null, naam: a.name || a.id,
+      platform: a.platform || null, valuta: a.currency || null, staat: a.status || null
+    };
+  });
+}
+
+/* Het beeld en de video uit een rij, waar ze ook staan. Dezelfde aanpak als
+   bij TrendTrack, en om dezelfde reden: drie vaste veldnamen leverden bij Atria
+   een lege kaart op ("geen beeld bij deze advertentie") terwijl het adres
+   gewoon in het antwoord stond -- onder een naam of op een plek die wij niet
+   probeerden. Eerst de paden die we kennen, dan de naam waar hij ook staat, en
+   als laatste elk adres op een host waar wij beelden vandaan halen. */
+function adIsAdres(u) { return typeof u === 'string' && /^https?:\/\//i.test(u); }
+
+/* Hier NIET op host filteren, anders dan bij het onderzoek. Een advertentie
+   uit ons eigen account mag op een host staan die wij nog niet kennen -- en
+   die dan stilzwijgend weglaten levert "de bron gaf geen beeldadres" op
+   terwijl er een adres stond. Dan zoek je aan de verkeerde kant. Het adres
+   gaat mee; weigert de beeldpoort hem, dan zegt het scherm dát, en dan weet je
+   welke host erbij moet. Alleen de blinde eindzoektocht blijft aan de
+   hostlijst gebonden: die grijpt te grof om zonder rem te mogen. */
+function adBeeldUit(rij) {
+  return ttVeld(rij,
+    ['thumbnail_url', 'thumbnail', 'image_url', 'creative.thumbnail_url',
+     'creative.image_url', 'assets.0.url', 'images.0.url'],
+    ['thumbnailUrl', 'thumbnail', 'imageUrl', 'image', 'previewUrl', 'snapshotUrl',
+     'creativeUrl', 'resizedImageUrl', 'originalImageUrl', 'mediaUrl'],
+    function (w) { return adIsAdres(w) && !ttIsVideoAdres(w); }) || ttDiepAdres(rij, ttBeeldMag);
+}
+
+function adVideoUit(rij) {
+  return ttVeld(rij,
+    ['video_url', 'creative.video_url', 'assets.0.video_url'],
+    ['videoUrl', 'videoHdUrl', 'videoSdUrl', 'mediaUrl', 'video'],
+    function (w) { return adIsAdres(w) && ttIsVideoAdres(w); }) || ttDiepAdres(rij, ttVideoMag);
+}
+
+/* Welke velden er dan wél in de rij stonden. Alleen de namen, nooit de inhoud.
+   Zonder dit is "geen beeld" niet te onderscheiden van "verkeerd gezocht", en
+   dat verschil kost een ronde per gok. */
+function adVeldnamen(rij) {
+  const uit = [];
+  if (!rij || typeof rij !== 'object') return uit;
+  Object.keys(rij).forEach(function (k) {
+    uit.push(k);
+    const w = rij[k];
+    if (w && typeof w === 'object' && !Array.isArray(w)) {
+      Object.keys(w).forEach(function (k2) { uit.push(k + '.' + k2); });
+    }
+  });
+  return uit;
+}
+
+function atriaNaarAdvertentie(rij) {
+  return {
+    bron: 'atria',
+    id: rij.platform_ad_id || rij.ad_id || rij.id || null,
+    naam: rij.name || rij.ad_name || '(zonder naam)',
+    staat: rij.status || rij.effective_status || null,
+    beeld: adBeeldUit(rij),
+    video: adVideoUit(rij),
+    cijfers: adAfgeleid(atriaMaten(rij.metrics, rij.metric_names))
+  };
+}
+
+async function atriaAdvertenties(env, account, dagen, sorteer, limiet) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/ads', {
+    period: atriaPeriode(dagen),
+    sort_by: sorteer || 'spend',
+    sort_order: 'desc',
+    limit: String(Math.max(1, Math.min(Number(limiet) || 25, 50)))
+  });
+  return (d.items || []).map(atriaNaarAdvertentie);
+}
+
+async function atriaAdvertentie(env, account, adId, dagen) {
+  const d = await atriaHaal(env,
+    '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/ads/' + encodeURIComponent(adId),
+    { period: atriaPeriode(dagen) });
+  const rij = d.item || d.ad || d;
+  const ad = atriaNaarAdvertentie(rij);
+  ad.copy = {
+    kop: rij.title || rij.headline || null,
+    tekst: rij.body || rij.primary_text || rij.text || null,
+    cta: rij.cta || rij.call_to_action || null
+  };
+  /* Komt er niets uit, dan gaan de veldnamen mee terug. Het scherm kan dan
+     zeggen wat er wél stond in plaats van "geen beeld", en dan is de volgende
+     ronde een aflezing en geen gok. */
+  if (!ad.beeld && !ad.video) ad.velden_zonder_beeld = adVeldnamen(rij);
+  return ad;
+}
+
+async function atriaNorm(env, account, dagen) {
+  const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/summary',
+    { period: atriaPeriode(dagen) });
+  return adAfgeleid(atriaMaten(d.metrics, d.metric_names));
+}
+
+/* ---- Meta Graph -------------------------------------------------------- */
+
+/* Dezelfde velden als de dagelijkse sync, maar zonder time_increment: hier
+   wil je een rij per advertentie over het hele venster, niet een rij per dag.
+   Optellen over dagen zou hier ook niet mogen -- bereik is ontdubbeld binnen
+   de periode die je opvraagt en telt dus niet op. */
+const META_ITEREER_VELDEN = ['spend', 'impressions', 'reach', 'frequency', 'clicks',
+  'inline_link_clicks', 'ctr', 'cpc', 'cpm', 'actions', 'action_values',
+  'quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking',
+  /* Bij een video zijn dit de enige twee cijfers die over de creative zelf
+     gaan: hoeveel mensen hem starten en hoeveel er blijven kijken. Zonder deze
+     velden is een videoadvertentie op precies dezelfde manier te beoordelen als
+     een static, en dat is precies waarom het lek in de eerste drie seconden
+     nooit gevonden werd.
+
+     Alleen velden die de huidige API kent. Eén onbekend veld laat de hele
+     opvraag stuklopen, en dan is er niet één cijfer meer -- ook de gewone
+     niet. video_3_sec_watched_actions staat er daarom NIET bij: die bestaat
+     niet meer. */
+  'video_play_actions', 'video_thruplay_watched_actions',
+  'video_p25_watched_actions', 'video_p50_watched_actions',
+  'video_p75_watched_actions', 'video_p100_watched_actions',
+  'video_avg_time_watched_actions'];
+
+function metaNaarCijfers(rij) {
+  const acties = rij.actions, waarden = rij.action_values;
+  const eerste = function (bron, namen) {
+    for (const n of namen) { const v = metaActie(bron, n); if (v !== null && v !== undefined) return v; }
+    return null;
+  };
+  return adAfgeleid({
+    spend: adGetal(rij.spend),
+    impressions: adGetal(rij.impressions),
+    reach: adGetal(rij.reach),
+    frequency: adGetal(rij.frequency),
+    klikken: adGetal(rij.inline_link_clicks) !== null ? adGetal(rij.inline_link_clicks) : adGetal(rij.clicks),
+    ctr: adGetal(rij.ctr),
+    cpc: adGetal(rij.cpc),
+    cpm: adGetal(rij.cpm),
+    lpv: eerste(acties, ['landing_page_view', 'omni_landing_page_view']),
+    atc: eerste(acties, ['omni_add_to_cart', 'add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart']),
+    aankopen: eerste(acties, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
+    omzet: eerste(waarden, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']),
+    /* De videocijfers komen ook als actielijst terug, met 'video_view' als
+       enige soort. Staat er niets, dan is het geen video -- en dan blijven deze
+       velden null in plaats van nul. */
+    video_plays: metaActieSom(rij.video_play_actions),
+    video_thruplay: metaActieSom(rij.video_thruplay_watched_actions),
+    video_p25: metaActieSom(rij.video_p25_watched_actions),
+    video_p50: metaActieSom(rij.video_p50_watched_actions),
+    video_p75: metaActieSom(rij.video_p75_watched_actions),
+    video_p100: metaActieSom(rij.video_p100_watched_actions),
+    video_seconden: metaActieSom(rij.video_avg_time_watched_actions),
+    roas: null, aov: null, cpa: null
+  });
+}
+
+async function metaItereerRijen(env, account, dagen, niveau, adId, verschuif) {
+  const p = new URLSearchParams({
+    access_token: env.META_ACCESS_TOKEN,
+    level: niveau,
+    fields: META_ITEREER_VELDEN.concat(niveau === 'ad' ? ['ad_id', 'ad_name'] : []).join(','),
+    time_range: metaVenster(dagen, verschuif),
+    limit: '200'
+  });
+  if (adId) p.set('filtering', JSON.stringify([{ field: 'ad.id', operator: 'IN', value: [String(adId)] }]));
+  const r = await fetch(`${META_API}/act_${kaalAccount(account)}/insights?${p}`);
+  const data = await r.json();
+  if (data.error) throw new Error('Meta: ' + (data.error.message || JSON.stringify(data.error)));
+  return data.data || [];
+}
+
+/* De creative erbij. Meta zet de cijfers en het beeld in twee verschillende
+   edges, dus dit is onvermijdelijk een tweede aanroep. Mislukt hij, dan gaat de
+   advertentie zonder beeld door: geen beeld is vervelend, geen cijfers is fataal
+   en die hebben we al. */
+/* Het afspeelbare adres van een Meta-video. `source` is een tijdelijk
+   ondertekend adres op fbcdn -- precies het soort adres dat de beeldpoort
+   doorlaat -- en `picture` is de poster. Mislukt dit, dan gaat de advertentie
+   door zonder video: geen beeld is vervelend, geen cijfers is fataal en die
+   hebben we al. */
+async function metaVideoBron(env, videoId) {
+  try {
+    const p = new URLSearchParams({ access_token: env.META_ACCESS_TOKEN, fields: 'source,picture' });
+    const r = await fetch(`${META_API}/${encodeURIComponent(videoId)}?${p}`);
+    const d = await r.json();
+    if (d.error) return null;
+    return { bron: d.source || null, poster: d.picture || null };
+  } catch (e) { return null; }
+}
+
+async function metaCreative(env, adId) {
+  try {
+    const p = new URLSearchParams({
+      access_token: env.META_ACCESS_TOKEN,
+      /* video_id en de story-spec erbij. Zonder die twee komt er bij een
+         videoadvertentie alleen een thumbnail terug, en dan staat er een
+         stilstaand beeld waar beweging hoort -- precies wat er op het scherm
+         gebeurde. De thumbnail blijft nodig als poster. */
+      fields: 'name,effective_status,creative{thumbnail_url,image_url,body,title,' +
+        'call_to_action_type,video_id,object_story_spec{video_data{video_id,image_url}},' +
+        'asset_feed_spec{videos{video_id,thumbnail_url}}}'
+    });
+    const r = await fetch(`${META_API}/${encodeURIComponent(adId)}?${p}`);
+    const d = await r.json();
+    if (d.error) return null;
+    const c = d.creative || {};
+    /* Het id van de video, waar het ook staat. Meta zet hem op drie plekken,
+       afhankelijk van hoe de advertentie gemaakt is. */
+    const videoId = ttVeld(c, ['video_id', 'object_story_spec.video_data.video_id',
+                               'asset_feed_spec.videos.0.video_id'], ['videoId']);
+    const videoBron = videoId ? await metaVideoBron(env, videoId) : null;
+    return {
+      naam: d.name || null,
+      staat: d.effective_status || null,
+      beeld: adBeeldUit(c) || (videoBron && videoBron.poster) || null,
+      /* Het bestand zelf, niet het id. Een id kun je niet afspelen. */
+      video: (videoBron && videoBron.bron) || adVideoUit(c),
+      velden: adVeldnamen(c),
+      copy: { kop: c.title || null, tekst: c.body || null, cta: c.call_to_action_type || null }
+    };
+  } catch (e) { return null; }
+}
+
+/* De verandering tussen twee vensters, als verhouding. Null zodra een van de
+   twee ontbreekt of nul is: "van niets naar iets" is geen percentage, en een
+   deling door nul die als oneindig doorgaat wordt op het scherm een pijl
+   omhoog waar niets gemeten is. */
+function adTrend(nu, toen) {
+  const a = adGetal(nu), b = adGetal(toen);
+  if (a === null || b === null || b === 0) return null;
+  return a / b;
+}
+
+async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
+  /* De vorige periode erbij, maar alleen als ernaar gevraagd is: het is een
+     tweede aanroep bij Meta en die hoef je niet te doen om een lijst te tonen. */
+  const [rijen, vorige] = await Promise.all([
+    metaItereerRijen(env, account, dagen, 'ad', null),
+    vergelijk ? metaItereerRijen(env, account, dagen, 'ad', null, dagen).catch(function () { return null; })
+              : Promise.resolve(null)
+  ]);
+  const toen = {};
+  if (vorige) vorige.forEach(function (r) { if (r.ad_id) toen[r.ad_id] = metaNaarCijfers(r); });
+  const uit = rijen.map(function (rij) {
+    /* beeld en video staan er leeg bij: de lijst haalt geen creatives op, dat
+       is een tweede aanroep per advertentie. Ze horen wél in de vorm, want een
+       advertentie uit Atria en een uit Meta moeten dezelfde velden hebben --
+       anders leest het scherm bij de ene bron iets uit dat bij de andere niet
+       bestaat. */
+    const ad = { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
+                 staat: null, beeld: null, video: null, cijfers: metaNaarCijfers(rij) };
+    if (vergelijk) {
+      /* Geen vorige periode is niet hetzelfde als een vlakke lijn. Een
+         advertentie die vorige week nog niet bestond hoort niet als "stabiel"
+         in de lijst te staan, en al helemaal niet als "dalend". */
+      const v = ad.id ? toen[ad.id] : null;
+      ad.vorige = v || null;
+      ad.trend = v ? { roas: adTrend(ad.cijfers.roas, v.roas),
+                       spend: adTrend(ad.cijfers.spend, v.spend) } : null;
+    }
+    return ad;
+  });
+  /* Op spend, want dat is waar de vraag over gaat: waar is geld aan uitgegeven
+     en wat leverde het op. Een advertentie zonder spend heeft geen iteratie
+     nodig maar een lancering. */
+  uit.sort(function (a, b) { return (b.cijfers.spend || 0) - (a.cijfers.spend || 0); });
+  return uit.slice(0, Math.max(1, Math.min(Number(limiet) || 25, 50)));
+}
+
+async function metaAdvertentie(env, account, adId, dagen) {
+  /* Eerst gefilterd vragen: dat is één rij in plaats van tweehonderd. Levert
+     dat niets op, dan NIET concluderen dat er geen cijfers zijn -- de lijst
+     waar je hem net uit koos kwam uit precies hetzelfde venster en hetzelfde
+     account, dus als hij daar staat, staan de cijfers er. Meta's filter op
+     ad.id geeft in de praktijk soms een lege set terug waar de ongefilterde
+     opvraag de advertentie wel toont; dan is een tweede, bredere opvraag het
+     antwoord en geen foutmelding.
+
+     Dit stond letterlijk op het scherm: "Meta gaf geen cijfers voor
+     advertentie 120241779363400577 in dit venster", direct nadat die
+     advertentie in de lijst eronder stond met € 991,98 en 32 bestellingen. */
+  let rijen = await metaItereerRijen(env, account, dagen, 'ad', adId);
+  let rij = rijen[0];
+  if (!rij) {
+    const alle = await metaItereerRijen(env, account, dagen, 'ad', null);
+    rij = alle.filter(function (r) { return String(r.ad_id) === String(adId); })[0] || null;
+  }
+  if (!rij) {
+    throw new Error('Meta gaf geen cijfers voor advertentie ' + adId +
+      ' in account ' + kaalAccount(account) + ' over de laatste ' + dagen + ' dagen. ' +
+      'Staat hij wel in de lijst, kies dan een ander venster.');
+  }
+  const ad = { bron: 'meta', id: rij.ad_id || String(adId), naam: rij.ad_name || '(zonder naam)',
+               staat: null, beeld: null, video: null, copy: null, cijfers: metaNaarCijfers(rij) };
+  const cr = await metaCreative(env, ad.id);
+  if (cr) {
+    if (cr.naam) ad.naam = cr.naam;
+    ad.staat = cr.staat;
+    ad.beeld = cr.beeld;
+    ad.video = cr.video || null;
+    ad.copy = cr.copy;
+    if (!ad.beeld && !ad.video) ad.velden_zonder_beeld = cr.velden || [];
+  }
+  return ad;
+}
+
+async function metaNorm(env, account, dagen) {
+  const rijen = await metaItereerRijen(env, account, dagen, 'account', null);
+  if (!rijen.length) return null;
+  return metaNaarCijfers(rijen[0]);
+}
+
+/* ---- De trap, en waar hij lekt ---------------------------------------- */
+
+/* Vier stappen tussen geld en een bestelling, plus twee prijzen. Elke stap
+   heeft een noemer, en die noemer bepaalt of de stap iets te zeggen heeft.
+   `hoger_is_beter` staat er expliciet bij omdat CPM de enige is waar het
+   andersom werkt en dat is precies het soort ding dat je een keer omdraait. */
+const AD_TRAP = [
+  { sleutel: 'aandacht', label: 'Vertoning naar klik',
+    teller: 'klikken', noemer: 'impressions', drempel: 1000, hoger_is_beter: true,
+    zit: 'in de advertentie', ligt_aan: 'de hook, de kop en het openingsbeeld' },
+  { sleutel: 'klikkwaliteit', label: 'Klik naar landingspagina',
+    teller: 'lpv', noemer: 'klikken', drempel: 100, hoger_is_beter: true,
+    zit: 'tussen advertentie en pagina', ligt_aan: 'laadtijd, of klikken die per ongeluk gebeuren' },
+  { sleutel: 'pagina', label: 'Landingspagina naar winkelwagen',
+    teller: 'atc', noemer: 'lpv', drempel: 100, hoger_is_beter: true,
+    zit: 'op de pagina', ligt_aan: 'de belofte die de advertentie deed en de pagina niet waarmaakt' },
+  { sleutel: 'afrekenen', label: 'Winkelwagen naar bestelling',
+    teller: 'aankopen', noemer: 'atc', drempel: 25, hoger_is_beter: true,
+    zit: 'bij het afrekenen', ligt_aan: 'verzendkosten, betaalmogelijkheden of het aanbod zelf' },
+  { sleutel: 'inkoop', label: 'Prijs per duizend vertoningen',
+    maat: 'cpm', noemer: 'impressions', drempel: 1000, hoger_is_beter: false,
+    zit: 'in de veiling', ligt_aan: 'verzadiging van het publiek of een format dat duur inkoopt' },
+  { sleutel: 'orderwaarde', label: 'Gemiddelde orderwaarde',
+    maat: 'aov', noemer: 'aankopen', drempel: 25, hoger_is_beter: true,
+    zit: 'in het aanbod', ligt_aan: 'de bundel, de upsell of welk product de advertentie voorop zet' }
+];
+
+/* Wat er te testen valt als deze stap het knelpunt is. De eerste twee zijn een
+   creative-opdracht; de rest is dat nadrukkelijk NIET, en dat is de reden dat
+   dit veld bestaat. Een nieuwe hook maken terwijl het lek op de productpagina
+   zit levert drie nieuwe advertenties op die precies even hard lekken. */
+const AD_WAT_TESTEN = {
+  aandacht: { creative: true, varieer: ['hook', 'headline', 'opening'],
+    zeg: 'De advertentie wordt gezien maar niet aangeklikt. Test de hook, de kop en het openingsbeeld; laat het mechanisme en het aanbod staan.' },
+  klikkwaliteit: { creative: true, varieer: ['headline', 'cta'],
+    zeg: 'Er wordt geklikt maar de pagina wordt niet gehaald. Vaak laadtijd of een klik die per ongeluk gebeurt. Kijk eerst naar de snelheid van de pagina voordat je de creative verandert.' },
+  pagina: { creative: false, varieer: [],
+    zeg: 'Het lek zit na de klik: mensen komen op de pagina en leggen niets in de wagen. Een nieuwe creative lost dit niet op. Bouw eerst een landingspagina die de belofte van deze advertentie waarmaakt.' },
+  afrekenen: { creative: false, varieer: [],
+    zeg: 'Er wordt in de wagen gelegd maar niet afgerekend. Dat is een aanbod- of afrekenprobleem, geen creative-probleem. Kijk naar verzendkosten, betaalmethodes en het moment waarop de prijs zichtbaar wordt.' },
+  inkoop: { creative: true, varieer: ['opening', 'sfeer', 'format'],
+    zeg: 'De vertoningen zijn duur ingekocht. Meestal verzadiging: hetzelfde publiek ziet hetzelfde beeld te vaak. Test een ander format en een andere visuele wereld, niet een andere boodschap.' },
+  orderwaarde: { creative: false, varieer: [],
+    zeg: 'De orders zijn kleiner dan gemiddeld. Dat zit in het aanbod, niet in de advertentie: welk product staat vooraan, en is er een bundel.' }
+};
+
+function adStapWaarde(cijfers, stap) {
+  if (stap.maat) return adGetal(cijfers[stap.maat]);
+  return adDeel(cijfers[stap.teller], cijfers[stap.noemer]);
+}
+
+/* De diagnose. Optellen en delen, geen model: er is hier een juist antwoord en
+   een model kan er alleen iets aan verzinnen.
+
+   Wat dit expliciet NIET doet: een oordeel geven zonder norm. Kent het account
+   deze stap niet, dan krijgt de stap geen verhouding en telt hij niet mee in de
+   keuze van het knelpunt. Een advertentie afrekenen op een norm die je niet
+   hebt is precies hoe je een gezonde advertentie weggooit. */
+function adDiagnose(cijfers, norm) {
+  const c = cijfers || {}, n = norm || {};
+  const stappen = AD_TRAP.map(function (stap) {
+    const waarde = adStapWaarde(c, stap);
+    const normwaarde = adStapWaarde(n, stap);
+    const noemer = adGetal(c[stap.noemer]);
+    const genoeg = noemer !== null && noemer >= stap.drempel;
+    let verhouding = null;
+    if (waarde !== null && normwaarde !== null && normwaarde !== 0) {
+      verhouding = stap.hoger_is_beter ? (waarde / normwaarde) : (normwaarde / waarde);
+      if (!Number.isFinite(verhouding)) verhouding = null;
+    }
+    return {
+      sleutel: stap.sleutel, label: stap.label, zit: stap.zit, ligt_aan: stap.ligt_aan,
+      waarde: waarde, norm: normwaarde, verhouding: verhouding,
+      noemer: noemer, drempel: stap.drempel, genoeg_data: genoeg,
+      /* Zonder norm of zonder genoeg data: geen oordeel. Niet 'gemiddeld' --
+         dat is een oordeel, en we hebben er geen. */
+      oordeel: (verhouding === null || !genoeg) ? null
+        : (verhouding < 0.8 ? 'zwak' : (verhouding > 1.2 ? 'sterk' : 'gemiddeld'))
+    };
+  });
+
+  const meetbaar = stappen.filter(function (s) { return s.verhouding !== null && s.genoeg_data; });
+  meetbaar.sort(function (a, b) { return a.verhouding - b.verhouding; });
+  const zwakste = meetbaar[0] || null;
+  /* Alleen een knelpunt als de stap ook echt onder de norm zit. Is de zwakste
+     stap nog steeds beter dan het account, dan is er geen lek en is de eerlijke
+     uitslag: deze advertentie werkt, schaal hem op. */
+  const knelpunt = (zwakste && zwakste.verhouding < 1) ? zwakste.sleutel : null;
+  return {
+    stappen: stappen,
+    knelpunt: knelpunt,
+    meetbaar: meetbaar.length,
+    wat_testen: knelpunt ? AD_WAT_TESTEN[knelpunt] : null,
+    /* Waarom er geen knelpunt is, want dat zijn twee heel verschillende
+       situaties en ze zien er op een scherm hetzelfde uit. */
+    reden: knelpunt ? null : (meetbaar.length === 0
+      ? 'te weinig data of geen norm om tegen te meten'
+      : 'geen enkele stap zit onder het accountgemiddelde')
+  };
+}
+
+/* ---- Een bron kiezen --------------------------------------------------- */
+
+async function itereerBronnen(env) {
+  const uit = [];
+  const atriaSleutel = await sleutelVan(env, 'ATRIA_API_KEY');
+  let atria = { bron: 'atria', naam: 'Atria', bruikbaar: false, reden: 'er staat geen ATRIA_API_KEY', accounts: [] };
+  if (atriaSleutel) {
+    try { atria = { bron: 'atria', naam: 'Atria', bruikbaar: true, reden: null, accounts: await atriaAccounts(env) }; }
+    catch (e) { atria.reden = String((e && e.message) || e).slice(0, 160); }
+  }
+  uit.push(atria);
+
+  let meta = { bron: 'meta', naam: 'Meta Ads', bruikbaar: false, reden: 'er staat geen META_ACCESS_TOKEN', accounts: [] };
+  if (env.META_ACCESS_TOKEN) {
+    const accounts = await actieveAccounts(env);
+    meta = {
+      bron: 'meta', naam: 'Meta Ads',
+      bruikbaar: accounts.length > 0,
+      reden: accounts.length ? null : 'er staan geen actieve advertentieaccounts',
+      accounts: accounts.map(function (a) {
+        return { id: a.account_id, account_id: a.account_id, naam: a.naam || a.account_id,
+                 platform: 'facebook', valuta: a.valuta || null, staat: null };
+      })
+    };
+  }
+  uit.push(meta);
+  return uit;
+}
+
+
+/* ============================================================
+ * 4d. Creative research: wat er in de markt draait
+ *
+ * De vraag is niet "wat vinden wij mooi" maar "wat draait er al maanden bij
+ * iemand anders". Een advertentie die na negentig dagen nog loopt is niet
+ * blijven staan uit sentiment: er zit een budget achter dat elke dag opnieuw
+ * verlengd wordt. Dat is het sterkste openbare signaal dat er bestaat.
+ *
+ * TWEE RANGSCHIKKINGEN DIE VERSCHILLENDE VRAGEN BEANTWOORDEN, en ze door
+ * elkaar halen is de fout die dit hele scherm nutteloos maakt:
+ *
+ *   LOOPTIJD zegt: dit werkt al lang. Het is de betrouwbaarste maat en de
+ *   traagste -- wat hier bovenaan staat is inmiddels ook door iedereen gezien.
+ *
+ *   BEREIKGROEI zegt: hier wordt nu geld op bijgezet. Dat is het vroegste
+ *   signaal en het onbetrouwbaarste: een advertentie kan drie dagen opschalen
+ *   en daarna stilvallen.
+ *
+ * WAT DIT UITDRUKKELIJK NIET IS: bewijs. Lang draaien is een signaal. Er is
+ * geen enkele advertentie in deze lijst waarvan wij de ROAS kennen, en het
+ * enige wat we van de adverteerder weten is dat hij hem niet heeft uitgezet.
+ * Dat staat in het antwoord, want een lijst met cijfers erbij ziet eruit als
+ * bewijs ook als er nergens staat dat het dat is.
+ *
+ * EN WAT ER OVERGENOMEN WORDT: de structuur en de hoek, nooit het beeld, de
+ * copy of de claim. Dat is niet alleen de nette lezing -- het is ook de enige
+ * bruikbare: de foto van een ander merk in jouw advertentie werkt niet, en hun
+ * claim is hun claim om waar te maken. De bronlaag levert daarom het materiaal
+ * en de cijfers, en laat het overnemen aan de stap die er een eigen creative
+ * van maakt.
+ * ============================================================ */
+
+const TT_VENSTERS = { 1: 'last24h', 7: 'last7d', 14: 'last30d', 30: 'last30d' };
+/* TrendTrack kent geen venster van veertien dagen voor bereik; last30d is het
+   eerstvolgende dat bestaat. Dat verschil verzwijgen zou de lijst laten
+   doorgaan voor iets wat hij niet is, dus het venster dat werkelijk gebruikt
+   is gaat mee terug in het antwoord. */
+function ttVenster(dagen) { return TT_VENSTERS[Number(dagen)] || 'last30d'; }
+
+const TT_SORTERING = {
+  looptijd: { sortBy: 'longestRunning', zegt: 'draait het langst' },
+  bereik: { sortBy: 'reach', zegt: 'heeft het grootste bereik' },
+  groei: { sortBy: 'reachDelta7d', zegt: 'schaalt op dit moment op' }
+};
+
+async function ttHaal(env, pad, params, body) {
+  const sleutel = await sleutelVan(env, 'TRENDTRACK_API_KEY');
+  if (!sleutel) throw new Error('er staat geen TRENDTRACK_API_KEY. Zet hem in het adminmenu of als Worker secret.');
+  const q = params ? ('?' + new URLSearchParams(params)) : '';
+  const opties = { headers: { 'Authorization': 'Bearer ' + sleutel } };
+  if (body) {
+    opties.method = 'POST';
+    opties.headers['Content-Type'] = 'application/json';
+    opties.body = JSON.stringify(body);
+  }
+  const r = await fetch(TRENDTRACK_API + pad + q, opties);
+  const tekst = await r.text();
+  if (!r.ok) throw new Error('TrendTrack: ' + kortDeFout(tekst, r.status, sleutel));
+  try { return JSON.parse(tekst); } catch (e) { throw new Error('TrendTrack gaf geen JSON terug'); }
+}
+
+/* Het eerste veld dat er werkelijk staat. TrendTrack levert per advertentie
+   niet altijd dezelfde sleutels -- een oudere rij heeft `thumbnail`, een
+   nieuwere `media.thumbnailUrl` -- en een vaste keuze levert dan stil een leeg
+   veld op in plaats van een fout. */
+function ttEerste(obj, paden) {
+  for (const pad of paden) {
+    let w = obj;
+    for (const stuk of pad.split('.')) { w = (w && typeof w === 'object') ? w[stuk] : undefined; }
+    if (w !== undefined && w !== null && w !== '') return w;
+  }
+  return null;
+}
+
+/* De vorm die TrendTrack werkelijk teruggeeft, geverifieerd op een echt
+   antwoord en niet op de documentatie. Bijna alles zit genest onder media,
+   content, metrics en audience -- ik had het plat verwacht, en daardoor bleven
+   de kop, de tekst, de CTA, het domein en het land leeg terwijl het antwoord ze
+   gewoon bevatte. Een leeg veld dat er leeg uitziet is precies de fout die je
+   niet ziet gebeuren.
+
+   De oudere, platte namen staan er nog achter: ze kosten niets en een dienst
+   die zijn vorm wijzigt is geen theoretisch geval. */
+/* De vorm van het antwoord is niet overal dezelfde. Op de gewone zoekopdracht
+   zit alles genest onder media, content en metrics; op de route van een
+   gevolgd merk zag ik dezelfde velden op een andere plek terug. Ik heb daar
+   een ronde lang naar geraden, en raden kost een ronde per poging.
+
+   Dit zoekt op NAAM in plaats van op plek: breedte eerst, zodat een veld dat
+   ondiep staat wint van eentje diep in een bijlage. De naam wordt eerst
+   gelijkgetrokken (kleine letters, geen streepjes), zodat `days_running`,
+   `daysRunning` en `DaysRunning` hetzelfde zijn -- maar `reachDelta7d` is
+   daarmee nog steeds niet `reach`, en dat is precies de bedoeling: een
+   groeicijfer dat als bereik binnenkomt is erger dan een leeg veld.
+
+   Het loopt niet oneindig door: zes lagen diep en vierhonderd knopen. Een
+   antwoord dat daar niet in past is geen antwoord dat wij aankunnen. */
+function ttNormNaam(naam) {
+  return String(naam).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function ttDiepVeld(wortel, namen, keur) {
+  const wil = namen.map(ttNormNaam);
+  const rij = [{ w: wortel, d: 0 }];
+  let gezien = 0;
+  while (rij.length) {
+    const knoop = rij.shift();
+    if (!knoop.w || typeof knoop.w !== 'object') continue;
+    if (knoop.d > 6 || ++gezien > 400) continue;
+    for (const sleutel of Object.keys(knoop.w)) {
+      const w = knoop.w[sleutel];
+      if (w === undefined || w === null || w === '') continue;
+      if (typeof w === 'object') { rij.push({ w: w, d: knoop.d + 1 }); continue; }
+      if (wil.indexOf(ttNormNaam(sleutel)) === -1) continue;
+      if (keur && !keur(w)) continue;
+      return w;
+    }
+  }
+  return null;
+}
+
+/* Eerst de plekken die we kennen, dan de naam waar hij ook staat. In die
+   volgorde, want een bekend pad is een zekerheid en een naamzoektocht is een
+   gok die meestal klopt. Keurt de keurmeester de gevonden waarde af, dan gaat
+   het zoeken door -- een beeld op een host die wij niet ophalen is voor het
+   scherm hetzelfde als geen beeld, en dan is doorzoeken beter dan opgeven. */
+function ttVeld(r, paden, namen, keur) {
+  const w = ttEerste(r, paden);
+  if (w !== null && (!keur || keur(w))) return w;
+  return ttDiepVeld(r, namen, keur);
+}
+
+/* Het laatste redmiddel voor het beeld: elke string in het antwoord die een
+   adres is op een host waar wij beelden vandaan halen. Dat is een grove greep,
+   en hij mag alleen grof zijn omdat de hostlijst hem tegenhoudt -- hij kan
+   niets opleveren dat de beeldproxy daarna zou weigeren. Zonder dit staat er
+   een lege kaart terwijl het beeld gewoon in het antwoord zit, onder een naam
+   die ik niet kende. */
+function ttDiepAdres(wortel, keur) {
+  const rij = [{ w: wortel, d: 0 }];
+  let gezien = 0;
+  while (rij.length) {
+    const knoop = rij.shift();
+    if (!knoop.w || typeof knoop.w !== 'object') continue;
+    if (knoop.d > 6 || ++gezien > 400) continue;
+    for (const sleutel of Object.keys(knoop.w)) {
+      const w = knoop.w[sleutel];
+      if (w === undefined || w === null || w === '') continue;
+      if (typeof w === 'object') { rij.push({ w: w, d: knoop.d + 1 }); continue; }
+      /* Een logo of profielfoto is wel een adres op de goede host, maar het
+         is de advertentie niet. Dat als creatie tonen is een leugen met een
+         plaatje erbij. */
+      if (/logo|avatar|profile|icon|favicon/.test(ttNormNaam(sleutel))) continue;
+      if (typeof w === 'string' && (keur || beeldHostMag)(w)) return w;
+    }
+  }
+  return null;
+}
+
+/* Een advertentie met bewegend beeld heeft twee adressen: het bestand zelf en
+   een stilstaand voorbeeld. TrendTrack zet ze allebei onder `media`, en de
+   uitlezer pakte het eerste dat hij zag -- bij een video was dat de mp4. Die
+   in een <img> zetten levert een zwart vlak op: geen fout, geen melding, alleen
+   een kaart die leeg lijkt terwijl er een advertentie achter zit.
+
+   Vandaar deze scheiding. Een adres is een video of het is een beeld, nooit
+   allebei, en de uitlezer zoekt ze apart. */
+function ttIsVideoAdres(u) {
+  return typeof u === 'string' && /\.(mp4|m4v|mov|webm|m3u8)(\?|#|$)/i.test(u);
+}
+
+function ttBeeldMag(u) { return beeldHostMag(u) && !ttIsVideoAdres(u); }
+function ttVideoMag(u) { return beeldHostMag(u) && ttIsVideoAdres(u); }
+
+function ttNaarAdvertentie(rij) {
+  const r = rij || {};
+  return {
+    id: String(ttVeld(r, ['collationId', 'id', 'collation_id', 'adId', 'ad_id'],
+                       ['collationId', 'adId', 'adArchiveId', 'id']) || ''),
+    merk: ttVeld(r, ['advertiser.name', 'brand', 'pageName', 'page_name', 'advertiserName'],
+                    ['advertiserName', 'pageName', 'brandName', 'brand', 'advertiser']),
+    domein: ttVeld(r, ['content.landingPageDomain', 'domain', 'website.domain', 'shop.domain'],
+                      ['landingPageDomain', 'domain', 'website']),
+    beeld: ttVeld(r, ['media.mediaUrl', 'media.thumbnailUrl', 'mediaUrl', 'media_url',
+                      'media.url', 'thumbnailUrl', 'thumbnail_url', 'thumbnail'],
+                     ['mediaUrl', 'thumbnailUrl', 'thumbnail', 'imageUrl', 'image',
+                      'snapshotUrl', 'previewUrl', 'creativeUrl', 'videoPreviewImageUrl',
+                      'originalImageUrl', 'resizedImageUrl'],
+                     ttBeeldMag) || ttDiepAdres(r, ttBeeldMag),
+    /* Het bestand zelf, als het er is. Zonder dit is een videoadvertentie een
+       zwart vlak met een kop eronder, en dat is precies de advertentie die je
+       wilt zien: hij draait al negentig dagen bij een concurrent. */
+    video: ttVeld(r, ['media.videoUrl', 'media.mediaUrl', 'videoUrl', 'video_url'],
+                     ['videoUrl', 'videoHdUrl', 'videoSdUrl', 'mediaUrl', 'video'],
+                     ttVideoMag) || ttDiepAdres(r, ttVideoMag),
+    soort: ttVeld(r, ['media.type', 'mediaType', 'media_type'], ['mediaType', 'creativeType']),
+    copy: {
+      kop: ttVeld(r, ['content.title', 'title', 'headline', 'creative.title'],
+                     ['title', 'headline', 'linkTitle']),
+      tekst: ttVeld(r, ['content.body', 'body', 'description', 'adCopy', 'ad_copy', 'creative.body'],
+                       ['body', 'adCopy', 'primaryText', 'description', 'caption']),
+      cta: ttVeld(r, ['content.callToAction', 'cta', 'ctaType', 'callToAction', 'creative.cta'],
+                     ['callToAction', 'ctaType', 'ctaText', 'cta'])
+    },
+    /* Onbekend blijft null. Bereik komt uit de transparantierapportage van Meta
+       en die bestaat alleen voor de EU en het VK -- buiten dat gebied is er
+       niets, en een nul zou daar een meting suggereren die er niet is. */
+    bereik: adGetal(ttVeld(r, ['metrics.reach', 'reach', 'impressions'],
+                              ['reach', 'totalReach', 'impressions'])),
+    dagen_actief: adGetal(ttVeld(r, ['daysRunning', 'days_running', 'activeDays'],
+                                    ['daysRunning', 'activeDays', 'daysActive', 'runningDays'])),
+    /* firstSeenAt en createdAt zijn twee verschillende dingen: wanneer de
+       advertentie voor het eerst gezien is, en wanneer TrendTrack hem opnam.
+       Die door elkaar halen maakt van een advertentie uit 2022 er een van
+       vorige maand. */
+    eerst_gezien: ttVeld(r, ['firstSeenAt', 'firstSeen', 'first_seen'],
+                            ['firstSeenAt', 'firstSeen', 'startDate']),
+    laatst_gezien: ttVeld(r, ['lastSeenAt', 'lastSeen', 'last_seen'],
+                             ['lastSeenAt', 'lastSeen', 'endDate']),
+    varianten: adGetal(ttVeld(r, ['metrics.duplicates', 'duplicates', 'duplicateCount', 'variations'],
+                                 ['duplicates', 'duplicateCount', 'variations'])),
+    /* Een schatting, en hij heet ook zo. TrendTrack rekent hem uit met een
+       aangenomen CPM -- het is geen bedrag dat iemand betaald heeft. */
+    uitgave_schatting: adGetal(ttVeld(r, ['metrics.estimatedSpend', 'estimatedSpend'],
+                                         ['estimatedSpend', 'spendEstimate'])),
+    groei_7d: adGetal(ttVeld(r, ['metrics.reachDelta7d', 'reachDelta7d'], ['reachDelta7d'])),
+    /* De positie van de advertentie binnen de pagina van dat merk. Bij een
+       gevolgd merk is dit het enige prestatiesignaal dat TrendTrack geeft --
+       bereik en uitgave komen daar leeg terug. Lager is beter: rang 1 is de
+       advertentie waar dat merk het meest op inzet. */
+    rang: adGetal(ttVeld(r, ['rank.currentRank', 'currentRank'], ['currentRank', 'rank'])),
+    rang_delta: adGetal(ttVeld(r, ['rank.rankDelta', 'rankDelta'], ['rankDelta'])),
+    land: ttVeld(r, ['audience.mainCountry', 'mainCountry', 'main_country', 'audience.targetedCountries.0'],
+                    ['mainCountry', 'country']),
+    taal: ttEerste(r, ['language', 'ad_language']),
+    actief: ttEerste(r, ['status', 'isActive', 'active'])
+  };
+}
+
+/* ---- De Brand Tracker ---------------------------------------------------
+ *
+ * "Wat draait er in de markt" en "wat draait er bij onze concurrenten" zijn
+ * twee verschillende vragen, en de tweede is de vraag die je stelt. De hele
+ * markt levert een Duitse kinderopvang op; de Brand Tracker levert Manscaped,
+ * BALZY en Brothers in Style.
+ *
+ * Let op: `spender=brandtracker` op de gewone zoekopdracht doet dit NIET. Dat
+ * verbreedde de lijst juist -- van vierhonderdduizend naar bijna acht miljoen.
+ * De enige route die werkelijk op de gevolgde merken filtert loopt per merk.
+ * ------------------------------------------------------------------------ */
+
+/* Een afknijper is geen fout maar een verzoek om te wachten. Eén keer wachten
+   en opnieuw proberen; blijft het misgaan, dan is het wel een fout en gaat hij
+   naar boven. Zonder dit valt een merk uit om een reden die vanzelf overgaat. */
+async function ttMetGeduld(env, pad, params) {
+  try {
+    return await ttHaal(env, pad, params);
+  } catch (e) {
+    const bericht = String((e && e.message) || e);
+    if (!/concurrent|rate limit|too many|429/i.test(bericht)) throw e;
+    await new Promise(function (r) { setTimeout(r, 900); });
+    return await ttHaal(env, pad, params);
+  }
+}
+
+/* De mappen waarin de Brand Tracker zelf zijn merken heeft gelegd.
+ *
+ * In dit account zijn dat Wellshave en Wellshine: twee merken met elk hun
+ * eigen concurrenten. Zonder die indeling staan hun tegenstanders op een hoop
+ * en analyseer je de scheerconcurrenten samen met die van de haardroger --
+ * twee markten in een lijst, en dan is de uitkomst van geen van beide.
+ *
+ * Deze route is niet gedocumenteerd in wat wij van TrendTrack in handen
+ * hebben. Levert hij niets, dan zijn er geen mappen en verder niets aan de
+ * hand: het scherm toont dan de merken zonder groepen. Een verzonnen indeling
+ * zou erger zijn dan geen indeling. */
+async function ttMappen(env) {
+  let rijen = [];
+  try {
+    const d = await ttHaal(env, '/v1/brandtracker-folders');
+    rijen = d.data || d.items || d.results || [];
+  } catch (e) {
+    try {
+      const d2 = await ttHaal(env, '/v1/brandtrackers/folders');
+      rijen = d2.data || d2.items || d2.results || [];
+    } catch (e2) { return []; }
+  }
+  return (Array.isArray(rijen) ? rijen : []).map(function (f) {
+    return {
+      id: ttEerste(f, ['id', 'folderId', 'folder_id']),
+      naam: ttEerste(f, ['name', 'naam', 'title']),
+      aantal: adGetal(ttEerste(f, ['brandtrackerCount', 'brandtrackersCount', 'count']))
+    };
+  }).filter(function (f) { return f.id != null && f.naam; });
+}
+
+async function ttMerken(env) {
+  const d = await ttHaal(env, '/v1/brandtrackers');
+  const rijen = d.data || d.items || d.results || [];
+  return rijen.map(function (m) {
+    return {
+      id: ttEerste(m, ['id', 'brandtrackerId', 'brandtracker_id']),
+      naam: ttEerste(m, ['name', 'brand', 'naam']),
+      domein: ttEerste(m, ['domain', 'website']),
+      /* Alle domeinen, niet alleen het eerste. Het eerste is vaak de
+         landingsplek en niet het merk zelf: bij manscaped.com staat er
+         amazon.co.uk. Het scherm kiest hieruit het domein dat bij de naam
+         hoort, en toont anders geen logo -- het logo van Amazon boven
+         Manscaped is erger dan een letter. */
+      domeinen: (function () {
+        const lijst = ttEerste(m, ['domains', 'websites']);
+        return Array.isArray(lijst) ? lijst.filter(Boolean).map(String) : [];
+      })(),
+      map_id: ttEerste(m, ['folderId', 'folder_id', 'folder.id', 'brandtrackerFolderId']),
+      map: ttEerste(m, ['folderName', 'folder.name', 'folder_name']),
+      actieve_ads: adGetal(ttEerste(m, ['counts.activeAds', 'activeAds', 'active_ads'])),
+      nieuw_7d: adGetal(ttEerste(m, ['counts.newAdsLast7Days', 'newAdsLast7Days'])),
+      adverteert: ttEerste(m, ['status.advertising', 'advertising'])
+    };
+  }).filter(function (m) { return m.id; });
+}
+
+/* Welke sortering de top-ads-endpoint zelf kent. longestRunning zit er NIET
+   bij -- dat is precies het soort verschil dat je stil verkeerd invult.
+
+   En belangrijker: op deze route komen bereik, uitgave en varianten LEEG terug.
+   Dat is geen fout van ons; TrendTrack levert ze per gevolgd merk niet. Wat er
+   wel is, is de positie van de advertentie binnen de pagina van dat merk, en
+   hoeveel die positie verschoven is. Daarop sorteren is het enige eerlijke
+   alternatief -- op een leeg veld sorteren levert een willekeurige volgorde die
+   eruitziet als een ranglijst. */
+const TT_MERK_SORTERING = { looptijd: 'currentRank', bereik: 'currentRank', groei: 'rankDelta7d' };
+
+/* Waarop wij daarna rangschikken, en in welke richting. Rang is de enige waar
+   laag beter is. */
+const TT_MERK_SLEUTEL = {
+  looptijd: { veld: 'dagen_actief', hoog_is_beter: true },
+  bereik:   { veld: 'rang', hoog_is_beter: false },
+  groei:    { veld: 'rang_delta', hoog_is_beter: true }
+};
+
+async function ttToplijstMerken(env, o) {
+  const alle = await ttMerken(env);
+  /* Een merk, een handvol merken, of alles. Het was er een of alles, en dat is
+     precies de keuze die je niet wilt maken: de concurrenten van het ene merk
+     analyseren betekent de andere er even uit laten. */
+  const wil = String(o.merken || o.merk || '').split(',')
+    .map(function (x) { return x.trim(); }).filter(Boolean);
+  const gekozen = wil.length ? alle.filter(function (m) { return wil.indexOf(m.id) !== -1; }) : alle;
+  if (!gekozen.length) {
+    /* Dezelfde vorm als een geslaagde ronde. Hij miste mislukt en
+       sleutels_zonder_beeld, en de laag erboven telt die -- wat een lege
+       selectie in een foutmelding veranderde in plaats van in een lege lijst.
+       Onbereikbaar zolang je alleen "alles" kon kiezen; met een eigen selectie
+       is het gewoon een merk dat niet meer gevolgd wordt. */
+    return { merken: alle, advertenties: [], gebruikt: [], mislukt: [],
+             per_merk: 0, sortBy: null, sleutels_zonder_beeld: [] };
+  }
+  /* Per merk een handvol, niet per merk een lijst. Dertien merken maal twintig
+     is tweehonderdzestig advertenties en evenzoveel credits, voor een scherm
+     waar er tien op passen. */
+  const perMerk = Math.max(1, Math.min(Number(o.per_merk) || 6, 20));
+  const sortBy = TT_MERK_SORTERING[o.sorteer] || 'reach';
+  const uit = [];
+  const gelukt = [];
+  const mislukt = [];
+  /* De veldnamen van rijen waar we geen beeld uit kregen. Namen, geen waarden. */
+  const sleutels = [];
+  /* Niet dertien tegelijk. TrendTrack weigert gelijktijdige aanroepen met "Too
+     many concurrent public API requests are already in flight" -- elf van de
+     dertien merken vielen daardoor weg, en het scherm liet twee concurrenten
+     zien alsof dat de hele Brand Tracker was. Een voor een is trager en het is
+     het enige wat werkt.
+
+     Twee tegelijk zou sneller zijn, maar de grens is niet gedocumenteerd en een
+     lijst die half aankomt is erger dan een lijst die tien seconden duurt. */
+  const lijst = gekozen.slice(0, 20);
+  for (let i = 0; i < lijst.length; i++) {
+    const m = lijst[i];
+    try {
+      const d = await ttMetGeduld(env, '/v1/brandtrackers/' + encodeURIComponent(m.id) + '/top-ads', {
+        sortBy: sortBy, order: 'desc', limit: String(perMerk), status: 'active'
+      });
+      const rijen = d.data || d.items || d.results || [];
+      rijen.forEach(function (r) {
+        const ad = ttNaarAdvertentie(r);
+        /* Levert de uitlezer geen beeld op, dan onthouden we WELKE velden er
+           dan wel stonden -- alleen de namen, nooit de inhoud. De vorm die wij
+           kennen komt uit een gereedschap dat het antwoord normaliseert, en de
+           ruwe route kan andere namen gebruiken. Zonder dit is de volgende
+           ronde weer raden; hiermee staat het in het antwoord. */
+        if (!ad.beeld && !ad.video) {
+          Object.keys(r || {}).forEach(function (k) {
+            if (sleutels.indexOf(k) === -1) sleutels.push(k);
+          });
+          if (r && r.media && typeof r.media === 'object') {
+            Object.keys(r.media).forEach(function (k) {
+              if (sleutels.indexOf('media.' + k) === -1) sleutels.push('media.' + k);
+            });
+          }
+        }
+        /* De naam van de adverteerder wint van die van de Brand Tracker. Ik had
+           het andersom, en dat leverde "manscaped.com" op waar de advertentie
+           gewoon "MANSCAPED" zei: in de Brand Tracker staat vaak het domein als
+           naam, en een domein is geen merknaam. Staat er bij de advertentie
+           niets, dan is de tracker de terugval. */
+        ad.merk = ad.merk || m.naam;
+        ad.merk_id = m.id;
+        uit.push(ad);
+      });
+      gelukt.push(m.naam || m.id);
+    } catch (e) {
+      /* Eén merk dat weigert is geen reden om de andere twaalf te laten
+         vallen. Wel om te zeggen welke ontbreekt: een lijst die stil korter is
+         dan hij hoort te zijn leest als "die concurrent doet niets". */
+      mislukt.push((m.naam || m.id) + ': ' + String((e && e.message) || e).slice(0, 80));
+    }
+  }
+  return { merken: alle, advertenties: uit, gebruikt: gelukt, mislukt: mislukt,
+           per_merk: perMerk, sortBy: sortBy, sleutels_zonder_beeld: sleutels };
+}
+
+async function ttToplijst(env, opties) {
+  const o = opties || {};
+  const sortering = TT_SORTERING[o.sorteer] || TT_SORTERING.looptijd;
+  const dagen = Number(o.dagen) || 14;
+
+  /* De Brand Tracker is de standaard, want dat is de vraag die je stelt: wat
+     draait er bij ONZE concurrenten. De hele markt blijft bereikbaar, maar je
+     kiest hem bewust. */
+  if (o.bereik !== 'markt') {
+    const m = await ttToplijstMerken(env, o);
+    const spec = TT_MERK_SLEUTEL[o.sorteer] || TT_MERK_SLEUTEL.looptijd;
+    const sleutel = spec.veld;
+    const lijst = m.advertenties.slice();
+    /* Rangschikken over alles wat we opgehaald hebben. Wat er niet gemeten is
+       zakt naar onderen -- niet naar boven, want een onbekende waarde is geen
+       nul en zeker geen hoogste, en bij rang zou nul juist de eerste plek zijn. */
+    lijst.sort(function (a, b) {
+      const x = a[sleutel], y = b[sleutel];
+      if (x === null && y === null) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return spec.hoog_is_beter ? (y - x) : (x - y);
+    });
+    return {
+      bereik: 'brandtracker',
+      sorteer: o.sorteer || 'looptijd',
+      sorteert_op: sortering.zegt,
+      venster: null,
+      dagen_gevraagd: dagen,
+      merken: m.merken,
+      merken_gebruikt: m.gebruikt,
+      merken_mislukt: m.mislukt,
+      voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+      /* Eerlijk over wat deze rangschikking is. TrendTrack kent bij een gevolgd
+         merk geen sortering op looptijd, dus we halen per merk de best lopende
+         advertenties op en rangschikken die aan onze kant. Dat is "de langst
+         draaiende van de topadvertenties van je concurrenten" en niet "de
+         langst draaiende die zij ooit hadden". */
+      hoe_gerangschikt: 'Per gevolgd merk zijn de ' + m.per_merk + ' best presterende advertenties opgehaald ' +
+        '(' + m.gebruikt.length + ' van de ' + m.merken.length + ' merken), en die zijn hier samen gerangschikt. ' +
+        'Het is dus de beste van hun topadvertenties, niet van alles wat zij ooit draaiden.' +
+        (o.sorteer === 'bereik'
+          ? ' TrendTrack geeft per gevolgd merk geen bereikcijfers; er is daarom gerangschikt op de positie die de advertentie inneemt binnen de advertenties van dat merk.'
+          : ''),
+      /* Wat er op deze route domweg niet is. Kolommen met streepjes zonder
+         uitleg lezen als "niet gemeten bij deze advertentie" terwijl het
+         "bestaat niet op deze route" is -- twee heel verschillende dingen. */
+      geen_cijfers_voor: ['bereik', 'uitgave_schatting', 'varianten'],
+      /* Alleen als er werkelijk beelden ontbreken. Een diagnostisch veld dat er
+         altijd staat wordt genegeerd, en dan is het er niet als je het nodig
+         hebt. */
+      velden_zonder_beeld: m.sleutels_zonder_beeld.length ? m.sleutels_zonder_beeld : undefined,
+      advertenties: lijst.slice(0, Math.max(1, Math.min(Number(o.limiet) || 10, 50)))
+    };
+  }
+
+  /* POST /v1/ads/query met een JSON-body, niet GET /v1/ads met parameters.
+     Twee redenen, en de eerste is met schade geleerd: de filters die wij nodig
+     hebben zijn lijsten (landen, platforms), en een lijst in een querystring is
+     bij elke API weer anders gecodeerd. GET /v1/ads weigerde `countries=NL` met
+     niets anders dan "Request validation failed" -- het veld heet mainCountries
+     en het is een array. In een JSON-body bestaat die dubbelzinnigheid niet.
+     De tweede: /v1/ads/query is bij TrendTrack de endpoint die voor filteren
+     bedoeld is. */
+  const body = {
+    sortBy: sortering.sortBy,
+    order: 'desc',
+    status: 'active',
+    page: 1,
+    /* Twintig is de bovengrens die de dienst zelf aanhoudt. Meer vragen levert
+       geen fout op maar stilletjes minder, en dat is de vervelendste vorm. */
+    limit: Math.max(1, Math.min(Number(o.limiet) || 10, 20)),
+    platforms: ['facebook']
+  };
+  /* Alleen meesturen wat er werkelijk gekozen is. Een leeg filter meesturen is
+     hoe je een lijst inperkt zonder dat iemand daarom vroeg -- en bij een
+     dienst die streng valideert is het ook gewoon een 400. */
+  if (o.zoek) body.search = String(o.zoek).slice(0, 200);
+  if (o.land) body.mainCountries = [String(o.land).toUpperCase().slice(0, 2)];
+  if (o.taal) body.adLanguages = [String(o.taal).slice(0, 8)];
+  if (o.soort === 'image' || o.soort === 'video') body.mediaType = o.soort;
+  /* Bij bereik en groei hoort een venster; bij looptijd niet. Een venster
+     meesturen op looptijd zou de lijst inperken tot wat er in dat venster
+     begon -- en dat is precies het omgekeerde van wat je vraagt als je zoekt
+     naar wat er het langst draait. */
+  if (o.sorteer === 'bereik' || o.sorteer === 'groei') {
+    body.reachPeriod = ttVenster(dagen);
+    body.minReach = 1;
+  }
+  if (o.min_dagen) body.minDaysRunning = Math.max(0, Number(o.min_dagen) || 0);
+
+  const data = await ttHaal(env, '/v1/ads/query', null, body);
+  const rijen = data.data || data.items || data.results || [];
+  return {
+    bereik: 'markt',
+    sorteer: o.sorteer || 'looptijd',
+    sorteert_op: sortering.zegt,
+    venster: body.reachPeriod || null,
+    /* Wat er gevraagd is en wat er werkelijk gebruikt is, allebei. Veertien
+       dagen bestaat niet bij deze bron en dan zie je hier dat er dertig is
+       gemeten in plaats van dat je het aanneemt. */
+    dagen_gevraagd: dagen,
+    /* Eén zin die voorkomt dat deze lijst voor bewijs doorgaat. Hij hoort bij
+       de data en niet bij het scherm: elk scherm dat deze lijst toont hoort
+       hem mee te tonen, ook een scherm dat later gebouwd wordt. */
+    voorbehoud: 'Lang draaien en veel bereik zijn signalen, geen bewijs. Van geen enkele advertentie hier kennen we de omzet; het enige wat we weten is dat de adverteerder hem niet heeft uitgezet.',
+    advertenties: rijen.map(ttNaarAdvertentie)
+  };
+}
+
+/* ---- De beeldproxy ----------------------------------------------------- */
+
+/* De console kan het beeld van een concurrent niet rechtstreeks ophalen: die
+   servers staan geen vreemde herkomst toe, en later moet Claude het beeld ook
+   kunnen lezen. Dus haalt de worker het op.
+ *
+ * Dat maakt van deze route een gerichte aanvalsmogelijkheid als hij alles
+ * doorlaat: een worker die elke URL ophaalt is een manier om via ons bij
+ * adressen te komen die alleen wij kunnen bereiken. Vandaar een lijst van
+ * hosts die er werkelijk toe doen, en verder niets -- niet een lijst van wat
+ * verboden is, want die is altijd incompleet. */
+const BEELD_HOSTS = [
+  'fbcdn.net', 'cdninstagram.com', 'facebook.com', 'trendtrack.io',
+  'tryatria.com', 'atria-cdn.com'
+];
+
+function beeldHostMag(u) {
+  let host;
+  try {
+    const url = new URL(u);
+    if (url.protocol !== 'https:') return false;
+    host = url.hostname.toLowerCase();
+  } catch (e) { return false; }
+  return BEELD_HOSTS.some(function (h) { return host === h || host.endsWith('.' + h); });
+}
+
 /* ============================================================
  * 5. Taalmodel — alleen nog voor Creative Deconstruction
  *
@@ -792,11 +2314,16 @@ function claudeText(data) {
 }
 
 async function claude(env, body) {
+  /* Ook het werk dat de worker zelf doet loopt via de beheerde sleutel. Zou
+     deze env.ANTHROPIC_KEY blijven lezen, dan wisselt het adminmenu wel de
+     sleutel van de console maar niet die van de nachtelijke lus -- en dan
+     werkt de helft. */
+  const sleutel = await sleutelVan(env, 'ANTHROPIC_KEY');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': env.ANTHROPIC_KEY,
+      'x-api-key': sleutel,
       'anthropic-version': '2023-06-01',
       'anthropic-beta': 'server-side-fallback-2026-06-01'
     },
@@ -1130,6 +2657,12 @@ const SYSTEEMTAKEN = {
       blok = gaten[0];
     }
 
+    /* De stand vóór deze ronde, zodat achteraf te zien is of er iets is
+       opgeschoten. Zonder dit ijkpunt kan de taak niet weten of hij zichzelf
+       nog een keer mag inschieten. */
+    const voorMeting = await sbSelect(env, 'meta_meetdekking', 'select=brand,dagen_ontbreken');
+    const voor = voorMeting.reduce((n, r) => n + (Number(r.dagen_ontbreken) || 0), 0);
+
     const lijst = await actieveAccounts(env, blok.account_id || payload.account);
     const venster = { since: blok.van, until: blok.tot };
     const per_account = [];
@@ -1160,8 +2693,23 @@ const SYSTEEMTAKEN = {
     const na = await sbSelect(env, 'meta_meetdekking',
       'select=brand,dagen_ontbreken,grootste_gat_dagen,toestand');
     const restant = na.reduce((n, r) => n + (Number(r.dagen_ontbreken) || 0), 0);
+    const opgeschoten = (voor - restant);
 
-    if (restant > 0) {
+    /* Zichzelf terugzetten mag alleen als er iets is opgeschoten.
+     *
+     * Dit ontbrak, en het is één nacht lang goed misgegaan. De taak keek
+     * alleen of er nog dagen ontbraken, niet of deze ronde er iets van had
+     * weggewerkt. Toen advertentieniveau op één blok bleef weigeren, haalde
+     * elke ronde hetzelfde blok op, faalde op hetzelfde punt, zag "nog 101
+     * dagen" en zette zichzelf opnieuw in de rij -- elke dertig seconden,
+     * tweehonderd keer, zonder ooit een rij op te leveren.
+     *
+     * Een taak die zichzelf voedt heeft een voorwaarde nodig die hij zelf niet
+     * kan waarmaken door te falen. Vooruitgang is die voorwaarde. Staat hij
+     * stil, dan stopt de keten hier en probeert de dagelijkse planning het
+     * morgen opnieuw -- dat is de goede frequentie voor iets wat aan de
+     * overkant vastzit, niet twee keer per minuut. */
+    if (restant > 0 && opgeschoten > 0) {
       await sbInsert(env, 'taken', {
         kind: 'meta_inhaalslag', payload: {},
         source: 'systeem', priority: 7,
@@ -1169,9 +2717,16 @@ const SYSTEEMTAKEN = {
       });
     }
 
-    await logEvent(env, ctx, restant > 0 ? 'info' : 'info',
+    if (restant > 0 && opgeschoten <= 0) {
+      await logEvent(env, ctx, 'warn',
+        `Inhaalslag kwam niet verder op ${blok.van} t/m ${blok.tot}; keten gestopt, `
+        + `de dagelijkse planning probeert het opnieuw`,
+        { blok: blok, restant: restant, per_account: per_account });
+    }
+
+    await logEvent(env, ctx, 'info',
       `Inhaalslag ${blok.van} t/m ${blok.tot}: ${totaal} rijen; nog ${restant} dagen te gaan`,
-      { blok: blok, per_account: per_account, restant: restant });
+      { blok: blok, per_account: per_account, restant: restant, opgeschoten: opgeschoten });
 
     return {
       summary: `${blok.van} t/m ${blok.tot} opgehaald (${totaal} rijen). `
@@ -1339,7 +2894,7 @@ async function tick(env, workerId) {
 function corsHeaders(request) {
   const o = request.headers.get('Origin') || '';
   return {
-    'Access-Control-Allow-Origin': ORIGINS.includes(o) ? o : ORIGINS[0],
+    'Access-Control-Allow-Origin': originMag(o) ? o : ORIGINS[0],
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, anthropic-version, anthropic-beta',
     'Access-Control-Max-Age': '86400',
@@ -1385,6 +2940,12 @@ async function lid(request) {
 
 export default {
   async scheduled(event, env, ctx) {
+    /* De previewworker draait de geplande lus niet. Twee workers die elke vijf
+       minuten dezelfde wachtrij afwerken publiceren alles twee keer, en dat zie
+       je pas als een klant twee keer dezelfde mail heeft. De previewconfiguratie
+       zet geen cron; dit is het tweede slot voor als iemand er later toch een
+       op zet. */
+    if (env.ROL === 'preview') { console.log('preview: de geplande lus draait hier niet'); return; }
     if (!env.SUPABASE_SERVICE_KEY) { console.error('SUPABASE_SERVICE_KEY ontbreekt — runtime staat stil'); return; }
     const workerId = 'cron-' + event.scheduledTime;
     ctx.waitUntil(tick(env, workerId).then(
@@ -1418,11 +2979,23 @@ export default {
         versie: VERSIE,
         versie_datum: VERSIE_DATUM,
         versie_wat: VERSIE_WAT,
+        /* Welke van de twee je te pakken hebt. Zonder dit kijk je naar een
+           /health die er goed uitziet en vraag je je af waarom je wijziging er
+           niet in zit -- omdat je naar de andere worker keek. */
+        rol: env.ROL === 'preview' ? 'preview' : 'live',
         runtime: env.SUPABASE_SERVICE_KEY ? 'actief' : 'uit (SUPABASE_SERVICE_KEY ontbreekt)',
+        /* Let op wat dit wel en niet zegt: of er EEN sleutel is, niet of hij
+           nog geldig is. Dat onderscheid heeft een halve dag gekost -- het
+           veld was gevuld, dus alles stond groen, terwijl de sleutel al
+           ingetrokken was. Geldigheid vraag je op met /systeem/sleutels/proef,
+           en dat is met opzet admin-only: het kost een echte aanroep bij de
+           dienst, en dat is niets wat een openbaar endpoint hoort te doen. */
         koppelingen: {
-          claude: !!env.ANTHROPIC_KEY,
-          openai: !!env.OPENAI_KEY,
+          claude: !!(await sleutelVan(env, 'ANTHROPIC_KEY')),
+          openai: !!(await sleutelVan(env, 'OPENAI_KEY')),
           meta: !!env.META_ACCESS_TOKEN,
+          atria: !!(await sleutelVan(env, 'ATRIA_API_KEY')),
+          trendtrack: !!(await sleutelVan(env, 'TRENDTRACK_API_KEY')),
           klaviyo: !!env.KLAVIYO_API_KEY
         },
       });
@@ -1446,7 +3019,9 @@ export default {
        AI leest, en die twee horen naast elkaar te staan. */
     if (path === '/creative/deconstruct' && request.method === 'POST') {
       if (!env.SUPABASE_SERVICE_KEY) return json({ error: 'SUPABASE_SERVICE_KEY ontbreekt op deze worker' }, 500);
-      if (!env.ANTHROPIC_KEY)        return json({ error: 'ANTHROPIC_KEY ontbreekt op deze worker' }, 500);
+      if (!(await sleutelVan(env, 'ANTHROPIC_KEY'))) {
+        return json({ error: 'er staat geen ANTHROPIC_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
+      }
 
       const body = await request.json().catch(() => ({}));
       const creativeId = Number(body.creative_id);
@@ -1468,6 +3043,178 @@ export default {
         uit = { error: 'de lezing liep vast: ' + String((e && e.message) || e).slice(0, 200) };
       }
       return json(uit, uit.error ? 502 : 200);
+    }
+
+    /* ---- Itereren: de bron van de advertentie waarop je voortbouwt ----
+       Achter de login, want dit gaat over het eigen advertentieaccount: welke
+       advertenties er draaien, wat ze kosten en wat ze opleveren. Dat is geen
+       gegeven dat op een open endpoint hoort.
+
+       De console kiest de bron, niet de worker. Draaien beide, dan zijn de
+       cijfers niet altijd tot op de cent gelijk -- Atria en Meta tellen
+       attributievensters net anders -- en dat is een keuze van degene die
+       kijkt, niet iets om stil voor hem in te vullen. */
+    if (path.startsWith('/itereren')) {
+      const bron = url.searchParams.get('bron') || 'atria';
+      const account = url.searchParams.get('account') || '';
+      const dagen = Number(url.searchParams.get('dagen')) || 30;
+      if (bron !== 'atria' && bron !== 'meta') return json({ error: "bron moet 'atria' of 'meta' zijn" }, 400);
+
+      try {
+        if (path === '/itereren/bronnen' && request.method === 'GET') {
+          return json({ bronnen: await itereerBronnen(env) });
+        }
+
+        /* De matencatalogus van Atria, onvertaald. Onze eigen namen komen uit
+           een vertaaltabel en die kan misgrijpen als het account maten anders
+           noemt. Dan wil je kunnen kijken wat er werkelijk staat in plaats van
+           te raden waarom een veld leeg blijft. */
+        if (path === '/itereren/maten' && request.method === 'GET') {
+          if (bron !== 'atria') return json({ error: 'de matencatalogus bestaat alleen bij Atria' }, 400);
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const d = await atriaHaal(env, '/open/v1/ad-accounts/' + encodeURIComponent(account) + '/metrics');
+          return json({ maten: d.items || [] });
+        }
+
+        if (path === '/itereren/advertenties' && request.method === 'GET') {
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const limiet = url.searchParams.get('limiet');
+          const vergelijk = url.searchParams.get('vergelijk') === '1';
+          const lijst = bron === 'atria'
+            ? await atriaAdvertenties(env, account, dagen, url.searchParams.get('sorteer'), limiet)
+            : await metaAdvertenties(env, account, dagen, limiet, vergelijk);
+          /* Of "daalt hij" te beantwoorden is, en zo niet: waarom niet. Een
+             filter dat stil niets teruggeeft leest als "geen enkele advertentie
+             daalt" -- en dat is een geruststelling die wij niet gemeten hebben.
+             Atria kent alleen vaste periodes (last_7d en zo), dus daar is geen
+             vorige periode op te vragen. */
+          const uit = { bron: bron, dagen: dagen, advertenties: lijst,
+                        trend_beschikbaar: bron !== 'atria' };
+          if (bron === 'atria') {
+            uit.trend_reden = 'Atria levert alleen vaste periodes, geen vorige periode om tegen te vergelijken.';
+          }
+          return json(uit);
+        }
+
+        if (path === '/itereren/advertentie' && request.method === 'GET') {
+          if (!account) return json({ error: 'account ontbreekt' }, 400);
+          const id = url.searchParams.get('id');
+          if (!id) return json({ error: 'id ontbreekt' }, 400);
+          /* De advertentie en de norm naast elkaar opvragen. De norm is het
+             account zelf over hetzelfde venster -- vandaar hetzelfde aantal
+             dagen, en niet een apart in te stellen periode. Twee vensters
+             vergelijken is geen vergelijking. */
+          const [advertentie, norm] = await Promise.all([
+            bron === 'atria' ? atriaAdvertentie(env, account, id, dagen) : metaAdvertentie(env, account, id, dagen),
+            (bron === 'atria' ? atriaNorm(env, account, dagen) : metaNorm(env, account, dagen)).catch(function () { return null; })
+          ]);
+          return json({
+            bron: bron, dagen: dagen,
+            advertentie: advertentie,
+            norm: norm,
+            /* De retentiecurve staat apart: hij hoort bij de video en niet bij
+               de funnel, en hij is alleen te lezen als er starts zijn. */
+            doorkijk: adDoorkijk(advertentie.cijfers),
+            norm_doorkijk: adDoorkijk(norm),
+            diagnose: adDiagnose(advertentie.cijfers, norm)
+          });
+        }
+      } catch (e) {
+        /* De bron is stuk, niet de worker. Dat onderscheid hoort in het
+           antwoord te staan, anders zoekt iemand het bij ons. */
+        return json({ error: String((e && e.message) || e).slice(0, 200), bron: bron }, 502);
+      }
+
+      return json({ error: 'onbekend itereer-endpoint' }, 404);
+    }
+
+    /* ---- Creative Research: wat er in de markt draait ----
+       Achter de login. Niet omdat de gegevens geheim zijn -- ze komen uit een
+       openbare advertentiebibliotheek -- maar omdat elke aanroep credits kost
+       bij TrendTrack, en een open endpoint dat credits verbrandt is een
+       rekening die iemand anders voor je opmaakt. */
+    if (path.startsWith('/onderzoek')) {
+      try {
+        if (path === '/onderzoek/toplijst' && request.method === 'GET') {
+          return json(await ttToplijst(env, {
+            sorteer: url.searchParams.get('sorteer'),
+            dagen: url.searchParams.get('dagen'),
+            limiet: url.searchParams.get('limiet'),
+            zoek: url.searchParams.get('zoek'),
+            land: url.searchParams.get('land'),
+            taal: url.searchParams.get('taal'),
+            soort: url.searchParams.get('soort'),
+            min_dagen: url.searchParams.get('min_dagen'),
+            bereik: url.searchParams.get('bereik'),
+            merk: url.searchParams.get('merk'),
+            merken: url.searchParams.get('merken'),
+            per_merk: url.searchParams.get('per_merk')
+          }));
+        }
+
+        /* De gevolgde merken apart, zodat het scherm ze kan tonen zonder eerst
+           een hele analyse te draaien. */
+        if (path === '/onderzoek/merken' && request.method === 'GET') {
+          /* De mappen erbij, want daarin zit de enige indeling die er echt is:
+             welke concurrent bij welk van onze merken hoort. Komen ze niet,
+             dan is de lijst gewoon een lijst. */
+          const merken = await ttMerken(env);
+          let mappen = [];
+          try { mappen = await ttMappen(env); } catch (e) { mappen = []; }
+          return json({ merken: merken, mappen: mappen });
+        }
+
+        /* Het beeld van een concurrent, opgehaald door de worker omdat de
+           browser dat niet mag en Claude het straks moet kunnen lezen. Alleen
+           van hosts die er werkelijk toe doen: zonder die grens is dit een
+           manier om via ons bij adressen te komen die alleen wij bereiken. */
+        if (path === '/onderzoek/beeld' && request.method === 'GET') {
+          const bron = url.searchParams.get('u') || '';
+          if (!beeldHostMag(bron)) return json({ error: 'dit adres wordt niet doorgelaten' }, 400);
+          const r = await fetch(bron);
+          if (!r.ok) return json({ error: 'het beeld was niet op te halen (' + r.status + ')' }, 502);
+          const type = r.headers.get('content-type') || '';
+          /* En wat er terugkomt moet ook echt een beeld zijn. Een host op de
+             lijst die iets anders teruggeeft is geen reden om het door te
+             zetten alsof het een plaatje is. */
+          if (!/^image\//.test(type)) return json({ error: 'dat adres gaf geen afbeelding terug' }, 400);
+          return new Response(await r.arrayBuffer(), {
+            status: 200,
+            headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', ...cors }
+          });
+        }
+
+        /* Hetzelfde, maar dan voor bewegend beeld. Een aparte ingang en geen
+           extra soort op /onderzoek/beeld: die weigert alles wat geen plaatje
+           is, en dat is precies de grens die je niet even oprekt omdat er nu
+           ook een video langskomt.
+
+           Het lichaam wordt doorgegeven, niet ingelezen: een advertentie van
+           dertig seconden past niet in het geheugen van een worker, en hoeft
+           dat ook niet. Een Range-verzoek gaat mee zodat de speler kan
+           doorspoelen; zonder dat kun je alleen van voren af aan kijken. */
+        if (path === '/onderzoek/video' && request.method === 'GET') {
+          const bron = url.searchParams.get('u') || '';
+          if (!beeldHostMag(bron)) return json({ error: 'dit adres wordt niet doorgelaten' }, 400);
+          const door = {};
+          const range = request.headers.get('range');
+          if (range) door['Range'] = range;
+          const r = await fetch(bron, { headers: door });
+          if (!r.ok && r.status !== 206) return json({ error: 'de video was niet op te halen (' + r.status + ')' }, 502);
+          const type = r.headers.get('content-type') || '';
+          if (!/^video\//.test(type)) return json({ error: 'dat adres gaf geen video terug' }, 400);
+          const uit = { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', 'Accept-Ranges': 'bytes', ...cors };
+          ['content-length', 'content-range'].forEach(function (h) {
+            const w = r.headers.get(h);
+            if (w) uit[h] = w;
+          });
+          return new Response(r.body, { status: r.status, headers: uit });
+        }
+      } catch (e) {
+        return json({ error: String((e && e.message) || e).slice(0, 200), bron: 'trendtrack' }, 502);
+      }
+
+      return json({ error: 'onbekend onderzoek-endpoint' }, 404);
     }
 
     /* ---- Systeem-API ----
@@ -1599,18 +3346,61 @@ export default {
         return json(await tick(env, 'handmatig-' + gebruiker.email));
       }
 
+      /* ---- Sleutelbeheer, alleen admin ----
+         Lezen geeft NOOIT een waarde terug, ook niet aan een admin. Er is geen
+         reden om een sleutel op een scherm te zetten: je zet hem, of je
+         vervangt hem. Kunnen lezen levert alleen maar plekken op waar hij
+         terechtkomt -- een screenshot, een logboek, een gesprek. */
+      if (path === '/systeem/sleutels' && request.method === 'GET') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        return json(await sleutelOverzicht(env));
+      }
+
+      if (path === '/systeem/sleutels' && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        const body = await request.json().catch(() => ({}));
+        const naam = String(body.naam || '');
+        if (SLEUTELNAMEN.indexOf(naam) === -1) {
+          return json({ error: 'naam moet een van ' + SLEUTELNAMEN.join(', ') + ' zijn' }, 400);
+        }
+        const uit = await sleutelZet(env, naam, body.waarde, gebruiker.email);
+        if (uit.error) return json({ error: uit.error }, uit.status || 400);
+        /* Meteen uitproberen. Een sleutel die opgeslagen is maar niet werkt,
+           merk je anders pas als iemand midden in zijn werk vastloopt -- en
+           dan zoekt hij het bij de worker in plaats van bij de sleutel. */
+        const proef = await sleutelWerkt(env, naam);
+        return json(Object.assign(uit, { proef: proef }));
+      }
+
+      if (path === '/systeem/sleutels/proef' && request.method === 'POST') {
+        if (gebruiker.role !== 'admin') {
+          return json({ error: 'alleen een admin mag de sleutels beheren' }, 403);
+        }
+        const proeven = {};
+        for (const naam of SLEUTELNAMEN) proeven[naam] = await sleutelWerkt(env, naam);
+        return json(proeven);
+      }
+
       return json({ error: 'onbekend systeem-endpoint' }, 404);
     }
 
     /* ---- Anthropic (ongewijzigd) ---- */
     if (path === '/anthropic' && request.method === 'POST') {
-      if (!env.ANTHROPIC_KEY) return json({ error: 'ANTHROPIC_KEY secret ontbreekt op deze worker' }, 500);
+      /* Niet meer rechtstreeks env.ANTHROPIC_KEY: sleutelVan kijkt eerst in de
+         database (wat je via het adminmenu zet) en valt daarna terug op het
+         Worker secret. */
+      const anthropicSleutel = await sleutelVan(env, 'ANTHROPIC_KEY');
+      if (!anthropicSleutel) return json({ error: 'er staat geen ANTHROPIC_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
       const body = await request.text();
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': env.ANTHROPIC_KEY,
+          'x-api-key': anthropicSleutel,
           'anthropic-version': request.headers.get('anthropic-version') || '2023-06-01',
           ...(request.headers.get('anthropic-beta') ? { 'anthropic-beta': request.headers.get('anthropic-beta') } : {})
         },
@@ -1624,9 +3414,10 @@ export default {
     if (path.startsWith('/v1/')) oaPath = path.slice(1);
     else if (path.startsWith('/openai/')) oaPath = path.slice('/openai/'.length);
     if (oaPath !== null) {
-      if (!env.OPENAI_KEY) return json({ error: 'OPENAI_KEY secret ontbreekt op deze worker' }, 500);
+      const openaiSleutel = await sleutelVan(env, 'OPENAI_KEY');
+      if (!openaiSleutel) return json({ error: 'er staat geen OPENAI_KEY. Zet hem in het adminmenu of als Worker secret.' }, 500);
       const target = oaPath.startsWith('v1/') ? ('https://api.openai.com/' + oaPath) : ('https://api.openai.com/v1/' + oaPath);
-      const headers = { 'Authorization': 'Bearer ' + env.OPENAI_KEY };
+      const headers = { 'Authorization': 'Bearer ' + openaiSleutel };
       const ct = request.headers.get('content-type');
       if (ct) headers['Content-Type'] = ct;
       let body;

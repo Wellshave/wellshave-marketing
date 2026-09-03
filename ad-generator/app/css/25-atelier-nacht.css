@@ -1,0 +1,1275 @@
+/* ============================================================
+   ATELIER CONSOLE — "NACHT"
+
+   De hele console in het donkere goudatelier van de Static Ad
+   Generator: elke pagina, elk menu, elke pop-up, elke dropdown.
+
+   Hoe dit werkt, en waarom het maar één bestand is: de
+   Daylight-skin (08) definieert een eigen tokenvocabulaire
+   (--paper, --surface, --ink, --amber, --line, schaduwen) en
+   vrijwel elk onderdeel van de console is op die tokens
+   gebouwd. Dit bestand laadt als laatste en hermapt dat
+   vocabulaire naar donker; daarmee draait de hele console om
+   zonder dat er één componentregel herschreven hoeft te worden.
+
+   Wat overblijft zijn de plekken waar Daylight en de lagen erop
+   een kleur hard hebben gecodeerd ("background: #fff
+   !important"). Die staan hieronder stuk voor stuk geteld en
+   gecounterd, met dezelfde kracht als het origineel. Nieuwe
+   witte vlekken horen dus niet stilletjes te ontstaan: wie een
+   kleur hardcodeert in plaats van een token te gebruiken, ziet
+   hem hier terugkomen.
+
+   De wizard heeft zijn eigen scope in 24-wizard-goud.css met
+   dezelfde waarden; die blijft staan als waarborg, zodat de
+   generator donker blijft óók als iemand deze laag ooit
+   uitschakelt.
+   ============================================================ */
+
+:root,
+body.brand-wellshave,
+body.brand-wellshine {
+  /* Canvas & vlakken: bijna-zwart met warmte, drie lagen. */
+  --paper:        #080706;
+  --surface:      #12100c;
+  --surface-2:    #171410;
+  --surface-3:    #1e1a14;
+  --charcoal:     #0d0c0a;
+  --charcoal-2:   #171512;
+
+  /* Inkt op donker. */
+  --ink:          #f6efe1;
+  --ink-soft:     #bdb19c;
+  --ink-faint:    #83786a;
+
+  /* Lijnen. */
+  --line:         rgba(255, 246, 228, 0.08);
+  --line-strong:  rgba(255, 246, 228, 0.14);
+
+  /* Amber wordt het atelier-goud. */
+  --amber:        #e8ba5a;
+  --amber-hi:     #ffd98a;
+  /* Dekkend, geen rgba: een doorschijnende wash is op elke ondergrond een
+     andere kleur, en dan is contrast niet meer te beloven -- de contrasttests
+     van strategie en dagbesluit rekenen er terecht hard op. */
+  --amber-wash:   #2b2312;
+  --amber-deep:   #e0b254;
+
+  /* De oude tokens, terug naar donker. */
+  --bg:           #080706;
+  --bg-elevated:  #0d0b09;
+  --glass:        rgba(24, 21, 16, 0.72);
+  --glass-2:      rgba(32, 27, 20, 0.62);
+  --glass-hover:  rgba(42, 35, 25, 0.7);
+  --hairline:        rgba(255, 246, 228, 0.07);
+  --hairline-strong: rgba(255, 246, 228, 0.13);
+  --text:         #f6efe1;
+  --text-soft:    #bdb19c;
+  --text-faint:   #83786a;
+  --gold-rgb:     232, 186, 90;
+  --gold:         #e8ba5a;
+  --gold-bright:  #ffd98a;
+  --gold-deep:    #9a7428;
+  --gold-glow:    rgba(232, 186, 90, 0.20);
+  --gold-haze:    rgba(232, 186, 90, 0.07);
+  --gold-line:        rgba(232, 186, 90, 0.26);
+  --gold-line-strong: rgba(232, 186, 90, 0.55);
+
+  /* Schaduwen dragen op donker meer gewicht en minder spreiding. */
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow-glass: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow-lift:  0 20px 54px rgba(0, 0, 0, 0.55);
+
+  /* Tokens van de relief-laag (09) die zij zelf licht definieert. */
+  --lv-inset:     #171410;
+  --line-3:       rgba(255, 246, 228, 0.14);
+}
+
+/* Wellshine houdt zijn koelere champagne, maar dan op nacht. */
+body.brand-wellshine {
+  --amber:      #e4c48f;
+  --amber-hi:   #f4dfb4;
+  --amber-wash: #2a2418;
+  --amber-deep: #d8b782;
+  --gold-rgb:   224, 186, 130;
+  --gold:       #e0ba82;
+  --gold-bright:#f4dfb4;
+  --paper:      #090807;
+}
+
+/* ---------- CANVAS ---------- */
+html { background: var(--paper); }
+html, body,
+body.brand-wellshave,
+body.brand-wellshine {
+  background-color: var(--paper) !important;
+  color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 65% 42% at 50% 0%,  rgba(232, 186, 90, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 105%, rgba(232, 186, 90, 0.05) 0%, transparent 58%) !important;
+  background-attachment: fixed !important;
+}
+body.brand-wellshine, html:has(body.brand-wellshine) {
+  background-image:
+    radial-gradient(ellipse 65% 42% at 50% 0%,  rgba(224, 186, 130, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 105%, rgba(224, 186, 130, 0.05) 0%, transparent 58%) !important;
+}
+::selection { background: rgba(232, 186, 90, 0.35); color: #1a1408; }
+::-webkit-scrollbar-thumb { background: rgba(255, 246, 228, 0.16); border: 3px solid transparent; background-clip: padding-box; border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 246, 228, 0.28); background-clip: padding-box; }
+
+/* ---------- DE HARDGECODEERDE WITTE VLAKKEN ----------
+   Elk blok hieronder countert één plek waar een laag eronder een lichte kleur
+   hard heeft gezet in plaats van een token te gebruiken. */
+
+/* 08: de vensterbalk was melkglas-wit. */
+.console-titlebar {
+  background: rgba(13, 11, 9, 0.78) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+/* 08: statuschips en knoppen in de topbalk. */
+.ws-topbar-meta .status-line { background: var(--surface-2); border-color: var(--line); }
+.ws-topbar-meta .status-clickable:hover { background: var(--surface-3); }
+.ws-hamburger { background: var(--surface-2) !important; color: var(--ink) !important; border-color: var(--line) !important; }
+.ws-icon-btn { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+
+/* 08: dashboardkaarten met een licht goudverloop. */
+.dash-act.primary {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.16) 0%, var(--surface) 62%) !important;
+  border-color: rgba(232, 186, 90, 0.4) !important;
+}
+.dash-stat.accent {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.14), var(--surface-2)) !important;
+  border-color: rgba(232, 186, 90, 0.35) !important;
+}
+
+/* 08: de standaardknop was wit. */
+.btn { background: var(--surface-2) !important; color: var(--ink) !important; }
+.btn:hover { background: var(--surface-3) !important; }
+
+/* 08: focus op een formulier sprong naar wit. */
+input:focus, select:focus, textarea:focus {
+  background: rgba(232, 186, 90, 0.06) !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(232, 186, 90, 0.16) !important;
+}
+
+/* 08: chips en tabs. */
+.radio-pill, .fmt-chip, .tf-preset-chip, .px-tab {
+  background: var(--surface-2) !important;
+  color: var(--ink-soft) !important;
+}
+
+/* 08: het lege resultatenvak. */
+#main-tab-generator > #results:empty { background: var(--surface) !important; }
+
+/* 09: de uitgelichte dashboardstat. */
+.dash-stats .dash-stat:nth-child(3) {
+  background: linear-gradient(160deg, rgba(232, 186, 90, 0.12) 0%, var(--surface-2) 100%) !important;
+}
+
+/* 10: het lichte cockpitpaneel. */
+.ws7-light { background: var(--surface); border-color: var(--line); }
+
+/* 11: de studiokolommen van het klassieke formulier. */
+.ws8-left .ws8-acc, .ws8-left .settings-panel,
+.ws8-card, .ws8-center .brain-dump-card, .ws8-center .form-section,
+.ws8-center #source-ad-section, .ws8-center .iw-launch,
+.ws8-insp-card {
+  background: var(--surface); border-color: var(--line);
+}
+
+/* 12: het inzichtenframe. */
+.ws9-frame { background: var(--surface); border-color: var(--line); }
+
+/* 15: de variatiekaarten en hun bewerkvelden. */
+.variation-card { background: var(--surface) !important; border-color: var(--line) !important; }
+.variation-card.rv-editing .var-row .inline-edit-input,
+.variation-card.rv-editing .var-row .inline-edit-textarea,
+.variation-card.rv-editing .rv-block[data-f="cta"] .inline-edit-input {
+  background: var(--surface-3) !important; color: var(--ink) !important;
+  border-color: var(--line-strong) !important;
+}
+.rv-edit-btn { background: var(--surface-2); border-color: var(--line-strong); color: var(--ink-soft); }
+
+/* 08: de lichte waas achter de topbalk wordt een donkere. */
+.ws-topbar::before {
+  background: linear-gradient(180deg, rgba(8, 7, 6, 0.94) 0%, rgba(8, 7, 6, 0.72) 62%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* 10: de cockpitpanelen. Het amberpaneel blijft HET accent van het dashboard,
+   maar als gouden gloed op donker in plaats van een gele daglichtkaart. */
+.ws7-amber {
+  background: linear-gradient(150deg, rgba(232, 186, 90, 0.28) 0%, rgba(232, 186, 90, 0.14) 55%, var(--surface) 130%);
+  color: var(--ink);
+  border: 1px solid rgba(232, 186, 90, 0.45);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), 0 0 30px rgba(232, 186, 90, 0.08);
+}
+.ws7-amber .ws7-next-s, .ws7-amber .ws7-kicker { color: var(--ink-soft); }
+.ws7-inset { background: var(--surface-3); border-color: var(--line); }
+.ws7-tile { background-color: var(--surface-3); }
+.ws7-tile.ph { background: var(--surface-2); border-color: var(--line-strong); }
+.ws7-next:hover { box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5), 0 0 34px rgba(232, 186, 90, 0.12); }
+
+/* De volledige veeg over alle veertien tabs vond nog vijf lichte vlakken.
+   Gevonden met een meting (elk element > 60x40 met een lichte berekende
+   achtergrond), niet met de hand -- wat hier niet staat, was er niet. */
+
+/* index.html (inline): de Fable-spardrawer. */
+.wgp-drawer {
+  background: #100e0b !important;
+  border-left: 1px solid rgba(232, 186, 90, 0.25) !important;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.6) !important;
+  color: var(--ink);
+}
+
+/* 04-px: de feitencellen op de personakaart. */
+.px-attr { background: var(--surface-2); }
+.px-attr-k { color: var(--ink-faint); }
+.px-attr-v { color: var(--gold); }
+.px-attr-grid { background: var(--line); border-color: var(--line); }
+
+/* 01-basis: de fotozones van Copywriter en Ad transformer, en de
+   bron-ad-dropzone van Itereren. */
+/* 09 zet de dropzones op --lv-inset met !important; die token hermappen we
+   hier, en de counter zelf krijgt gelijke kracht. */
+.tf-photo-zone, .source-ad-dropzone, .ref-dropzone, #ref-dropzone-product {
+  background: var(--surface-2) !important;
+  border-color: var(--line-strong) !important;
+}
+
+/* 11: de zwevende kop van de studio. */
+.ws8-header {
+  background: rgba(13, 11, 9, 0.88);
+  border-color: var(--line);
+}
+.ws8-acc-head:hover { background: var(--surface-3); }
+
+/* 08/lib: de lege-bibliotheekkaart en verwante lege staten die op tokens
+   leunden die nu donker zijn, houden hun opbouw; alleen expliciet licht wit
+   moet om. */
+.lib-empty, .empty-state { background: var(--surface); border-color: var(--line); }
+
+/* 12: de checklistvakjes op Itereren -- gevonden door de bewakingstest, niet
+   door de handmatige veeg. Precies waarvoor die test bestaat. */
+.ws9-check { background: var(--surface-2); }
+
+/* ── 13: het bibliotheek-zijpaneel ─────────────────────────────────────────
+   Gevonden met een meting, niet met het oog: de console was zwart en dit
+   paneel bleef crème (rgb 243,241,235). De veegtest liep alleen langs de
+   tabs en klikte nooit een creative aan, dus het paneel viel er structureel
+   buiten. Sinds het paneel het volledige dossier draagt is het geen randgeval
+   meer maar de plek waar je leest.
+
+   De veegtest opent hem nu wel, dus dit blijft staan. */
+.wg-drill-overlay { background: rgba(0, 0, 0, .62) !important; }
+.wg-drill-panel {
+  background: #100e0b !important;
+  border-left: 1px solid rgba(var(--gold-rgb), .22) !important;
+  color: var(--text) !important;
+}
+.wg-drill-img { border-color: rgba(var(--gold-rgb), .2) !important; }
+.wg-drill-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.wg-drill-sluit {
+  cursor: pointer; color: var(--text-faint); font-size: 24px; line-height: 1; padding: 0 6px;
+  transition: color var(--wg-t-snel, 150ms) ease;
+}
+.wg-drill-sluit:hover { color: var(--gold); }
+.wg-drill-kop {
+  font-family: var(--font-serif, Georgia, serif); font-size: 22px;
+  color: var(--gold); margin-top: 16px; line-height: 1.25;
+}
+.wg-drill-body { color: var(--text-soft); font-size: 14px; line-height: 1.6; margin-top: 10px; }
+.wg-drill-geenbeeld {
+  padding: 40px; text-align: center; color: var(--text-faint);
+  border: 1px dashed rgba(var(--gold-rgb), .25); border-radius: 12px;
+}
+.wg-drill-acties { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 20px; }
+/* Zelfde regel als op de kaart: de rij breekt, het woord niet. */
+.wg-drill-acties .btn { white-space: nowrap; }
+.wg-drill-acties .btn-danger { margin-left: auto; }
+/* De invoervelden van de scorekaart: hetzelfde relief als de rest, niet de
+   gitzwarte gaten die een kale textarea op deze ondergrond oplevert. */
+.wg-drill-panel textarea, .wg-drill-panel input[type="text"] {
+  background: rgba(var(--gold-rgb), .05) !important;
+  border: 1px solid rgba(var(--gold-rgb), .16) !important;
+  color: var(--text) !important;
+}
+.wg-drill-panel textarea:focus, .wg-drill-panel input[type="text"]:focus {
+  border-color: rgba(var(--gold-rgb), .45) !important;
+  background: rgba(var(--gold-rgb), .08) !important;
+}
+
+/* ═══ Het creative dossier ═══════════════════════════════════════════════════
+   Het detailscherm van een bewaarde static. Wat er stond was het beeld, de
+   kop, en daaronder het hele dossier plus de matrix onder elkaar geplakt:
+   acht velden met precies hetzelfde gewicht, elk in een tekstvakje van drie
+   regels met zijn eigen schuifbalk. Dan scrol je binnen een vakje om een zin
+   te lezen die je niet aan het bewerken bent.
+
+   Nu: kop met kruimelpad, beeld met zijn variaties, het oordeel per as,
+   kerninformatie, en drie tabbladen. De opbouw volgt de volgorde waarin je
+   ernaar kijkt -- wat is dit, hoe scoort het, en dan pas de details. */
+
+/* De maat waar alles binnenin zich naar richt. Zonder dit kijken de
+   breekpunten naar het venster, en dat is precies de fout die je ziet als een
+   breed scherm een smal paneel toont: het venster zegt "drie kolommen passen"
+   terwijl het paneel er twee aankan. */
+#wiz-inline .dos-inhoud, .dos-inhoud {
+  display: block; container-type: inline-size; container-name: dossier;
+}
+.dos-panel .dos-inhoud { margin-top: -4px; }
+
+/* ── Kop ── */
+.dos-kop { margin-bottom: 20px; }
+.dos-koprij { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dos-pil {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border-radius: 999px;
+  border: 1px solid rgba(var(--gold-rgb), .26); background: rgba(0, 0, 0, .3);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--gold);
+}
+/* Hoeveel variaties er bij elkaar horen. Dit stond nergens, terwijl een
+   concept per definitie een ad set van drie is. */
+.dos-pil.set { color: #7fb79a; border-color: rgba(127, 183, 154, .35); }
+.dos-datum { margin-left: auto; font-size: 12px; color: var(--text-faint); }
+.dos-titel {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 500;
+  font-size: clamp(20px, 2.4vw, 27px); line-height: 1.18; color: var(--text);
+  margin: 13px 0 8px; text-wrap: balance;
+}
+.dos-kruimels {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-size: 12.5px; color: var(--text-soft);
+}
+.dos-kruimels i { font-style: normal; color: var(--text-faint); }
+
+/* ── Beeld en variaties ── */
+.dos-lijf { display: grid; gap: 16px; margin-bottom: 18px; }
+@container dossier (min-width: 780px) { .dos-lijf { grid-template-columns: minmax(0, 40%) minmax(0, 1fr); } }
+.dos-beeld {
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(var(--gold-rgb), .14);
+  border-radius: 11px; overflow: hidden; align-self: start;
+}
+.dos-beeld-img { width: 100%; display: block; }
+.dos-geenbeeld {
+  aspect-ratio: 4/5; display: grid; place-items: center;
+  color: var(--text-faint); font-size: 12.5px;
+}
+.dos-strip { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(var(--gold-rgb), .12); }
+.dos-strip button {
+  flex: 1; aspect-ratio: 4/5; padding: 0; overflow: hidden;
+  border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(var(--gold-rgb), .14); background: var(--bg);
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-faint);
+}
+.dos-strip button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dos-strip button[aria-pressed="true"] { border-color: var(--gold); }
+.dos-strip button:not([aria-pressed="true"]) img { opacity: .45; }
+.dos-strip button:hover img { opacity: 1; }
+.dos-strip button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.dos-kolom { display: grid; gap: 14px; align-content: start; }
+.dos-kaart {
+  background: rgba(0, 0, 0, .26); border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 11px; padding: 15px 16px;
+}
+/* !important omdat de Daylight-skin h1 t/m h4 met !important op --ink zet.
+   Zonder gelijke sterkte komen deze kopjes cremekleurig uit en zijn ze niet
+   van de lopende tekst te onderscheiden -- precies wat er eerder met de
+   matrixkop gebeurde. */
+.dos-kaart > h4 {
+  margin: 0 0 11px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--gold) !important; font-weight: 400;
+}
+.dos-lpkop h3, .dos-titel { color: var(--text) !important; }
+.dos-kaartkop {
+  margin: 0 0 11px !important; font-family: 'Fraunces', Georgia, serif !important;
+  font-size: 15px !important; color: var(--text) !important;
+  letter-spacing: 0 !important; text-transform: none !important; font-weight: 500 !important;
+}
+
+/* ── Nicks oordeel ──
+   Vier assen in plaats van een cijfer. Een enkel cijfer verbergt juist welke
+   as zwak is, en dat is het enige waar je iets aan hebt. Het cijfer blijft
+   ernaast staan als optelsom, want daar sorteer je op. */
+.dos-oordeel-kop { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.dos-avatar {
+  position: relative; overflow: hidden;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  display: grid; place-items: center;
+  font-family: 'Fraunces', serif; color: var(--gold); font-size: 14px;
+}
+/* De foto vult de cirkel; de letter eronder blijft als het bestand mist. */
+.dos-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dos-avatar i { font-style: normal; }
+.dos-naam { font-family: 'Fraunces', Georgia, serif; color: var(--text); font-size: 15.5px; }
+.dos-cijfer {
+  margin-left: auto; font-family: 'Fraunces', serif; font-size: 22px;
+  color: var(--gold-bright); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.dos-cijfer small {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text-faint); letter-spacing: .08em;
+}
+.dos-oordeel-zin { margin: 0; font-size: 13px; color: var(--text-soft); line-height: 1.55; }
+.dos-oordeel-zin b { color: var(--text); }
+.dos-assen {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 7px; margin-top: 12px;
+}
+.dos-as {
+  border: 1px solid rgba(var(--gold-rgb), .12); border-radius: 8px;
+  padding: 7px 9px; background: rgba(0, 0, 0, .3);
+}
+.dos-as em {
+  display: block; font-style: normal; font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; letter-spacing: .11em; text-transform: uppercase; color: var(--text-faint);
+}
+.dos-as b { display: block; margin-top: 3px; font-size: 13px; font-weight: 600; }
+/* Semantische kleur, met opzet niet goud: goud is het accent van de console
+   en mag niet ook nog "goed" betekenen. */
+.dos-as.sterk b { color: #7fb79a; }
+.dos-as.gemiddeld b { color: #c98f5a; }
+.dos-as.zwak b { color: #c9695a; }
+.dos-as u { display: block; height: 3px; border-radius: 2px; margin-top: 6px; background: rgba(255, 255, 255, .07); text-decoration: none; overflow: hidden; }
+.dos-as u i { display: block; height: 100%; border-radius: 2px; }
+.dos-as.sterk u i { width: 85%; background: #7fb79a; }
+.dos-as.gemiddeld u i { width: 52%; background: #c98f5a; }
+.dos-as.zwak u i { width: 28%; background: #c9695a; }
+
+/* ── Kerninformatie ── */
+.dos-kern { display: grid; gap: 10px; }
+@container dossier (min-width: 520px) { .dos-kern { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 22px; } }
+.dos-kern > div { display: grid; grid-template-columns: 104px 1fr; gap: 9px; align-items: baseline; font-size: 13px; }
+.dos-kern dt {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.dos-kern dd { margin: 0; color: var(--text); line-height: 1.45; }
+.dos-kern dd.leeg { color: var(--text-faint); font-style: italic; }
+
+/* ── Tabbladen ──
+   Drie, niet zeven: een tabblad dat leeg opengaat leert je binnen een week om
+   niet meer te klikken, en dan klik je ook niet meer op de tabbladen die wel
+   iets hebben. */
+.dos-tabs {
+  display: flex; gap: 2px; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(var(--gold-rgb), .13); margin-bottom: 18px;
+}
+.dos-tabs button {
+  background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  padding: 11px 14px; color: var(--text-faint); font-family: inherit; font-size: 13.5px;
+}
+.dos-tabs button:hover { color: var(--text-soft); }
+.dos-tabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+.dos-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.dos-paneel[hidden] { display: none; }
+
+/* ── Overzicht ── */
+.dos-drie { display: grid; gap: 13px; }
+/* Drie kolommen pas als er ook drie kolommen IN passen. Dit hing aan de
+   breedte van het venster terwijl het van het paneel afhangt: op een scherm
+   van 900 pixels was het venster breed genoeg en het paneel niet, en dan
+   krijg je kolommen van een woord breed. */
+@container dossier (min-width: 940px) { .dos-drie { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container dossier (min-width: 700px) and (max-width: 939px) { .dos-drie { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dos-drie ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dos-drie li {
+  display: grid; grid-template-columns: 14px 1fr; gap: 8px;
+  font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.dos-drie li::before { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.dos-goed li::before { content: "+"; color: #7fb79a; }
+.dos-beter li::before { content: "!"; color: #c98f5a; }
+.dos-stap p { margin: 0 0 12px; font-size: 13px; color: var(--text); line-height: 1.55; }
+.dos-leegtekst { margin: 0 0 12px; font-size: 12.5px; color: var(--text-faint); line-height: 1.55; }
+.dos-knop {
+  display: inline-block; background: var(--gold); color: #14100a; border: 0;
+  border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12.5px;
+  font-weight: 600; cursor: pointer;
+}
+.dos-knop:hover { background: var(--gold-bright); }
+.dos-knop:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 3px; }
+.dos-knop.stil { background: none; border: 1px solid rgba(var(--gold-rgb), .26); color: var(--gold); }
+.dos-knop.stil:hover { background: rgba(var(--gold-rgb), .08); }
+
+/* ── Landingspagina ── */
+.dos-lpkop { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.dos-lpkop h3 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 17px; color: var(--text); font-weight: 500; }
+.dos-soort {
+  display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  color: var(--gold-bright); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+}
+.dos-eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--gold); margin: 0 0 10px;
+}
+.dos-waarom { font-size: 13px; color: var(--text-soft); margin: 0 0 16px; line-height: 1.6; }
+.dos-moet { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 7px; }
+.dos-moet li {
+  display: grid; grid-template-columns: 15px 1fr; gap: 9px;
+  font-size: 13px; color: var(--text); line-height: 1.55;
+}
+.dos-moet li::before {
+  content: ""; width: 6px; height: 6px; margin-top: 7px; border-radius: 1px;
+  background: var(--gold); transform: rotate(45deg);
+}
+/* Het punt waarop deze creative zwak scoorde. Amber, want het is geen fout
+   maar een opdracht -- dit is wat de pagina moet dichten. */
+.dos-moet li.gat { color: #c98f5a; }
+.dos-moet li.gat::before { background: #c98f5a; }
+.dos-promptvak {
+  position: relative; background: rgba(0, 0, 0, .34);
+  border: 1px solid rgba(var(--gold-rgb), .13); border-radius: 10px;
+}
+.dos-promptvak pre {
+  margin: 0; padding: 15px 17px; max-height: 300px; overflow: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.7;
+  color: var(--text-soft); white-space: pre-wrap; word-break: break-word;
+}
+.dos-kopieer {
+  position: absolute; top: 9px; right: 9px;
+  background: var(--bg-elevated); border: 1px solid rgba(var(--gold-rgb), .26);
+  border-radius: 7px; color: var(--gold); font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 6px 11px; cursor: pointer;
+}
+.dos-kopieer:hover { background: var(--gold); color: #14100a; }
+.dos-kopieer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ── Matrix ──
+   Leesbare blokken in plaats van tekstvakjes met een schuifbalk. Klik erin om
+   te wijzigen. */
+.dos-velden {
+  display: grid; gap: 1px; background: rgba(var(--gold-rgb), .13);
+  border: 1px solid rgba(var(--gold-rgb), .13); border-radius: 11px; overflow: hidden;
+}
+@container dossier (min-width: 680px) { .dos-velden { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.dos-veld { background: #100e0b; padding: 14px 16px; }
+.dos-veldkop { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.dos-veldkop b {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--gold); font-weight: 400;
+}
+.dos-veld p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text); }
+.dos-veld p[contenteditable] { cursor: text; border-radius: 4px; }
+.dos-veld p[contenteditable]:hover { box-shadow: 0 0 0 1px rgba(var(--gold-rgb), .13); }
+.dos-veld p[contenteditable]:focus { outline: 2px solid var(--gold); outline-offset: 4px; }
+.dos-veld.leeg p { color: var(--text-faint); font-style: italic; }
+/* Afgeleid: een streep in de kantlijn. Dit stond er wel maar was niet te
+   zien, en dan weet je niet wat een mens heeft nagekeken. */
+.dos-veld.af { box-shadow: inset 2px 0 0 #c98f5a; }
+.dos-merk {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: .1em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  border: 1px solid rgba(201, 143, 90, .4); color: #c98f5a; white-space: nowrap;
+}
+.dos-merk.vast { border-color: rgba(127, 183, 154, .4); color: #7fb79a; }
+.dos-bevestig {
+  margin-left: auto; background: none; border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 6px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 8px; cursor: pointer;
+}
+.dos-bevestig:hover { border-color: rgba(var(--gold-rgb), .35); color: var(--gold); }
+.dos-bevestig:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.dos-adnaam {
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+  font-size: 11px !important; color: var(--text-soft) !important; word-break: break-all;
+}
+.dos-hint { font-size: 11.5px; color: var(--text-faint); margin: 11px 0 0; line-height: 1.55; }
+
+/* Rory's redenering bij deze variatie, boven de drie kaarten. Het is context
+   en geen oordeel, dus het staat er rustiger bij dan de kaarten eronder. */
+.dos-redenering { margin-bottom: 14px; }
+.dos-redenering .lib-extra.open {
+  background: rgba(0, 0, 0, .26); border: 1px solid rgba(var(--gold-rgb), .13);
+  border-radius: 11px; padding: 15px 16px;
+}
+.dos-redenering .lib-extra.open > h4 {
+  margin: 0 0 10px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--gold) !important; font-weight: 400;
+}
+.dos-redenering .lib-extra-body { display: grid; gap: 9px; font-size: 13px; line-height: 1.6; color: var(--text-soft); }
+.dos-redenering .lib-extra-body b { color: var(--gold-bright); font-weight: 600; }
+
+/* ── Het dossier als venster in het midden ─────────────────────────────────
+   Het stond als lade aan de rechterkant, 560 pixels breed. Daar geperst
+   werden de drie kaarten van het overzicht kolommen van een woord breed en
+   de kerninformatie een lijst van afgebroken regels.
+
+   Het is ook geen bijzaak naast de lijst: op het moment dat je op een
+   creative klikt is dat het enige waar je naar kijkt. Dus midden op het
+   scherm, zo breed als het scherm toelaat, met een bovengrens zodat de
+   leesregels niet uitrekken op een grote monitor. */
+.wg-drill-overlay.dos-modal {
+  justify-content: center; align-items: center; padding: 26px;
+}
+.dos-modal .wg-drill-panel {
+  width: min(1140px, 100%);
+  height: auto; max-height: 92vh;
+  border: 1px solid rgba(var(--gold-rgb), .22) !important;
+  border-radius: 16px;
+  padding: 22px 26px 0;
+  /* De lade schoof van rechts binnen; een venster in het midden komt naar
+     voren. Dezelfde duur, andere richting -- anders leest de beweging als
+     een lade die op de verkeerde plek tot stilstand komt. */
+  transform: translateY(12px) scale(.985);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, .55);
+}
+.wg-drill-overlay.dos-modal.show .wg-drill-panel { transform: none; }
+/* De acties blijven staan terwijl de inhoud eronder scrolt: bij een lang
+   dossier zou je anders helemaal naar beneden moeten om te kunnen sluiten of
+   itereren. */
+.dos-modal .wg-drill-acties {
+  position: sticky; bottom: 0; margin: 0 -26px; padding: 14px 26px;
+  background: linear-gradient(to top, #100e0b 72%, rgba(16, 14, 11, 0));
+  border-top: 1px solid rgba(var(--gold-rgb), .12);
+}
+/* De sluitknop is het enige dat hier nog staat, en space-between duwt hem dan
+   naar links -- waar niemand hem zoekt. */
+.dos-modal .wg-drill-top { position: sticky; top: -1px; z-index: 2; padding-top: 2px;
+  background: #100e0b; margin: -2px -26px 0; padding-left: 26px; padding-right: 26px;
+  justify-content: flex-end; }
+
+/* Nu er ruimte is mogen de kaarten hem ook gebruiken. minmax(0,1fr) omdat een
+   grid-kolom anders niet kleiner wil worden dan zijn langste woord, en dan
+   loopt de rij buiten het venster. */
+.dos-drie .dos-kaart { min-width: 0; }
+@media (max-width: 700px) {
+  .wg-drill-overlay.dos-modal { padding: 0; align-items: stretch; }
+  .dos-modal .wg-drill-panel { max-height: 100vh; border-radius: 0; width: 100%; }
+}
+
+/* De keuze die je maakt als er nog geen bestemming vastligt. Vier kaarten met
+   hun eigen uitleg: kiezen uit vier namen zonder te weten wanneer je welke
+   neemt is ook gokken, alleen met meer stappen. */
+.dos-kies { display: grid; gap: 9px; margin-top: 4px; }
+@container dossier (min-width: 700px) { .dos-kies { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dos-kieskaart {
+  text-align: left; cursor: pointer; padding: 13px 15px; border-radius: 10px;
+  border: 1px solid rgba(var(--gold-rgb), .16); background: rgba(0, 0, 0, .26);
+  display: grid; gap: 4px; font-family: inherit;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.dos-kieskaart:hover { border-color: rgba(var(--gold-rgb), .5); background: rgba(var(--gold-rgb), .05); }
+.dos-kieskaart:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.dos-kieskaart b { font-size: 14px; color: var(--gold-bright); font-weight: 600; }
+.dos-kieskaart span { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+
+/* ── Creative Research ───────────────────────────────────────────────────
+   Kaarten waarvan het beeld de hoofdrol heeft, want dat is waar je naar
+   kijkt als je een advertentie beoordeelt. De cijfers staan eronder en
+   nadrukkelijk klein: ze zijn context, geen ranglijst.
+
+   De breekpunten hangen aan de container en niet aan het venster, om
+   dezelfde reden als bij het dossier: het vlak bepaalt hoeveel kolommen er
+   passen, en het venster weet dat niet. */
+/* Geen kolom van 1240 meer met de halve pagina leeg ernaast: het scherm is een
+   werkbank. Links de knoppen, rechts de uitslag, en de uitslag krijgt alles wat
+   er over is. */
+.cr-wrap { container-type: inline-size; container-name: research; max-width: none; }
+/* Bouwer boven, uitslag eronder. Het was een smalle rail met de kaarten
+   ernaast; de bouwer heeft die breedte zelf nodig -- dertien merkkaarten in een
+   kolom van driehonderd is weer een lijst om doorheen te scrollen. */
+.cr-werk { display: flex; flex-direction: column; gap: 26px; }
+/* De kaarten tellen hun kolommen tegen HUN vlak, niet tegen het scherm: met de
+   rail ernaast is dat vierhonderd pixels minder. */
+.cr-uitslag { container-type: inline-size; container-name: crlijst; min-width: 0; }
+.cr-blok { display: flex; flex-direction: column; gap: 8px; padding: 12px 0 2px; border-top: 1px solid var(--hairline); }
+.cr-blok:first-of-type { border-top: none; }
+.cr-bloklabel {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint);
+}
+.cr-filterrij.klein { gap: 6px; }
+
+/* De merken als lijst met logo's. Dertien knoppen naast elkaar is een muur;
+   onder elkaar met een logo ervoor lees je in een oogopslag wie er meedoet. */
+.cr-merken { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; }
+.cr-merkknop {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 6px 9px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; color: var(--text-soft); font-size: 12.5px; cursor: pointer;
+}
+.cr-merkknop:hover { border-color: var(--line); color: var(--text); }
+/* Aan = zelf aangevinkt. Mee = er is niets gekozen, dus doet iedereen mee --
+   dat is iets anders dan aangevinkt en hoort er ook anders uit te zien. */
+.cr-merkknop.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .1); color: var(--gold-bright); }
+.cr-merkknop.mee { color: var(--text-soft); }
+.cr-merkknop.mee .cr-logo { opacity: .75; }
+.cr-merknaam { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-merkgetal { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* Het logo komt van het domein dat bij de naam hoort. Laadt het niet, dan haalt
+   onerror de foto weg en blijft de beginletter staan. */
+.cr-logo {
+  position: relative; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px;
+  overflow: hidden; display: inline-grid; place-items: center;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-size: 10px;
+}
+.cr-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.cr-logo i { font-style: normal; }
+
+/* ── De onderzoeksbouwer ────────────────────────────────────────────────────
+   Vier blokken die samen een vraag stellen, en rechts wat die vraag is. Het was
+   een stapel filterrijen; nu is de volgorde van het scherm de volgorde van de
+   beslissing: voor welk merk, tegen wie, waarnaar, en met welke marges. */
+.cr-bouw { display: flex; flex-direction: column; gap: 16px; margin-bottom: 26px; }
+.cr-bouwkop { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.cr-bouwkop h3 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-size: 19px; color: var(--text); }
+.cr-bouwkop p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-faint); }
+
+.cr-stapper { display: flex; align-items: center; gap: 18px; list-style: none; margin: 0; padding: 0; }
+.cr-stapper li {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-faint);
+  padding-bottom: 6px; border-bottom: 2px solid transparent;
+}
+.cr-stapper li.nu { color: var(--gold-bright); border-bottom-color: var(--gold); }
+.cr-stapper li.af { color: var(--text-soft); }
+.cr-stapnr {
+  width: 19px; height: 19px; border-radius: 50%; display: inline-grid; place-items: center;
+  font-size: 10.5px; border: 1px solid currentColor;
+}
+.cr-stapper li.nu .cr-stapnr { background: var(--gold); border-color: var(--gold); color: #14120c; }
+
+/* Drie blokken naast elkaar: context, concurrenten (breed), doel. */
+.cr-bouwraster { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.cr-bouwonder { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+@container research (min-width: 900px) {
+  .cr-bouwraster { grid-template-columns: 250px minmax(0, 1fr) 280px; }
+  .cr-bouwonder { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+.cr-blok {
+  position: relative; display: flex; flex-direction: column; gap: 9px;
+  padding: 16px 16px 18px; border-radius: 14px;
+  border: 1px solid var(--hairline); background: rgba(255, 255, 255, .015);
+}
+.cr-bloknr {
+  position: absolute; top: 14px; right: 16px;
+  font-size: 10px; color: var(--text-faint); letter-spacing: .1em;
+}
+.cr-bloktitel { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+
+/* Voor welk van onze merken. Een kaart en geen radioknop: hier begint het
+   onderzoek en dat mag je zien. */
+.cr-contextkaart {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 11px 13px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer;
+}
+.cr-contextkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-contextkaart.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-contextkaart.stil { background: transparent; border-style: dashed; }
+.cr-contextnaam { font-size: 13.5px; color: var(--text); }
+.cr-contextkaart.aan .cr-contextnaam { color: var(--gold-bright); }
+.cr-contextsub { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+
+/* De concurrenten als kaarten. Een pil met alleen een naam dwingt je de lijst
+   te lezen; een kaart met logo en aantal laat je hem scannen. */
+.cr-merkbalk { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cr-merkbalk .cr-invoer { flex: 1 1 200px; }
+.cr-merkstand { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+.cr-snelrij { display: flex; flex-wrap: wrap; gap: 6px; }
+.cr-snel {
+  font-size: 11.5px; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--text-soft); cursor: pointer;
+}
+.cr-snel:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.cr-snel.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+
+.cr-merkraster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@container research (min-width: 1180px) { .cr-merkraster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container research (min-width: 900px) and (max-width: 1179px) { .cr-merkraster { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cr-merkkaart {
+  position: relative; display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 9px 11px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer; min-width: 0;
+}
+.cr-merkkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-merkkaart.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-merkkaart .cr-logo { width: 30px; height: 30px; border-radius: 8px; font-size: 12px; }
+.cr-merkkaart-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.cr-merkkaart .cr-merknaam { font-size: 12.5px; color: var(--text); }
+.cr-merkkaart.aan .cr-merknaam { color: var(--gold-bright); }
+.cr-merksub { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Het vinkje bevestigt de keuze. Zonder markering moet je de randkleur
+   vergelijken met de buurman om te zien wat aan staat. */
+.cr-vink { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line); flex: 0 0 auto; }
+.cr-merkkaart.aan .cr-vink { border-color: var(--gold); background: var(--gold); position: relative; }
+.cr-merkkaart.aan .cr-vink::after {
+  content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+  border: solid #14120c; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg);
+}
+
+/* De onderzoeksdoelen. */
+.cr-doel {
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); cursor: pointer;
+}
+.cr-doel:hover:not(:disabled) { border-color: rgba(var(--gold-rgb), .5); }
+.cr-doel.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .09); }
+.cr-doelnaam { font-size: 12.5px; color: var(--text); }
+.cr-doel.aan .cr-doelnaam { color: var(--gold-bright); }
+.cr-doelsub { font-size: 11px; color: var(--text-faint); }
+/* Nog niet beschikbaar, en dat is te zien én te lezen. Een kaart die je kunt
+   aanklikken en die stil de standaardlijst oplevert is erger dan een kaart die
+   uitstaat: dan denk je dat je iets gemeten hebt. */
+.cr-doel.nogniet { opacity: .45; cursor: not-allowed; border-style: dashed; }
+.cr-meer {
+  align-self: flex-start; background: none; border: none; padding: 2px 0;
+  color: var(--gold); font-size: 11.5px; cursor: pointer; text-decoration: underline;
+}
+
+.cr-velden { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.cr-veld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cr-veld.breed { grid-column: 1 / -1; }
+.cr-veld > span:first-child { font-size: 11px; color: var(--text-faint); letter-spacing: .04em; }
+.cr-vast {
+  display: flex; flex-direction: column; gap: 2px; padding: 7px 11px; border-radius: 8px;
+  border: 1px dashed var(--line); color: var(--text-soft); font-size: 12px;
+}
+.cr-vast em { font-style: normal; font-size: 10.5px; color: var(--text-faint); }
+
+/* De scope: wat er straks werkelijk gevraagd wordt, in woorden. */
+.cr-scope {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border-radius: 14px; border: 1px solid rgba(var(--gold-rgb), .28);
+  background: rgba(var(--gold-rgb), .045);
+}
+.cr-scopelijst { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cr-scopelijst > div { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.cr-scopelijst dt { color: var(--text-faint); min-width: 92px; }
+.cr-scopelijst dd { margin: 0; color: var(--text); }
+.cr-scope .cr-knop { width: 100%; }
+
+.cr-rory { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px;
+  padding: 12px 14px; border-radius: 12px; border: 1px solid var(--hairline); }
+.cr-rory-foto { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
+  position: relative; overflow: hidden; display: inline-grid; place-items: center;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26); color: var(--gold); }
+.cr-rory-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cr-rory-foto i { font-style: normal; font-size: 12px; }
+.cr-rory-t { display: flex; flex-direction: column; gap: 2px; flex: 1 1 240px; min-width: 0; }
+.cr-rory-t b { font-size: 12.5px; color: var(--text); font-weight: 600; }
+.cr-rory-t span { font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+.cr-stappen { display: flex; gap: 14px; flex-wrap: wrap; }
+.cr-stappen span { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px; }
+.cr-stappen span::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--line); }
+
+/* Filteren over wat er al binnen is. Boven de kaarten, want het gaat over die
+   kaarten en niet over de volgende ophaalronde. */
+.cr-toonfilter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px;
+}
+.cr-intro h2 { font-size: 22px; color: var(--gold-bright) !important; margin: 0 0 6px; }
+.cr-intro p { font-size: 13.5px; color: var(--text-soft); line-height: 1.6; max-width: 62ch; margin: 0 0 20px; }
+
+.cr-filters { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.cr-filterrij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cr-keuze {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); font-size: 13px;
+  font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.cr-keuze.klein { padding: 6px 11px; font-size: 12px; }
+.cr-keuze:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.cr-keuze.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+.cr-invoer {
+  flex: 1 1 240px; min-width: 160px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-elevated); color: var(--text); font-size: 13px;
+}
+.cr-invoer.kort { flex: 0 0 90px; min-width: 70px; }
+.cr-knop {
+  padding: 9px 18px; border-radius: 8px; border: 1px solid var(--gold);
+  background: rgba(var(--gold-rgb), .12); color: var(--gold-bright);
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.cr-knop:hover:not(:disabled) { background: rgba(var(--gold-rgb), .2); }
+.cr-knop:disabled { opacity: .5; cursor: default; }
+.cr-knop.groot { padding: 12px 22px; font-size: 14px; margin-top: 14px; }
+
+.cr-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; margin: 0; max-width: 76ch; }
+/* De keerzijde van een sortering krijgt dezelfde regel als de belofte, alleen
+   valer. Op een eigen regel zetten leest als een waarschuwing; ernaast leest
+   het als wat het is -- de andere helft van dezelfde zin. */
+.cr-letop { color: var(--text-faint); }
+
+/* Het voorbehoud staat boven de lijst en niet eronder. Onder de kaarten is
+   het een voetnoot, en een voetnoot bij tien cijfers wordt niet gelezen. */
+.cr-voorbehoud {
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.6;
+  border-left: 2px solid rgba(var(--gold-rgb), .45); padding: 8px 0 8px 14px;
+  margin: 0 0 18px; max-width: 84ch;
+}
+.cr-venstermelding { font-size: 12.5px; color: var(--text-faint); margin: -10px 0 16px; }
+
+.cr-melding {
+  padding: 20px; border: 1px dashed var(--line); border-radius: 10px;
+  color: var(--text-soft); font-size: 13px; line-height: 1.6; max-width: 72ch;
+}
+.cr-melding.fout { border-color: rgba(189, 15, 15, .5); color: #e88; border-style: solid; }
+
+.cr-raster { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@container crlijst (min-width: 520px) { .cr-raster { grid-template-columns: repeat(2, 1fr); } }
+@container crlijst (min-width: 820px) { .cr-raster { grid-template-columns: repeat(3, 1fr); } }
+@container crlijst (min-width: 1180px) { .cr-raster { grid-template-columns: repeat(4, 1fr); } }
+
+.cr-kaart {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer;
+}
+.cr-kaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.cr-kaart:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cr-beeld {
+  aspect-ratio: 1 / 1; background: var(--bg-elevated); display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+}
+.cr-beeld img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cr-beeld-leeg { font-size: 11.5px; color: var(--text-faint); }
+.cr-beeld-leeg.fout { color: var(--danger, #e07a6a); padding: 0 14px; text-align: center; line-height: 1.5; }
+/* Het speelmerk ligt OVER de poster, niet ernaast: het vak is een vierkant en
+   de poster vult het helemaal. Position absolute dus, met een vak dat relatief
+   staat. */
+.cr-beeld { position: relative; }
+.cr-speel {
+  position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: rgba(10, 10, 12, .72); color: var(--gold-bright);
+  border: 1px solid rgba(255, 255, 255, .14); backdrop-filter: blur(3px);
+}
+.cr-kaart-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+.cr-merk { font-size: 12px; color: var(--gold-bright); font-weight: 600; }
+.cr-kop { font-size: 13px; color: var(--text); line-height: 1.45; }
+.cr-cijfers { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.cr-cijfers b { color: var(--text-soft); font-weight: 600; }
+.cr-punt { opacity: .5; }
+
+.cr-terug {
+  background: none; border: none; color: var(--text-soft); font-size: 13px;
+  cursor: pointer; padding: 0 0 14px;
+}
+.cr-terug:hover { color: var(--gold-bright); }
+.cr-detail-boven { display: grid; grid-template-columns: 1fr; gap: 22px; }
+@container research (min-width: 760px) { .cr-detail-boven { grid-template-columns: 340px 1fr; } }
+.cr-detail-beeld {
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; min-height: 200px;
+}
+.cr-detail-beeld img { width: 100%; display: block; }
+.cr-detail-beeld video { width: 100%; display: block; background: #000; }
+/* Terwijl de video binnenkomt staat de poster er al, met de melding erover. */
+.cr-detail-beeld { position: relative; }
+.cr-detail-beeld img + .cr-beeld-leeg {
+  position: absolute; inset: auto 0 0 0; padding: 8px 0;
+  background: rgba(10, 10, 12, .72); text-align: center;
+}
+.cr-detail-naast h3 { font-size: 17px; color: var(--gold-bright) !important; margin: 0 0 2px; }
+.cr-domein { font-size: 12px; color: var(--text-faint); margin-bottom: 14px; }
+.cr-feiten { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 12.5px; }
+.cr-feiten.breed { grid-template-columns: 1fr; gap: 2px 0; }
+.cr-feiten dt { color: var(--text-faint); }
+.cr-feiten dd { color: var(--text); margin: 0; line-height: 1.5; }
+.cr-feiten.breed dt { margin-top: 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+.cr-copy { border-left: 2px solid var(--line); padding-left: 14px; }
+.cr-copy-kop { font-size: 13.5px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+.cr-copy-tekst { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
+.cr-copy-cta { font-size: 11.5px; color: var(--text-faint); margin-top: 6px; }
+.cr-patroon { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.cr-patroon h4 { font-size: 14px; color: var(--gold-bright) !important; margin: 0 0 14px; }
+
+/* ── De itereerwizard ────────────────────────────────────────────────────
+   Twee blokken onder elkaar in de volgorde waarin het werk gebeurt. De trap
+   is een rij vakjes waarvan er hooguit één opvalt: het lek. Alles tegelijk
+   laten opvallen is hetzelfde als niets laten opvallen. */
+/* ── De itereerwizard: vijf stappen ──────────────────────────────────── */
+
+/* Het paneel meet zichzelf. De breekpunten hieronder keken naar `dossier` --
+   de container van de statics-wizard -- en die bestaat op dit scherm niet, dus
+   klapten de twee kolommen nooit uit. Een breekpunt dat naar een container
+   kijkt die er niet is, is een breekpunt dat nooit afgaat. */
+#iw-paneel { container-type: inline-size; container-name: itereren; display: block; }
+
+.iw-stapper { display: flex; align-items: center; gap: 6px; margin: 4px 0 26px; flex-wrap: wrap; }
+.iw-stapper-stap {
+  display: flex; align-items: center; gap: 8px; background: none; border: none;
+  padding: 4px 2px; color: var(--text-faint); font-size: 12.5px; cursor: default;
+}
+.iw-stapper-stap[data-action] { cursor: pointer; }
+.iw-stapper-stap[data-action]:hover .iw-stapper-label { color: var(--gold-bright); }
+.iw-stapper-bol {
+  width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 11.5px; border: 1px solid var(--line);
+  background: var(--bg-elevated); color: var(--text-faint); flex: none;
+}
+.iw-stapper-stap.nu .iw-stapper-bol { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .12); }
+.iw-stapper-stap.nu .iw-stapper-label { color: var(--gold-bright); }
+.iw-stapper-stap.af .iw-stapper-bol { border-color: rgba(var(--gold-rgb), .45); color: var(--gold); }
+.iw-stapper-stap.af .iw-stapper-label { color: var(--text-soft); }
+.iw-stapper-lijn { flex: 1 1 22px; min-width: 22px; height: 1px; background: var(--line); }
+.iw-stapper-lijn.af { background: rgba(var(--gold-rgb), .38); }
+
+.iw-titel { font-size: 15px; color: var(--text) !important; margin: 0 0 4px; }
+.iw-onder { font-size: 12.5px; color: var(--text-faint); margin: 0 0 18px; }
+.iw-kolommen { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@container itereren (min-width: 860px) {
+  .iw-kolommen { grid-template-columns: 1fr 1fr; align-items: start; }
+  .iw-kolommen.smal-breed { grid-template-columns: 340px 1fr; }
+}
+.iw-kaart {
+  border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+  background: var(--surface);
+}
+.iw-kaart.breed { grid-column: auto; }
+.iw-kaart-kop { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.iw-kaart-titel { font-size: 13px; color: var(--text); font-weight: 600; }
+.iw-badge {
+  font-size: 10.5px; padding: 2px 7px; border-radius: 999px; color: var(--gold-bright);
+  border: 1px solid rgba(var(--gold-rgb), .4); background: rgba(var(--gold-rgb), .08);
+}
+.iw-sublabel {
+  font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-faint); margin: 18px 0 8px;
+}
+.iw-presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.iw-preset {
+  display: flex; flex-direction: column; gap: 3px; text-align: center; padding: 12px 8px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated);
+  color: var(--text-soft); cursor: pointer;
+}
+.iw-preset:hover:not(:disabled) { border-color: rgba(var(--gold-rgb), .5); }
+.iw-preset.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .08); }
+.iw-preset:disabled { opacity: .38; cursor: not-allowed; }
+.iw-preset-label { font-size: 12px; color: var(--text); }
+.iw-preset.aan .iw-preset-label { color: var(--gold-bright); }
+.iw-preset-zegt { font-size: 10.5px; color: var(--text-faint); line-height: 1.35; }
+
+.iw-adrij { display: flex; align-items: stretch; gap: 6px; }
+.iw-adrij .iw-adkaart { flex: 1; }
+.iw-ster {
+  flex: none; width: 34px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-elevated); color: var(--text-faint); cursor: pointer; font-size: 14px;
+}
+.iw-ster.aan { color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .45); }
+.iw-trend.omlaag { color: #e0885f; }
+.iw-trend.omhoog { color: #7fb98a; }
+
+.iw-dropzone {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 34px 16px; border: 1px dashed var(--line); border-radius: 12px;
+  background: var(--bg-elevated); color: var(--text-soft); cursor: pointer;
+}
+.iw-dropzone:hover { border-color: rgba(var(--gold-rgb), .5); }
+.iw-dropzone-icoon { font-size: 20px; color: var(--gold); }
+.iw-dropzone-t { font-size: 12.5px; color: var(--text); }
+.iw-dropzone-s { font-size: 11px; color: var(--text-faint); }
+
+.iw-adbeeld {
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg-elevated);
+  display: flex; align-items: center; justify-content: center; min-height: 150px; margin-bottom: 12px;
+}
+.iw-adbeeld img { width: 100%; display: block; }
+.iw-adbeeld video { width: 100%; display: block; background: #000; }
+.iw-leeg { font-size: 11.5px; color: var(--text-faint); }
+.iw-adtitel { font-size: 13px; color: var(--text); }
+.iw-adonder { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.iw-kaartcijfers { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 10px; margin: 14px 0 12px; }
+.iw-tegel { display: flex; flex-direction: column; gap: 1px; }
+.iw-tegel-l { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+.iw-tegel-w { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.iw-tegel-z { font-size: 10px; color: var(--text-faint); line-height: 1.3; margin-top: 1px; }
+
+/* Hoe ver ze komen: vier staafjes, geen tabel. Een retentiecurve lees je aan
+   de vorm en niet aan vier getallen onder elkaar. */
+.iw-doorkijk { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 4px; }
+.iw-dk-balk {
+  height: 5px; border-radius: 3px; background: var(--bg-elevated);
+  border: 1px solid var(--line); overflow: hidden; margin-bottom: 6px;
+}
+.iw-dk-balk i { display: block; height: 100%; background: var(--gold); }
+.iw-dk-w { font-size: 13px; color: var(--text); font-weight: 600; }
+.iw-dk-l { font-size: 10.5px; color: var(--text-faint); }
+.iw-dk-n { opacity: .75; }
+.iw-adacties { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.iw-knop.klein { padding: 6px 11px; font-size: 12px; text-decoration: none; display: inline-block; }
+.iw-knop.groot { padding: 11px 20px; font-size: 13.5px; }
+.iw-voet { display: flex; justify-content: flex-end; margin-top: 18px; }
+
+.iw-velden { display: grid; grid-template-columns: 1fr; gap: 12px 22px; }
+@container itereren (min-width: 640px) { .iw-velden { grid-template-columns: 1fr 1fr; } }
+.iw-veld { display: flex; flex-direction: column; gap: 1px; }
+.iw-veld-l { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+.iw-veld-w { font-size: 12.5px; color: var(--text); line-height: 1.45; }
+.iw-conclusie {
+  margin-top: 18px; padding: 14px 16px; border-radius: 10px;
+  border: 1px solid rgba(var(--gold-rgb), .28); background: rgba(var(--gold-rgb), .05);
+}
+.iw-conclusie-k { font-size: 12px; color: var(--gold-bright); margin-bottom: 6px; }
+.iw-conclusie p { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; margin: 0 0 6px; }
+.iw-sterk { margin-top: 16px; }
+.iw-sterk-k { font-size: 12px; color: var(--text); margin-bottom: 6px; }
+.iw-sterk ul { margin: 0; padding-left: 18px; }
+.iw-sterk li { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
+.iw-bezig { font-size: 12.5px; color: var(--gold-bright); display: flex; flex-direction: column; gap: 3px; }
+.iw-bezig-s { font-size: 11.5px; color: var(--text-faint); }
+
+.iw-blok { margin: 18px 0 26px; }
+.iw-stapkop {
+  display: flex; align-items: center; gap: 10px; font-size: 14px;
+  font-weight: 600; color: var(--gold-bright); margin-bottom: 12px;
+}
+.iw-nr {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 12px;
+  border: 1px solid rgba(var(--gold-rgb), .5); color: var(--gold-bright);
+}
+.iw-rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.iw-keuze {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-soft); font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.iw-keuze.klein { padding: 6px 11px; font-size: 12px; }
+.iw-keuze:hover:not(:disabled) { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.iw-keuze.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+.iw-keuze:disabled { opacity: .4; cursor: not-allowed; }
+.iw-knop {
+  padding: 9px 18px; border-radius: 8px; border: 1px solid var(--gold);
+  background: rgba(var(--gold-rgb), .12); color: var(--gold-bright);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.iw-knop:hover:not(:disabled) { background: rgba(var(--gold-rgb), .2); }
+.iw-knop:disabled { opacity: .5; cursor: default; }
+.iw-link {
+  background: none; border: none; padding: 0; color: var(--text-soft);
+  font-size: 12.5px; text-decoration: underline; cursor: pointer;
+}
+.iw-link:hover { color: var(--gold-bright); }
+.iw-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; margin: 8px 0; max-width: 76ch; }
+.iw-uitleg.leeg { color: var(--text-faint); }
+/* Een lek na de klik is geen creative-opdracht. Dat moet je zien voor je
+   doorklikt, niet erna. */
+.iw-uitleg.waarschuwing {
+  border-left: 2px solid rgba(212, 138, 42, .7); padding: 8px 0 8px 14px; color: var(--text);
+}
+.iw-fout {
+  border: 1px solid rgba(189, 15, 15, .5); border-radius: 8px; padding: 12px 14px;
+  color: #e88; font-size: 12.5px; line-height: 1.6; margin-bottom: 16px;
+}
+
+.iw-lijst { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-height: 340px; overflow-y: auto; }
+.iw-adkaart {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer;
+}
+.iw-adkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+.iw-adnaam { font-size: 13px; color: var(--text); }
+.iw-adcijfers { font-size: 11.5px; color: var(--text-faint); }
+.iw-punt { opacity: .5; }
+
+.iw-gekozen { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
+.iw-gekozen-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.iw-gekozen-kop b { font-size: 13.5px; color: var(--text); }
+.iw-cijfers { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px 16px; }
+.iw-cijfer { display: flex; flex-direction: column; gap: 1px; }
+.iw-cijfer-label { font-size: 11px; color: var(--text-faint); }
+.iw-cijfer-waarde { font-size: 14px; color: var(--text); font-weight: 600; }
+
+.iw-trap { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 18px; }
+.iw-stap {
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  background: var(--surface); display: flex; flex-direction: column; gap: 3px;
+}
+/* Alleen het knelpunt springt eruit. De rest is context: de stappen die het
+   goed doen hoeven geen aandacht, ze hoeven alleen leesbaar te zijn. */
+.iw-stap.knelpunt { border-color: rgba(212, 138, 42, .8); background: rgba(212, 138, 42, .07); }
+.iw-stap-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.iw-stap-label { font-size: 11px; color: var(--text-faint); line-height: 1.3; }
+.iw-vlag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  color: #d48a2a; white-space: nowrap; font-weight: 600;
+}
+.iw-stap-waarde { font-size: 17px; color: var(--text); font-weight: 600; }
+.iw-stap-waarde.leeg { font-size: 12.5px; color: var(--text-faint); font-weight: 400; }
+.iw-stap-norm { font-size: 11px; color: var(--text-soft); }
+.iw-stap-norm.leeg { color: var(--text-faint); font-style: italic; }
+.iw-stap.o-sterk .iw-stap-norm { color: #8fc49a; }
+.iw-stap.o-zwak .iw-stap-norm { color: #d48a2a; }
+
+/* ── Het eigen keuzeveld ─────────────────────────────────────────────────
+   .wgsel is de zelfgebouwde vervanger van een <select>, en hij droeg nog
+   zijn cremekleur uit de tijd dat de console licht was: background #f3f1e9,
+   hardgecodeerd. Dat viel niet op omdat hij op de itereertab onder dertig
+   invoervelden stond en dus buiten het meetbereik van de nachttest viel.
+   Zodra die velden verdwenen, kwam hij in beeld -- de fout stond er al, hij
+   was alleen niet te zien.
+
+   Ook de tekstkleuren gaan mee: donkerbruin op zwart is niet te lezen. */
+.wgsel-field { background: var(--surface); border-color: rgba(var(--gold-rgb), .28); }
+.wgsel-field:hover { border-color: rgba(var(--gold-rgb), .5); box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+.wgsel.open .wgsel-field { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(var(--gold-rgb), .45); }
+.wgsel-bar { background: var(--gold); }
+.wgsel-val { color: var(--text); }
+.wgsel-val.placeholder { color: var(--text-faint); }
+.wgsel-chev { color: var(--text-soft); }
+.wgsel-panel {
+  background: var(--bg-elevated); border-color: rgba(var(--gold-rgb), .3);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .6);
+}
+.wgsel-opt { color: var(--text-soft); }
+.wgsel-opt:hover { background: rgba(var(--gold-rgb), .1); color: var(--gold-bright); }
+.wgsel-opt.sel { color: var(--gold-bright); }
+.wgsel-ck { color: var(--gold); }
+
+/* De terugknop was een zinnetje in de kleur van bijschrift: je zag hem niet,
+   en de eerste plek waar iemand dan kijkt is de terugknop van de browser. Die
+   werkt nu ook, maar deze moet er ook uitzien als wat hij is. */
+.cr-terug {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px 7px 10px; margin-bottom: 18px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  color: var(--text-soft); font-size: 12.5px; cursor: pointer;
+}
+.cr-terug:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--gold-bright); }
+.cr-terug svg { flex: 0 0 auto; }
+
+/* ── Itereren is een eigen scherm, geen variant van de generator ──────────
+   De drie kolommen van de studio horen bij het maken van een nieuwe static:
+   links wat je instelt, midden waar je werkt, rechts wat eruit komt. Bij
+   itereren klopt dat niet. Je stelt niets in -- de advertentie bestaat al en
+   de cijfers komen uit Meta of Atria -- en er is geen resultaat tot je op
+   genereren drukt. Twee lege kolommen naast het enige dat ertoe doet.
+
+   De opbouw zelf blijft ongemoeid: die wordt bij het opstarten door JS gedaan
+   en alle ids en listeners hangen eraan. Hier verandert alleen wat je ziet. */
+/* !important, en met tegenzin. 22-groepering.css zet de drie kolommen met
+   !important vast, dus een gewone regel hier deed niets: links en rechts waren
+   wél verborgen maar de kolombreedtes bleven staan, en het werkblad stond als
+   een strook van 290 pixels midden op een leeg scherm van 1600. Precies wat je
+   op de schermafdruk ziet. */
+body.iterate-mode-active .ws8-grid { grid-template-columns: minmax(0, 1fr) !important; }
+body.iterate-mode-active .ws8-left,
+body.iterate-mode-active .ws8-right { display: none; }
+/* Een kolomnaam boven de enige kolom zegt niets. */
+body.iterate-mode-active .ws8-center > .ws8-zone-lbl { display: none; }
+body.iterate-mode-active .ws8-grid { max-width: 1180px; }
+
+/* En de commandobalk van Statics hoort hier niet. Hij zegt "Statics", telt
+   2/5 van een andere wizard, en zijn Genereer-knop start de statics-generatie.
+   Op het itereerscherm is elk woord ervan onwaar. */
+body.iterate-mode-active .ws8-header { display: none !important; }
+
+/* En de volgorde: eerst de cijfers ophalen, dan pas de rest. Dat is de
+   volgorde waarin het werk gebeurt -- je kiest een advertentie, je ziet waar
+   hij lekt, en pas daarna gaat het over wat je ervan maakt. Het uploadvak
+   blijft eronder staan als terugval voor een advertentie die niet uit de
+   koppeling komt. */
+body.iterate-mode-active .ws8-center { display: flex; flex-direction: column; }
+body.iterate-mode-active #iterate-options { order: -2; }
+body.iterate-mode-active #source-ad-section { order: -1; }

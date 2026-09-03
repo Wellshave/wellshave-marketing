@@ -246,7 +246,75 @@ async function adTransformerRun(){
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Waarom er geen beeld kwam -- en waarom dat verschil uitmaakt
+
+   Op de conceptenkaart stond tot nu toe "failed: " met daarachter de rauwe
+   zin van OpenAI. Bij een netwerkfout leest dat prima. Bij een weigering van
+   het contentfilter niet: dan staat er "Your request was rejected by the
+   safety system. If you believe this is an error, contact us at
+   help.openai.com and include the request ID req_54ab..." -- drie regels
+   waarin het enige bruikbare woord "safety" is, en waaruit je vooral niet
+   opmaakt dat je sleutel, je tegoed en de proxy in orde zijn en dat alleen
+   DEZE ene scene geweigerd is.
+
+   Dat onderscheid is de hele diagnose. Een filterweigering vraagt om een
+   andere regie; een verificatiefout om een instelling bij OpenAI; een
+   netwerkfout om de proxy. Drie keer "failed" laat je alle drie hetzelfde
+   proberen: nog een keer drukken.
+
+   Wat hier NIET gebeurt: een oorzaak verzinnen. Herkent hij de zin niet, dan
+   is de oorzaak 'onbekend' en blijft de rauwe tekst staan -- een verzonnen
+   diagnose is erger dan een lelijke. */
+var BEELD_WEIGERINGEN = [
+  /* De volgorde is de rangorde. Een filterweigering noemt soms ook "policy"
+     en "request"; de specifieke test hoort dus voor de algemene te staan. */
+  { oorzaak: 'contentfilter',
+    test: /safety system|content policy|moderation_blocked|rejected as a result of our safety/i,
+    zin: 'blocked by OpenAI\u2019s content filter \u2014 the scene as written reads as explicit. ' +
+         'Your key, credit and proxy are fine; only this staging was refused.' },
+  { oorzaak: 'verificatie',
+    test: /verify your organization|organization must be verified|verification/i,
+    zin: 'your OpenAI organisation is not verified for gpt-image \u2014 verify it on platform.openai.com, then try again.' },
+  { oorzaak: 'tegoed',
+    test: /insufficient_quota|billing|exceeded your current quota|payment/i,
+    zin: 'OpenAI refused on billing \u2014 the account is out of credit or over its quota.' },
+  { oorzaak: 'druk',
+    test: /rate limit|rate_limit|overload|too many requests/i,
+    zin: 'OpenAI is rate-limiting right now \u2014 wait a minute and draw it again.' },
+  { oorzaak: 'netwerk',
+    test: /failed to fetch|networkerror|proxy is niet bereikbaar/i,
+    zin: 'could not reach the image service \u2014 check that the proxy is running.' },
+  { oorzaak: 'tijd',
+    test: /timed out|timeout/i,
+    zin: 'gave up waiting \u2014 the request may still be running at OpenAI. Draw this one on its own.' }
+];
+
+/* Het verzoek-ID is het enige uit die rauwe zin dat je later nog nodig hebt:
+   zonder dat nummer kan OpenAI een weigering niet terugzoeken. */
+function beeldVerzoekId(tekst) {
+  var m = /\breq_[A-Za-z0-9]+/.exec(String(tekst || ''));
+  return m ? m[0] : null;
+}
+
+function beeldWeigering(tekst) {
+  var t = String(tekst == null ? '' : tekst);
+  /* Geen tekst is geen oorzaak. Hier een stand verzinnen zou van "er is niets
+     gebeurd" een mislukking maken. */
+  if (!t.trim()) return null;
+  for (var i = 0; i < BEELD_WEIGERINGEN.length; i++) {
+    if (BEELD_WEIGERINGEN[i].test.test(t)) {
+      return { oorzaak: BEELD_WEIGERINGEN[i].oorzaak, zin: BEELD_WEIGERINGEN[i].zin,
+               ruw: t, verzoekId: beeldVerzoekId(t) };
+    }
+  }
+  return { oorzaak: 'onbekend', zin: t, ruw: t, verzoekId: beeldVerzoekId(t) };
+}
+
 async function generateImage(varIndex) {
+  /* Een nieuwe poging wist de vorige uitslag. Blijft die staan, dan lees je bij
+     een geslaagde tweede poging nog steeds de fout van de eerste. */
+  if (state.imageErrors) delete state.imageErrors[varIndex];
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('openai-key').value.trim());
   if (!apiKey) {
     toast('Eerst OpenAI API key invullen', true);
@@ -255,6 +323,19 @@ async function generateImage(varIndex) {
   }
   if (!state.lastGenerated) return;
   const variation = state.lastGenerated.variations[varIndex];
+  /* Geen variatie op deze plek betekende tot nu toe: een uitzondering die
+     niemand ving, geen laadstatus, geen melding. Op het scherm was dat een
+     knop die je indrukt en waarna er niets gebeurt -- niet te onderscheiden
+     van een knop die wel werkt maar traag is. */
+  if (!variation) {
+    if (!state.imageErrors) state.imageErrors = {};
+    state.imageErrors[varIndex] = 'this variation is gone \u2014 work the three variations out again';
+    const vak = document.getElementById(`gen-image-${varIndex}`);
+    if (vak) vak.innerHTML = '<div class="error">Deze variatie bestaat niet meer. Werk de drie ' +
+      'variaties opnieuw uit.</div>';
+    toast('Deze variatie bestaat niet meer, werk ze opnieuw uit', true);
+    return;
+  }
   const metadata = state.lastGenerated.metadata;
   const product = state.products.find(p => p.id === metadata.productId);
 
@@ -264,7 +345,28 @@ async function generateImage(varIndex) {
   const size = SIZE_MAP[model][metadata.placement];
   const safeZone = buildSafeZoneInstruction(metadata.placement);
   const textOverlay = buildTextOverlayInstruction(variation);
-  let layoutPriority = 'LAYOUT PRIORITY (read first): every piece of text, the WELLSHAVE wordmark and the CTA button must sit fully inside the safe area, inset from all edges, never flush against the top or bottom edge. See SAFE ZONE REQUIREMENTS below. ';
+  /* De layoutregel noemde de wordmark en de knop altijd bij naam, alsof ze er
+     waren -- bij een screenshot, een meme of een chat is dat een opdracht om ze
+     erbij te tekenen. Nu noemt hij alleen wat dit formaat werkelijk draagt. */
+  const wilKnop = (typeof formaatWilKnop === 'function') ? formaatWilKnop(metadata.mode) : true;
+  const wilMerk = (typeof formaatWilMerk === 'function') ? formaatWilMerk(metadata.mode) : true;
+  const dragers = ['every piece of text']
+    .concat(wilMerk ? ['the WELLSHAVE wordmark'] : [])
+    .concat(wilKnop ? ['the CTA button'] : []);
+  let layoutPriority = 'LAYOUT PRIORITY (read first): ' + dragers.join(', ') +
+    ' must sit fully inside the safe area, inset from all edges, never flush against the top or bottom edge. ' +
+    'See SAFE ZONE REQUIREMENTS below. ';
+  /* En wat dit formaat IS. Zonder deze regel weet het model wel dat het
+     "WhatsApp-chat" heet en niet hoe dat eruitziet -- en dan valt het terug op
+     wat het het vaakst gezien heeft, en dat is de nette DR-layout. */
+  const anatomie = (typeof formaatBeeldregel === 'function') ? formaatBeeldregel(metadata.mode) : '';
+  if (anatomie) layoutPriority += anatomie + ' ';
+  /* Bij een redactioneel formaat is de anatomie geen smaak maar het formaat
+     zelf: welke typografie, welke foto, welke knop, en wat er beslist NIET op
+     mag -- geen verzonnen uitgever, geen geleend logo, geen zegel. Die regels
+     overleven de reis via image_prompt_en niet, dus gaan ze hier mee. */
+  const nieuwsregel = (typeof wizNieuwsBeeldregel === 'function') ? wizNieuwsBeeldregel() : '';
+  if (nieuwsregel) layoutPriority += nieuwsregel + ' ';
   if (metadata.placement === 'stories') {
     layoutPriority += 'THIS IS A 9:16 STORIES PLACEMENT: every text and UI element sits ENTIRELY between 16 and 78 percent of the image height. The top 16 percent and the bottom 22 percent are hard-forbidden for any text, button, link or logo. ';
   } else if (metadata.placement === 'reels') {
@@ -293,8 +395,31 @@ async function generateImage(varIndex) {
     // Lifestyle-Placement: lifestyle first, then product
     // Bundle-Showcase / Offer-heavy: packaging first, then product, then lifestyle
     // Default: product first, then lifestyle, then packaging
-    function orderedRefsForProduct(p) {
-      const n = normalizeRefs(p.references);
+    /* Welke referenties van het HOOFDproduct uitgezet zijn, als
+       bak -> set van indexen. Op positie en niet op waarde: twee identieke
+       foto's in verschillende bakken zijn twee referenties, en uitsluiten op
+       de data-url zou ze allebei weghalen terwijl je er een aanwees. */
+    const refUitPerBak = {};
+    if (metadata.refKeuze && (metadata.refKeuze.uit || []).length) {
+      metadata.refKeuze.uit.forEach(k => {
+        const deel = String(k).split(':');
+        if (deel.length !== 2) return;
+        (refUitPerBak[deel[0]] = refUitPerBak[deel[0]] || new Set()).add(+deel[1]);
+      });
+    }
+    function zonderUitgezette(lijst, bak, isHoofdproduct) {
+      if (!isHoofdproduct || !refUitPerBak[bak]) return lijst;
+      return lijst.filter((_, i) => !refUitPerBak[bak].has(i));
+    }
+
+    function orderedRefsForProduct(p, isHoofdproduct) {
+      const rauw = normalizeRefs(p.references);
+      const n = {
+        product: zonderUitgezette(rauw.product, 'product', isHoofdproduct),
+        usage: zonderUitgezette(rauw.usage, 'usage', isHoofdproduct),
+        lifestyle: zonderUitgezette(rauw.lifestyle, 'lifestyle', isHoofdproduct),
+        packaging: zonderUitgezette(rauw.packaging, 'packaging', isHoofdproduct)
+      };
       const pref = (typeof getRefScenePref === 'function') ? getRefScenePref() : 'both';
       const life = (pref === 'both' || pref === 'lifestyle') ? n.lifestyle : [];
       const use = (pref === 'both' || pref === 'usage') ? n.usage : [];
@@ -308,8 +433,18 @@ async function generateImage(varIndex) {
       return [...n.product, ...use, ...life, ...n.packaging];
     }
     const collectedRefs = [];
-    if (product) collectedRefs.push(...orderedRefsForProduct(product));
-    bundleProductsFull.forEach(bp => { collectedRefs.push(...orderedRefsForProduct(bp)); });
+    if (product) collectedRefs.push(...orderedRefsForProduct(product, true));
+    bundleProductsFull.forEach(bp => { collectedRefs.push(...orderedRefsForProduct(bp, false)); });
+
+    /* De foto's die je voor DEZE ad erbij sleepte (de founder, een model)
+       gaan vooraan: een beeld dat je bewust koos weegt zwaarder dan het
+       zoveelste productshot, en de lijst wordt op 16 afgekapt.
+
+       Andere modi (Kopieer ad, Itereren) dragen geen refKeuze en merken hier
+       niets van. */
+    if (metadata.refKeuze && (metadata.refKeuze.extra || []).length) {
+      collectedRefs.unshift(...metadata.refKeuze.extra);
+    }
     // OpenAI /images/edits accepts up to 16 reference images
     const refs = collectedRefs.slice(0, 16);
     const hasRefs = refs.length > 0;
@@ -325,7 +460,21 @@ async function generateImage(varIndex) {
       // Build prompt: als basis-foto, wrap met edit-instructie
       let finalPrompt = variation.image_prompt_en;
       if (useBasePhoto) {
-        finalPrompt = `Take the FIRST provided image as the visual foundation for this advertisement for the brand. Preserve its composition, lighting, setting, atmosphere, and key visual elements. Transform it into a polished Wellshave creative by applying these instructions on top: ${variation.image_prompt_en}${hasRefs ? ' Important: the Wellshave product appearance must come from the ADDITIONAL reference images (the 2nd onward), not from the base image. If the base image already shows a product, replace it with the Wellshave product as shown in the references.' : ''}`;
+        /* De gezichtsregel is geen extraatje. Zonder deze zin hertekent het
+           model het gezicht standaard: het maakt er een gladdere, jongere,
+           symmetrischere versie van, en dan staat er een vreemde die op de
+           founder lijkt. Voor een founder-ad is dat precies het enige wat
+           niet mag -- de hele reden om een echt mens te gebruiken is dat hij
+           echt is, en dat een klant hem herkent. */
+        const gezichtsregel = ' IDENTITY LOCK: the person in the base image is a real, ' +
+          'identifiable human being. Reproduce their face EXACTLY as it appears in the base ' +
+          'image: the same bone structure, the same nose, eyes, mouth and jaw, the same hairline ' +
+          'and beard, the same skin texture including marks and lines, the same age. Do not ' +
+          'beautify, slim, smooth, symmetrise, restyle or re-draw the face, and do not replace ' +
+          'them with a lookalike. If the crop or the pose has to change, move the camera and the ' +
+          'body, never the face itself. A face that merely resembles this person is a failed ' +
+          'render.';
+        finalPrompt = `Take the FIRST provided image as the visual foundation for this advertisement for the brand. Preserve its composition, lighting, setting, atmosphere, and key visual elements.${gezichtsregel} Transform it into a polished Wellshave creative by applying these instructions on top: ${variation.image_prompt_en}${hasRefs ? ' Important: the Wellshave product appearance must come from the ADDITIONAL reference images (the 2nd onward), not from the base image. If the base image already shows a product, replace it with the Wellshave product as shown in the references.' : ''}`;
       }
       finalPrompt = layoutPriority + finalPrompt + textOverlay + safeZone;
       formData.append('prompt', finalPrompt);
@@ -377,11 +526,19 @@ async function generateImage(varIndex) {
       ts: Date.now()
     };
     state.generatedImages[varIndex] = { versions: [newVersion], currentIndex: 0 };
+    /* Gelukt, dus een eerdere mislukking van deze variatie is niet meer waar. */
+    if (state.imageErrors) delete state.imageErrors[varIndex];
     window._wgFresh = true;
     renderGeneratedImage(varIndex);
     notifyEditDone(varIndex, useBasePhoto ? 'Beeld klaar (op basis van eigen foto)' : 'Beeld klaar');
   } catch (err) {
     let msg = err.message;
+    /* De fout ook op de state, niet alleen in dit ene vak. De wizard toont dit
+       vak niet, dus daar viel de kaart stil terug op "no preview yet" -- exact
+       dezelfde tekst als "nog niet geprobeerd". Dan lees je een mislukking als
+       een knop die je nog moet indrukken. */
+    if (!state.imageErrors) state.imageErrors = {};
+    state.imageErrors[varIndex] = msg;
     let hint = '';
     if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
       hint = `<div style="margin-top: 12px; font-size: 12px; color: var(--text-dim); line-height: 1.6;">

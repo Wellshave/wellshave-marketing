@@ -190,7 +190,12 @@ const haal = async (input) => {
        die verdubbelen elke telling hieronder zonder iets over paginering te
        zeggen. */
     rijen: db.meta_insights_daily.filter(r => r.level === 'ad'),
-    waarschuwingen: db.systeem_events.filter(e => e.level === 'warn')
+    waarschuwingen: db.systeem_events.filter(e => e.level === 'warn'),
+    meldingen: db.systeem_events.filter(e => e.level === 'info'),
+    /* Welke vensters de worker uiteindelijk aan Meta vroeg, op
+       advertentieniveau. Daarmee is te zien of hij een geweigerd venster
+       werkelijk kleiner opnieuw heeft geprobeerd. */
+    vensters: gevraagdeVensters.filter(v => v.level !== 'account')
   };
 };
 
@@ -282,17 +287,36 @@ check('zeven dagen blijft één venster per niveau',
    de tak weggehaald in plaats van bewaakt. Wat er nog van overblijft is dat
    élk verzoek per dag gaat, en dat bewaakt dagrijen.mjs. */
 
-console.log('\n  weigert Meta één periode, dan is dat te zien');
-weigertVensterMetDagen = 0;
-/* Eén specifiek venster laten mislukken: de nagemaakte Meta weigert alles wat
-   30 dagen of langer is, en het laatste stuk is korter. */
+/* Sinds versie 17: een geweigerd venster is meestal geen inhoudelijke
+   afkeuring maar een venster dat te zwaar is. Meta zegt dat niet -- hij geeft
+   "An unknown error occurred" of vraagt om minder data -- en dat leverde
+   maandenlang lege advertentiecijfers op terwijl accountniveau gewoon
+   doorliep. De dekking zag er half uit zonder dat iets kapot was.
+
+   Daarom wordt zo'n venster gehalveerd en opnieuw geprobeerd, tot het licht
+   genoeg is of tot één dag. Dat is het verschil tussen "die maanden ontbreken"
+   en "die maanden staan er". */
+console.log('\n  een geweigerd venster wordt kleiner opnieuw geprobeerd');
 weigertVensterMetDagen = 30;
 r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
-check('de rest komt gewoon binnen', r.rijen.length > 0, true);
-check('en er staat een waarschuwing bij',
-  r.waarschuwingen.some(w => /vensters niet/.test(w.message)), true);
-check('die zegt hoeveel periodes ontbreken',
-  r.waarschuwingen.some(w => /van de \d+ vensters/.test(w.message)), true);
+const dagenVan = (v) =>
+  Math.round((new Date(v.until) - new Date(v.since)) / 86400000) + 1;
+check('de cijfers komen alsnog binnen', r.rijen.length > 0, true);
+check('hij heeft het echt kleiner geprobeerd',
+  r.vensters.some(v => dagenVan(v) < 30), true);
+check('en er ontbreekt geen enkele periode meer',
+  r.waarschuwingen.some(w => /vensters? niet/.test(w.message)), false);
+check('dat het opgeknipt is staat wel in de log',
+  r.meldingen.some(m => /opgeknipt/.test(m.message)), true);
+
+/* De harde variant: alles boven één dag wordt geweigerd. Dan moet hij
+   doorknippen tot dagvensters en alsnog alles ophalen. */
+console.log('\n  en als het moet knipt hij door tot losse dagen');
+weigertVensterMetDagen = 2;
+r = await haal({ level: 'ad', days: 60, breakdown_by_day: true });
+check('ook dan komen de cijfers binnen', r.rijen.length > 0, true);
+check('en is er tot dagvensters geknipt',
+  r.vensters.some(v => dagenVan(v) === 1), true);
 
 console.log('\n  weigert Meta alles, dan is het geen halve meting');
 weigertVensterMetDagen = 1;

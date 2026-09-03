@@ -142,3 +142,40 @@
 @media (max-width: 640px) {
   .team-raster { grid-template-columns: 1fr; }
 }
+
+/* ── De twee specialisten ─────────────────────────────────────────────────
+   Een eigen kleur, want ze zijn iets anders dan een collega met een account.
+   Bleek en niet luid: het zijn werkwijzen, geen mensen. */
+.team-h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15px; font-weight: 600; color: var(--ink);
+  margin: 0 0 6px;
+}
+.team-avatar--spec { background: var(--surface-3); color: var(--ink-soft); }
+.team-kaart--spec { background: var(--surface-2); }
+/* Opengeklapt neemt de kaart de volle breedte: de guardrails zijn zinnen en
+   geen labels, en die lezen niet in een kolom van 290 pixels. */
+.team-kaart--open { grid-column: 1 / -1; }
+
+.spec-blok { margin-top: 4px; }
+.spec-h {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-soft); margin: 0 0 6px;
+}
+.spec-lijst { margin: 0; padding-left: 18px; }
+.spec-lijst li { margin: 5px 0; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.spec-stuurt { list-style: none; padding-left: 0; }
+.spec-stuurt li {
+  display: grid; grid-template-columns: 180px 1fr; gap: 4px 12px;
+  padding: 6px 0; border-top: 1px solid var(--line);
+}
+.spec-waar { color: var(--ink-soft); }
+.spec-velden {
+  grid-column: 2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px; color: var(--ink-soft);
+}
+.spec-grens li { color: var(--ink); }
+.spec-ander {
+  margin: 2px 0 0; padding: 8px 10px; border-radius: 8px;
+  background: var(--surface-3); font-size: 13px; color: var(--ink-soft);
+}

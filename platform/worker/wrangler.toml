@@ -13,6 +13,13 @@
 #   npx wrangler secret put META_ACCESS_TOKEN
 #   npx wrangler secret put META_AD_ACCOUNT_ID
 #   npx wrangler secret put KLAVIYO_API_KEY
+#
+# Deze vier kunnen ook zonder terminal, via het adminmenu in de console -- dan
+# staan ze versleuteld in de database in plaats van hier. Daarvoor is eenmalig
+# SLEUTEL_MASTER nodig; zonder die hoofdsleutel weigert het menu op te slaan.
+#   npx wrangler secret put SLEUTEL_MASTER
+#   npx wrangler secret put ATRIA_API_KEY        (cijfers bij het itereren)
+#   npx wrangler secret put TRENDTRACK_API_KEY   (Creative Research)
 
 name = "marketing-ads"
 main = "marketing-os.worker.js"

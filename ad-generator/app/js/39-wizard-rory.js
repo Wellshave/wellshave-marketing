@@ -22,7 +22,7 @@
 
 function wizModel() {
   var el = document.getElementById('anthropic-model');
-  return (el && el.value) || 'claude-fable-5';
+  return (el && el.value) || 'claude-opus-5';
 }
 
 function wizTextOf(data) {
@@ -38,7 +38,28 @@ function wizParseJson(txt) {
   return JSON.parse(schoon.substring(a, b + 1));
 }
 
+/* Beelddata hoort nooit in een tekstprompt. Een data-url van een foto is
+   makkelijk een megabyte, en die belandde via het LOCKED-blok woord voor
+   woord in de opdracht: "prompt is too long: 1694198 tokens". Rory was
+   daarmee op elke stap onbereikbaar, en de melding wees naar de lengte in
+   plaats van naar de oorzaak.
+
+   Dit is het vangnet en niet de fix: de plek die het deed is ook rechtgezet.
+   Maar een prompt is de optelsom van tien stukken tekst, en de volgende keer
+   dat iemand ergens een veld meestuurt hoort dat niet opnieuw drie ronden te
+   kosten. Wat eruit gaat is de payload; dat het er was blijft leesbaar. */
+function wizZonderBeeld(tekst) {
+  return String(tekst == null ? '' : tekst)
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi, '[image omitted]');
+}
+
 function wizCall(system, messages, maxTokens) {
+  system = wizZonderBeeld(system);
+  messages = (messages || []).map(function (m) {
+    return (m && typeof m.content === 'string')
+      ? { role: m.role, content: wizZonderBeeld(m.content) }
+      : m;
+  });
   return fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
@@ -120,6 +141,13 @@ function wizContext() {
   if (d.product.funnel) c += '\n# CAMPAIGN GOAL\n' + d.product.funnel + '\n';
   if (d.product.placement) c += 'Placement: ' + d.product.placement + '\n';
   if (d.audience.awareness) c += 'Awareness level: ' + d.audience.awareness + '\n';
+  /* De twee assen horen altijd samen in de context. Awareness zonder
+     sophistication levert een boodschap die op het goede moment het verkeerde
+     soort claim maakt. */
+  if (d.audience.sophistication) {
+    c += 'Market sophistication: ' + d.audience.sophistication +
+      ' (' + (typeof wizSofistLabel === 'function' ? wizSofistLabel(d.audience.sophistication) : '') + ')\n';
+  }
   if (d.audience.market) c += 'Market: ' + d.audience.market + '\n';
 
   if (d.strategy.marketingAngle) {
@@ -127,7 +155,11 @@ function wizContext() {
     c += 'Angle type: ' + d.strategy.angleType + '\n';
     c += 'Marketing angle: ' + d.strategy.marketingAngle + '\n';
     c += 'Core messaging: ' + d.strategy.messaging + '\n';
+    if (d.strategy.differentiation) c += 'Differentiation lever: ' + d.strategy.differentiation + '\n';
+    if (d.strategy.mechanism) c += 'Mechanism: ' + d.strategy.mechanism + '\n';
     if (d.strategy.desire) c += 'Primary desire: ' + d.strategy.desire + '\n';
+    if (d.strategy.ultimateDesire) c += 'Ultimate desire: ' + d.strategy.ultimateDesire + '\n';
+    if (d.strategy.timing) c += 'Why now: ' + d.strategy.timing + '\n';
     if (d.strategy.pain) c += 'Primary pain: ' + d.strategy.pain + '\n';
     if (d.strategy.proof) c += 'Proof mechanism: ' + d.strategy.proof + '\n';
     if (d.strategy.objection) c += 'Main objection: ' + d.strategy.objection + '\n';
@@ -162,7 +194,16 @@ function wizContext() {
   Object.keys(wizState.source).forEach(function (k) {
     if (wizState.source[k] !== 'user') return;
     var deel = k.split('.'), vak = wizState.data[deel[0]];
-    if (vak && vak[deel[1]]) vast.push(k + ' = ' + vak[deel[1]]);
+    if (!vak || !vak[deel[1]]) return;
+    var w = vak[deel[1]];
+    /* Een vastgezet BEELD is een besluit dat Rory moet kennen, maar de foto
+       zelf zegt hem in tekst niets -- hij ziet hem niet. Dus de mededeling
+       wel, de megabyte niet. */
+    if (typeof w !== 'string' || /^data:image\//i.test(w)) {
+      vast.push(k + ' = [an image you chose yourself]');
+      return;
+    }
+    vast.push(k + ' = ' + w);
   });
   if (vast.length) {
     c += '\n# LOCKED BY THE USER (never silently override; challenge in words if you disagree)\n' + vast.join('\n') + '\n';
@@ -201,24 +242,24 @@ var WIZ_ADVICE_SPEC = {
     opdracht: 'Read the product and recommend the campaign goal and the placement that fit it best. Also summarise in one or two sentences what is most relevant about this product for an advertiser — the thing a strategist would notice first.'
   },
   audience: {
-    velden: '"personaId":"exact id from the persona list","awareness":"unaware|problem|solution|product|most","market":"short label or empty"',
-    opdracht: 'Recommend the single strongest persona for this product and campaign goal, using the customer research. Then set the awareness level that persona actually enters at. Never invent a persona that is not in the list.'
+    velden: '"personaId":"exact id from the persona list","awareness":"unaware|problem|solution|product|most","sophistication":"s1|s2|s3|s4|s5","market":"short label or empty"',
+    opdracht: 'Recommend the single strongest persona for this product and campaign goal, using the customer research. Then set the awareness level that persona actually enters at, and the sophistication stage of the niche: how many times has this market heard this claim already? Write the bare product claim in your head, ask how many competitors are making it, and stay exactly one stage ahead of them. Never behind (you sound like everyone) and never needlessly complex (if a direct claim still works, use it). Also sanity-check the audience size: a call-out aimed at a few hundred people cannot spend, whatever else it does. Never invent a persona that is not in the list.'
   },
   strategy: {
-    velden: '"angleType":"short angle-type label","marketingAngle":"the argument in one sentence","messaging":"the core message in one sentence","desire":"","pain":"","proof":"","objection":""',
-    opdracht: 'Build the strategic foundation. The angle must be specific to this persona and product, grounded in a real pain or desire from the research — not a generic category claim. The proof mechanism must be something this product can actually show.'
+    velden: '"angleType":"short angle-type label","differentiation":"mechanism|exaggeration|avatar|desire|style","mechanism":"the how, one line, empty if there is genuinely none","marketingAngle":"the argument in one sentence","messaging":"the core message in one sentence","desire":"the functional outcome","ultimateDesire":"what that outcome really buys them","timing":"why this desire is intense right now, or empty","pain":"","proof":"","objection":""',
+    opdracht: 'Build the strategic foundation. The angle must be specific to this persona and product, grounded in a real pain or desire from the research — not a generic category claim. Name which of the five ways of being different this angle uses: a new mechanism, exaggerated execution, a different avatar, a different desire, or a different creative style. From sophistication stage 3 the mechanism is not optional: a market that stopped believing bare claims needs a how. The proof mechanism must be something this product can actually show. Desire has two levels: the functional outcome and what that outcome really buys them. And say why this desire is intense right now if it is — season, weather, occasion — because a desire at its trough makes an identical ad underperform and get blamed for it.'
   },
   format: {
     velden: '"formatId":"exact id from the format list","runnersUp":["id","id"]',
     opdracht: 'Recommend the format that executes this angle and awareness level most directly, plus two runners-up. Explain the fit in terms of the angle, not the format description.'
   },
   visual: {
-    velden: '"composition":"","humanPresence":"","scene":"","framing":"","mood":"","productVisibility":"","background":"","productUsage":"","textPlacement":"","referenceUsage":""',
-    opdracht: 'Recommend the visual direction. Use only values from the option lists given below. If usage photos exist, the product usage must match them.'
+    velden: '"composition":"","humanPresence":"","scene":"","framing":"","mood":"","productVisibility":"","background":"","productUsage":"","textPlacement":"","referenceUsage":"","newsArchetype":""',
+    opdracht: 'Recommend the visual direction. Use only values from the option lists given below. If usage photos exist, the product usage must match them. Fill "newsArchetype" ONLY when an editorial archetype list is given below, and then pick the id that carries this angle; leave it empty otherwise. Never fill in who the article is from -- that is a fact about the world, not a creative choice, and the user establishes it.'
   },
   copy: {
-    velden: '"headline":"","supporting":"","body":"","proof":"","cta":""',
-    opdracht: 'Write the copy in the language of the brand and its customer research (Dutch for Wellshave), carrying the approved angle. The headline picks up a real pain or desire from the persona. Leave "body" empty if the format does not carry body copy.'
+    velden: '"headline":"","supporting":"","body":"","proof":"","cta":"","removed":"what you deliberately left off the image, and why, one line"',
+    opdracht: 'Write the copy in the language of the brand and its customer research (Dutch for Wellshave), carrying the approved angle. The headline picks up a real pain or desire from the persona. Keep the main headline short — nobody reads a long one on an image — and split a longer message into the supporting line. Specific beats superlative: a precise number is the cheapest proof available. Leave "body" empty if the format does not carry body copy. Always fill "removed": naming what you left off makes addition a decision rather than a reflex.'
   }
 };
 
@@ -231,6 +272,11 @@ var WIZ_RORY_SYSTEM =
   '- Only ask a question when the answer would genuinely change your recommendation. If the existing data is sufficient, ask nothing and set "question" to null. A wizard that asks something at every step is a questionnaire, and that is exactly what this replaced.\n' +
   '- Challenge a weak or conflicting choice in words. Never silently override something the user locked.\n' +
   '- Ground the recommendation in the supplied research. If you have no evidence for something, say so instead of inventing it. An empty field is better than a made-up one.\n' +
+  '- Awareness decides how directly you may speak; sophistication decides what kind of claim is still believed. Name both before you recommend anything, and keep copy and image on the same two stages.\n' +
+  '- One idea per static. The failure mode is addition, never subtraction: if an element does not serve the one idea, it is not neutral.\n' +
+  '- Proof has to be visible, not claimed. A static cannot argue, so it demonstrates.\n' +
+  '- Say what makes this different from the ads this person is already scrolling past. If you cannot answer that, the direction is not ready.\n' +
+  '- Generate from the mechanism and check against what currently works, never the reverse: working from what already works produces the category average.\n' +
   '- Write every word you address to the user in English. Do NOT translate advertisement copy, customer research, product content or anything the user typed — quote those in their original language.\n' +
   '\nAlways answer with strict JSON, no markdown fences:\n' +
   '{"recommendation":{...},"why":"why this direction, max 45 words","evidence":["what you leaned on","..."],' +
@@ -238,22 +284,54 @@ var WIZ_RORY_SYSTEM =
 
 /* ── Advies ophalen ─────────────────────────────────────────────────────── */
 
-function wizAdvise(stepKey, extra) {
-  var spec = WIZ_ADVICE_SPEC[stepKey];
-  if (!spec) return Promise.resolve(null);
-  if (wizState.busy) return Promise.resolve(null);
-  wizState.busy = true;
-  wizRenderRory();
-
-  var ctx = wizContext();
-  var vraag = 'STEP: ' + stepKey + '\n\n' + spec.opdracht +
+/* De vraag aan Rory, los van het versturen ervan.
+ *
+ * Dit stond inline in wizAdvise, verweven met de bezig-vlag en de netwerklus.
+ * Daardoor viel er niet vast te stellen wat een stap werkelijk meekrijgt
+ * zonder een echte aanroep te doen -- en juist die catalogi zijn het deel dat
+ * stilletjes kan verdwijnen zonder dat iets omvalt: het advies komt dan gewoon
+ * terug, alleen dommer. */
+function wizAdviesVraag(stepKey, spec, extra) {
+  return 'STEP: ' + stepKey + '\n\n' + spec.opdracht +
     '\n\nReturn "recommendation" with exactly these keys: {' + spec.velden + '}\n' +
     (extra ? ('\nExtra instruction from the user: ' + extra + '\n') : '') +
     (stepKey === 'format' && typeof AD_FORMATS !== 'undefined'
       ? ('\n\n# FORMATS (use an exact id)\n' + AD_FORMATS.map(function (f) { return f.id + ' — ' + f.name + ': ' + f.desc; }).join('\n'))
       : '') +
     (stepKey === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
-    '\n\n' + ctx.text;
+    /* De kopvormen bij de copystap, want dáár wordt de kop geschreven. Zonder
+       deze schrijft het model de kop die iedereen schrijft: een belofte over
+       het product, terwijl de sterkste vormen juist de verklaring wegnemen
+       die de lezer al had. */
+    (stepKey === 'copy' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
+      ? ('\n\n# EDITORIAL HEADLINE SHAPES (this is a news/article format)\n' +
+         'These carry no claim of their own. Fill one with what is true here, or depart ' +
+         'from it where the truth reads better than the template. The headline is about ' +
+         'the world, never about the product, and it does not name the product.\n' +
+         NIEUWS_KOPFORMULES.map(function (k) { return '- "' + k.vorm + '" ' + k.waarom; }).join('\n')) : '') +
+    /* En de archetypes bij de visuele stap, alleen bij een redactioneel
+       formaat: op een productposter is een krantenkop geen keuze maar ruis,
+       en een lijst die er staat wordt gekozen. */
+    (stepKey === 'visual' && typeof wizNieuwsActief === 'function' && wizNieuwsActief()
+      ? ('\n\n# EDITORIAL ARCHETYPES (this is a news/article format — pick one id for newsArchetype)\n' +
+         NIEUWS_ARCHETYPEN.map(function (a) {
+           return a.id + ' — ' + a.label + ': ' + a.kort + ' When: ' + a.wanneer;
+         }).join('\n')) : '');
+}
+
+function wizAdvise(stepKey, extra) {
+  var spec = WIZ_ADVICE_SPEC[stepKey];
+  if (!spec) return Promise.resolve(null);
+  /* Rory's eigen vlag. Dit advies haalt hij uit zichzelf op bij het openen van
+     een stap; zet hij daarmee de gedeelde bezig-vlag, dan staat de hele stap
+     stil zolang die aanroep loopt -- en dat is sinds de herkansingen bij drukte
+     ruim veertig seconden, met elke knop uit en geen woord waarom. */
+  if (wizState.roryBezig) return Promise.resolve(null);
+  wizState.roryBezig = true;
+  wizRenderRory();
+
+  var ctx = wizContext();
+  var vraag = wizAdviesVraag(stepKey, spec, extra) + '\n\n' + ctx.text;
 
   return wizCall(WIZ_RORY_SYSTEM, [{ role: 'user', content: vraag }], 2500)
     .then(function (data) {
@@ -278,7 +356,7 @@ function wizAdvise(stepKey, extra) {
       return wizState.advice[stepKey];
     })
     .finally(function () {
-      wizState.busy = false;
+      wizState.roryBezig = false;
       wizRender();
     });
 }
@@ -316,13 +394,17 @@ function wizRenderRory() {
   var adv = wizState.advice[stap] || null;
   var h = '';
 
-  h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar">R</span>' +
+  h += '<div class="wiz-rory-head"><span class="wiz-rory-avatar' +
+       (wizRoryBezig() ? ' denkt' : '') + '">' +
+       '<img src="img/rory.jpg" alt="" onerror="this.remove()"><i>R</i></span>' +
        '<div><div class="wiz-rory-name">Rory</div><div class="wiz-rory-role">Creative strategist</div></div></div>';
 
-  if (wizState.busy) {
+  if (wizRoryBezig()) {
     h += '<div class="wiz-rory-thinking">Rory is thinking…</div>';
   } else if (adv && adv.error) {
-    h += '<div class="wiz-rory-error">' + wizEsc(adv.error) + '</div>';
+    h += '<div class="wiz-rory-error">' + wizEsc(adv.error) +
+      '<button type="button" class="wiz-btn ghost small" onclick="wizAskFor(\'' +
+      wizState.current + '\')">Try again</button></div>';
   } else if (adv) {
     if (adv.why) h += '<div class="wiz-rory-why"><div class="wiz-rory-lbl">Why this direction</div><p>' + wizEsc(adv.why) + '</p></div>';
     if (adv.evidence && adv.evidence.length) {
@@ -334,16 +416,34 @@ function wizRenderRory() {
            '<button type="button" class="wiz-btn small" onclick="wizAnswerQuestion()">Answer this</button>' +
            '<button type="button" class="wiz-btn small ghost" onclick="wizDismissQuestion()">Skip</button></div>';
     }
+  } else if (typeof wizVoorwaardenGehaald === 'function' && !wizVoorwaardenGehaald(stap)) {
+    /* Niets om op te staan, en dat zeggen we in plaats van iets te tonen dat
+       eruitziet als een oordeel. Een strateeg die een richting geeft voordat
+       hij weet waarover het gaat, is geen strateeg maar een generator van
+       zinnen -- en dat is precies wat dit scherm niet mag zijn. */
+    var ontbreekt = (typeof WIZ_ONDERWERP !== 'undefined' && WIZ_ONDERWERP[stap] &&
+                     !(wizState.data[stap] || {})[WIZ_ONDERWERP[stap]])
+      ? 'Pick a product first. Without it I would be giving you an opinion about something that does not exist yet.'
+      : 'The earlier steps are not settled yet, so anything I said here would be a guess.';
+    h += '<div class="wiz-rory-idle">' + wizEsc(ontbreekt) +
+      ' You can still ask me anything below.</div>';
   } else {
     h += '<div class="wiz-rory-idle">Rory has not looked at this step yet.</div>';
   }
 
-  h += '<div class="wiz-rory-actions">' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'why\')">Why do you recommend this?</button>' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'alternatives\')">Show alternatives</button>' +
-       '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'decide\')">You decide</button>' +
-       '</div>';
+  /* "Why do you recommend this?" zonder aanbeveling is een knop die om een
+     verklaring vraagt voor iets wat niet gezegd is. Die verschijnt dus pas als
+     er een aanbeveling ligt. */
+  if (adv && !adv.error) {
+    h += '<div class="wiz-rory-actions">' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'why\')">Why do you recommend this?</button>' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'alternatives\')">Show alternatives</button>' +
+         '<button type="button" class="wiz-chip" onclick="wizChatQuick(\'decide\')">You decide</button>' +
+         '</div>';
+  }
 
+  var st = wizStep(stap);
+  h += '<div class="wiz-chat-kop">Sparring — ' + wizEsc(st ? st.label : '') + '</div>';
   h += '<div class="wiz-chat" id="wiz-chat">' + wizChatHtml() + '</div>';
   h += '<div class="wiz-chat-input">' +
        '<textarea id="wiz-chat-in" placeholder="Ask Rory, or tell him what you are trying to achieve…" ' +
@@ -356,9 +456,23 @@ function wizRenderRory() {
   if (c) c.scrollTop = c.scrollHeight;
 }
 
+/* Het gesprek van de stap waar je staat. */
+function wizChatVan(stap) {
+  var k = stap || wizState.current;
+  if (!wizState.chat || Array.isArray(wizState.chat)) wizState.chat = {};
+  if (!wizState.chat[k]) wizState.chat[k] = [];
+  return wizState.chat[k];
+}
+
 function wizChatHtml() {
-  if (!wizState.chat.length) return '<div class="wiz-chat-empty">Ask anything about this step. Rory keeps the whole wizard in mind.</div>';
-  return wizState.chat.map(function (m) {
+  var rijen = wizChatVan();
+  if (!rijen.length) {
+    var s = wizStep(wizState.current);
+    return '<div class="wiz-chat-empty">Spar with Rory about ' +
+      wizEsc(s ? s.label.toLowerCase() : 'this step') +
+      '. He keeps the whole wizard in mind, and this thread stays with this step.</div>';
+  }
+  return rijen.map(function (m) {
     return '<div class="wiz-msg ' + (m.role === 'assistant' ? 'rory' : 'user') + '">' +
       (m.role === 'assistant' ? '<span class="wiz-msg-who">Rory</span>' : '') +
       wizEsc(m.content) + '</div>';
@@ -370,7 +484,7 @@ function wizDismissQuestion() { wizState.asked[wizState.current] = true; wizSave
 function wizAnswerQuestion() {
   var adv = wizState.advice[wizState.current] || {};
   if (adv.question) {
-    wizState.chat.push({ role: 'assistant', content: adv.question });
+    wizChatVan().push({ role: 'assistant', content: adv.question });
     wizState.asked[wizState.current] = true;
     wizSave(); wizRenderRory();
     var el = document.getElementById('wiz-chat-in');
@@ -397,15 +511,15 @@ var WIZ_CHAT_SYSTEM =
 function wizChatSend(vast) {
   var el = document.getElementById('wiz-chat-in');
   var tekst = vast || (el ? el.value.trim() : '');
-  if (!tekst || wizState.busy) return;
+  if (!tekst || wizState.roryBezig) return;
   if (el && !vast) el.value = '';
-  wizState.chat.push({ role: 'user', content: tekst });
-  wizState.busy = true;
+  wizChatVan().push({ role: 'user', content: tekst });
+  wizState.roryBezig = true;
   wizRenderRory();
 
   var stap = wizState.current;
   var ctx = wizContext();
-  var geschiedenis = wizState.chat.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; })
+  var geschiedenis = wizChatVan().filter(function (m) { return m.role === 'user' || m.role === 'assistant'; })
     .slice(-10).map(function (m) { return { role: m.role, content: m.content }; });
   geschiedenis[geschiedenis.length - 1] = {
     role: 'user',
@@ -413,6 +527,8 @@ function wizChatSend(vast) {
       '\nFields you may set on this step: ' + Object.keys(wizState.data[stap] || {}).join(', ') +
       (stap === 'format' && typeof AD_FORMATS !== 'undefined'
         ? ('\nValid formatId values: ' + AD_FORMATS.map(function (f) { return f.id; }).join(', ')) : '') +
+      (stap === 'visual' && typeof NIEUWS_ARCHETYPEN !== 'undefined'
+        ? ('\nValid newsArchetype values: ' + NIEUWS_ARCHETYPEN.map(function (a) { return a.id; }).join(', ')) : '') +
       (stap === 'visual' ? ('\n\n# VISUAL OPTIONS (use exact values)\n' + wizVisualOptionsText()) : '') +
       '\n\n' + ctx.text
   };
@@ -422,26 +538,26 @@ function wizChatSend(vast) {
       var obj;
       try { obj = wizParseJson(wizTextOf(data)); }
       catch (e) { obj = { reply: wizTextOf(data) || 'No answer came back.', apply: null }; }
-      wizState.chat.push({ role: 'assistant', content: obj.reply || '(no message)' });
+      wizChatVan().push({ role: 'assistant', content: obj.reply || '(no message)' });
       if (obj.apply && typeof obj.apply === 'object') {
         wizApplyAdvice(stap, obj.apply, true);
       }
     })
     .catch(function (err) {
-      wizState.chat.push({ role: 'assistant', content: 'I could not reach the server (' + err.message + '). Try again in a moment.' });
+      wizChatVan().push({ role: 'assistant', content: 'I could not reach the server (' + err.message + '). Try again in a moment.' });
     })
     .finally(function () {
-      wizState.busy = false;
+      wizState.roryBezig = false;
       wizSave();
       wizRender();
     });
 }
 
-window.wizAdvise = wizAdvise; window.wizApplyAdvice = wizApplyAdvice;
-window.wizRefreshStep = wizRefreshStep; window.wizRenderRory = wizRenderRory;
+window.wizAdvise = wizAdvise; window.wizAdviesVraag = wizAdviesVraag; window.WIZ_ADVICE_SPEC = WIZ_ADVICE_SPEC; window.wizApplyAdvice = wizApplyAdvice;
+window.wizRefreshStep = wizRefreshStep; window.wizChatVan = wizChatVan; window.wizRenderRory = wizRenderRory;
 window.wizChatSend = wizChatSend; window.wizChatQuick = wizChatQuick;
 window.wizAnswerQuestion = wizAnswerQuestion; window.wizDismissQuestion = wizDismissQuestion;
 window.wizContext = wizContext; window.wizProduct = wizProduct; window.wizPersona = wizPersona;
 window.wizFormat = wizFormat; window.wizLoadHistory = wizLoadHistory;
-window.wizCall = wizCall; window.wizParseJson = wizParseJson; window.wizTextOf = wizTextOf;
+window.wizCall = wizCall; window.wizZonderBeeld = wizZonderBeeld; window.wizParseJson = wizParseJson; window.wizTextOf = wizTextOf;
 window.wizModel = wizModel;

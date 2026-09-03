@@ -8,29 +8,44 @@
  * altijd op dezelfde plek staat, welke stap je ook in bent.
  */
 
-.wiz-overlay {
-  position: fixed; inset: 0; z-index: 900;
-  display: none; align-items: stretch; justify-content: center;
-  background: rgba(4, 4, 4, 0.82);
-  backdrop-filter: var(--blur);
-  padding: 24px;
+/* De wizard staat in de generatorkolom, niet in een overlay: de zijbalk van de
+   console blijft staan zodat je in een scherm ván het systeem zit en niet in
+   een venster eroverheen. Drie zones naast elkaar -- beslissingen, hun
+   tegenhanger, en Rory. */
+.wiz-inline {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 8px;
 }
-body.wiz-open { overflow: hidden; }
 
-.wiz-shell {
+/* ── De wizard als heel scherm ──────────────────────────────────────────────
+   Draait de wizard, dan is Statics de wizard. De kolommen Configuratie en
+   Resultaat en de chipbalk erboven horen bij het klassieke formulier: ze
+   tonen dezelfde beslissingen nog een keer, naast een scherm dat je juist één
+   vraag tegelijk stelt. Ze verdwijnen daarom zolang de wizard aanstaat, en
+   komen terug zodra je Exit kiest.
+   De regel voor #wiz-inline is specifieker dan die voor de zusjes, dus die
+   wint zonder !important; staat de wizard uit, dan zet JS er display:none op
+   en wint de inline-stijl alsnog. */
+#main-tab-generator.wiz-volscherm .ws8-header,
+#main-tab-generator.wiz-volscherm .ws8-left,
+#main-tab-generator.wiz-volscherm .ws8-right { display: none; }
+#main-tab-generator.wiz-volscherm .ws8-grid { display: block; }
+#main-tab-generator.wiz-volscherm .ws8-center > * { display: none; }
+#main-tab-generator.wiz-volscherm .ws8-center > #wiz-inline { display: flex; }
+#main-tab-generator.wiz-volscherm .wiz-inline { margin-bottom: 0; }
+.wiz-paneel {
+  flex: 1; min-width: 0;
   display: flex; flex-direction: column;
-  width: 100%; max-width: 1360px; height: 100%;
   background: var(--bg-elevated);
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lift);
   overflow: hidden;
 }
 
 /* ── Topbalk en voortgang ───────────────────────────────────────────────── */
 
 .wiz-topbar {
-  display: flex; align-items: center; gap: 20px;
+  display: flex; flex-direction: column; gap: 10px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--hairline);
   background: var(--glass-2);
@@ -39,10 +54,19 @@ body.wiz-open { overflow: hidden; }
   font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--gold); white-space: nowrap;
 }
-.wiz-progress { display: flex; gap: 4px; flex: 1; overflow-x: auto; }
+.wiz-topbar-rij { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.wiz-progress { display: flex; gap: 4px; overflow-x: auto; }
+/* Is er geen ruimte voor negen namen, dan blijven de nummers staan en houdt
+   alleen de stap waar je nu bent zijn naam. Negen bolletjes waarvan één
+   uitgeschreven is nog steeds een balk die zegt waar je bent; drie namen en
+   zes stappen buiten beeld is dat niet. wizPasProgressAan() meet of het past
+   en zet deze klasse. */
+.wiz-progress.compact .wiz-step:not(.on) .wiz-step-label { display: none; }
 .wiz-step {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 12px; border-radius: 999px;
+  /* Krap genoeg dat alle negen stappen náást elkaar passen: een stap die je
+     alleen ziet door te scrollen vertelt je niet wat er nog komt. */
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 9px; border-radius: 999px;
   background: transparent; border: 1px solid var(--hairline);
   color: var(--text-faint); cursor: pointer; white-space: nowrap;
   font-size: 12px; font-family: inherit;
@@ -63,25 +87,48 @@ body.wiz-open { overflow: hidden; }
   color: var(--red); font-weight: 700;
 }
 .wiz-close {
-  background: none; border: none; color: var(--text-faint);
-  font-size: 18px; cursor: pointer; padding: 4px 8px;
+  background: none; color: var(--text-soft);
+  border: 1px solid var(--hairline); border-radius: 999px;
+  font-size: 12.5px; font-family: inherit; cursor: pointer; padding: 6px 14px;
 }
 .wiz-close:hover { color: var(--text); }
 
+/* ── Rory's adviesregel ─────────────────────────────────────────────────────
+ *
+ * Eén regel onder de stappenbalk over wat hij op deze stap doet of gevonden
+ * heeft. In het ontwerp is dit het eerste wat je leest; de onderbouwing staat
+ * rechts in de kolom en de rest in zijn eigen paneel. */
+.wiz-rorybalk {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--gold-haze);
+  color: var(--text-soft); font-size: 13px; line-height: 1.5;
+}
+.wiz-rorybalk-punt {
+  width: 7px; height: 7px; border-radius: 50%; margin-top: 6px;
+  background: var(--gold); flex-shrink: 0;
+}
+.wiz-rorybalk-punt.bezig { animation: wiz-pols 1.4s ease-in-out infinite; }
+
 /* ── Hoofdindeling ──────────────────────────────────────────────────────── */
 
-.wiz-main { display: flex; flex: 1; min-height: 0; }
-.wiz-stage {
-  flex: 1; display: flex; flex-direction: column; min-width: 0;
-}
-.wiz-head { padding: 26px 32px 12px; }
+.wiz-head { padding: 22px 26px 10px; }
 .wiz-kicker {
   font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--text-faint); margin-bottom: 6px;
 }
-.wiz-title { margin: 0; font-size: 26px; color: var(--text); font-weight: 500; }
+.wiz-title { margin: 0; font-size: 22px; color: var(--text); font-weight: 500; }
+
+/* Twee kolommen: links wat je beslist, rechts waar die beslissing op rust --
+   de productkaart, de andere persona's, "Why this works", de preview. */
+.wiz-body.wiz-tweekolom {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px; align-items: start;
+}
+.wiz-links, .wiz-rechts { min-width: 0; }
 .wiz-sub { margin: 6px 0 0; color: var(--text-soft); font-size: 14px; }
-.wiz-body { flex: 1; overflow-y: auto; padding: 12px 32px 24px; }
+.wiz-body { padding: 10px 26px 22px; }
 .wiz-footer {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 14px 32px;
@@ -112,6 +159,292 @@ body.wiz-open { overflow: hidden; }
 }
 .wiz-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .wiz-actions.big { margin-top: 26px; }
+
+/* ── De zin ─────────────────────────────────────────────────────────────────
+ *
+ * Het hart van dit scherm. Een stap opent met wat Rory besloot, geschreven als
+ * gewone zin; de beslissingen zijn de klikbare woorden erin. Daarom mag deze
+ * regel groot en rustig zijn: hij is de inhoud, niet een label erboven. */
+
+.wiz-zin {
+  margin: 0 0 20px;
+  font-size: 27px;
+  line-height: 1.5;
+  color: var(--text-soft);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  max-width: 34ch;
+}
+.wiz-woord {
+  display: inline;
+  padding: 0 2px;
+  margin: 0;
+  border: none;
+  border-bottom: 2px solid var(--gold-line-strong);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .15s, border-color .15s;
+}
+.wiz-woord:hover { background: var(--gold-haze); border-bottom-color: var(--gold); }
+.wiz-woord:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wiz-woord[aria-expanded="true"] { background: var(--gold-haze); border-bottom-color: var(--gold); }
+.wiz-woord.leeg { color: var(--gold); border-bottom-style: dashed; }
+
+.wiz-veldpaneel {
+  padding: 16px; margin: -6px 0 22px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--gold-line);
+}
+.wiz-veldpaneel-t {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px;
+}
+
+/* ── Rory denkt ─────────────────────────────────────────────────────────── */
+
+.wiz-denkt {
+  display: flex; align-items: center; gap: 11px;
+  padding: 14px 0 22px; color: var(--text-faint); font-size: 14px;
+}
+.wiz-denkt-punt {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: var(--gold);
+  animation: wiz-pols 1.4s ease-in-out infinite;
+}
+@keyframes wiz-pols {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
+/* ── Uitklap: het volledige paneel, alleen voor wie het wil ─────────────── */
+
+.wiz-uitklap { margin-top: 4px; }
+.wiz-uitklap-knop {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 0; background: none; border: none;
+  color: var(--text-faint); font-family: inherit; font-size: 13px; cursor: pointer;
+}
+.wiz-uitklap-knop:hover { color: var(--gold); }
+.wiz-chev { transition: transform .15s; }
+.wiz-uitklap-knop.open .wiz-chev { transform: rotate(180deg); }
+.wiz-uitklap-body {
+  padding-top: 14px; margin-top: 6px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* ── De strategie als stelling ──────────────────────────────────────────── */
+
+.wiz-stelling { margin-bottom: 22px; }
+.wiz-stelling-kicker {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px;
+}
+.wiz-stelling-q {
+  margin: 0; padding: 0 0 0 20px;
+  border-left: 2px solid var(--gold);
+  font-size: 25px; line-height: 1.45; font-weight: 300;
+  color: var(--text); letter-spacing: -0.01em;
+}
+.wiz-stelling-sub {
+  margin: 14px 0 0 22px; color: var(--text-soft); font-size: 15px; line-height: 1.55;
+}
+.wiz-minis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 4px; }
+.wiz-mini {
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-mini-k {
+  display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 5px;
+}
+.wiz-mini-v { color: var(--text-soft); font-size: 13.5px; line-height: 1.5; }
+
+/* ── Format ─────────────────────────────────────────────────────────────── */
+
+.wiz-formatkaart {
+  padding: 16px 18px; margin-bottom: 18px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-formatkaart .wiz-format-desc { margin: 10px 0 0; }
+
+/* ── De copy als copy ───────────────────────────────────────────────────────
+ *
+ * Op ware grootte en in de verhouding waarin hij op de advertentie komt. Een
+ * headline beoordeel je op ritme en lengte, en dat zie je niet in een
+ * invoerveld van één regel. */
+
+.wiz-copyblad {
+  padding: 30px 32px; margin-bottom: 6px; border-radius: 14px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+  border: 1px solid var(--hairline-strong);
+}
+.wiz-copy-headline {
+  font-size: 31px; line-height: 1.2; color: var(--text);
+  font-weight: 500; letter-spacing: -0.02em; max-width: 20ch;
+}
+.wiz-copy-sub { margin-top: 12px; font-size: 17px; color: var(--text-soft); line-height: 1.45; max-width: 34ch; }
+.wiz-copy-body { margin-top: 14px; font-size: 14.5px; color: var(--text-soft); line-height: 1.6; max-width: 46ch; }
+.wiz-copy-proof {
+  margin-top: 16px; font-size: 12px; letter-spacing: 0.04em;
+  color: var(--gold);
+}
+.wiz-copy-cta {
+  display: inline-block; margin-top: 20px; padding: 11px 22px;
+  border-radius: 999px; background: var(--gold); color: #1a1408;
+  font-size: 14px; font-weight: 600;
+}
+
+/* ── Gelabelde velden, tegels en pillen ─────────────────────────────────────
+ *
+ * De basisvormen uit het ontwerp: label boven, waarde eronder. */
+
+.wiz-veld { margin-bottom: 18px; }
+.wiz-veld > label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-soft); margin-bottom: 7px;
+}
+.wiz-veld select {
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--hairline); color: var(--text);
+  font-family: inherit; font-size: 14px;
+}
+.wiz-veld select:focus { outline: none; border-color: var(--gold-line-strong); }
+.wiz-tweeveld { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+
+/* Tegels met een miniatuur van de verhouding, voor plaatsing en funnelfase. */
+.wiz-tegels { display: flex; gap: 8px; flex-wrap: wrap; }
+.wiz-tegel {
+  flex: 1; min-width: 84px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 10px; border-radius: 12px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--hairline); color: var(--text-soft);
+  font-family: inherit; font-size: 12px;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.wiz-tegel:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-tegel.rec { border-color: var(--gold-line); }
+.wiz-tegel.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+.wiz-tegel-vorm { display: block; border: 1.5px solid currentColor; border-radius: 3px; opacity: 0.75; }
+.wiz-tegel-vorm.vk { width: 20px; height: 20px; }
+.wiz-tegel-vorm.st { width: 13px; height: 22px; }
+.wiz-tegel-vorm.lg { width: 18px; height: 22px; }
+
+/* Pillen op één rij, voor het awareness-niveau. */
+.wiz-pillen { display: flex; gap: 7px; flex-wrap: wrap; }
+.wiz-pil {
+  padding: 9px 14px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--hairline); color: var(--text-soft);
+  font-family: inherit; font-size: 12.5px;
+}
+.wiz-pil:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-pil.rec { border-color: var(--gold-line); }
+.wiz-pil.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+
+/* ── De rechterkolom ────────────────────────────────────────────────────── */
+
+.wiz-zijpaneel {
+  padding: 16px 18px; margin-bottom: 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-zijpaneel-t {
+  font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px;
+}
+.wiz-leegzij {
+  padding: 22px; border-radius: 12px; text-align: center;
+  border: 1px dashed var(--hairline-strong); color: var(--text-faint); font-size: 13px;
+}
+.wiz-waarom { margin: 0; color: var(--text); font-size: 13.5px; line-height: 1.6; }
+.wiz-bronnen { margin: 0; padding-left: 16px; color: var(--text-faint); font-size: 12px; }
+.wiz-bronnen li { margin-bottom: 4px; }
+
+/* De productkaart. */
+.wiz-prodbeeld {
+  border-radius: 10px; overflow: hidden; margin-bottom: 14px;
+  background: rgba(0, 0, 0, 0.3); text-align: center;
+}
+.wiz-prodbeeld img { max-width: 100%; max-height: 200px; display: inline-block; }
+.wiz-prodnaam { font-size: 17px; color: var(--text); }
+.wiz-prodcat { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+.wiz-usps { margin: 14px 0 0; padding: 0; list-style: none; }
+.wiz-usps li {
+  position: relative; padding-left: 22px; margin-bottom: 7px;
+  color: var(--text-soft); font-size: 13px; line-height: 1.45;
+}
+.wiz-usps li::before {
+  content: '✓'; position: absolute; left: 0; top: 0; color: var(--gold); font-size: 12px;
+}
+.wiz-prodprijs { margin-top: 12px; color: var(--gold); font-size: 13px; }
+
+/* Persona's. */
+.wiz-personakaart {
+  position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%;
+  padding: 16px 18px; border-radius: 12px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gold-line);
+  color: var(--text); font-family: inherit;
+}
+.wiz-personakaart.on { border-color: var(--gold); background: var(--gold-haze); }
+.wiz-personakaart-naam { font-size: 16px; }
+.wiz-personakaart-desc { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
+.wiz-personalijst { display: flex; flex-direction: column; gap: 6px; }
+.wiz-personarij {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  padding: 10px 12px; border-radius: 9px; text-align: left; cursor: pointer;
+  background: transparent; border: 1px solid var(--hairline);
+  color: var(--text-soft); font-family: inherit;
+}
+.wiz-personarij:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-personarij.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+.wiz-personarij-naam { font-size: 13.5px; }
+.wiz-personarij-desc { font-size: 11.5px; color: var(--text-faint); }
+
+/* Beeldvoorbeeld en ad-preview. */
+.wiz-vizvoorbeeld { border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.3); }
+.wiz-vizvoorbeeld img { width: 100%; display: block; }
+.wiz-vizvoorbeeld-bij { margin-top: 9px; font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+/* Terwijl de voorproef getekend wordt. Een leeg vak zou zeggen dat er niets
+   gebeurt, en dit duurt tientallen seconden. */
+.wiz-vizdenkt {
+  padding: 34px 18px; text-align: center; font-size: 12.5px; color: var(--gold-bright);
+  border: 1px dashed rgba(var(--gold-rgb), .32); border-radius: 10px;
+  background: rgba(var(--gold-rgb), .04);
+}
+.wiz-adpreview { border-radius: 12px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.wiz-adpreview-beeld img { width: 100%; display: block; }
+.wiz-adpreview-tekst { padding: 18px; }
+
+/* Headline-opties. */
+.wiz-headlines { display: flex; flex-direction: column; gap: 7px; }
+.wiz-headline {
+  padding: 11px 14px; border-radius: 10px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-family: inherit; font-size: 14px; line-height: 1.4;
+}
+.wiz-headline:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-headline.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+
+/* Wireframe-miniatuur op een formatkaart: een paar blokjes die de opbouw
+   suggereren, zodat je een tekstad van een productad onderscheidt zonder de
+   beschrijving te lezen. */
+.wiz-wire {
+  display: block; height: 54px; margin-top: 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
+  background-repeat: no-repeat;
+}
+.wiz-wire.w-product  { background-image: linear-gradient(var(--text-faint), var(--text-faint)); background-size: 34% 60%; background-position: 50% 50%; }
+.wiz-wire.w-split    { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 38% 62%, 38% 62%; background-position: 8% 50%, 92% 50%; }
+.wiz-wire.w-proof    { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 76% 14%, 60% 14%, 68% 14%; background-position: 12% 22%, 12% 50%, 12% 78%; }
+.wiz-wire.w-native   { background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 80% 18%, 46% 18%; background-position: 10% 26%, 10% 68%; }
+.wiz-wire.w-editorial{ background-image: linear-gradient(var(--text-faint), var(--text-faint)), linear-gradient(var(--text-faint), var(--text-faint)); background-size: 84% 22%, 84% 34%; background-position: 8% 18%, 8% 76%; }
 
 /* ── Velden en keuzes ───────────────────────────────────────────────────── */
 
@@ -203,7 +536,8 @@ body.wiz-open { overflow: hidden; }
 
 /* ── Formats ────────────────────────────────────────────────────────────── */
 
-.wiz-formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.wiz-formats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wiz-formats.alles { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); max-height: 460px; overflow-y: auto; padding-right: 4px; }
 .wiz-format {
   position: relative; display: flex; flex-direction: column; gap: 6px;
   padding: 14px 16px; border-radius: 12px; text-align: left; cursor: pointer;
@@ -253,70 +587,162 @@ body.wiz-open { overflow: hidden; }
   padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 14px;
 }
 
-/* ── Blueprint ──────────────────────────────────────────────────────────── */
+/* ── Blueprint ────────────────────────────────────────────────────────────
+ *
+ * Een briefing, geen controlelijst. De beschrijving van het beeld staat
+ * bovenaan en groot, want dat is het enige antwoord op "snap ik wat ik krijg
+ * voordat ik ervoor betaal". Daaronder vier groepen die je per stuk kunt
+ * bijstellen zonder de wizard opnieuw te doorlopen. */
 
-.wiz-bp { border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
-.wiz-bp-row {
-  display: grid; grid-template-columns: 170px 1fr auto; gap: 14px;
-  align-items: baseline; padding: 11px 16px;
-  border-bottom: 1px solid var(--hairline);
-}
-.wiz-bp-row:last-child { border-bottom: none; }
-.wiz-bp-k { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.wiz-bp-v { color: var(--text); font-size: 13.5px; line-height: 1.5; }
-.wiz-bp-empty { color: var(--red); font-style: normal; }
-.wiz-bp-edit {
-  background: none; border: none; color: var(--gold); cursor: pointer;
-  font-family: inherit; font-size: 12px; text-decoration: underline;
-}
 .wiz-vizdesc {
-  padding: 16px 18px; border-radius: 12px; line-height: 1.6;
-  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gold-line);
-  color: var(--text); font-size: 14px;
+  padding: 22px 24px; margin-bottom: 22px; border-radius: 14px;
+  border-left: 2px solid var(--gold);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text); font-size: 18px; line-height: 1.6; font-weight: 300;
+  max-width: 52ch;
 }
+.wiz-brief { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.wiz-brief-groep {
+  padding: 14px 16px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+}
+.wiz-brief-kop {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 9px;
+}
+.wiz-brief-kop span {
+  font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--gold);
+}
+.wiz-brief-lijst { margin: 0; padding-left: 15px; color: var(--text-soft); font-size: 13px; }
+.wiz-brief-lijst li { margin-bottom: 5px; line-height: 1.5; }
+.wiz-brief-leeg { color: var(--red); font-size: 13px; }
+.wiz-bp-edit {
+  background: none; border: none; color: var(--text-faint); cursor: pointer;
+  font-family: inherit; font-size: 12px; text-decoration: underline; padding: 0;
+}
+.wiz-bp-edit:hover { color: var(--gold); }
 
 /* ── Concepten en eindbeeld ─────────────────────────────────────────────── */
 
-.wiz-concepts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+/* De hele kaart is de knop: je kiest een concept, niet een knopje eronder. */
+.wiz-concepts { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
 .wiz-concept {
   display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
   background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+  padding: 0; text-align: left; cursor: pointer; font-family: inherit; color: var(--text);
+  transition: border-color .15s, transform .15s;
 }
-.wiz-concept.on { border-color: var(--gold); }
+.wiz-concept:hover { border-color: var(--hairline-strong); }
+.wiz-concept.on { border-color: var(--gold); background: var(--gold-haze); }
+/* Rory's aanrader. Een dunne gouden rand en een label, want dit is een advies
+   en geen keuze: de kaart die je koos houdt de volle gouden rand. */
+.wiz-concept.tip { border-color: rgba(201, 162, 77, 0.45); }
+.wiz-concept-tip {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.wiz-concept-tip::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--gold);
+}
 .wiz-concept-preview {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 190px; background: rgba(0, 0, 0, 0.35); padding: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  min-height: 180px; background: rgba(0, 0, 0, 0.35); padding: 10px;
 }
 .wiz-concept-preview img { max-width: 100%; border-radius: 8px; display: block; }
+.wiz-concept-geenbeeld { color: var(--text-faint); font-size: 12px; text-align: center; }
+/* De enige knop die zin heeft na een filterweigering. Nog een keer op
+   'genereren' drukken levert exact dezelfde weigering op. */
+.wiz-concept-herstel {
+  font-size: 11px; letter-spacing: 0.04em; color: var(--gold); cursor: pointer;
+  border: 1px solid var(--gold); border-radius: 999px; padding: 4px 12px;
+  background: transparent; transition: background .15s;
+}
+.wiz-concept-herstel:hover, .wiz-concept-herstel:focus-visible { background: var(--gold-haze); }
+.wiz-concept-herstage {
+  font-size: 11.5px; color: var(--text-soft); line-height: 1.5;
+  border-left: 2px solid var(--gold); padding-left: 8px;
+}
 .wiz-concept-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .wiz-concept-h { font-size: 15px; color: var(--text); line-height: 1.35; }
 .wiz-concept-hook {
   font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold);
 }
 .wiz-concept-vis, .wiz-concept-why { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
-.wiz-concept-vis span, .wiz-concept-why span {
-  display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-soft); margin-bottom: 2px;
+.wiz-concept-why em {
+  display: block; font-style: normal; font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-soft); margin-bottom: 2px;
 }
+
+/* Bewerkacties gegroepeerd naar wat ze raken. Negen chips op één rij is weer
+   een control panel; drie groepjes van drie leest als een keuze. */
+.wiz-tweakgroep { margin-bottom: 14px; }
+.wiz-tweaklijst { display: flex; flex-direction: column; gap: 6px; }
+.wiz-tweakknop {
+  padding: 10px 13px; border-radius: 9px; text-align: left; cursor: pointer;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-family: inherit; font-size: 13px;
+}
+.wiz-tweakknop:hover { border-color: var(--hairline-strong); color: var(--text); }
+.wiz-tweakknop.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
+.wiz-tweakknop:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wiz-tweakgroep-t {
+  display: block; font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+.wiz-chip.on { border-color: var(--gold); background: var(--gold-haze); color: var(--text); }
 
 .wiz-final-head { margin-bottom: 14px; }
 .wiz-final-h { font-size: 20px; color: var(--text); }
 .wiz-final-vis { font-size: 13px; color: var(--text-faint); margin-top: 5px; line-height: 1.5; }
+/* Een KOLOM, en dat was de glitch: dit was een rij, dus de versiestrook ging
+   als flex-buur naast de foto staan en liep de kaart uit. */
 .wiz-final-preview {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   min-height: 280px; padding: 16px; border-radius: 14px;
   background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hairline);
+  overflow: hidden;
 }
 .wiz-final-preview img { max-width: 100%; border-radius: 10px; display: block; }
+
+/* Drie takes naast elkaar, want vergelijken is het hele punt. Onder elkaar
+   moet je scrollen om twee beelden tegen elkaar te houden, en dan kies je de
+   bovenste. */
+.wiz-takes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.wiz-take {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 8px; border-radius: 14px;
+  border: 1px solid var(--hairline); background: transparent;
+}
+.wiz-take.on { border-color: var(--gold-line-strong); background: var(--glass-2); }
+.wiz-take-kop { font-size: 12px; color: var(--text-faint); letter-spacing: .04em; }
+/* Groot genoeg om een static op te beoordelen. Drie duimnagels van een
+   centimeter zijn geen keuze, alleen de suggestie van een keuze. */
+.wiz-take .wiz-final-preview { min-height: 230px; padding: 8px; }
+.wiz-take-kies {
+  border: 1px solid var(--hairline); border-radius: 999px;
+  background: transparent; color: var(--text-soft);
+  font-size: 12px; font-family: inherit; padding: 6px 10px; cursor: pointer;
+}
+.wiz-take-kies.on { border-color: var(--gold-line-strong); color: var(--text); }
+.wiz-take-uitleg { font-size: 12.5px; color: var(--text-faint); margin-top: 10px; line-height: 1.5; }
+.wiz-take-opnieuw { margin-top: 10px; }
+.wiz-refine { margin-top: 18px; }
+/* De vier groepen naast elkaar in plaats van als een lange lijst: onder de
+   beelden is er breedte en geen hoogte. */
+.wiz-refine-rij { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1100px) {
+  .wiz-takes { grid-template-columns: 1fr; }
+}
 .wiz-tweaks { display: flex; flex-wrap: wrap; gap: 7px; }
 .wiz-tweak-note { margin-top: 10px; font-size: 12px; color: var(--text-faint); }
 
 /* ── Rory-paneel ────────────────────────────────────────────────────────── */
 
 .wiz-rory {
-  width: 340px; flex-shrink: 0; display: flex; flex-direction: column;
-  border-left: 1px solid var(--hairline); background: var(--glass);
-  padding: 20px; overflow-y: auto;
+  width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  background: var(--glass); padding: 18px;
+  max-height: 720px; overflow-y: auto;
 }
 .wiz-rory-head { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
 .wiz-rory-avatar {
@@ -411,8 +837,454 @@ body.wiz-open { overflow: hidden; }
   .wiz-overlay { padding: 0; }
   .wiz-shell { border-radius: 0; border: none; }
   .wiz-main { flex-direction: column; }
-  .wiz-rory { width: auto; border-left: none; border-top: 1px solid var(--hairline); max-height: 44vh; }
+  .wiz-inline { flex-direction: column; }
+  .wiz-rory { width: auto; max-height: 40vh; }
+  .wiz-body.wiz-tweekolom { grid-template-columns: 1fr; gap: 16px; }
   .wiz-head, .wiz-body, .wiz-footer { padding-left: 18px; padding-right: 18px; }
   .wiz-two { grid-template-columns: 1fr; }
   .wiz-bp-row { grid-template-columns: 1fr; gap: 4px; }
+  /* De zin blijft de zin, maar hoeft niet meer te schreeuwen op een klein
+     scherm -- daar is de regellengte al kort genoeg om te scannen. */
+  .wiz-zin { font-size: 21px; max-width: none; }
+  .wiz-stelling-q { font-size: 20px; }
+  .wiz-copyblad { padding: 22px 20px; }
+  .wiz-copy-headline { font-size: 25px; }
+  .wiz-title { font-size: 22px; }
 }
+
+/* Wie beweging heeft uitgezet krijgt geen pulserende stip en geen schuivende
+   chevrons. De stip blijft wel zichtbaar, want die draagt de betekenis
+   "Rory is bezig" -- alleen het bewegen vervalt. */
+@media (prefers-reduced-motion: reduce) {
+  .wiz-denkt-punt { animation: none; opacity: 1; }
+  .wiz-chev, .classic-toggle-chev { transition: none; }
+  .wiz-woord, .wiz-btn, .wiz-choice, .wiz-uitklap-knop { transition: none; }
+}
+
+/* Toetsenbordfocus moet zichtbaar zijn op alles wat je kunt bedienen. De
+   wizard is een reeks beslissingen; wie met tab navigeert moet kunnen zien
+   waar hij staat. */
+.wiz-btn:focus-visible,
+.wiz-choice:focus-visible,
+.wiz-format:focus-visible,
+.wiz-persona:focus-visible,
+.wiz-step:focus-visible,
+.wiz-chip:focus-visible,
+.wiz-alt:focus-visible,
+.wiz-uitklap-knop:focus-visible,
+.wiz-bp-edit:focus-visible,
+.wiz-linkbtn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ── Interviewmodus ─────────────────────────────────────────────────────────
+ *
+ * Dezelfde romp als de stappen, andere inhoud: links het gesprek met de
+ * keuzelijst eronder, rechts wat Rory tot nu toe begrepen heeft. Geen
+ * stappenbalk, want je bent uit die modus -- een halve balk boven een gesprek
+ * belooft iets wat er niet is.
+ */
+.wiz-paneel.iw2-modus .wiz-progress,
+.wiz-paneel.iw2-modus .wiz-rorybalk { display: none; }
+.wiz-paneel.iw2-modus .wiz-topbar { border-bottom: 1px solid var(--hairline); }
+.iw2-beta {
+  display: inline-block; vertical-align: middle; margin-left: 8px;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--hairline); background: var(--glass-2);
+  color: var(--text-faint); font-size: 11px; letter-spacing: .04em;
+}
+
+/* Het gesprek. Vaste hoogte met eigen scroll: anders schuift de keuzelijst
+   steeds verder naar beneden en moet je bij elke vraag opnieuw zoeken waar je
+   moet klikken. */
+.iw2-chat {
+  display: flex; flex-direction: column; gap: 14px;
+  max-height: 320px; overflow-y: auto; padding-right: 6px;
+}
+.iw2-rory { display: flex; gap: 10px; align-items: flex-start; }
+.iw2-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold); color: #1a1408; font-size: 13px; font-weight: 600;
+}
+.iw2-jij { display: flex; flex-direction: column; align-items: flex-end; }
+.iw2-bubbel {
+  padding: 11px 14px; border-radius: 14px; line-height: 1.55;
+  background: var(--glass-2); border: 1px solid var(--hairline);
+  color: var(--text-soft); font-size: 13.5px;
+}
+.iw2-jij .iw2-bubbel { background: var(--gold-haze); border-color: var(--gold-line); color: var(--text); }
+.iw2-meta { margin-top: 5px; font-size: 11px; color: var(--text-faint); }
+
+/* De antwoorden als lijst, niet als chips: een chiprij leest als filters, een
+   lijst leest als een vraag met antwoorden. */
+.iw2-opties { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.iw2-optie {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: 12px 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--hairline); background: rgba(255, 255, 255, 0.03);
+  color: var(--text); font-family: inherit; font-size: 13.5px;
+  transition: border-color .15s, background .15s;
+}
+.iw2-optie:hover { border-color: var(--gold-line-strong); background: var(--glass-hover); }
+.iw2-optie.uitweg { border-style: dashed; color: var(--text-soft); }
+.iw2-optie-s { font-size: 12px; color: var(--text-faint); }
+.iw2-aanbevolen {
+  align-self: flex-start; margin-top: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--gold-haze); border: 1px solid var(--gold-line);
+  color: var(--gold); font-size: 11px;
+}
+/* Bij een visuele keuze horen beelden naast elkaar, niet namen onder elkaar. */
+.iw2-tegels {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-top: 18px;
+}
+.iw2-tegels .iw2-optie { align-items: flex-start; }
+
+/* Wat Rory begrepen heeft. Een lege regel is een streepje: dat je iets nog niet
+   verteld hebt is informatie, en een verzonnen waarde is erger dan een gat. */
+.iw2-begrepen { display: flex; flex-direction: column; gap: 2px; }
+.iw2-brij { padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+.iw2-brij:last-child { border-bottom: none; }
+.iw2-brij-l { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.iw2-brij-w { font-size: 13px; color: var(--text-faint); margin-top: 2px; }
+.iw2-brij.vol .iw2-brij-w { color: var(--text); }
+
+/* De blueprint aan het eind van het gesprek. */
+.iw2-blueprint {
+  margin-top: 18px; padding: 16px; border-radius: 14px;
+  border: 1px solid var(--gold-line); background: var(--glass-2);
+}
+.iw2-bp-kop { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+.iw2-bp-rij {
+  display: grid; grid-template-columns: 140px 1fr; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--hairline);
+  font-size: 13px;
+}
+.iw2-bp-rij span { color: var(--text-faint); }
+.iw2-bp-rij b { color: var(--text); font-weight: 500; }
+/* Een gat mag te zien zijn, maar hoeft de blueprint niet te domineren. */
+.iw2-bp-rij.leeg b { color: var(--text-faint); font-weight: 400; }
+.iw2-samenvatting { margin-top: 14px; font-size: 13.5px; line-height: 1.6; color: var(--text-soft); }
+.iw2-slot { margin-top: 18px; font-size: 14px; color: var(--text); }
+.iw2-slotknoppen { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+/* Zelf typen kan altijd, ook als er een keuzelijst staat. Een gesprek waarin je
+   alleen mag kiezen is een formulier met tekstballonnen. */
+.iw2-invoer { display: flex; align-items: flex-end; gap: 10px; width: 100%; }
+.iw2-invoer textarea {
+  flex: 1; resize: vertical; min-height: 40px;
+  padding: 11px 14px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.25);
+  color: var(--text); font-family: inherit; font-size: 13.5px;
+}
+.iw2-stuur {
+  border: none; border-radius: 10px; cursor: pointer;
+  padding: 10px 14px; background: var(--gold); color: #1a1408; font-size: 14px;
+}
+.iw2-stuur:disabled { opacity: .45; cursor: not-allowed; }
+
+/* De exit-vraag staat in de voet, op de plek van het typeveld: je moet hem
+   tegenkomen, niet ernaast. */
+.iw2-exitvraag { width: 100%; }
+.iw2-exitvraag-t { font-size: 14px; color: var(--text); }
+.iw2-exitvraag-s { font-size: 12.5px; color: var(--text-faint); margin-top: 4px; line-height: 1.5; }
+
+/* De ingang: zwevend rechtsonder in het paneel, donker tegen het scherm.
+   Subtiel, maar altijd op dezelfde plek te vinden. */
+.wiz-paneel { position: relative; }
+.iw2-ingang {
+  position: absolute; right: 18px; bottom: 76px; z-index: 3;
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 10px 16px; border-radius: 999px; cursor: pointer;
+  background: #12100c; border: 1px solid var(--gold-line);
+  /* Vaste donkere achtergrond, dus ook een vaste lichte tekstkleur. Met een
+     themakleur werd de tekst zwart-op-zwart zodra de console licht staat, en
+     dan is de knop een leeg zwart vlak. */
+  color: #f4efe4; font-family: inherit;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: border-color .15s, transform .15s;
+}
+.iw2-ingang:hover { border-color: var(--gold-line-strong); transform: translateY(-1px); }
+.iw2-ingang-i {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold); color: #1a1408; font-size: 12px; font-weight: 600;
+}
+.iw2-ingang-t { display: block; font-size: 13px; }
+.iw2-ingang-s { display: block; font-size: 11.5px; color: rgba(244, 239, 228, 0.62); }
+
+@media (prefers-reduced-motion: reduce) {
+  .iw2-ingang { transition: none; }
+  .iw2-ingang:hover { transform: none; }
+}
+
+/* Bij elke take staat waarin hij verschilt: zijn eigen headline en zijn eigen
+   uitwerking. Drie beelden zonder woorden zijn drie plaatjes; hiermee zie je
+   waar je tussen kiest. */
+.wiz-take-kop { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.wiz-take-hook {
+  padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--hairline); color: var(--text-faint); font-size: 10.5px;
+}
+.wiz-take-h { font-size: 13.5px; color: var(--text); line-height: 1.4; }
+.wiz-take-v { font-size: 12px; color: var(--text-faint); line-height: 1.5; }
+
+/* ── De scorekaart ────────────────────────────────────────────────────────
+   De harde controles staan boven het oordeel: wat te tellen is gaat voor wat
+   een mening is. */
+.wiz-score-hard {
+  margin-top: 16px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--gold-line); background: var(--glass-2); font-size: 13px;
+}
+.wiz-score-hard.ok { color: var(--text-soft); border-color: var(--hairline); }
+.wiz-score-hard ul { margin: 6px 0 0; padding-left: 18px; }
+.wiz-score-hard li { margin: 4px 0; color: var(--text); }
+.wiz-score-kop {
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px;
+}
+.wiz-score { margin-top: 14px; }
+.wiz-score-verdict {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  padding: 10px 12px; border-radius: 10px; background: var(--glass-2);
+  border-left: 3px solid var(--gold);
+}
+.wiz-score-verdict.nee { border-left-color: #c2503a; }
+.wiz-score-rijen { margin-top: 10px; }
+.wiz-score-rij {
+  display: grid; grid-template-columns: 24px 190px 1fr; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 13px;
+}
+.wiz-score-l { color: var(--text); }
+.wiz-score-w { color: var(--text-soft); }
+.wiz-score-fixes { margin-top: 14px; }
+.wiz-score-fix { margin: 8px 0; font-size: 13px; }
+.wiz-score-voor { color: var(--text-faint); text-decoration: line-through; }
+.wiz-score-na { color: var(--text); }
+
+/* Welke pass je draait: twee knoppen die zeggen wat je straks weet. */
+.wiz-pass { display: flex; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; }
+.wiz-passknop {
+  flex: 1 1 220px; text-align: left; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.wiz-passknop.on { border-color: var(--gold); background: var(--glass-2); }
+.wiz-passknop-l { font-size: 13px; color: var(--text); }
+.wiz-passknop-s { font-size: 12px; color: var(--text-faint); line-height: 1.4; }
+
+/* ── De brain dump op stap 1 ──────────────────────────────────────────────
+   De snelste van de drie wegen, dus hij staat bovenaan en ziet er uit als een
+   ingang en niet als een extra veld. */
+.wiz-bd {
+  margin-bottom: 20px; padding: 16px; border-radius: 14px;
+  border: 1px solid var(--gold-line); background: var(--glass-2);
+}
+.wiz-bd-kop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wiz-bd-t {
+  font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold);
+}
+.wiz-bd-hint { margin-top: 8px; font-size: 13px; line-height: 1.55; color: var(--text-soft); }
+.wiz-bd-uitleg { margin: 10px 0 0; padding-left: 20px; }
+.wiz-bd-uitleg li { margin: 6px 0; font-size: 12.5px; line-height: 1.5; color: var(--text-soft); }
+.wiz-bd-uitleg strong { color: var(--text); }
+.wiz-bd-in {
+  width: 100%; margin-top: 12px; padding: 11px 12px; border-radius: 10px;
+  border: 1px solid var(--hairline); background: var(--glass-1);
+  color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.55; resize: vertical;
+}
+.wiz-bd-sam { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+/* Twee soorten, en het verschil is de hele bedoeling.
+
+   Een spanning die Rory al oploste is redenering, geen gebrek: rustig goud,
+   dezelfde taal als de rest van zijn uitleg. Rood maakte een briefing die
+   klopt eruitzien als een lijst fouten.
+
+   Een spanning zonder oplossing vraagt wel iets van jou, en houdt de
+   aandachtskleur. Wie alles rood maakt, maakt niets rood. */
+.wiz-bd-spanning {
+  margin-top: 10px; padding: 9px 11px; border-radius: 10px;
+  border-left: 3px solid rgba(var(--gold-rgb), .5);
+  background: var(--glass-1); font-size: 13px; color: var(--text);
+}
+.wiz-bd-spanning strong { color: var(--gold); font-weight: 600; }
+.wiz-bd-spanning em { color: var(--text-soft); font-style: italic; }
+.wiz-bd-conflict {
+  margin-top: 10px; padding: 9px 11px; border-radius: 10px;
+  border-left: 3px solid #c2503a; background: var(--glass-1); font-size: 13px; color: var(--text);
+}
+.wiz-bd-conflict strong { color: #d9714f; font-weight: 600; }
+.wiz-bd-conflict em { color: var(--text-soft); font-style: italic; }
+.wiz-bd-lijst { margin-top: 12px; }
+.wiz-bd-rij {
+  display: grid; grid-template-columns: 150px 170px 1fr; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 12.5px;
+}
+.wiz-bd-veld { color: var(--text-faint); }
+.wiz-bd-waarde { color: var(--text); }
+.wiz-bd-waarom { color: var(--text-soft); line-height: 1.5; }
+.wiz-bd-open { margin-top: 14px; }
+.wiz-bd-open-k {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint);
+}
+.wiz-bd-geweigerd { margin-top: 10px; font-size: 12px; color: #c2503a; }
+@media (max-width: 900px) {
+  .wiz-bd-rij { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ── Rory's aannames bij de start ─────────────────────────────────────────
+   Bleker dan het gesprek: het is wat hij dacht, niet wat er besloten is. */
+.iw2-aannames {
+  margin-bottom: 16px; padding: 12px 14px; border-radius: 12px;
+  border: 1px dashed var(--gold-line); background: var(--glass-1);
+}
+.iw2-aannames-k {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 8px;
+}
+.iw2-aanname { padding: 5px 0; border-top: 1px solid var(--hairline); }
+.iw2-aanname:first-of-type { border-top: 0; }
+.iw2-aanname-c { display: block; font-size: 13px; color: var(--text); line-height: 1.5; }
+.iw2-aanname-b { display: block; font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
+.iw2-gaten { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.iw2-gaten-k {
+  display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 4px;
+}
+.iw2-gat { display: block; font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+.iw2-aannames-v { margin-top: 9px; font-size: 12.5px; color: var(--text-soft); font-style: italic; }
+
+/* Herkomst en reden in de blueprint. */
+.iw2-bp-rij { grid-template-columns: 140px 1fr auto; align-items: baseline; }
+.iw2-bp-bron {
+  font-style: normal; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint); padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--hairline);
+}
+.iw2-bp-bron.user { color: var(--gold); border-color: var(--gold-line); }
+.iw2-bp-reden {
+  grid-column: 2 / -1; text-decoration: none; display: block;
+  font-size: 12px; color: var(--text-faint); line-height: 1.45; margin-top: 2px;
+}
+
+/* Stap 9 vereenvoudigd: een knop, drie kaarten, kiezen. */
+.wiz-final-start { margin-top: 18px; }
+.wiz-take-leeg { font-size: 12.5px; color: var(--text-faint); }
+.wiz-take-opnieuwbeeld { display: block; margin: 6px 0 0; font-size: 12px; }
+.wiz-take-cta {
+  margin-top: 4px; font-size: 12px; color: var(--gold);
+}
+.wiz-take-of { color: var(--text-faint); font-size: 12.5px; margin: 0 8px; }
+.wiz-take-opnieuw { display: flex; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+
+/* Het beeld in de wizard: de foto en verder niets. */
+.wiz-beeld { display: block; width: 100%; height: auto; border-radius: 10px; }
+/* De versiestrook: een duimnagel per versie, onder de foto. Twee pijlen waren
+   twee klikken en een gok; hier zie je wat er is en klik je erheen. Scrollt
+   zelf als er veel versies zijn, zodat de kaart niet meegroeit. */
+.wiz-beeld-v {
+  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+  width: 100%; max-width: 100%; overflow-x: auto; padding-bottom: 2px;
+  font-size: 11px; color: var(--text-faint);
+}
+.wiz-beeld-v-t { margin-left: auto; padding-left: 8px; white-space: nowrap; }
+.wiz-beeld-duim {
+  position: relative; flex: 0 0 auto; width: 38px; height: 38px;
+  border-radius: 7px; overflow: hidden; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(0, 0, 0, .35);
+  transition: border-color .15s, transform .15s;
+}
+.wiz-beeld-duim img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wiz-beeld-duim em {
+  position: absolute; right: 2px; bottom: 1px; font-style: normal; font-size: 9px;
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
+}
+.wiz-beeld-duim:hover, .wiz-beeld-duim:focus-visible { border-color: rgba(var(--gold-rgb), .45); }
+.wiz-beeld-duim.on { border-color: var(--gold); transform: translateY(-1px); }
+
+/* Nick over een beeld dat er al staat. */
+.wiz-take-nick { display: block; margin-top: 8px; font-size: 12px; }
+.wiz-nick {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--hairline); background: var(--glass-1);
+}
+.wiz-nick-k {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 5px;
+}
+.wiz-nick-v { font-size: 13px; color: var(--text); line-height: 1.5; }
+.wiz-nick-z { margin: 6px 0 0; padding-left: 16px; }
+.wiz-nick-z li { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+.wiz-nick-p {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--glass-2);
+  font-size: 12.5px; color: var(--text); line-height: 1.5;
+}
+/* Wat de fix-knop veranderd heeft. */
+.wiz-score-gedaan {
+  margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+  border-left: 3px solid var(--gold); background: var(--glass-2);
+}
+.wiz-score-gedaan ul { margin: 4px 0 0; padding-left: 18px; }
+.wiz-score-gedaan li { font-size: 13px; color: var(--text); margin: 3px 0; }
+.wiz-score-oud { margin-top: 6px; font-size: 12.5px; color: var(--text-faint); }
+
+/* De foto waar de ad op gebouwd wordt. */
+.wiz-basis-uitleg { font-size: 12.5px; color: var(--text-soft); line-height: 1.55; margin: 4px 0 10px; }
+.wiz-basis-raster {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px;
+}
+.wiz-basis-tegel {
+  position: relative; padding: 0; border: 1px solid var(--hairline); border-radius: 10px;
+  overflow: hidden; background: transparent; cursor: pointer;
+}
+.wiz-basis-tegel:hover { border-color: var(--gold); }
+.wiz-basis-tegel img { display: block; width: 100%; height: 84px; object-fit: cover; }
+.wiz-basis-soort {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px;
+  font-size: 10px; color: var(--text); background: rgba(0,0,0,.55);
+}
+.wiz-basis-upload { margin-top: 8px; }
+.wiz-basis-gekozen { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wiz-basis-beeld { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; }
+.wiz-basis-info { flex: 1 1 160px; }
+.wiz-basis-naam { font-size: 13px; color: var(--text); }
+.wiz-basis-status { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+
+/* Het gesprek hoort bij een stap, en dat staat erboven. */
+.wiz-chat-kop {
+  margin: 14px 0 6px; font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+
+
+/* ── "Hier mag de vorm gebroken worden" ───────────────────────────────────
+   Geen waarschuwing en geen knop die iets doet: een opmerking op het moment
+   dat hij ertoe doet, met de reden en drie formaten die het anders doen. De
+   nette layout blijft ernaast gewoon kiesbaar. */
+.wiz-buiten {
+  margin-top: 18px; padding: 14px 16px; border-radius: 10px;
+  border: 1px dashed rgba(var(--gold-rgb), .34); background: rgba(var(--gold-rgb), .045);
+}
+.wiz-buiten-kop { font-size: 12px; color: var(--gold-bright); margin-bottom: 5px; }
+.wiz-buiten-tekst { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
+.wiz-buiten-lijst { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 0 8px; }
+.wiz-buiten-bij { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+
+/* Nick krijgt hetzelfde gezicht als Rory. De letter ligt eronder: mist het
+   bestand, dan haalt onerror de foto weg en staat de letter er weer. */
+.wiz-nick-foto, .lib-nick-foto, .team-portret {
+  position: relative; overflow: hidden; display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%; vertical-align: middle;
+  margin-right: 7px; flex: 0 0 auto;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  color: var(--gold); font-size: 10px; line-height: 1;
+}
+.wiz-nick-foto img, .lib-nick-foto img, .team-portret img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.wiz-nick-foto i, .lib-nick-foto i, .team-portret i { font-style: normal; }
+.wiz-nick-foto.klein { width: 18px; height: 18px; font-size: 9px; margin-right: 6px; }
+.wiz-nick-k { display: flex; align-items: center; }
