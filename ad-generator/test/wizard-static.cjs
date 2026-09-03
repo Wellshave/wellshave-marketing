@@ -2723,6 +2723,194 @@ const VULLEN = `
     'A man standing at a bathroom mirror, shirt over his shoulder');
   check('en hij tekent meteen opnieuw', herstage.getekend, 1);
 
+  /* ── Van drie concepten naar één, en dan pas variëren ─────────────────── */
+  console.log('\n  Rory zegt welke van de drie hij zou draaien');
+  /* Drie gelijkwaardige kaarten zonder oordeel is geen keuze maar keuzestress.
+     En een aanrader die er niet is, hoort er ook niet te staan. */
+  const pick = await page.evaluate(() => {
+    var zet = function (l) { wizState.data.concepts.list = l; };
+    zet([{ headline_nl: 'a' }, { headline_nl: 'b', pick_nl: 'Deze draagt de hoek het scherpst.' },
+         { headline_nl: 'c' }]);
+    var een = wizRoryPick();
+    var kaarten = wizRender_concepts();
+    zet([{ headline_nl: 'a' }, { headline_nl: 'b' }, { headline_nl: 'c' }]);
+    var geen = wizRoryPick();
+    zet([{ headline_nl: 'a', pick_nl: 'x' }, { headline_nl: 'b', pick_nl: 'y' }, { headline_nl: 'c' }]);
+    var twee = wizRoryPick();
+    zet([{ headline_nl: 'a' }, { headline_nl: 'b', pick_nl: '   ' }, { headline_nl: 'c' }]);
+    var wit = wizRoryPick();
+    wizState.data.concepts.list = [];
+    return {
+      een: een, geen: geen, twee: twee, wit: wit,
+      labels: (kaarten.match(/Rory would run this one/g) || []).length,
+      zin: /Deze draagt de hoek het scherpst\./.test(kaarten),
+      tipKlasse: (kaarten.match(/wiz-concept tip/g) || []).length
+    };
+  });
+  check('één aanrader wordt herkend', pick.een, 1);
+  check('geen aanrader is geen aanrader', pick.geen, null);
+  check('en twee aanraders ook niet', pick.twee, null);
+  check('een lege zin telt niet als aanrader', pick.wit, null);
+  check('het label staat één keer op het scherm', pick.labels, 1);
+  check('met de reden erbij', pick.zin, true);
+  check('en één kaart draagt de tip-rand', pick.tipKlasse, 1);
+
+  console.log('\n  de uitwerkingen houden de scene van het concept vast');
+  /* De klacht: het concept toont een man met zijn partner die zwijgend
+     toekijkt, en in twee van de drie uitwerkingen was zij verdwenen. De
+     opdracht vroeg daar letterlijk om ("a different subject in frame"). */
+  const ankers = await page.evaluate(vullen => {
+    eval(vullen);
+    wizState.data.concepts.list = [{
+      headline_nl: 'Ze zegt er niets van. Die blik wel.',
+      visual_nl: 'Man op de rand van het bed, partner kijkt toe.',
+      visual_anchors_nl: ['de partner die zwijgend toekijkt', 'schaamte, geen ruzie', 'het moment na het douchen']
+    }];
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.pass = 'visueel';
+    var visueel = wizBuildTakeBrief();
+    wizState.data.generate.pass = 'hoek';
+    var hoek = wizBuildTakeBrief();
+    wizState.data.generate.pass = 'visueel';
+
+    /* Zonder ankers valt hij terug op de goedgekeurde scene, en verzint er
+       geen. */
+    wizState.data.concepts.list = [{ headline_nl: 'x', visual_nl: 'Man op de rand van het bed, partner kijkt toe.' }];
+    var zonder = wizBuildTakeBrief();
+    var kaal = wizAnkerBlok({ headline_nl: 'x' });
+    /* Een string in plaats van een lijst hoort ook te werken: modellen leveren
+       dat door elkaar. */
+    var alsTekst = wizAnkers({ visual_anchors_nl: 'de partner\nschaamte' });
+    wizState.data.concepts.list = [];
+    return {
+      alleDrie: ['de partner die zwijgend toekijkt', 'schaamte, geen ruzie', 'het moment na het douchen']
+        .every(function (a) { return visueel.indexOf(a) > -1; }),
+      vraagtNietOmAnderOnderwerp: /a different subject in frame/.test(visueel),
+      vraagtNietOmAnderDecor: /A different setting, light and distance/.test(visueel),
+      zegtZelfdeOnderwerp: /ON THE SAME SUBJECT/.test(visueel),
+      hoekpassOok: hoek.indexOf('de partner die zwijgend toekijkt') > -1 &&
+                   /Never the anchors above/.test(hoek),
+      terugval: /the approved visual above IS the anchor/.test(zonder),
+      geenAnkersGeenBlok: kaal,
+      alsTekst: alsTekst
+    };
+  }, VULLEN);
+  check('alle drie de ankers staan in de opdracht', ankers.alleDrie, true);
+  check('en hij vraagt niet meer om een ander onderwerp', ankers.vraagtNietOmAnderOnderwerp, false);
+  check('en niet meer om een ander decor', ankers.vraagtNietOmAnderDecor, false);
+  check('maar om dezelfde scene, andere camera', ankers.zegtZelfdeOnderwerp, true);
+  check('ook de hoekpass houdt de ankers vast', ankers.hoekpassOok, true);
+  check('zonder ankers is de goedgekeurde scene het anker', ankers.terugval, true);
+  check('en zonder scene wordt er niets verzonnen', ankers.geenAnkersGeenBlok, '');
+  check('ankers als tekst worden ook gelezen', ankers.alsTekst, ['de partner', 'schaamte']);
+
+  console.log('\n  en de drie uitwerkingen overleven een herlaadbeurt');
+  /* De knop "Generate this picture" deed niets: state.lastGenerated staat
+     alleen in het geheugen, dus na een herlaadbeurt wezen de bewaarde
+     take-indexen naar niets. Drie lege kaarten, en een druk zonder gevolg. */
+  const herladen = await page.evaluate(async () => {
+    wizState.data.concepts.list = [{ headline_nl: 'c1', image_prompt_en: 'p1' }];
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.takes = [1, 2, 3];
+    wizState.data.generate.uitwerkingen = [
+      { headline_nl: 't1', image_prompt_en: 'e1' },
+      { headline_nl: 't2', image_prompt_en: 'e2' },
+      { headline_nl: 't3', image_prompt_en: 'e3' }
+    ];
+    state.lastGenerated = null;
+    state.generatedImages = {};
+    var hersteld = wizHerstelGeneratie();
+    var na = (state.lastGenerated.variations || []).map(function (v) { return v && v.headline_nl; });
+    var indexen = wizTakeIndexen();
+
+    /* En als ze er echt niet meer zijn: geen stille knop, maar een uitslag. */
+    state.lastGenerated = { variations: [{ headline_nl: 'c1' }], metadata: { placement: 'feed11', mode: 'auto' } };
+    state.imageErrors = {};
+    document.body.insertAdjacentHTML('beforeend', '<div id="gen-image-7"></div>');
+    await generateImage(7);
+    var uitslag = (state.imageErrors || {})[7];
+    var vak = document.getElementById('gen-image-7').innerHTML;
+    document.getElementById('gen-image-7').remove();
+
+    /* Nieuwe plekken laten geen oude uitwerkingen achter. */
+    wizState.data.concepts.list = [{ headline_nl: 'nieuw' }];
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.takes = null;
+    wizState.data.generate.uitwerkingen = [{ headline_nl: 'oud' }, { headline_nl: 'oud' }, { headline_nl: 'oud' }];
+    state.lastGenerated = { variations: [{ headline_nl: 'nieuw' }], metadata: {} };
+    wizTakeIndexen();
+    var restje = wizState.data.generate.uitwerkingen;
+
+    wizState.data.concepts.list = []; wizState.data.generate.takes = null;
+    wizState.data.generate.uitwerkingen = null; state.lastGenerated = null; state.imageErrors = {};
+    return { hersteld: hersteld, na: na, indexen: indexen, uitslag: uitslag, vak: vak, restje: restje };
+  });
+  const bewaard = await page.evaluate(async () => {
+    /* En ze worden ook echt bewaard zodra Rory ze levert -- anders is er na
+       een herlaadbeurt niets om terug te zetten. */
+    wizState.data.concepts.list = [{ headline_nl: 'c1', image_prompt_en: 'p1' }];
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.takes = null;
+    wizState.data.generate.uitwerkingen = null;
+    state.lastGenerated = { variations: [{ headline_nl: 'c1' }], metadata: {} };
+    state.generatedImages = {};
+    var echteCall = window.wizCall, echtePreview = window.wizPreview, echtAll = window.wizPreviewAll;
+    var echtBeeld = window.generateImage;
+    window.wizPreview = function () { }; window.wizPreviewAll = function () { };
+    /* Geen echte beeldgeneratie: die schrijft in vakken die hier niet bestaan
+       en zou een JavaScript-fout achterlaten die niets met deze test te maken
+       heeft. */
+    window.generateImage = function () { };
+    window.wizCall = function () {
+      return Promise.resolve({ content: [{ type: 'text', text: JSON.stringify({ variations: [
+        { headline_nl: 'u1' }, { headline_nl: 'u2' }, { headline_nl: 'u3' }] }) }] });
+    };
+    wizGenerateTakes();
+    await new Promise(function (r) { setTimeout(r, 60); });
+    window.wizCall = echteCall; window.wizPreview = echtePreview; window.wizPreviewAll = echtAll;
+    window.generateImage = echtBeeld;
+    (wizState.data.generate.takes || []).forEach(function (i) { delete wizBeeldBezig[i]; });
+    var uit = (wizState.data.generate.uitwerkingen || []).map(function (v) { return v.headline_nl; });
+    wizState.data.concepts.list = []; wizState.data.generate.takes = null;
+    wizState.data.generate.uitwerkingen = null; state.lastGenerated = null;
+    wizState.busy = false;
+    return uit;
+  });
+  check('de uitwerkingen worden bewaard zodra ze er zijn', bewaard, ['u1', 'u2', 'u3']);
+
+  check('de drie uitwerkingen staan er weer', herladen.na, ['c1', 't1', 't2', 't3']);
+  check('en de indexen wijzen er ook naar', herladen.indexen, [1, 2, 3]);
+  check('een verdwenen variatie geeft een uitslag',
+    /this variation is gone/.test(herladen.uitslag || ''), true);
+  check('en zegt dat ook in het vak', /bestaat niet meer/.test(herladen.vak), true);
+  check('nieuwe plekken laten geen oude uitwerkingen achter', herladen.restje, null);
+
+  const doodsekaarten = await page.evaluate(() => {
+    /* En wijzen de indexen nergens naar en is er ook niets bewaard, dan hoort
+       er GEEN kaart met een dode knop te staan maar de startknop. */
+    wizState.data.concepts.list = [{ headline_nl: 'c1' }];
+    wizState.data.concepts.selected = 0;
+    wizState.data.generate.takes = [1, 2, 3];
+    wizState.data.generate.uitwerkingen = null;
+    state.lastGenerated = { variations: [{ headline_nl: 'c1' }], metadata: {} };
+    var geldig = wizTakesGeldig();
+    var h = wizRender_generate();
+    /* Tekenen mag geen variaties reserveren die je niet gevraagd hebt. */
+    var naTekenen = wizState.data.generate.takes;
+    wizState.data.concepts.list = []; wizState.data.generate.takes = null;
+    state.lastGenerated = null;
+    return {
+      geldig: geldig,
+      dodeKnop: /Generate this picture/.test(h),
+      startknop: /Generate 3 variations/.test(h),
+      naTekenen: naTekenen
+    };
+  });
+  check('indexen die nergens naar wijzen tellen niet mee', doodsekaarten.geldig, []);
+  check('er staat geen kaart met een dode knop', doodsekaarten.dodeKnop, false);
+  check('maar de startknop', doodsekaarten.startknop, true);
+  check('en tekenen reserveert zelf geen variaties', doodsekaarten.naTekenen, [1, 2, 3]);
+
   check('elke onclick in de wizard bestaat op window', losseHandlers, []);
   check('de pagina draaide zonder JavaScript-fouten', jsFouten, []);
 

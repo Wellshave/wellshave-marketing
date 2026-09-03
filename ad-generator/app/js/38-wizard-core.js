@@ -125,7 +125,7 @@ function wizBlankData() {
     /* pass: 'visueel' is de batchregel -- een idee, dezelfde woorden, drie
        beelden. De hoekpass verandert ook de kop en is daarmee geen batch maar
        drie losse ideeen; die kies je bewust. */
-    generate: { varIndex: null, takes: null, selectedTake: null, pass: 'visueel' }
+    generate: { varIndex: null, takes: null, uitwerkingen: null, selectedTake: null, pass: 'visueel' }
   };
 }
 

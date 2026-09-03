@@ -446,6 +446,24 @@ function wizBuildBrief(aantal) {
       'Alle ' + aantal + ' varianten dragen DEZELFDE persona, awareness, marketing-angle en kernboodschap. ' +
       'Die zijn goedgekeurd en staan vast. Varieer alleen de uitvoering: compositie, kadrering, moment, ' +
       'formulering van de headline en de layout. Een variant die van hoek of doelgroep wisselt is fout.\n';
+    /* De ankers zijn het stuk dat later kwijtraakte. Een concept met een
+       partner die toekijkt werd in de uitwerkingen een man alleen voor een
+       spiegel: hetzelfde product, maar de spanning -- en dus het idee -- weg.
+       Wat het idee draagt moet daarom benoemd zijn voordat er uitgewerkt
+       wordt, anders is er bij het uitwerken niets om aan vast te houden. */
+    t += '\n## DE ANKERS VAN ELK CONCEPT\n' +
+      'Geef bij elke variatie ook "visual_anchors_nl": een lijst van 2 tot 4 korte elementen uit de scene ' +
+      'die het IDEE dragen. Denk aan: wie er in beeld is en met hoeveel, wat hun verhouding is, welk ' +
+      'moment het is en welke emotie er speelt. Niet de belichting of het kleurpalet -- die mogen later ' +
+      'wel veranderen. Deze ankers blijven in elke latere uitwerking van dit concept overeind.\n';
+    /* En de keuze zelf. Drie gelijkwaardige kaarten zonder oordeel is geen
+       keuze maar keuzestress: je moet iets afwegen zonder de afweging te
+       kennen die de strateeg zelf al gemaakt heeft. */
+    t += '\n## JOUW AANRADER\n' +
+      'Kies precies EEN van de ' + aantal + ' als jouw aanrader. Zet bij die ene in "pick_nl" een zin ' +
+      'waarom juist dit concept de goedgekeurde hoek het sterkst draagt bij dit publiek en dit ' +
+      'awareness-niveau. Laat "pick_nl" bij de andere leeg (""). Kies er niet meer dan een, en ' +
+      'schrijf geen zin die op alle drie zou kunnen slaan.\n';
   } else {
     t += '\nLever exact deze uitvoering, zonder de goedgekeurde copy of hoek te herschrijven.\n';
   }
@@ -509,6 +527,24 @@ function wizMetadata() {
 
 var WIZ_CONCEPT_COUNT = 3;
 
+/* Welke van de drie Rory zelf zou draaien.
+ *
+ * Drie gelijkwaardige kaarten is geen keuze maar keuzestress: je moet afwegen
+ * zonder de afweging te kennen die de strateeg al gemaakt heeft. Rory zet
+ * daarom bij precies EEN concept een zin in pick_nl.
+ *
+ * Staat hij bij nul concepten, of bij meer dan een, dan is er geen aanrader --
+ * en dan staat er ook geen. Er zelf een kiezen (de eerste, de langste zin) zou
+ * een oordeel verzinnen dat niemand gemaakt heeft. */
+function wizRoryPick() {
+  var lijst = wizState.data.concepts.list || [];
+  var gevonden = null, aantal = 0;
+  lijst.forEach(function (c, i) {
+    if (c && typeof c.pick_nl === 'string' && c.pick_nl.trim()) { gevonden = i; aantal++; }
+  });
+  return aantal === 1 ? gevonden : null;
+}
+
 function wizRender_concepts() {
   var lijst = wizState.data.concepts.list || [];
   if (wizState.busy && !lijst.length) {
@@ -520,12 +556,14 @@ function wizRender_concepts() {
   }
 
   var sel = wizState.data.concepts.selected;
+  var pick = wizRoryPick();
   var beelden = (typeof state !== 'undefined' && state.generatedImages) ? state.generatedImages : {};
   var zonderBeeld = lijst.filter(function (c, i) { return !beelden[i]; }).length;
 
   var h = '<div class="wiz-concepts">' + lijst.map(function (c, i) {
     var aan = (sel === i);
-    return '<button type="button" class="wiz-concept' + (aan ? ' on' : '') + '" ' +
+    var tip = (pick === i);
+    return '<button type="button" class="wiz-concept' + (aan ? ' on' : '') + (tip ? ' tip' : '') + '" ' +
       'aria-pressed="' + (aan ? 'true' : 'false') + '" onclick="wizPickConcept(' + i + ')">' +
       /* Drie toestanden, en dat waren er twee te weinig. De kaart toonde
          altijd "no preview yet", ook terwijl er een beeld werd gemaakt. En
@@ -536,6 +574,7 @@ function wizRender_concepts() {
       '<span class="wiz-concept-preview" id="gen-image-' + i + '">' +
         wizConceptBeeldvak(i) + '</span>' +
       '<span class="wiz-concept-body">' +
+        (tip ? '<span class="wiz-concept-tip">Rory would run this one</span>' : '') +
         '<span class="wiz-concept-h">' + wizEsc(c.headline_nl || '') + '</span>' +
         (c.hook_label_nl ? '<span class="wiz-concept-hook">' + wizEsc(c.hook_label_nl) + '</span>' : '') +
         (c.visual_nl ? '<span class="wiz-concept-vis">' + wizEsc(c.visual_nl) + '</span>' : '') +
@@ -545,6 +584,7 @@ function wizRender_concepts() {
         (c.herstage_nl ? '<span class="wiz-concept-herstage">Restaged after the filter refusal: ' +
           wizEsc(c.herstage_nl) + '</span>' : '') +
         (c.reasoning_nl ? '<span class="wiz-concept-why"><em>Rory</em>' + wizEsc(c.reasoning_nl) + '</span>' : '') +
+        (tip ? '<span class="wiz-concept-why"><em>Why this one</em>' + wizEsc(c.pick_nl) + '</span>' : '') +
       '</span></button>';
   }).join('') + '</div>';
 
@@ -759,6 +799,17 @@ function wizHerstelGeneratie() {
   }
   if (typeof wizZetBasisFotos === 'function') {
     wizZetBasisFotos(lijst.map(function (x, i) { return i; }));
+  }
+  /* De drie uitwerkingen horen er weer achter, op dezelfde plekken als
+     voorheen. Zonder dit wijzen de bewaarde take-indexen na een herlaadbeurt
+     naar niets en staat stap 9 met lege kaarten en een knop die niets doet. */
+  var uitw = (wizState.data.generate || {}).uitwerkingen;
+  var plekken = (wizState.data.generate || {}).takes || [];
+  if (Array.isArray(uitw) && uitw.length && plekken.length === uitw.length) {
+    plekken.forEach(function (plek, n) {
+      if (!state.lastGenerated.variations[plek]) state.lastGenerated.variations[plek] = uitw[n];
+    });
+    if (typeof wizZetBasisFotos === 'function') wizZetBasisFotos(plekken);
   }
   return true;
 }
@@ -994,8 +1045,27 @@ function wizTakeIndexen() {
   }
   wizState.data.generate.takes = idx;
   wizState.data.generate.selectedTake = idx[0];
+  /* Nieuwe plekken betekent: de bewaarde uitwerkingen horen bij de vorige
+     ronde. Blijven ze staan, dan worden ze bij de volgende herlaadbeurt in de
+     nieuwe plekken teruggezet en lees je de takes van een concept dat je niet
+     meer voor je hebt. */
+  wizState.data.generate.uitwerkingen = null;
   wizSave();
   return idx;
+}
+
+/* De bewaarde take-indexen, maar alleen als ze ook echt ergens naar wijzen.
+ *
+ * Anders dan wizTakeIndexen maakt deze niets aan: hij wordt bij het TEKENEN
+ * gebruikt, en tekenen hoort geen drie variaties te reserveren die je niet
+ * gevraagd hebt. Wijzen ze nergens naar, dan is het antwoord "er zijn er geen"
+ * -- en dan staat de startknop er weer, wat na een verloren herlaadbeurt ook
+ * precies klopt: de uitwerkingen zijn weg en moeten opnieuw. */
+function wizTakesGeldig() {
+  var bewaard = wizState.data.generate.takes || [];
+  if (!bewaard.length) return [];
+  var vars = (state.lastGenerated && state.lastGenerated.variations) || [];
+  return bewaard.every(function (i) { return !!vars[i]; }) ? bewaard : [];
 }
 
 function wizHuidigeTake() {
@@ -1111,6 +1181,41 @@ function wizTakeSpreiding() {
     'founder.\n';
 }
 
+/* De ankers van het gekozen concept, als harde regel in de opdracht.
+ *
+ * De klacht: het concept toont een man met zijn partner die zwijgend toekijkt,
+ * en in de uitwerkingen staat hij alleen in een badkamer. Dan is de scene een
+ * decorstuk geworden en het idee weg -- terwijl je juist DAT idee aan het
+ * testen was.
+ *
+ * Rory levert de ankers sinds deze ronde zelf bij het concept (2 tot 4
+ * elementen die het idee dragen). Zijn ze er niet -- oudere concepten, of een
+ * antwoord waarin het veld ontbrak -- dan is de goedgekeurde scene zelf het
+ * anker. Nooit een anker verzinnen dat er niet stond. */
+function wizAnkers(c) {
+  if (!c) return [];
+  var a = c.visual_anchors_nl;
+  if (typeof a === 'string') a = a.split(/\s*[;\n]\s*/);
+  if (!Array.isArray(a)) return [];
+  return a.map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+}
+
+function wizAnkerBlok(c) {
+  var a = wizAnkers(c);
+  if (a.length) {
+    return '- Scene anchors, present and recognisable in ALL THREE executions:\n' +
+      a.map(function (x) { return '  * ' + x + '\n'; }).join('') +
+      '  Losing one of these is losing the concept. If the anchor is a second person, that ' +
+      'person is in all three pictures. If it is a moment, all three are that moment.\n';
+  }
+  if (c && c.visual_nl) {
+    return '- No separate anchors were given, so the approved visual above IS the anchor: the same ' +
+      'people, the same number of them, the same relationship, the same moment and the same ' +
+      'emotion in all three. Only the camera may move.\n';
+  }
+  return '';
+}
+
 function wizBuildTakeBrief() {
   var d = wizState.data, p = wizProduct(), pers = wizPersona(), f = wizFormat();
   var c = (d.concepts.list || [])[d.concepts.selected] || {};
@@ -1133,6 +1238,7 @@ function wizBuildTakeBrief() {
   }
   if (c.headline_nl) t += '- Approved concept headline: ' + c.headline_nl + '\n';
   if (c.visual_nl) t += '- Approved concept visual: ' + c.visual_nl + '\n';
+  t += wizAnkerBlok(c);
   t += '\nThe promise the ad makes is the same in all three. Do not add claims that ' +
        'are not in this brief.\n\n';
 
@@ -1145,10 +1251,18 @@ function wizBuildTakeBrief() {
          (d.copy.cta ? '- CTA: ' + d.copy.cta + '\n' : '') +
          'Do not rewrite them, not even slightly. This is a test of the picture, and the ' +
          'words are the control.\n\n' +
-         'MUST DIFFER between the three: the picture, and only the picture.\n' +
-         '1. A different composition and a different subject in frame.\n' +
+         /* Dit stond er letterlijk als "a different subject in frame" en "a
+            different setting" -- oftewel: gooi de scene weg. Precies wat er
+            gebeurde: het concept had een partner die toekijkt, en in twee van
+            de drie uitwerkingen was zij verdwenen. De camera mag verschillen,
+            het toneel niet. */
+         'MUST DIFFER between the three: the camera, and only the camera.\n' +
+         '1. A different composition and framing ON THE SAME SUBJECT. The same people are ' +
+         'in frame, in the same number and the same relationship to each other.\n' +
          '2. A different place for the proof to be visible.\n' +
-         '3. A different setting, light and distance.\n' +
+         '3. A different vantage point, distance and light WITHIN the same situation. ' +
+         'Not a different situation, not a different room, not a different moment in the day ' +
+         'unless the anchors say so.\n' +
          wizTakeSpreiding() +
          'Three colourways of the same shot is not a test, it is a mood board. If two takes ' +
          'would look alike in a feed, change one of them.\n\n';
@@ -1170,6 +1284,7 @@ function wizBuildTakeBrief() {
   }
 
   t += 'MUST DIFFER between the three, and clearly so:\n' +
+       '0. Never the anchors above. Three angles on the same scene, not three scenes.\n' +
        '1. The headline: same promise, different wording AND a different way of ' +
        'communicating it. Default spread, adapt to the format but keep them apart: ' +
        'take 1 speaks with authority (expert, editorial, news), take 2 opens with ' +
@@ -1223,6 +1338,12 @@ function wizGenerateTakes() {
       }
       /* De gereserveerde plekken vullen met de echte uitwerkingen. */
       idx.forEach(function (plek, n) { state.lastGenerated.variations[plek] = vars[n]; });
+      /* En ze bewaren waar ze een herlaadbeurt overleven. state.lastGenerated
+         staat alleen in het geheugen: kwam je terug op stap 9, dan stonden de
+         drie kaarten er nog (de indexen zijn wel bewaard) maar wezen ze naar
+         niets. Gevolg: drie lege kaarten, en "Generate this picture" deed
+         niets omdat er geen variatie was om te tekenen. */
+      wizState.data.generate.uitwerkingen = vars.slice(0, WIZ_TAKE_COUNT);
       state.generatedImages = {};
       if (typeof wizZetBasisFotos === 'function') wizZetBasisFotos(idx);
       wizSave();
@@ -1321,7 +1442,9 @@ function wizRender_generate() {
   }
   var c = (wizState.data.concepts.list || [])[sel] || {};
   var beelden = (state && state.generatedImages) || {};
-  var takes = wizState.data.generate.takes || [];
+  /* Niet de bewaarde indexen rauw lezen: die kunnen naar niets meer wijzen.
+     Dan stonden er drie lege kaarten met een knop die niets deed. */
+  var takes = wizTakesGeldig();
   var gekozen = wizHuidigeTake();
 
   var h = '<div class="wiz-final-head"><div class="wiz-final-h">' + wizEsc(c.headline_nl || '') + '</div>' +
@@ -1646,6 +1769,7 @@ function wizHandOff() {
 }
 
 window.wizRender_review = wizRender_review; window.wizRender_concepts = wizRender_concepts;
+window.wizTakesGeldig = wizTakesGeldig; window.wizRoryPick = wizRoryPick; window.wizAnkers = wizAnkers; window.wizAnkerBlok = wizAnkerBlok;
 window.wizHerstage = wizHerstage; window.wizHerstageBrief = wizHerstageBrief;
 window.wizConceptBeeldvak = wizConceptBeeldvak; window.wizBeeldFilterGeweigerd = wizBeeldFilterGeweigerd;
 window.wizVoorproef = wizVoorproef; window.wizVoorproefPaneel = wizVoorproefPaneel;

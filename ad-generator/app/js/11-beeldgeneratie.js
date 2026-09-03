@@ -323,6 +323,19 @@ async function generateImage(varIndex) {
   }
   if (!state.lastGenerated) return;
   const variation = state.lastGenerated.variations[varIndex];
+  /* Geen variatie op deze plek betekende tot nu toe: een uitzondering die
+     niemand ving, geen laadstatus, geen melding. Op het scherm was dat een
+     knop die je indrukt en waarna er niets gebeurt -- niet te onderscheiden
+     van een knop die wel werkt maar traag is. */
+  if (!variation) {
+    if (!state.imageErrors) state.imageErrors = {};
+    state.imageErrors[varIndex] = 'this variation is gone \u2014 work the three variations out again';
+    const vak = document.getElementById(`gen-image-${varIndex}`);
+    if (vak) vak.innerHTML = '<div class="error">Deze variatie bestaat niet meer. Werk de drie ' +
+      'variaties opnieuw uit.</div>';
+    toast('Deze variatie bestaat niet meer, werk ze opnieuw uit', true);
+    return;
+  }
   const metadata = state.lastGenerated.metadata;
   const product = state.products.find(p => p.id === metadata.productId);
 
