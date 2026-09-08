@@ -415,6 +415,16 @@ function wizBuildBrief(aantal) {
     if (v) t += '- ' + g.title + ': ' + wizVisualLabel(g.field, v) + '\n';
   });
   if (d.review.visualDescription) t += 'In gewone taal: ' + d.review.visualDescription + '\n';
+  /* De kleurwereld en de eigen regie. Deze staan ook los in de beeldprompt,
+     maar ze horen hier ook: schrijft Rory de scene alsof het donker is terwijl
+     de gebruiker een felgroen vlak koos, dan vechten de tekst en het beeld. */
+  if (d.visual.palet && typeof beeldPalet === 'function') {
+    var _pal = beeldPalet(d.visual.palet);
+    if (_pal) t += 'Kleurwereld: ' + _pal.label + ' -- ' + _pal.kort + '\n';
+  }
+  if (d.visual.paletVrij) {
+    t += 'Eigen regie op het beeld (gaat VOOR op de kleurwereld): ' + d.visual.paletVrij + '\n';
+  }
   if (d.visual.basisFoto) {
     /* De beeldpijplijn stuurt deze foto als eerste beeld mee. De tekst moet dat
        weten, anders beschrijft hij een scene die met de foto niets te maken
@@ -502,6 +512,11 @@ function wizMetadata() {
     concept: d.strategy.marketingAngle,
     offer: '',
     mode: d.format.formatId || 'auto',
+    /* De kleurwereld hoort bij de opdracht en niet bij de generator: hij staat
+       in de blueprint, gaat mee naar de bibliotheek, en is straks terug te
+       lezen bij een advertentie die het deed. */
+    palet: d.visual.palet || 'huis',
+    paletVrij: d.visual.paletVrij || '',
     /* Dit stond hardgecodeerd op null terwijl de wizard het stadium wel
        vraagt. Gevolg: de bibliotheek toonde nooit een sophistication-chip en
        de SO-code in de bestandsnaam bleef leeg -- precies het veld waarop je

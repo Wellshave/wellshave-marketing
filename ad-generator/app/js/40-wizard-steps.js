@@ -706,6 +706,7 @@ function wizWireVorm(f) {
 
 function wizToggleAllFormats() { wizState.showAllFormats = !wizState.showAllFormats; wizRender(); }
 window.wizBuitenDeLijntjes = wizBuitenDeLijntjes; window.wizBuitenReden = wizBuitenReden;
+window.wizPaletHtml = wizPaletHtml;
 window.WIZ_BUITEN = WIZ_BUITEN;
 
 /* ── Stap 5: Visuele richting ───────────────────────────────────────────────
@@ -754,6 +755,18 @@ var WIZ_VISUAL = [
     { value: 'raw-ugc', label: 'Raw UGC' },
     { value: 'clinical', label: 'Clinical' }
   ] },
+  /* De kleurwereld. Dit was geen keuze: elke beeldprompt eindigde op "premium
+     dark/gold aesthetic", ook bij een format waarvan de anatomie een regel
+     eerder zegt dat er geen huisstijl op mag. Nu staat het huispalet als
+     standaard vooraan en zijn de andere er bewust naast -- want drie takes in
+     dezelfde schemer zijn drie takes van hetzelfde beeld. */
+  /* De lijst komt uit 58-formaat-anatomie.js, dat eerder geladen wordt. Is hij
+     er onverhoopt niet, dan blijft het huispalet over -- een lege keuzelijst
+     zou betekenen dat je niets kunt kiezen en dat niemand ziet waarom. */
+  { field: 'palet', title: 'Colour world', hoofd: true, opts:
+    (typeof BEELD_PALETTEN !== 'undefined' && BEELD_PALETTEN.length
+      ? BEELD_PALETTEN.map(function (p) { return { value: p.id, label: p.label }; })
+      : [{ value: 'huis', label: 'Huisstijl, dark & gold' }]) },
   { field: 'productVisibility', title: 'Product visibility', opts: [
     { value: 'hero', label: 'Hero, unmissable' },
     { value: 'clear', label: 'Clearly visible' },
@@ -799,6 +812,37 @@ function wizVisueelDeel(g) {
            label: function (v) { return (wizOptLabel(g.opts, v) || '').toLowerCase(); } };
 }
 
+/* De kleurwereld in woorden, en het vrije veld eronder.
+ *
+ * Het vrije veld is het antwoord op "soms willen we gewoon iets anders": een
+ * felgroen vlak met een grasmat is geen optie in een keuzelijst, en het hoort
+ * er ook geen te worden -- dan is het over een maand een lijst van veertig
+ * sferen waarvan er twee gebruikt worden. Wat je hier schrijft gaat letterlijk
+ * de beeldprompt in en wint van het palet.
+ *
+ * Bij een merkloos formaat staat er iets anders: daar is het huispalet niet
+ * van toepassing, en dat hoort te lezen te zijn in plaats van stil te
+ * gebeuren. */
+function wizPaletHtml() {
+  if (typeof BEELD_PALETTEN === 'undefined') return '';
+  var gekozen = wizState.data.visual.palet || 'huis';
+  var p = (typeof beeldPalet === 'function') ? beeldPalet(gekozen) : null;
+  var merkloos = (typeof formaatWilMerk === 'function')
+    ? !formaatWilMerk(wizState.data.format.formatId) : false;
+  var uitleg = '';
+  if (merkloos && gekozen === 'huis') {
+    uitleg = 'This format is native, so the house palette does not apply: it takes the colours of ' +
+      'the thing it imitates. Pick another colour world if you want to steer it.';
+  } else if (p) {
+    uitleg = p.kort;
+  }
+  return '<div class="wiz-palet">' +
+    (uitleg ? '<p class="wiz-paletuitleg">' + wizEsc(uitleg) + '</p>' : '') +
+    wizField('visual', 'paletVrij', 'Art direction in your own words',
+      'Optional. Overrides the colour world. For example: a flat bright green background with a strip of real grass.') +
+    '</div>';
+}
+
 function wizRender_visual() {
   var v = wizState.data.visual;
   if (!v.composition) {
@@ -815,6 +859,11 @@ function wizRender_visual() {
     WIZ_VISUAL.filter(function (x) { return x.field !== 'referenceUsage'; }).map(function (g) {
       return wizSelect('visual', g.field, g.title, g.opts, 'Choose…');
     }).join('') + '</div>';
+
+  /* Wat de gekozen kleurwereld betekent, plus de ruimte om er zelf iets anders
+     van te maken. Die twee horen bij elkaar: "buiten de lijntjes" is pas een
+     keuze als je kunt opschrijven welke lijn je overschrijdt. */
+  links += wizPaletHtml();
 
   /* De foto van de mens in beeld, direct onder de keuzes en niet in de
      uitklap: hij verschijnt pas als er werkelijk een mens gekozen is, en dan

@@ -152,6 +152,100 @@ function formaatWilMerk(formatId) {
   return !f || !f.brandless;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   De kleurwereld — en waarom "dark/gold" niet hetzelfde is als "donker beeld"
+
+   Twee klachten, en ze hebben dezelfde oorzaak.
+
+   1. ELKE STATIC KRIJGT EEN DONKERE WAAS. De promptlaag liet elke beeldprompt
+      eindigen op "Style: Wellshave premium dark/gold aesthetic with dramatic
+      lighting". Die zin staat achteraan en weegt daardoor zwaar, en het
+      beeldmodel leest hem als een filter over het HELE frame in plaats van als
+      een beschrijving van de set. Gevolg: onderbelichte huid, grijze
+      producten, en drie advertenties die op elkaar lijken omdat het licht
+      overal hetzelfde is.
+
+      De merkregel zelf zei het al genuanceerder -- "donkere achtergronden,
+      dramatische belichting WAAR PASSEND" -- maar dat voorbehoud sneuvelde in
+      de slotregel, die onvoorwaardelijk meeging.
+
+   2. HIJ SPRAK ZICHZELF TEGEN BIJ NATIVE FORMATEN. Een WhatsApp-screenshot
+      krijgt van de anatomie "no brand colour scheme, it must not look like a
+      designed brand ad" -- en eindigde daarna alsnog op "premium dark/gold
+      aesthetic". Twee instructies die elkaar uitsluiten, en de laatste wint.
+
+   Daarom staat de kleurwereld hier als een EIGEN keuze, los van het formaat:
+
+     - bij een merkloos formaat gaat er helemaal geen huisstijlpalet mee;
+     - het huispalet zegt nu waar het donker hoort te zijn (de set) en waar
+       niet (het onderwerp, de huid, het product);
+     - en er zijn paletten die de huisstijl bewust loslaten, zodat een batch
+       niet drie keer dezelfde schemer is.
+
+   Wat hier NIET gebeurt: kiezen. Het huispalet blijft de standaard. Buiten de
+   lijntjes is een besluit van de gebruiker, geen verrassing uit de generator.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var BEELD_PALETTEN = [
+  { id: 'huis', label: 'Huisstijl, dark & gold',
+    kort: 'Donkere set, gouden accenten. De standaard.',
+    regel: 'COLOUR WORLD: the Wellshave house palette. Dark surfaces and a dark set, with warm gold ' +
+      'accents. Critically: the darkness lives in the SET, not over the picture. The subject, the ' +
+      'skin and the product are correctly exposed and clearly readable. Do NOT apply a global ' +
+      'darkening, a dark overlay, a colour wash, a heavy vignette or a low-contrast murk over the ' +
+      'whole frame. A dark room, photographed well.' },
+  { id: 'daglicht', label: 'Daglicht, neutraal',
+    kort: 'Gewoon licht, neutrale achtergrond.',
+    regel: 'COLOUR WORLD: natural daylight on a neutral, light background. Soft shadows, true colours, ' +
+      'nothing tinted. No brand darkness, no gold accents, no dramatic key light.' },
+  { id: 'kleurvlak', label: 'Eén fel kleurvlak',
+    kort: 'Verzadigd effen vlak als achtergrond.',
+    regel: 'COLOUR WORLD: one saturated, flat colour field fills the entire background, edge to edge, ' +
+      'with no gradient and no texture. The subject sits crisply against it in even light. This is a ' +
+      'deliberate break from the brand palette: no dark set, no gold.' },
+  { id: 'buiten', label: 'Buiten: gras, lucht, daglicht',
+    kort: 'Echte buitenomgeving in vol daglicht.',
+    regel: 'COLOUR WORLD: shot outdoors in full daylight. Real grass, open sky, natural greens and ' +
+      'blues, honest sunlight with real shadows. No studio, no dark set, no gold accents.' },
+  { id: 'clinisch', label: 'Clinisch wit',
+    kort: 'Wit, vlak licht, medisch.',
+    regel: 'COLOUR WORLD: clinical white. A white or very light grey field, flat even lighting, ' +
+      'no mood and no atmosphere. Reads as a lab or a pharmacy, not as a brand ad.' }
+];
+
+function beeldPalet(id) {
+  return BEELD_PALETTEN.filter(function (p) { return p.id === id; })[0] || null;
+}
+
+/* De kleurregel voor deze combinatie van formaat en palet.
+ *
+ * Bij een merkloos formaat gaat er GEEN huispalet mee -- dat is de tegenspraak
+ * die het scherm opleverde. Maar een bewust gekozen ander palet wel: een ugly
+ * ad op een felgroen vlak is een geldige keuze, een ugly ad in Wellshave-goud
+ * niet.
+ *
+ * Een onbekend palet levert niets op. Een verzonnen kleurwereld is erger dan
+ * geen kleurwereld: dan staat er een sfeer in de prompt die niemand koos. */
+function beeldPaletRegel(formatId, paletId, eigen) {
+  var p = beeldPalet(paletId || 'huis');
+  var merkloos = (typeof formaatWilMerk === 'function') ? !formaatWilMerk(formatId) : false;
+  var uit = [];
+  if (p && !(merkloos && p.id === 'huis')) uit.push(p.regel);
+  if (merkloos && (!p || p.id === 'huis')) {
+    uit.push('COLOUR WORLD: none of the brand palette. This format is native, so it takes the colours ' +
+      'of the thing it imitates: the real interface, the real room, the real phone screen. No dark ' +
+      'brand set and no gold accents.');
+  }
+  /* De eigen richting gaat er letterlijk in en wint van het palet: wie zelf
+     "felgroen met een grasmat" opschrijft, bedoelt dat en niet iets ernaast. */
+  var vrij = String(eigen || '').trim();
+  if (vrij) uit.push('The art direction for this image, in the words of the person who briefed it, ' +
+    'and it overrides the colour world above where they disagree: ' + vrij);
+  return uit.join(' ');
+}
+
+window.BEELD_PALETTEN = BEELD_PALETTEN;
+window.beeldPalet = beeldPalet;
+window.beeldPaletRegel = beeldPaletRegel;
 window.FORMAAT_ANATOMIE = FORMAAT_ANATOMIE;
 window.formaatBeeldregel = formaatBeeldregel;
 window.formaatVlagregels = formaatVlagregels;

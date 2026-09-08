@@ -1288,3 +1288,12 @@
 .wiz-nick-foto i, .lib-nick-foto i, .team-portret i { font-style: normal; }
 .wiz-nick-foto.klein { width: 18px; height: 18px; font-size: 9px; margin-right: 6px; }
 .wiz-nick-k { display: flex; align-items: center; }
+
+/* De kleurwereld: wat de keuze betekent, en de ruimte om er zelf iets anders
+   van te maken. Buiten de lijntjes is pas een keuze als je kunt opschrijven
+   welke lijn je overschrijdt. */
+.wiz-palet { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 4px; }
+.wiz-paletuitleg {
+  margin: 0; font-size: 12px; color: var(--text-faint); line-height: 1.5;
+  border-left: 2px solid var(--gold-line, rgba(201,162,77,.35)); padding-left: 10px;
+}

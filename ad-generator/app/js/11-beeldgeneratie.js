@@ -361,6 +361,13 @@ async function generateImage(varIndex) {
      wat het het vaakst gezien heeft, en dat is de nette DR-layout. */
   const anatomie = (typeof formaatBeeldregel === 'function') ? formaatBeeldregel(metadata.mode) : '';
   if (anatomie) layoutPriority += anatomie + ' ';
+  /* En in welke kleurwereld dat staat. Dit stond alleen in de tekstprompt, als
+     slotzin van image_prompt_en -- onvoorwaardelijk, ook bij formaten waarvan
+     de anatomie een regel eerder zegt dat er geen huisstijl op mag. Hier staat
+     hij een keer, hij kent het formaat, en hij kent de keuze van de gebruiker. */
+  const kleur = (typeof beeldPaletRegel === 'function')
+    ? beeldPaletRegel(metadata.mode, metadata.palet, metadata.paletVrij) : '';
+  if (kleur) layoutPriority += kleur + ' ';
   /* Bij een redactioneel formaat is de anatomie geen smaak maar het formaat
      zelf: welke typografie, welke foto, welke knop, en wat er beslist NIET op
      mag -- geen verzonnen uitgever, geen geleend logo, geen zegel. Die regels

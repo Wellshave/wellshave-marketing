@@ -435,14 +435,20 @@ const VULLEN = `
   check('plaatsing en funnel staan als tegels', productkaart.tegels, 8);
   check('en het product zelf als keuzelijst', productkaart.keuzelijst, 1);
 
-  /* Stap 5: acht keuzes zichtbaar, niet verstopt achter een uitklap. */
+  /* Stap 5: alle keuzes zichtbaar, niet verstopt achter een uitklap. Tien
+     sinds de kleurwereld erbij kwam -- die hoort in het zicht, want hij bepaalt
+     of de batch drie keer dezelfde schemer wordt. */
   const visueel = await page.evaluate(vullen => {
     wizReset(true); eval(vullen);
     var uit = wizRender_visual();
     var L = document.createElement('div'); L.innerHTML = uit.links;
-    return { zichtbaar: L.querySelectorAll('.wiz-tweeveld select').length };
+    return { zichtbaar: L.querySelectorAll('.wiz-tweeveld select').length,
+             kleurwereld: /Colour world/.test(uit.links),
+             eigenRegie: /Art direction in your own words/.test(uit.links) };
   }, VULLEN);
-  check('stap 5 toont negen visuele keuzes in het zicht', visueel.zichtbaar, 9);
+  check('stap 5 toont tien visuele keuzes in het zicht', visueel.zichtbaar, 10);
+  check('waaronder de kleurwereld', visueel.kleurwereld, true);
+  check('met een veld voor je eigen regie', visueel.eigenRegie, true);
 
   /* De uitklap draagt nu de extra's, niet het hoofdformulier. Dicht is dicht. */
   const uitklap = await page.evaluate(vullen => {
@@ -658,6 +664,128 @@ const VULLEN = `
   check('en leeg ook niet', anatomie.leeg, '');
   check('de knopvlag klopt', [anatomie.knopScreenshot, anatomie.knopBenefit], [false, true]);
   check('de merkvlag ook', [anatomie.merkScreenshot, anatomie.merkBenefit], [false, true]);
+
+  console.log('\n  de kleurwereld is een keuze, en geen waas over het beeld');
+  /* Twee klachten met dezelfde oorzaak: elke static kwam er donker uit, en een
+     native format kreeg alsnog premium dark/gold terwijl de anatomie een regel
+     eerder zegt dat er geen huisstijl op mag. */
+  const palet = await page.evaluate(() => {
+    var huis = beeldPaletRegel('benefit-stack', 'huis');
+    var groen = beeldPaletRegel('benefit-stack', 'kleurvlak');
+    var buiten = beeldPaletRegel('benefit-stack', 'buiten');
+    var nativeHuis = beeldPaletRegel('whatsapp-chat', 'huis');
+    var nativeGroen = beeldPaletRegel('whatsapp-chat', 'kleurvlak');
+    var eigen = beeldPaletRegel('benefit-stack', 'huis',
+      'een felgroen vlak met een strook echt gras eronder');
+    return {
+      /* Het huispalet zegt WAAR het donker is: in de set. En zegt expliciet dat
+         het geen filter over het frame is -- dat is de waas. */
+      huisNoemtDeSet: /darkness lives in the SET/.test(huis),
+      huisVerbiedtDeWaas: /Do NOT apply a global darkening/.test(huis) &&
+        /overlay/.test(huis) && /vignette/.test(huis),
+      huisHoudtDeHuidLeesbaar: /skin and the product are correctly exposed/.test(huis),
+      /* Een ander palet is echt een ander palet, en zegt dat het de huisstijl
+         loslaat. */
+      groenBreekt: /saturated, flat colour field/.test(groen) && /no dark set, no gold/.test(groen),
+      buitenBreekt: /full daylight/.test(buiten) && /no gold accents/.test(buiten),
+      /* Bij een merkloos format gaat het huispalet er NIET in. */
+      nativeGeenHuis: /Wellshave house palette/.test(nativeHuis),
+      nativeZegtWaarom: /takes the colours of the thing it imitates/.test(nativeHuis),
+      /* Maar een bewust gekozen ander palet wel: een ugly ad op felgroen is een
+         geldige keuze. */
+      nativeMagKleur: /saturated, flat colour field/.test(nativeGroen),
+      /* De eigen woorden gaan er letterlijk in en winnen. */
+      eigenLetterlijk: /een felgroen vlak met een strook echt gras eronder/.test(eigen),
+      eigenWint: /overrides the colour world above/.test(eigen),
+      /* Een onbekend palet verzint geen sfeer. */
+      onbekend: beeldPaletRegel('benefit-stack', 'bestaat-niet'),
+      aantal: BEELD_PALETTEN.length,
+      /* En de keuzelijst in de wizard is werkelijk gevuld: hij wordt opgebouwd
+         uit een lijst uit een ander bestand, en die volgorde is stil. */
+      keuzes: (WIZ_VISUAL.filter(function (g) { return g.field === 'palet'; })[0] || {}).opts.length
+    };
+  });
+  check('het huispalet zegt dat de donkerte in de set zit', palet.huisNoemtDeSet, true);
+  check('en verbiedt de waas over het frame', palet.huisVerbiedtDeWaas, true);
+  check('en houdt huid en product leesbaar', palet.huisHoudtDeHuidLeesbaar, true);
+  check('een kleurvlak laat de huisstijl echt los', palet.groenBreekt, true);
+  check('buiten ook', palet.buitenBreekt, true);
+  check('een merkloos format krijgt geen huispalet', palet.nativeGeenHuis, false);
+  check('en zegt waarom', palet.nativeZegtWaarom, true);
+  check('maar mag wel een gekozen kleurwereld', palet.nativeMagKleur, true);
+  check('je eigen regie gaat er letterlijk in', palet.eigenLetterlijk, true);
+  check('en wint van het palet', palet.eigenWint, true);
+  check('een onbekend palet verzint niets', palet.onbekend, '');
+  check('er zijn vijf kleurwerelden', palet.aantal, 5);
+  check('en ze staan alle vijf in de keuzelijst', palet.keuzes, 5);
+
+  const paletDoor = await page.evaluate(vullen => {
+    eval(vullen);
+    wizSet('visual', 'palet', 'buiten', 'user');
+    wizSet('visual', 'paletVrij', 'felgroen vlak met een grasmat', 'user');
+    var brief = wizBuildBrief(3);
+    var md = wizMetadata();
+    return {
+      inBrief: /Kleurwereld: Buiten/.test(brief),
+      eigenInBrief: /felgroen vlak met een grasmat/.test(brief),
+      inMetadata: [md.palet, md.paletVrij],
+      /* En de generator krijgt hem ook echt: metadata is wat generateImage
+         leest. Zonder deze stap staat de keuze wel in de brief en niet in het
+         beeld. */
+      regel: beeldPaletRegel(md.mode, md.palet, md.paletVrij)
+    };
+  }, VULLEN);
+  check('de kleurwereld staat in de opdracht aan Rory', paletDoor.inBrief, true);
+  check('en de eigen regie ook', paletDoor.eigenInBrief, true);
+  check('de generator krijgt hem mee', paletDoor.inMetadata, ['buiten', 'felgroen vlak met een grasmat']);
+  check('en er komt een echte kleurregel uit',
+    /full daylight/.test(paletDoor.regel) && /grasmat/.test(paletDoor.regel), true);
+
+  const inDePrompt = await page.evaluate(async () => {
+    /* En dan de echte reis: staat die kleurregel ook werkelijk in de prompt die
+       weggaat? De keuze in het scherm en de zin in de opdracht zijn twee
+       dingen, en tussen die twee ging het mis. */
+    document.body.insertAdjacentHTML('beforeend', '<div id="gen-image-5"></div>');
+    var echt = window.fetchJsonWithRetry, gezien = [];
+    window.fetchJsonWithRetry = async function (url, opties) {
+      try { gezien.push(JSON.parse(opties.body).prompt); } catch (e) { gezien.push(''); }
+      return { data: [{ b64_json: 'AAA' }] };
+    };
+    state.generatedImages = {};
+    var maak = async function (mode, palet, vrij) {
+      state.lastGenerated = {
+        variations: [null, null, null, null, null, { image_prompt_en: 'a man in a bathroom', headline_nl: 'h' }],
+        metadata: { productId: null, placement: 'feed11', mode: mode, palet: palet, paletVrij: vrij }
+      };
+      await generateImage(5);
+      return gezien[gezien.length - 1] || '';
+    };
+    var huis = await maak('benefit-stack', 'huis', '');
+    var groen = await maak('benefit-stack', 'kleurvlak', '');
+    var nativeAd = await maak('whatsapp-chat', 'huis', '');
+    var eigen = await maak('benefit-stack', 'huis', 'felgroen vlak met een grasmat');
+    /* En zonder palet in de metadata -- Kopieer ad en Itereren sturen dat niet
+       mee -- valt hij terug op het huispalet in plaats van op niets. */
+    var zonder = await maak('benefit-stack', undefined, undefined);
+    window.fetchJsonWithRetry = echt;
+    document.getElementById('gen-image-5').remove();
+    state.generatedImages = {}; state.lastGenerated = null; state.imageErrors = {};
+    return {
+      huis: /darkness lives in the SET/.test(huis) && /Do NOT apply a global darkening/.test(huis),
+      groenIsGroen: /saturated, flat colour field/.test(groen),
+      groenGeenHuis: /house palette/.test(groen),
+      nativeGeenHuis: /house palette/.test(nativeAd),
+      nativeZegtHetOok: /takes the colours of the thing it imitates/.test(nativeAd),
+      eigen: /felgroen vlak met een grasmat/.test(eigen),
+      zonderValtTerug: /darkness lives in the SET/.test(zonder)
+    };
+  });
+  check('de kleurregel gaat mee in de echte prompt', inDePrompt.huis, true);
+  check('een ander palet vervangt het huispalet', [inDePrompt.groenIsGroen, inDePrompt.groenGeenHuis], [true, false]);
+  check('een native format krijgt geen huisstijl in de prompt', inDePrompt.nativeGeenHuis, false);
+  check('en leest waarom', inDePrompt.nativeZegtHetOok, true);
+  check('je eigen regie staat letterlijk in de prompt', inDePrompt.eigen, true);
+  check('zonder keuze blijft het huispalet de standaard', inDePrompt.zonderValtTerug, true);
 
   console.log('\n  en de layoutregel noemt alleen wat er werkelijk is');
   /* De regel noemde de wordmark en de knop altijd bij naam, alsof ze er waren.
