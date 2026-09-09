@@ -1273,3 +1273,18 @@ body.iterate-mode-active .ws8-header { display: none !important; }
 body.iterate-mode-active .ws8-center { display: flex; flex-direction: column; }
 body.iterate-mode-active #iterate-options { order: -2; }
 body.iterate-mode-active #source-ad-section { order: -1; }
+
+/* De uitslag van het itereren staat NAAST de knop en niet ergens onderaan de
+   pagina. Je drukt bovenin; het antwoord hoort daar ook te verschijnen. */
+.iter-melding {
+  margin: 10px 0 0; padding: 10px 14px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.55; color: var(--text-soft);
+  border: 1px solid var(--hairline); background: rgba(255, 255, 255, .02);
+}
+.iter-melding.fout {
+  color: #e88; border-color: rgba(189, 15, 15, .45); background: rgba(189, 15, 15, .07);
+}
+.iter-melding.goed {
+  color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .35);
+  background: rgba(var(--gold-rgb), .07);
+}

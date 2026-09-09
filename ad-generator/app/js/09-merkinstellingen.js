@@ -654,7 +654,10 @@ function applyRoryPlan(parsed) {
 async function analyzeWinningAd() {
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
-  if (!state.sourceAd) { toast('Upload eerst je winnende ad', true); return; }
+  /* Wat het model sowieso zou weigeren, gaat er niet heen. De reden staat bij
+     de knop, niet in een vak verderop. */
+  var bezwaar = iterBronBezwaar(state.sourceAd);
+  if (bezwaar) { iterMelding(bezwaar, 'fout'); toast(bezwaar, true); return; }
   const collected = collectIterateData(); const perfData = collected.text;
   const model = document.getElementById('anthropic-model').value;
   const box = document.getElementById('iterate-analysis');
@@ -732,6 +735,80 @@ async function analyzeWinningAd() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Itereren dat vastloopt zonder iets te zeggen
+
+   De melding was: "ik klik een advertentie aan, druk op itereren, en er
+   gebeurt niets." Wat er op het scherm stond was de knop op zijn bezig-tekst,
+   en verder niets -- geen uitslag, geen reden, geen einde. Drie dingen maakten
+   dat mogelijk, en ze zijn alle drie te repareren zonder te weten wat er bij
+   het model misging:
+
+   1. ER ZAT GEEN DEADLINE OP. Een aanroep die niet terugkomt houdt de knop
+      eeuwig bezig. En omdat een tijdsoverschrijding bij Cloudflare als 5xx
+      terugkomt, probeerde de retry-lus het daarna nog vier keer met oplopende
+      pauzes: bij elkaar minuten waarin het scherm niets zei.
+
+   2. DE FOUT KWAM ERGENS ANDERS TERECHT. De reden werd in het resultatenvak
+      gezet, dat op dit scherm ver onder de knop staat en bij een lange pagina
+      buiten beeld valt. Je drukt bovenin en het antwoord verschijnt onderin.
+
+   3. WAT HET MODEL SOWIESO ZOU WEIGEREN, WERD TOCH GESTUURD. Een bronbeeld
+      met een type dat de API niet accepteert (of een te groot bestand) levert
+      een 400 op na tien seconden wachten, terwijl we dat vooraf weten. Een
+      advertentie die je AANKLIKT komt van de beeldproxy en kan een ander type
+      hebben dan een bestand dat je zelf uploadt -- precies het verschil tussen
+      "bij mij werkt het" en deze melding.
+
+   Wat hier NIET gebeurt: het beeld omzetten of verkleinen. Dat is raden naar
+   wat er mis is; zeggen wat er mis is, is genoeg om het te verhelpen. */
+var ITER_MEDIA_OK = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+/* De harde grens van de API is vijf megabyte per beeld, gemeten aan de
+   base64-tekst. Wij houden het daar net onder: een beeld dat er precies
+   overheen gaat kost je een aanroep van tien seconden om dat te horen. */
+var ITER_MAX_B64 = 4.8 * 1024 * 1024;
+
+/* Waarom dit bronbeeld niet naar het model kan. Null betekent: niets aan de
+   hand. Nooit een reden verzinnen -- een onbekend geval gaat gewoon mee, want
+   het model weigert het dan zelf met zijn eigen woorden. */
+function iterBronBezwaar(bron) {
+  if (!bron) return 'Er staat geen bronadvertentie. Kies er een uit de lijst of upload er een.';
+  if (!bron.b64) return 'Het bronbeeld is leeg. Kies de advertentie opnieuw, dan wordt het beeld opnieuw opgehaald.';
+  var type = String(bron.mimeType || '').toLowerCase();
+  if (type && ITER_MEDIA_OK.indexOf(type) === -1) {
+    return 'Het bronbeeld is van het type ' + type + ', en dat leest het model niet. ' +
+      'Het accepteert alleen jpeg, png, gif en webp. Sla de advertentie op als PNG of JPG en upload hem.';
+  }
+  if (bron.b64.length > ITER_MAX_B64) {
+    return 'Het bronbeeld is te groot (' + Math.round(bron.b64.length / 1024 / 1024 * 10) / 10 +
+      ' MB); het model neemt er hoogstens 5. Verklein hem of maak er een screenshot van.';
+  }
+  return null;
+}
+
+/* De uitslag naast de knop, niet ergens onderaan de pagina. Leeg betekent:
+   weghalen. */
+function iterMelding(tekst, soort) {
+  var rij = document.querySelector('.generate-row');
+  var el = document.getElementById('iter-melding');
+  if (!tekst) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'iter-melding';
+    el.className = 'iter-melding';
+    if (rij && rij.parentNode) rij.parentNode.insertBefore(el, rij.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.className = 'iter-melding' + (soort ? ' ' + soort : '');
+  el.textContent = tekst;
+}
+
+/* Hoe lang deze aanroep mag duren. Ruim -- het model kijkt naar een beeld en
+   schrijft drie iteraties -- maar niet oneindig, want oneindig is precies de
+   toestand waarin dit scherm bleef hangen. */
+var ITER_DEADLINE_S = 210;
+
 async function generateFromIterateMode() {
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
@@ -758,16 +835,34 @@ async function generateFromIterateMode() {
   const resultsEl = document.getElementById('results');
   resultsEl.innerHTML = '<div class="loading-card">Claude bekijkt de winnaar en bouwt testbare iteraties...</div>';
 
+  /* Meetellen wat er verstrijkt, en er een einde aan breien. Een knop die
+     bezig zegt en niets doet is niet te onderscheiden van een knop die het
+     nog aan het doen is. */
+  const start = Date.now();
+  const afbreker = (typeof AbortController === 'function') ? new AbortController() : null;
+  const tikker = setInterval(function () {
+    const s = Math.round((Date.now() - start) / 1000);
+    iterMelding('Rory leest de advertentie en schrijft de iteraties… ' + s + ' seconden bezig.' +
+      (s > 60 ? ' Dit duurt langer dan gewoonlijk; hij gaat door tot ' + ITER_DEADLINE_S + ' seconden.' : ''));
+  }, 1000);
+  const wekker = setTimeout(function () { if (afbreker) afbreker.abort(); }, ITER_DEADLINE_S * 1000);
+  const opruimen = function () { clearInterval(tikker); clearTimeout(wekker); };
+
   try {
+    iterMelding('Rory leest de advertentie en schrijft de iteraties…');
     const data = await fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      signal: afbreker ? afbreker.signal : undefined,
       body: JSON.stringify({
         model, max_tokens: 8000,
         system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(),
         messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userPrompt } ] }]
       })
-    });
+    /* Eén nieuwe poging, niet vier. Een aanroep die na drie minuten afkapt vier
+       keer herhalen is een kwartier stilte, en de tweede poging leert je al of
+       het aan de drukte lag. */
+    }, 1, 4000);
     const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{'); const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
@@ -795,12 +890,26 @@ async function generateFromIterateMode() {
     erfStrategieVanBron(state.lastGenerated.metadata, state.iterateBron);
     state.generatedImages = {};
     renderResults(state.lastGenerated.variations, state.lastGenerated.metadata);
+    opruimen();
+    iterMelding(parsed.variations.length + ' iteraties staan hieronder, na ' +
+      Math.round((Date.now() - start) / 1000) + ' seconden.', 'goed');
     btn.disabled = false;
     btn.textContent = 'Analyseer en genereer iteraties';
   } catch (err) {
     console.error(err);
-    toast('Iteratie mislukt: ' + err.message, true);
-    resultsEl.innerHTML = `<div class="loading-card" style="color:#bd0f0f;">Fout: ${escapeHtml(err.message)}</div>`;
+    opruimen();
+    /* Wat er misging, in de woorden van dit scherm. Een afgebroken aanroep is
+       iets anders dan een geweigerde en iets anders dan een kapotte proxy, en
+       ze vragen alle drie om iets anders. */
+    const ruw = String((err && err.message) || err);
+    const afgebroken = (err && err.name === 'AbortError') || /abort/i.test(ruw);
+    const uitslag = afgebroken
+      ? ('Afgebroken na ' + ITER_DEADLINE_S + ' seconden: het model gaf geen antwoord. ' +
+         'Probeer het opnieuw, of zet het aantal iteraties lager.')
+      : ('Iteratie mislukt: ' + ruw);
+    iterMelding(uitslag, 'fout');
+    toast(uitslag, true);
+    resultsEl.innerHTML = `<div class="loading-card" style="color:#bd0f0f;">${escapeHtml(uitslag)}</div>`;
     btn.disabled = false;
     btn.textContent = 'Analyseer en genereer iteraties';
   }
@@ -835,3 +944,6 @@ function erfStrategieVanBron(meta, bron) {
   return meta;
 }
 window.erfStrategieVanBron = erfStrategieVanBron;
+window.iterBronBezwaar = iterBronBezwaar; window.iterMelding = iterMelding;
+window.ITER_MEDIA_OK = ITER_MEDIA_OK; window.ITER_MAX_B64 = ITER_MAX_B64;
+window.ITER_DEADLINE_S = ITER_DEADLINE_S;

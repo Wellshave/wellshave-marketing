@@ -1108,6 +1108,100 @@ function ONDERSCHEP() {
   check('en wordt dan ook gelezen', hand.naam, 'Met de hand ingevuld');
   check('en de wizard staat op stap 2', hand.stap, 2);
 
+  console.log('\n  itereren loopt niet meer vast zonder iets te zeggen');
+  /* De melding was: ik klik een advertentie aan, druk op itereren, en er
+     gebeurt niets. Wat er stond was de knop op zijn bezig-tekst en verder
+     niets: geen uitslag, geen reden, geen einde. */
+  const bezwaar = await page.evaluate(() => {
+    var groot = new Array(Math.round(5.2 * 1024 * 1024)).join('a');
+    return {
+      geenBron: iterBronBezwaar(null),
+      leeg: iterBronBezwaar({ b64: '', mimeType: 'image/png' }),
+      /* Een advertentie die je AANKLIKT komt van de beeldproxy en kan een type
+         hebben dat het model niet leest -- precies het verschil tussen "bij mij
+         werkt het" en deze melding. */
+      verkeerdType: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/avif' }),
+      teGroot: iterBronBezwaar({ b64: groot, mimeType: 'image/png' }),
+      /* En wat wel kan, gaat gewoon door. */
+      png: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/png' }),
+      jpeg: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/jpeg' }),
+      /* Onbekend type zonder waarde: niet tegenhouden. Zelf raden is erger dan
+         het model het laten zeggen. */
+      zonderType: iterBronBezwaar({ b64: 'AAA', mimeType: '' })
+    };
+  });
+  check('zonder bronadvertentie is er een reden', /geen bronadvertentie/.test(bezwaar.geenBron), true);
+  check('een leeg beeld ook', /leeg/.test(bezwaar.leeg), true);
+  check('een type dat het model niet leest wordt vooraf tegengehouden',
+    /image\/avif/.test(bezwaar.verkeerdType) && /jpeg, png, gif en webp/.test(bezwaar.verkeerdType), true);
+  check('en een te groot beeld met zijn formaat erbij', /MB/.test(bezwaar.teGroot), true);
+  check('png en jpeg gaan gewoon door', [bezwaar.png, bezwaar.jpeg], [null, null]);
+  check('een onbekend type wordt niet zelf beoordeeld', bezwaar.zonderType, null);
+
+  const vastloper = await page.evaluate(async () => {
+    /* Een aanroep die nooit terugkomt hield de knop eeuwig bezig. Nu is er een
+       deadline, en die zegt wat er gebeurd is. */
+    var echt = window.fetchJsonWithRetry, echteDeadline = window.ITER_DEADLINE_S;
+    window.ITER_DEADLINE_S = 1;
+    state.products = [{ id: 'p1', name: 'Groom Guard', usps: [], references: {} }];
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.generatorMode = 'iterate';
+    switchMainTab('iterate');
+    if (typeof renderProductSelect === 'function') renderProductSelect();
+    var sel = document.getElementById('product-select');
+    if (sel) sel.value = 'p1';
+    /* Een aanroep die het afbreeksignaal netjes volgt, zoals fetch dat doet. */
+    window.fetchJsonWithRetry = function (url, opties) {
+      return new Promise(function (_, mislukt) {
+        if (opties && opties.signal) {
+          opties.signal.addEventListener('abort', function () {
+            var e = new Error('The operation was aborted'); e.name = 'AbortError'; mislukt(e);
+          });
+        }
+      });
+    };
+    await generateFromIterateMode();
+    var el = document.getElementById('iter-melding');
+    var btn = document.getElementById('generate-btn');
+    var uit = {
+      melding: el ? el.textContent : '',
+      soort: el ? el.className : '',
+      knopVrij: btn ? !btn.disabled : false,
+      knopTekst: btn ? btn.textContent.trim() : ''
+    };
+    window.fetchJsonWithRetry = echt; window.ITER_DEADLINE_S = echteDeadline;
+    if (el) el.remove();
+    state.sourceAd = null;
+    return uit;
+  });
+  check('een aanroep die niet terugkomt wordt afgebroken',
+    /Afgebroken na 1 seconden/.test(vastloper.melding), true);
+  check('met een raad wat je nu kunt doen', /Probeer het opnieuw/.test(vastloper.melding), true);
+  check('de melding staat als fout', /fout/.test(vastloper.soort), true);
+  check('en de knop is weer bruikbaar', vastloper.knopVrij, true);
+  check('met zijn gewone tekst', vastloper.knopTekst, 'Analyseer en genereer iteraties');
+
+  const gelukt = await page.evaluate(async () => {
+    var echt = window.fetchJsonWithRetry;
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.generatorMode = 'iterate';
+    window.fetchJsonWithRetry = async function () {
+      return { content: [{ type: 'text', text: JSON.stringify({ variations: [
+        { hook_type: 'Vraag', hook_label_nl: 'x', headline_nl: 'Kop', body_copy_nl: '', cta_nl: '',
+          image_prompt_en: 'a man', visual_nl: 'man' }] }) }] };
+    };
+    await generateFromIterateMode();
+    var el = document.getElementById('iter-melding');
+    var uit = { melding: el ? el.textContent : '', soort: el ? el.className : '',
+                kaarten: document.querySelectorAll('#results .var-card, #results .variation-card').length };
+    window.fetchJsonWithRetry = echt;
+    if (el) el.remove();
+    state.sourceAd = null;
+    return uit;
+  });
+  check('bij succes zegt hij hoeveel iteraties er staan', /1 iteraties staan hieronder/.test(gelukt.melding), true);
+  check('en dat is geen foutmelding', /fout/.test(gelukt.soort), false);
+
   check('en geen enkele paginafout onderweg', paginafouten, []);
 
   await browser.close();
