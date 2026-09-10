@@ -266,7 +266,11 @@ function ONDERSCHEP() {
   });
   check('twee kaarten', twee.kaarten, 2);
   check('naast elkaar', twee.naastElkaar, true);
-  check('en even breed', Math.abs(twee.breedtes[0] - twee.breedtes[1]) < 20, true);
+  /* En NIET even breed. Het advertentieaccount is de hoofdweg; zelf uploaden
+     is de uitzondering. Even breed maken zegt dat het twee gelijkwaardige
+     routes zijn, en dan neemt het uitzonderingsvak de halve pagina. */
+  check('het account krijgt veruit de meeste ruimte',
+    twee.breedtes[0] > twee.breedtes[1] * 2, true);
   check('de stappenbalk is één rij', twee.stapperHoog !== null && twee.stapperHoog < 60, true);
 
   console.log('\n  het oude werkblad staat er pas vanaf stap 4');
@@ -326,7 +330,21 @@ function ONDERSCHEP() {
   const lijst = await page.evaluate(async () => {
     await iwHaalLijst();
     const el = document.getElementById('iw-paneel');
-    return { kaarten: el.querySelectorAll('.iw-adkaart').length, tekst: el.textContent,
+    var kaartTekst = el.textContent;
+    var roasOpKaarten = [].slice.call(el.querySelectorAll('.iw-adcijfer'))
+      .filter(function (x) { return /ROAS/.test(x.textContent); }).length;
+    _iw.weergave = 'tabel'; iwRender();
+    var tabel = document.getElementById('iw-paneel').textContent;
+    /* De rij van de advertentie die GEEN ROAS heeft. */
+    var tabelrij = { roas: null };
+    [].slice.call(document.querySelectorAll('.iw-tabel tbody tr')).forEach(function (tr) {
+      if (!/zonder cijfers|WS - 161/.test(tr.textContent)) return;
+      var cellen = tr.querySelectorAll('td');
+      if (cellen[2]) tabelrij.roas = cellen[2].textContent.trim();
+    });
+    _iw.weergave = 'kaarten'; iwRender();
+    return { kaarten: el.querySelectorAll('.iw-adkaart').length, tekst: kaartTekst,
+             roasOpKaarten: roasOpKaarten, tabel: tabel, tabelrij: tabelrij,
              url: window.__gevraagd.filter(g => g.url.indexOf('/itereren/advertenties') > -1)[0].url };
   });
   check('vier advertenties', lijst.kaarten, 4);
@@ -337,8 +355,16 @@ function ONDERSCHEP() {
   check('met de vorige periode erbij gevraagd', /vergelijk=1/.test(lijst.url), true);
   /* De tweede heeft geen ROAS. Een streepje, geen 0,00 -- een nul zou zeggen
      dat er niets verkocht is, en de waarheid is dat we het niet weten. */
-  check('een onbekende ROAS is een streepje', /ROAS —/.test(lijst.tekst), true);
-  check('en nergens een verzonnen nul', /ROAS 0\.00/.test(lijst.tekst), false);
+  /* Op de kaart staat een ongemeten cijfer er NIET: een tegel met een streepje
+     vult de rij en zegt niets. In de tabel staat wél een streepje, want daar
+     zou een leeg vak in een kolom met cijfers als een nul lezen. */
+  check('een ongemeten ROAS staat niet als nul op de kaart', /ROAS 0[.,]00/.test(lijst.tekst), false);
+  check('de kaart toont alleen wat gemeten is', lijst.roasOpKaarten, 3);
+  /* En in de tabel staat op die plek een streepje. Precies die ene rij
+     nakijken en niet de hele tabel: "0,00" komt in een tabel met cijfers ook
+     als geldige waarde voor. */
+  check('in de tabel staat op die plek een streepje', lijst.tabelrij.roas, '—');
+  check('en geen nul', lijst.tabelrij.roas === '0,00' || lijst.tabelrij.roas === '0.00', false);
 
   console.log('\n  de trap laat zien waar het lek zit');
   const trap = await page.evaluate(async () => {
@@ -632,12 +658,16 @@ function ONDERSCHEP() {
     _iw.preset = 'recent'; iwRender();
     const el = document.getElementById('iw-paneel');
     const voor = el.querySelectorAll('.iw-ster.aan').length;
-    el.querySelector('.iw-ster').click();
+    /* Het sterretje van een BEPAALDE advertentie, niet "de eerste": de
+       volgorde hangt aan de sortering, en die is een keuze van de gebruiker. */
+    const kies = () => document.getElementById('iw-paneel')
+      .querySelector('.iw-ster[data-id="120001"]');
+    kies().click();
     const na = document.getElementById('iw-paneel').querySelectorAll('.iw-ster.aan').length;
     const bewaard = iwBewaard();
     /* En weer terug: een sterretje dat alleen aan kan is een sterretje dat je
        niet durft aan te raken. */
-    document.getElementById('iw-paneel').querySelector('.iw-ster').click();
+    kies().click();
     return { voor: voor, na: na, bewaard: bewaard, weer: iwBewaard().length,
              zegt: /Handmatig bewaard/.test(el.textContent) };
   });
@@ -1121,6 +1151,131 @@ function ONDERSCHEP() {
   check('het formulier komt in beeld', hand.zichtbaar, true);
   check('en wordt dan ook gelezen', hand.naam, 'Met de hand ingevuld');
   check('en de wizard staat op stap 2', hand.stap, 2);
+
+  console.log('\n  stap 1 is een creative-selectie, geen namenlijst');
+  /* "WS 106 3 Copy · € 967 · ROAS 2,77" is functioneel en het verkeerde
+     scherm: de vraag is of dit een interessante advertentie is om op te
+     itereren, en dat beslis je op wat je ziet. */
+  const selectie = await page.evaluate(async () => {
+    /* Zichtbaar zetten voor we meten: een vak dat niet getekend wordt is nul
+       pixels breed, en dan slaagt een maatcontrole zonder iets te meten. */
+    switchMainTab('iterate');
+    _iw.stap = 1; _iw.gekozen = null; _iw.weergave = 'kaarten'; _iw.preset = 'recent';
+    _iw.sortering = 'spend';
+    await iwHaalLijst();
+    var el = document.getElementById('iw-paneel');
+    var kaart = el.querySelector('.iw-adrij[data-ad="120001"]');
+    return {
+      /* Elke kaart heeft een plek voor het beeld -- ook als het beeld nog moet
+         komen; anders springt de lijst zodra de miniaturen binnendruppelen. */
+      miniaturen: el.querySelectorAll('.iw-mini').length,
+      /* En dat vak heeft echte maat. Een miniatuur van nul pixels is geen
+         miniatuur. */
+      miniBreed: kaart ? Math.round(kaart.querySelector('.iw-mini').getBoundingClientRect().width) : 0,
+      /* De cijfers die ertoe doen staan op de kaart. */
+      cijfers: kaart ? [].slice.call(kaart.querySelectorAll('.iw-adcijfer'))
+        .map(function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); }) : [],
+      /* Plus een stempel: winnaar, dalend of de staat. */
+      stempels: kaart ? [].slice.call(kaart.querySelectorAll('.iw-stempel'))
+        .map(function (x) { return x.textContent; }) : [],
+      /* En een knop die zegt wat er gebeurt als je klikt. */
+      kiesknop: kaart ? kaart.querySelector('.iw-adkies').textContent : '',
+      /* De dalende advertentie draagt dat stempel. */
+      dalend: (function () {
+        var r = el.querySelector('.iw-adrij[data-ad="120003"]');
+        return r ? [].slice.call(r.querySelectorAll('.iw-stempel')).map(function (x) { return x.textContent; }) : [];
+      })()
+    };
+  });
+  check('elke advertentie heeft een beeldvak', selectie.miniaturen, 4);
+  check('en dat vak heeft echte maat', selectie.miniBreed >= 60, true);
+  check('de kaart draagt spend, ROAS en bestellingen',
+    selectie.cijfers.filter(function (x) { return /spend|ROAS|bestellingen/.test(x); }).length >= 3, true);
+  check('met een stempel erbij', selectie.stempels.length >= 1, true);
+  check('en een knop die zegt wat hij doet', selectie.kiesknop, 'Kies deze ad');
+  check('een dalende advertentie zegt dat', selectie.dalend.indexOf('Dalend') > -1, true);
+
+  const weergaven = await page.evaluate(() => {
+    /* Twee manieren van kijken: herkennen en vergelijken. */
+    _iw.weergave = 'kaarten'; iwRender();
+    var kaarten = document.querySelectorAll('.iw-adkaart').length;
+    document.querySelector('[data-action="iw-weergave"][data-id="tabel"]').click();
+    var rijen = document.querySelectorAll('.iw-tabel tbody tr').length;
+    var kaartenNaTabel = document.querySelectorAll('.iw-adkaart').length;
+    document.querySelector('[data-action="iw-weergave"][data-id="kaarten"]').click();
+    return { kaarten: kaarten, rijen: rijen, kaartenNaTabel: kaartenNaTabel,
+             terug: document.querySelectorAll('.iw-adkaart').length };
+  });
+  check('kaarten tonen elke advertentie', weergaven.kaarten, 4);
+  check('de tabel ook', weergaven.rijen, 4);
+  check('en het is de een of de ander', weergaven.kaartenNaTabel, 0);
+  check('terug naar kaarten werkt', weergaven.terug, 4);
+
+  console.log('\n  de ingangen dragen hun aantal, en de sortering staat los');
+  const ingangen = await page.evaluate(() => {
+    var el = document.getElementById('iw-paneel');
+    var tellingen = {};
+    [].slice.call(el.querySelectorAll('.iw-preset')).forEach(function (b) {
+      var t = b.querySelector('.iw-preset-telling');
+      tellingen[b.getAttribute('data-id')] = t ? Number(t.textContent) : null;
+    });
+    /* De telling hoort te kloppen met wat het filter werkelijk oplevert. */
+    var echt = {};
+    ['winnaars', 'spend', 'dalend', 'recent'].forEach(function (id) {
+      echt[id] = iwFilter(_iw.lijst, id, iwBewaard()).length;
+    });
+    /* Sorteren verandert de volgorde en niet wie er meedoet. */
+    _iw.sortering = 'roas'; iwRender();
+    var naRoas = [].slice.call(document.querySelectorAll('.iw-adrij'))
+      .map(function (r) { return r.getAttribute('data-ad'); });
+    _iw.sortering = 'spend'; iwRender();
+    var naSpend = [].slice.call(document.querySelectorAll('.iw-adrij'))
+      .map(function (r) { return r.getAttribute('data-ad'); });
+    _iw.sortering = 'spend'; iwRender();
+    return { tellingen: tellingen, echt: echt, naRoas: naRoas, naSpend: naSpend };
+  });
+  /* En vóór de lijst er is staat er GEEN aantal. Nul zou daar "dit account
+     heeft geen winnende advertenties" zeggen, terwijl er nog niets opgehaald
+     is -- twee heel verschillende dingen. */
+  const voorLijst = await page.evaluate(() => {
+    var bewaardeLijst = _iw.lijst;
+    _iw.lijst = null; iwRender();
+    var n = document.querySelectorAll('.iw-preset-telling').length;
+    _iw.lijst = bewaardeLijst; iwRender();
+    return n;
+  });
+  check('zonder lijst staat er nergens een aantal', voorLijst, 0);
+  check('elke ingang draagt zijn aantal',
+    [ingangen.tellingen.winnaars, ingangen.tellingen.recent],
+    [ingangen.echt.winnaars, ingangen.echt.recent]);
+  check('sorteren op ROAS zet de hoogste bovenaan', ingangen.naRoas[0], '120004');
+  check('sorteren op spend een andere', ingangen.naSpend[0], '120003');
+  check('en het blijven dezelfde advertenties',
+    ingangen.naRoas.slice().sort().join(), ingangen.naSpend.slice().sort().join());
+  /* Wat niet gemeten is zakt naar onderen -- niet naar boven: een onbekende
+     waarde is geen nul en zeker geen beste. 120002 heeft geen ROAS. */
+  check('zonder gemeten ROAS zak je naar onderen',
+    ingangen.naRoas[ingangen.naRoas.length - 1], '120002');
+
+  const doorknop = await page.evaluate(() => {
+    /* Stap 1 kiest alleen een advertentie. De uitgang zegt wat de volgende
+       stap is en niet "genereer" -- dat is drie stappen verderop en geeft geld
+       uit. */
+    _iw.gekozen = null; iwRender();
+    var zonder = !!document.querySelector('[data-action="iw-stap"][data-id="2"]');
+    _iw.gekozen = { id: '120001', naam: 'WS - 160 - 1', cijfers: {} };
+    iwRender();
+    var knop = document.querySelector('[data-action="iw-stap"][data-id="2"]');
+    var uit = { zonder: zonder, met: !!knop, tekst: knop ? knop.textContent.trim() : '',
+                /* En de gekozen kaart is te zien als gekozen. */
+                gemarkeerd: !!document.querySelector('.iw-adrij.gekozen') };
+    _iw.gekozen = null; iwRender();
+    return uit;
+  });
+  check('zonder keuze geen doorknop', doorknop.zonder, false);
+  check('met een keuze wel', doorknop.met, true);
+  check('en hij noemt de volgende stap', doorknop.tekst, 'Verder naar de analyse →');
+  check('de gekozen advertentie is gemarkeerd', doorknop.gemarkeerd, true);
 
   console.log('\n  stap 3 is de strategie, en die komt uit de analyse');
   /* Hier stond één zin: "de instellingen en het werkblad staan hieronder."

@@ -1022,6 +1022,9 @@ input:focus, select:focus, textarea:focus {
 @container itereren (min-width: 860px) {
   .iw-kolommen { grid-template-columns: 1fr 1fr; align-items: start; }
   .iw-kolommen.smal-breed { grid-template-columns: 340px 1fr; }
+  /* Het advertentieaccount is de hoofdweg; zelf uploaden is de uitzondering.
+     Even breed maken suggereert dat het twee gelijkwaardige routes zijn. */
+  .iw-kolommen.breed-smal { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }
 }
 .iw-kaart {
   border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
@@ -1380,3 +1383,90 @@ body.iterate-mode-active #source-ad-section { order: -1; }
 .iw-verder { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .iw-verder b { font-size: 13.5px; color: var(--text); }
 .iw-verder .iw-uitleg { margin: 3px 0 0; max-width: 62ch; }
+
+/* ── Stap 1: kiezen doe je op het beeld, niet op de naam ──────────────────
+   Dit was een rij tekst met een naam en drie getallen. De vraag die je hier
+   stelt is "is dit een interessante advertentie om op te itereren", en dat
+   beslis je op wat je ziet. */
+.iw-weergave { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px;
+  border: 1px solid var(--hairline); margin: 4px 0 10px; }
+.iw-tab {
+  padding: 5px 14px; border-radius: 8px; border: none; background: transparent;
+  color: var(--text-faint); font-size: 12px; cursor: pointer;
+}
+.iw-tab.aan { background: rgba(var(--gold-rgb), .12); color: var(--gold-bright); }
+.iw-sorteerrij { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.iw-sorteerlabel { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin-right: 4px; }
+.iw-sorteer {
+  font-size: 11.5px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--text-soft);
+}
+.iw-sorteer:hover { border-color: rgba(var(--gold-rgb), .5); color: var(--text); }
+.iw-sorteer.aan { border-color: var(--gold); color: var(--gold-bright); background: rgba(var(--gold-rgb), .08); }
+.iw-preset-telling {
+  display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  background: rgba(255, 255, 255, .07); color: var(--text-soft);
+  font-size: 10.5px; font-variant-numeric: tabular-nums;
+}
+.iw-preset.aan .iw-preset-telling { background: rgba(var(--gold-rgb), .18); color: var(--gold-bright); }
+
+.iw-lijst { display: flex; flex-direction: column; gap: 10px; }
+.iw-adrij { display: flex; align-items: stretch; gap: 8px; }
+.iw-adrij.gekozen .iw-adkaart { border-color: var(--gold); background: rgba(var(--gold-rgb), .07); }
+.iw-adkaart {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 12px 14px; border-radius: 14px; cursor: pointer; min-width: 0;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text-soft);
+  transition: border-color .15s;
+}
+.iw-adkaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+/* De miniatuur. 4:5 is de verhouding waarin de meeste statics staan; een
+   vierkant vak zou ze bijsnijden en dan herken je precies de helft. */
+.iw-mini {
+  position: relative; flex: 0 0 auto; width: 76px; height: 95px; border-radius: 10px;
+  overflow: hidden; background: var(--bg-elevated); display: grid; place-items: center;
+}
+.iw-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.iw-mini-leeg { font-size: 10px; color: var(--text-faint); text-align: center; padding: 0 6px; line-height: 1.4; }
+.iw-mini-speel {
+  position: absolute; right: 5px; bottom: 5px; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 9px;
+  background: rgba(10, 10, 12, .72); color: var(--gold-bright);
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+.iw-adtekst { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 auto; }
+.iw-adnaam { font-size: 13.5px; color: var(--text); }
+.iw-adregel { font-size: 11.5px; color: var(--text-faint); }
+.iw-adcijfers { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 2px; }
+.iw-adcijfer { font-size: 11.5px; color: var(--text-faint); }
+.iw-adcijfer b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.iw-stempels { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 3px; }
+.iw-stempel {
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-faint);
+}
+.iw-stempel.winnaar { color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .45); background: rgba(var(--gold-rgb), .1); }
+.iw-stempel.dalend { color: #e0916f; border-color: rgba(224, 145, 111, .4); }
+.iw-stempel.actief { color: #6fbf8f; border-color: rgba(111, 191, 143, .35); }
+.iw-adkies {
+  flex: 0 0 auto; align-self: center; font-size: 11.5px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--text-soft); white-space: nowrap;
+}
+.iw-adkaart:hover .iw-adkies { border-color: var(--gold); color: var(--gold-bright); }
+.iw-adrij.gekozen .iw-adkies { border-color: var(--gold); background: var(--gold); color: #14120c; }
+
+.iw-tabelwrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 12px; }
+.iw-tabel { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.iw-tabel th, .iw-tabel td { padding: 9px 12px; text-align: left; white-space: nowrap; }
+.iw-tabel th { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; }
+.iw-tabel td { border-top: 1px solid var(--hairline); color: var(--text-soft); }
+.iw-tabel td.r, .iw-tabel th.r { text-align: right; font-variant-numeric: tabular-nums; }
+.iw-tabel tr.gekozen td { background: rgba(var(--gold-rgb), .07); }
+.iw-tnaam { color: var(--text); }
+.iw-tsoort { display: block; font-size: 10.5px; color: var(--text-faint); }
+
+.iw-voet.rechts { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
+.iw-gekozenzin { font-size: 12.5px; color: var(--text-faint); }
+.iw-gekozenzin b { color: var(--text); }
+.iw-knop.stil { background: transparent; }
+.iw-upload .iw-uitleg { font-size: 12px; }

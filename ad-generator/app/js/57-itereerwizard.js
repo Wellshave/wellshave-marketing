@@ -40,6 +40,17 @@ var _iw = {
   /* Welke ingang naar de lijst gekozen is. "recent" is de hele lijst: dat is
      wat je ziet voordat je een keuze maakt, en dus de eerlijke standaard. */
   preset: 'recent',
+  /* Kaarten of tabel. Kaarten zijn de standaard: je kiest een advertentie
+     omdat je hem herkent, niet omdat je "WS - 103 - 2" uit je hoofd kent. De
+     tabel is er voor wie op cijfers wil vergelijken. */
+  weergave: 'kaarten',
+  /* Waarop de lijst gesorteerd staat. Los van de ingang: "winnende
+     advertenties" zegt WELKE meedoen, de sortering zegt in welke volgorde. */
+  sortering: 'spend',
+  /* De miniaturen die we al opgehaald hebben, per adres. Zonder dit haalt elke
+     hertekening ze opnieuw op -- bij twintig kaarten twintig verzoeken per
+     filterklik. */
+  minis: {},
   /* Of er een vorige periode te vergelijken viel, en zo niet: waarom. Zonder
      dat is "geen dalende advertenties" niet te onderscheiden van "niet
      gemeten", en die twee vragen om iets heel anders. */
@@ -139,6 +150,9 @@ async function iwHaalLijst() {
     _iw.lijst = null;
   }
   _iw.bezig = false; iwRender();
+  /* En dan de miniaturen, na de lijst. Wachten tot twintig plaatjes binnen
+     zijn zou het scherm seconden leeg houden terwijl de cijfers er al staan. */
+  if (_iw.lijst) iwLaadMinis();
 }
 
 async function iwKies(i) {
@@ -476,7 +490,15 @@ function iwPresetHtml() {
     h += '<button type="button" class="iw-preset' + (_iw.preset === p.id ? ' aan' : '') + '"' +
       (kan ? '' : ' disabled title="' + iwEsc(_iw.trendReden || 'niet beschikbaar bij deze bron') + '"') +
       ' data-action="iw-preset" data-id="' + p.id + '">' +
-      '<span class="iw-preset-label">' + iwEsc(p.label) + '</span>' +
+      '<span class="iw-preset-label">' + iwEsc(p.label) +
+      /* Hoeveel er achter deze ingang zitten. Een ingang met een nul ernaast
+         is er een die je overslaat in plaats van aanklikt en teleurgesteld
+         terugkeert. Alleen als de lijst er is -- vooraf is het aantal
+         onbekend, en nul zou dan een leeg account suggereren. */
+      (function () {
+        var n = iwPresetTelling(p.id);
+        return (n === null) ? '' : '<span class="iw-preset-telling">' + n + '</span>';
+      })() + '</span>' +
       '<span class="iw-preset-zegt">' + iwEsc(p.zegt) + '</span></button>';
   });
   return h + '</div>';
@@ -523,13 +545,216 @@ function iwBronkeuzeHtml() {
   h += '</div>';
   h += iwPresetHtml();
   h += iwLijstHtml();
+  /* Stap 1 kiest alleen een advertentie. De uitgang staat daarom onderaan, en
+     hij zegt wat de volgende stap is -- niet "genereer", want dat is drie
+     stappen verderop en geeft geld uit. */
+  if (_iw.gekozen) {
+    h += '<div class="iw-voet rechts"><span class="iw-gekozenzin">Gekozen: <b>' +
+      iwEsc(_iw.gekozen.naam) + '</b></span>' +
+      '<button type="button" class="iw-knop groot" data-action="iw-stap" data-id="2">' +
+      'Verder naar de analyse →</button></div>';
+  }
   return h;
+}
+
+/* ── De advertentielijst als creative-selectie ──────────────────────────────
+ *
+ * Dit was een rij tekst: "WS 106 3 Copy · € 967 · ROAS 2,77 · 46 bestellingen".
+ * Functioneel, en precies het verkeerde soort scherm. De vraag die je hier
+ * stelt is "is dit een interessante advertentie om op te itereren", en dat
+ * beslis je niet op een naam die je uit je hoofd moet kennen. Je beslist het
+ * op wat je ziet: het beeld, wat het kostte, wat het opleverde, en of het nog
+ * loopt.
+ *
+ * Twee weergaven, want het zijn twee verschillende manieren van kijken:
+ * kaarten om te herkennen, een tabel om te vergelijken. En de miniaturen komen
+ * via de worker binnen -- de browser mag niet rechtstreeks bij het beeld van
+ * een advertentie, en de bron levert het adres, niet het bestand. */
+
+/* Waarop je kunt sorteren. Alleen op cijfers die we werkelijk hebben; een
+   sortering op een leeg veld levert een willekeurige volgorde op die eruitziet
+   als een ranglijst. */
+var IW_SORTERINGEN = [
+  { id: 'spend', label: 'Hoogste spend', veld: function (a) { return a.cijfers.spend; }, hoog: true },
+  { id: 'roas', label: 'Beste ROAS', veld: function (a) { return a.cijfers.roas; }, hoog: true },
+  { id: 'cpa', label: 'Beste CPA', veld: function (a) { return a.cijfers.cpa; }, hoog: false },
+  { id: 'aankopen', label: 'Meeste bestellingen', veld: function (a) { return a.cijfers.aankopen; }, hoog: true },
+  { id: 'ctr', label: 'Hoogste CTR', veld: function (a) { return a.cijfers.ctr; }, hoog: true },
+  { id: 'looptijd', label: 'Langst geleden aangemaakt',
+    veld: function (a) { return a.dagen_sinds_gemaakt; }, hoog: true },
+  /* Vermoeidheid: een bewezen advertentie waarvan de ROAS terugloopt. Dat is
+     de beste iteratiekandidaat die er is -- het concept werkt, de uitvoering
+     is op. Alleen te tonen als er een vorige periode gemeten is. */
+  { id: 'moeheid', label: 'Creative fatigue', trend: true,
+    veld: function (a) { return (a.trend && a.trend.roas !== null) ? -a.trend.roas : null; }, hoog: true }
+];
+
+function iwSorteer(lijst, id) {
+  var s = IW_SORTERINGEN.filter(function (x) { return x.id === id; })[0];
+  if (!s) return lijst;
+  var l = lijst.slice();
+  l.sort(function (a, b) {
+    var x = s.veld(a), y = s.veld(b);
+    /* Wat niet gemeten is zakt naar onderen. Niet naar boven: een onbekende
+       waarde is geen nul en zeker geen beste. */
+    if (x === null || x === undefined) return 1;
+    if (y === null || y === undefined) return -1;
+    return s.hoog ? (y - x) : (x - y);
+  });
+  return l;
+}
+
+/* Hoeveel advertenties er achter elke ingang zitten. Een ingang met een nul
+   ernaast is een ingang die je overslaat in plaats van aanklikt en teleurgesteld
+   terugkeert. */
+function iwPresetTelling(id) {
+  if (!_iw.lijst) return null;
+  return iwFilter(_iw.lijst, id, iwBewaard()).length;
+}
+
+/* Wat er van deze advertentie te zeggen valt in twee woorden. Alleen uit de
+   cijfers die er staan; nooit een oordeel dat niemand gegeven heeft. */
+function iwAdStempels(ad) {
+  var uit = [];
+  var c = ad.cijfers || {};
+  if (c.roas !== null && c.roas !== undefined && (c.aankopen || 0) > 0 && c.roas >= 2) {
+    uit.push({ soort: 'winnaar', tekst: 'Winnaar' });
+  }
+  if (ad.trend && ad.trend.roas !== null && ad.trend.roas < 0.9) {
+    uit.push({ soort: 'dalend', tekst: 'Dalend' });
+  }
+  var st = String(ad.staat || '').toUpperCase();
+  if (st) {
+    uit.push({ soort: st === 'ACTIVE' ? 'actief' : 'stil',
+               tekst: st === 'ACTIVE' ? 'Actief' : (st === 'PAUSED' ? 'Gepauzeerd' : ad.staat) });
+  }
+  return uit;
+}
+
+function iwAdSoort(ad) {
+  if (ad.video || ad.is_video === true) return 'Video';
+  if (ad.beeld) return 'Static';
+  return null;
+}
+
+/* De regel onder de naam: wat voor advertentie het is en sinds wanneer hij
+   bestaat. "Aangemaakt", niet "draait" -- hoe lang hij werkelijk draait geeft
+   de bron niet, en die twee door elkaar halen is precies het cijfer waar
+   iemand later een besluit op neemt. */
+function iwAdRegel(ad) {
+  var d = [];
+  var soort = iwAdSoort(ad);
+  if (soort) d.push(soort);
+  if (ad.dagen_sinds_gemaakt !== null && ad.dagen_sinds_gemaakt !== undefined) {
+    d.push('aangemaakt ' + ad.dagen_sinds_gemaakt + ' dagen geleden');
+  }
+  return d.join(' · ');
+}
+
+var IW_RIJCIJFERS = [
+  { sleutel: 'spend', label: 'spend', soort: 'geld' },
+  { sleutel: 'roas', label: 'ROAS', soort: 'ratio' },
+  { sleutel: 'cpa', label: 'CPA', soort: 'geld' },
+  { sleutel: 'aankopen', label: 'bestellingen' },
+  { sleutel: 'ctr', label: 'CTR', soort: 'procent' }
+];
+
+function iwAdKaartHtml(ad, i, bewaard) {
+  var bew = bewaard.indexOf(String(ad.id)) !== -1;
+  var gekozen = _iw.gekozen && String(_iw.gekozen.id) === String(ad.id);
+  var mini = ad.beeld ? _iw.minis[ad.beeld] : null;
+  var h = '<div class="iw-adrij' + (gekozen ? ' gekozen' : '') + '" data-ad="' + iwEsc(ad.id) + '">';
+  h += '<button type="button" class="iw-adkaart" data-action="iw-kies" data-i="' + i + '">';
+  /* Het beeld eerst. Een creative-selectiescherm zonder creative is
+     achterstevoren: je wilt "oh ja, die" kunnen denken. */
+  h += '<span class="iw-mini">' +
+    (mini ? '<img src="' + iwEsc(mini) + '" alt="">'
+          : '<span class="iw-mini-leeg">' + (ad.beeld ? 'beeld laden…' : 'geen beeld') + '</span>') +
+    (iwAdSoort(ad) === 'Video' ? '<span class="iw-mini-speel" aria-hidden="true">▶</span>' : '') +
+    '</span>';
+  h += '<span class="iw-adtekst">';
+  h += '<span class="iw-adnaam">' + iwEsc(ad.naam) + '</span>';
+  var regel = iwAdRegel(ad);
+  if (regel) h += '<span class="iw-adregel">' + iwEsc(regel) + '</span>';
+  h += '<span class="iw-adcijfers">';
+  IW_RIJCIJFERS.forEach(function (c) {
+    var w = ad.cijfers ? ad.cijfers[c.sleutel] : null;
+    if (w === null || w === undefined) return;
+    h += '<span class="iw-adcijfer"><b>' + iwEsc(iwGetal(w, c.soort)) + '</b> ' + iwEsc(c.label) + '</span>';
+  });
+  h += '</span>';
+  var stempels = iwAdStempels(ad);
+  if (stempels.length || (ad.trend && ad.trend.roas !== null)) {
+    h += '<span class="iw-stempels">';
+    stempels.forEach(function (st) {
+      h += '<span class="iw-stempel ' + st.soort + '">' + iwEsc(st.tekst) + '</span>';
+    });
+    if (ad.trend && ad.trend.roas !== null) {
+      h += '<span class="iw-trend ' + (ad.trend.roas < 1 ? 'omlaag' : 'omhoog') + '">' +
+        iwEsc(iwVerschilKort(ad.trend.roas)) + ' ROAS t.o.v. de vorige periode</span>';
+    }
+    h += '</span>';
+  }
+  h += '</span>';
+  h += '<span class="iw-adkies">' + (gekozen ? 'Gekozen' : 'Kies deze ad') + '</span>';
+  h += '</button>';
+  h += '<button type="button" class="iw-ster' + (bew ? ' aan' : '') + '" ' +
+    'title="' + (bew ? 'uit opgeslagen halen' : 'bewaren') + '" ' +
+    'data-action="iw-bewaar" data-id="' + iwEsc(ad.id) + '">' + (bew ? '★' : '☆') + '</button>';
+  h += '</div>';
+  return h;
+}
+
+function iwTabelHtml(lijst, bewaard) {
+  var h = '<div class="iw-tabelwrap"><table class="iw-tabel"><thead><tr>' +
+    '<th>Advertentie</th><th class="r">Spend</th><th class="r">ROAS</th><th class="r">CPA</th>' +
+    '<th class="r">Bestellingen</th><th class="r">CTR</th><th class="r">Aangemaakt</th><th></th>' +
+    '</tr></thead><tbody>';
+  lijst.forEach(function (ad) {
+    var i = _iw.lijst.indexOf(ad);
+    var c = ad.cijfers || {};
+    var gekozen = _iw.gekozen && String(_iw.gekozen.id) === String(ad.id);
+    h += '<tr' + (gekozen ? ' class="gekozen"' : '') + '>';
+    h += '<td><span class="iw-tnaam">' + iwEsc(ad.naam) + '</span>' +
+      (iwAdSoort(ad) ? '<span class="iw-tsoort">' + iwEsc(iwAdSoort(ad)) + '</span>' : '') + '</td>';
+    ['spend', 'roas', 'cpa', 'aankopen', 'ctr'].forEach(function (k, n) {
+      var soort = ['geld', 'ratio', 'geld', '', 'procent'][n];
+      var w = c[k];
+      /* Een streepje, niet een nul. Onbekend is niet nul, en in een tabel met
+         cijfers eronder is dat verschil onzichtbaar geworden. */
+      h += '<td class="r">' + (w === null || w === undefined ? '—' : iwEsc(iwGetal(w, soort))) + '</td>';
+    });
+    h += '<td class="r">' + (ad.dagen_sinds_gemaakt === null || ad.dagen_sinds_gemaakt === undefined
+      ? '—' : (ad.dagen_sinds_gemaakt + 'd')) + '</td>';
+    h += '<td class="r"><button type="button" class="iw-link" data-action="iw-kies" data-i="' + i + '">' +
+      (gekozen ? 'gekozen' : 'kies') + '</button></td>';
+    h += '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function iwWeergaveHtml() {
+  var h = '<div class="iw-weergave">';
+  [['kaarten', 'Kaarten'], ['tabel', 'Tabel']].forEach(function (w) {
+    h += '<button type="button" class="iw-tab' + (_iw.weergave === w[0] ? ' aan' : '') + '" ' +
+      'data-action="iw-weergave" data-id="' + w[0] + '">' + w[1] + '</button>';
+  });
+  h += '</div>';
+  h += '<div class="iw-sorteerrij"><span class="iw-sorteerlabel">Sorteer</span>';
+  IW_SORTERINGEN.forEach(function (s) {
+    /* Een sortering op de trend kan alleen als er een vorige periode gemeten
+       is. Hem tonen zonder die meting is een knop die stil niets doet. */
+    if (s.trend && !_iw.trendBeschikbaar) return;
+    h += '<button type="button" class="iw-sorteer' + (_iw.sortering === s.id ? ' aan' : '') + '" ' +
+      'data-action="iw-sorteer" data-id="' + s.id + '">' + iwEsc(s.label) + '</button>';
+  });
+  return h + '</div>';
 }
 
 function iwLijstHtml() {
   if (!_iw.lijst) return '';
   var bewaard = iwBewaard();
-  var lijst = iwFilter(_iw.lijst, _iw.preset, bewaard);
+  var lijst = iwSorteer(iwFilter(_iw.lijst, _iw.preset, bewaard), _iw.sortering);
   if (!lijst.length) {
     /* Waarom hij leeg is, want leeg heeft hier drie verschillende betekenissen
        en alle drie leiden ze tot een ander volgend zetje. */
@@ -538,34 +763,44 @@ function iwLijstHtml() {
       ? 'Geen advertenties met uitgaven in dit venster.'
       : 'Geen advertentie voldoet aan “' + ((p && p.label) || _iw.preset) + '”. ' +
         'Er staan er wel ' + _iw.lijst.length + ' in dit venster — kies een andere ingang.';
-    return '<p class="iw-uitleg leeg">' + iwEsc(zin) + '</p>';
+    return iwWeergaveHtml() + '<p class="iw-uitleg leeg">' + iwEsc(zin) + '</p>';
   }
-  var h = '<div class="iw-lijst">';
+  var h = iwWeergaveHtml();
+  if (_iw.weergave === 'tabel') return h + iwTabelHtml(lijst, bewaard);
+  h += '<div class="iw-lijst">';
   lijst.forEach(function (ad) {
     /* Het echte nummer in de opgehaalde lijst, niet de plek in de gefilterde:
        die twee lopen uiteen zodra je een ingang kiest, en dan open je een
        andere advertentie dan je aanklikte. */
-    var i = _iw.lijst.indexOf(ad);
-    var bew = bewaard.indexOf(String(ad.id)) !== -1;
-    h += '<div class="iw-adrij">';
-    h += '<button type="button" class="iw-adkaart" data-action="iw-kies" data-i="' + i + '">' +
-      '<span class="iw-adnaam">' + iwEsc(ad.naam) + '</span>' +
-      '<span class="iw-adcijfers">' +
-        iwGetal(ad.cijfers.spend, 'geld') + ' <span class="iw-punt">·</span> ' +
-        'ROAS ' + iwGetal(ad.cijfers.roas, 'ratio') + ' <span class="iw-punt">·</span> ' +
-        iwGetal(ad.cijfers.aankopen) + ' bestellingen' +
-        (ad.trend && ad.trend.roas !== null
-          ? ' <span class="iw-punt">·</span> <span class="iw-trend ' +
-            (ad.trend.roas < 1 ? 'omlaag' : 'omhoog') + '">' +
-            iwEsc(iwVerschilKort(ad.trend.roas)) + ' t.o.v. de vorige periode</span>'
-          : '') +
-      '</span></button>';
-    h += '<button type="button" class="iw-ster' + (bew ? ' aan' : '') + '" ' +
-      'title="' + (bew ? 'uit opgeslagen halen' : 'bewaren') + '" ' +
-      'data-action="iw-bewaar" data-id="' + iwEsc(ad.id) + '">' + (bew ? '★' : '☆') + '</button>';
-    h += '</div>';
+    h += iwAdKaartHtml(ad, _iw.lijst.indexOf(ad), bewaard);
   });
   return h + '</div>';
+}
+
+/* De miniaturen komen na de lijst binnen, een voor een. De lijst laten wachten
+   op twintig plaatjes zou het scherm seconden leeg houden terwijl de cijfers er
+   al zijn. Wat er al opgehaald is wordt niet opnieuw gehaald. */
+async function iwLaadMinis() {
+  var lijst = (_iw.lijst || []).filter(function (a) { return a.beeld && !_iw.minis[a.beeld]; });
+  for (var i = 0; i < lijst.length; i++) {
+    var ad = lijst[i];
+    try {
+      var o = { headers: {} };
+      if (window.__WG_TOKEN) o.headers['Authorization'] = 'Bearer ' + window.__WG_TOKEN;
+      var r = await fetch(iwBasis() + '/onderzoek/beeld?u=' + encodeURIComponent(ad.beeld), o);
+      if (!r.ok) continue;
+      var blob = await r.blob();
+      _iw.minis[ad.beeld] = URL.createObjectURL(blob);
+      /* Alleen dit ene vakje bijwerken. Alles hertekenen zou de knop onder je
+         vinger wegtrekken terwijl je aan het kiezen bent. */
+      var vak = document.querySelector('.iw-adrij[data-ad="' + (window.CSS && CSS.escape
+        ? CSS.escape(String(ad.id)) : String(ad.id)) + '"] .iw-mini');
+      if (vak) {
+        var leeg = vak.querySelector('.iw-mini-leeg');
+        if (leeg) leeg.outerHTML = '<img src="' + iwEsc(_iw.minis[ad.beeld]) + '" alt="">';
+      }
+    } catch (e) { /* een beeld dat niet komt is geen reden om te stoppen */ }
+  }
 }
 
 function iwVerschilKort(verhouding) {
@@ -579,7 +814,7 @@ function iwStap1Html() {
   var h = '<h3 class="iw-titel">1. Kies de advertentie die je wilt itereren</h3>';
   h += '<p class="iw-onder">Selecteer een winnende of relevante advertentie uit het ' +
     'advertentieaccount, of upload er zelf een.</p>';
-  h += '<div class="iw-kolommen">';
+  h += '<div class="iw-kolommen breed-smal">';
 
   h += '<section class="iw-kaart"><div class="iw-kaart-kop">' +
     '<span class="iw-kaart-titel">Uit advertentieaccount</span>' +
@@ -588,14 +823,14 @@ function iwStap1Html() {
   h += iwBronkeuzeHtml();
   h += '</section>';
 
-  h += '<section class="iw-kaart"><div class="iw-kaart-kop">' +
-    '<span class="iw-kaart-titel">Handmatig uploaden</span></div>' +
-    '<p class="iw-uitleg">Upload een afbeelding van de advertentie die je wilt itereren. ' +
+  /* Het uploadvak stond even breed als het hele advertentieaccount, terwijl
+     het de uitzondering is: de gewone weg loopt via het account. Het staat er
+     nog, maar smal en zonder ceremonie. */
+  h += '<section class="iw-kaart iw-upload"><div class="iw-kaart-kop">' +
+    '<span class="iw-kaart-titel">Zelf een creative</span></div>' +
+    '<p class="iw-uitleg">Voor een advertentie die niet uit de koppeling komt. ' +
     'De cijfers vul je dan zelf in — zonder cijfers is er geen funnel om tegen te meten.</p>' +
-    '<button type="button" class="iw-dropzone" data-action="iw-upload">' +
-    '<span class="iw-dropzone-icoon">⬆</span>' +
-    '<span class="iw-dropzone-t">Klik om een bestand te kiezen</span>' +
-    '<span class="iw-dropzone-s">JPG of PNG</span></button>' +
+    '<button type="button" class="iw-knop stil" data-action="iw-upload">Upload een creative</button>' +
     '<p class="iw-uitleg leeg"><button type="button" class="iw-link" data-action="iw-handmatig">' +
     'Of vul alleen de cijfers met de hand in</button></p>';
   h += '</section>';
@@ -1178,6 +1413,8 @@ function iwKlik(e) {
     iwRender();
   }
   else if (act === 'iw-preset') { _iw.preset = knop.getAttribute('data-id'); iwRender(); }
+  else if (act === 'iw-weergave') { _iw.weergave = knop.getAttribute('data-id'); iwRender(); iwLaadMinis(); }
+  else if (act === 'iw-sorteer') { _iw.sortering = knop.getAttribute('data-id'); iwRender(); iwLaadMinis(); }
   else if (act === 'iw-bewaar') { iwBewaarToggle(knop.getAttribute('data-id')); iwRender(); }
   else if (act === 'iw-analyse') iwAnalyse();
   else if (act === 'iw-script') iwNaarScriptwriter();
@@ -1286,6 +1523,11 @@ window.IW_ANALYSEVELDEN = IW_ANALYSEVELDEN; window.IW_KAARTCIJFERS = IW_KAARTCIJ
 window.iwFilter = iwFilter; window.iwBewaard = iwBewaard; window.iwBewaarToggle = iwBewaarToggle;
 window.iwStapperHtml = iwStapperHtml; window.iwStap1Html = iwStap1Html; window.iwStap2Html = iwStap2Html;
 window.iwStap4Html = iwStap4Html; window.IW_RICHTINGEN = IW_RICHTINGEN;
+window.IW_SORTERINGEN = IW_SORTERINGEN; window.iwSorteer = iwSorteer;
+window.iwPresetTelling = iwPresetTelling; window.iwAdStempels = iwAdStempels;
+window.iwAdSoort = iwAdSoort; window.iwAdRegel = iwAdRegel; window.iwLaadMinis = iwLaadMinis;
+window.iwTabelHtml = iwTabelHtml; window.iwWeergaveHtml = iwWeergaveHtml;
+window.iwAdKaartHtml = iwAdKaartHtml;
 window.iwGekozenRichtingen = iwGekozenRichtingen; window.iwZetRichting = iwZetRichting;
 window.iwRichtingenHtml = iwRichtingenHtml; window.iwStrategieHtml = iwStrategieHtml;
 window.iwLijstKolom = iwLijstKolom;

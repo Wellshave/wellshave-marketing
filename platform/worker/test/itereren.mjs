@@ -51,7 +51,8 @@ async function reset() {
   actieveWorker = await verseWorker();
   db = { systeem_geheimen: [], team_members: [{ id: 'baas', status: 'approved', role: 'admin' }], ad_accounts: [] };
   atria = { accounts: null, ads: null, ad: null, summary: null, metrics: null, fout: null };
-  meta = { ad: null, adVorig: null, account: null, creative: null, video: null, creativeGooit: false, fout: null, filterLeeg: false };
+  meta = { ad: null, adVorig: null, account: null, creative: null, video: null, creativeGooit: false,
+           fout: null, filterLeeg: false, adsLijst: null, adsGooit: false };
   aanroepen = { atria: [], meta: [], vensters: [], gefilterd: 0 };
 }
 
@@ -126,6 +127,13 @@ globalThis.fetch = async (url, opties) => {
     /* Het netwerk dat eruit ligt is iets anders dan een dienst die 'niet
        gevonden' zegt: het eerste gooit, het tweede antwoordt. Zonder allebei
        blijft het ene pad ongetest. */
+    /* De lijst met advertenties plus hun creative: EEN aanroep voor de hele
+       lijst, en die levert de miniaturen. */
+    if (/\/ads\?/.test(u)) {
+      aanroepen.adsLijst = (aanroepen.adsLijst || 0) + 1;
+      if (meta.adsGooit) throw new Error('getaddrinfo ENOTFOUND graph.facebook.com');
+      return { ok: true, json: async () => ({ data: meta.adsLijst || [] }) };
+    }
     if (meta.creativeGooit) throw new Error('getaddrinfo ENOTFOUND graph.facebook.com');
     /* De tweede opvraag: het afspeelbare adres van de video. Die loopt over
        hetzelfde pad maar vraagt om andere velden. */
@@ -485,6 +493,62 @@ const zonder = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen
   {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
 check('één aanroep', aanroepen.meta.filter(u => u.includes('/insights')).length, 1);
 check('en geen trendveld', zonder.advertenties[0].trend, undefined);
+
+console.log('\n  de lijst draagt het beeld, in EEN aanroep voor alles');
+/* Zonder beeld kies je een advertentie op naam, en dan is een creative-
+   selectiescherm een namenlijst. Maar per advertentie een creative ophalen is
+   bij twintig advertenties twintig aanroepen; het moet er dus een zijn voor de
+   hele lijst. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd({ ad_id: '120001' }), metaAd({ ad_id: '120002' }), metaAd({ ad_id: '120003' })];
+meta.adsLijst = [
+  { id: '120001', effective_status: 'ACTIVE',
+    created_time: new Date(Date.now() - 18 * 86400000).toISOString(),
+    creative: { thumbnail_url: 'https://x.fbcdn.net/thumb1.jpg' } },
+  /* Een datum in de toekomst hoort GEEN negatief aantal dagen op te leveren.
+     "-2 dagen geleden aangemaakt" is geen meting maar een rekenfout die je op
+     het scherm terugziet. */
+  { id: '120003', effective_status: 'ACTIVE',
+    created_time: new Date(Date.now() + 2 * 86400000).toISOString(),
+    creative: { thumbnail_url: 'https://x.fbcdn.net/thumb3.jpg' } },
+  { id: '120002', effective_status: 'PAUSED',
+    created_time: new Date(Date.now() - 3 * 86400000).toISOString(),
+    creative: { image_url: 'https://x.fbcdn.net/beeld2.jpg',
+                object_story_spec: { video_data: { video_id: '99' } } } }
+];
+const lijstMetBeeld = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+const b1 = lijstMetBeeld.advertenties.filter(a => a.id === '120001')[0];
+const b2 = lijstMetBeeld.advertenties.filter(a => a.id === '120002')[0];
+check('de eerste draagt zijn miniatuur', b1.beeld, 'https://x.fbcdn.net/thumb1.jpg');
+check('en zijn staat', b1.staat, 'ACTIVE');
+check('en hoe lang geleden hij is aangemaakt', b1.dagen_sinds_gemaakt, 18);
+check('de tweede ook', b2.staat, 'PAUSED');
+/* Of het bewegend beeld is, zonder het bestand op te halen: dat is werk per
+   advertentie en dat doen we pas bij de gekozen advertentie. */
+check('en er staat dat het een video is', b2.is_video, true);
+/* En andersom: een advertentie zonder video is geen video. Altijd waar zetten
+   maakt van elke static een script-iteratie. */
+check('een static is er geen', b1.is_video, false);
+check('zonder het videobestand op te halen', b2.video, null);
+const b3 = lijstMetBeeld.advertenties.filter(a => a.id === '120003')[0];
+check('een datum in de toekomst levert geen negatief getal', b3.dagen_sinds_gemaakt, null);
+/* EEN aanroep voor de hele lijst. Twee zou al betekenen dat het per
+   advertentie gaat, en dan schaalt het mee met de lengte van de lijst. */
+check('één aanroep voor alle miniaturen', aanroepen.adsLijst, 1);
+
+console.log('\n  en zonder miniaturen komt de lijst gewoon');
+/* Een lijst zonder beelden is minder; een lijst die niet komt is niets. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd({ ad_id: '120001' })];
+meta.adsGooit = true;
+const miniStuk = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=30',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' })).data;
+check('de advertenties komen er nog steeds', miniStuk.advertenties.length, 1);
+check('met hun cijfers', miniStuk.advertenties[0].cijfers.spend > 0, true);
+check('en zonder beeld', miniStuk.advertenties[0].beeld, null);
 
 console.log('\n  een deling door nul wordt geen pijl omhoog');
 /* Van niets naar iets is geen percentage. Een vorige ROAS van nul die als

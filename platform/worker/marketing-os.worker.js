@@ -58,9 +58,9 @@
    terwijl er andere code draaide, en toen was aan het nummer niet te zien wat
    er live stond. De samenvoeging is een derde ding en krijgt dus een eigen
    nummer. */
-const VERSIE = 31;
-const VERSIE_DATUM = '2026-09-03';
-const VERSIE_WAT = 'creative research: je kiest zelf welke merken je analyseert (meerdere tegelijk) en de mappen van de Brand Tracker komen mee, zodat de concurrenten van Wellshave en die van Wellshine uit elkaar te houden zijn; per merk komen alle domeinen mee zodat het scherm het juiste logo kan kiezen';
+const VERSIE = 32;
+const VERSIE_DATUM = '2026-09-10';
+const VERSIE_WAT = 'itereren: de advertentielijst draagt nu een miniatuur, de staat en wanneer de advertentie is aangemaakt -- in EEN extra aanroep voor de hele lijst, niet een per advertentie. Zonder beeld kies je een advertentie op naam, en dat is geen creative-selectie.';
 
 const SB_URL = 'https://bequyhghgkvekvibufhw.supabase.co';
 const SB_ANON = 'sb_publishable_7uZ5nZeep7NAARG1v9F5iA_a7GSALPv';
@@ -1347,13 +1347,25 @@ function adVeldnamen(rij) {
 }
 
 function atriaNaarAdvertentie(rij) {
+  /* Atria levert het beeld al in de lijst mee -- daar is geen tweede aanroep
+     voor nodig. De velden hieronder staan er in dezelfde vorm als bij Meta,
+     ook waar Atria ze niet geeft: een scherm dat bij de ene bron een veld
+     uitleest dat bij de andere niet bestaat, valt bij die andere stil. */
+  const video = adVideoUit(rij);
+  const gemaakt = ttVeld(rij, ['created_time', 'createdAt', 'created_at', 'first_seen'],
+                              ['createdTime', 'firstSeen']) || null;
   return {
     bron: 'atria',
     id: rij.platform_ad_id || rij.ad_id || rij.id || null,
     naam: rij.name || rij.ad_name || '(zonder naam)',
     staat: rij.status || rij.effective_status || null,
     beeld: adBeeldUit(rij),
-    video: adVideoUit(rij),
+    /* Geen adres om aan te zien: hier staat het soort er als woord. Staat er
+       niets, dan is het antwoord "wij weten het niet" en niet "nee". */
+    is_video: video ? true : (/video/i.test(String(rij.media_type || rij.mediaType || '')) ? true : null),
+    gemaakt: gemaakt,
+    dagen_sinds_gemaakt: adDagenSinds(gemaakt),
+    video: video,
     cijfers: adAfgeleid(atriaMaten(rij.metrics, rij.metric_names))
   };
 }
@@ -1526,6 +1538,58 @@ function adTrend(nu, toen) {
   return a / b;
 }
 
+/* De creatives van een hele lijst in ÉÉN aanroep.
+ *
+ * metaCreative haalt er één op, en dat is precies waarom de lijst geen beelden
+ * had: twintig advertenties zijn dan twintig aanroepen. Maar Meta kan de
+ * advertenties van een account ook in één keer geven, met hun creative erbij --
+ * en dan is het één aanroep voor de hele lijst, ongeacht de lengte.
+ *
+ * Wat we hier ophalen is bewust minder dan metaCreative: een miniatuur, de
+ * staat en wanneer hij gemaakt is. Geen videobestand, geen copy -- dat is werk
+ * per advertentie en dat doen we pas als je er een kiest.
+ *
+ * Mislukt hij, dan komt er niets terug en blijft de lijst zoals hij was. Een
+ * lijst zonder beelden is minder, een lijst die niet komt is niets. */
+async function metaAdMiniaturen(env, account, limiet) {
+  const uit = {};
+  try {
+    const p = new URLSearchParams({
+      access_token: env.META_ACCESS_TOKEN,
+      limit: String(Math.max(1, Math.min(Number(limiet) || 50, 200))),
+      fields: 'id,effective_status,created_time,' +
+        'creative{thumbnail_url,image_url,video_id,object_story_spec{video_data{video_id,image_url}}}'
+    });
+    const r = await fetch(`${META_API}/act_${kaalAccount(account)}/ads?${p}`);
+    const d = await r.json();
+    if (d.error || !Array.isArray(d.data)) return uit;
+    d.data.forEach(function (a) {
+      const c = a.creative || {};
+      uit[String(a.id)] = {
+        staat: a.effective_status || null,
+        gemaakt: a.created_time || null,
+        beeld: adBeeldUit(c) || null,
+        /* Alleen of het er een IS. Het bestand zelf halen we pas bij de
+           gekozen advertentie: een lijst die twintig films binnenhaalt laadt
+           minutenlang voordat je iets ziet. */
+        is_video: !!ttVeld(c, ['video_id', 'object_story_spec.video_data.video_id'], ['videoId'])
+      };
+    });
+  } catch (e) { /* geen miniaturen is geen reden om de lijst te laten vallen */ }
+  return uit;
+}
+
+/* Hoeveel dagen geleden hij is aangemaakt. NIET hoe lang hij draait -- dat
+   geeft Meta hier niet, en die twee door elkaar halen is precies het soort
+   cijfer waar iemand later een besluit op neemt. */
+function adDagenSinds(datum) {
+  if (!datum) return null;
+  const t = Date.parse(datum);
+  if (!t || isNaN(t)) return null;
+  const d = Math.floor((Date.now() - t) / 86400000);
+  return d >= 0 ? d : null;
+}
+
 async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
   /* De vorige periode erbij, maar alleen als ernaar gevraagd is: het is een
      tweede aanroep bij Meta en die hoef je niet te doen om een lijst te tonen. */
@@ -1536,14 +1600,23 @@ async function metaAdvertenties(env, account, dagen, limiet, vergelijk) {
   ]);
   const toen = {};
   if (vorige) vorige.forEach(function (r) { if (r.ad_id) toen[r.ad_id] = metaNaarCijfers(r); });
+  /* De miniaturen erbij, in één aanroep voor de hele lijst. Een lijst met
+     advertentienamen en cijfers is geen creative-selectie: je kiest een
+     advertentie omdat je hem herkent, niet omdat je "WS - 103 - 2" uit je
+     hoofd kent. */
+  const mini = await metaAdMiniaturen(env, account, 200);
   const uit = rijen.map(function (rij) {
-    /* beeld en video staan er leeg bij: de lijst haalt geen creatives op, dat
-       is een tweede aanroep per advertentie. Ze horen wél in de vorm, want een
-       advertentie uit Atria en een uit Meta moeten dezelfde velden hebben --
-       anders leest het scherm bij de ene bron iets uit dat bij de andere niet
-       bestaat. */
+    const m = (rij.ad_id && mini[String(rij.ad_id)]) || null;
     const ad = { bron: 'meta', id: rij.ad_id || null, naam: rij.ad_name || '(zonder naam)',
-                 staat: null, beeld: null, video: null, cijfers: metaNaarCijfers(rij) };
+                 staat: m ? m.staat : null,
+                 beeld: m ? m.beeld : null,
+                 /* Of het bewegend beeld is. Het bestand zelf komt pas bij de
+                    gekozen advertentie -- daar is het één aanroep, hier zouden
+                    het er twintig zijn. */
+                 is_video: m ? m.is_video : null,
+                 gemaakt: m ? m.gemaakt : null,
+                 dagen_sinds_gemaakt: m ? adDagenSinds(m.gemaakt) : null,
+                 video: null, cijfers: metaNaarCijfers(rij) };
     if (vergelijk) {
       /* Geen vorige periode is niet hetzelfde als een vlakke lijn. Een
          advertentie die vorige week nog niet bestond hoort niet als "stabiel"
