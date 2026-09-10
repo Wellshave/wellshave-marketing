@@ -636,7 +636,12 @@ const ITERATE_ANALYSIS_TOOL = {
       iteratie_hypotheses: { type: 'array', items: { type: 'string' } },
       waarom_werkt_dit: { type: 'array', items: { type: 'string' } },
       vasthouden: { type: 'array', items: { type: 'string' } },
-      veilig_te_testen: { type: 'array', items: { type: 'string' } }
+      veilig_te_testen: { type: 'array', items: { type: 'string' } },
+      /* De verwachting is geen sier maar de toets achteraf: zonder
+         opgeschreven verwachting is elke uitslag met terugwerkende kracht te
+         verklaren. Niet verplicht -- liever geen verwachting dan een
+         verzonnen belofte. */
+      verwachting: { type: 'string', description: 'wat je van deze iteraties verwacht en waaraan je dat afmeet, in 1 zin met het cijfer erbij dat zou moeten bewegen' }
     },
     required: ['cijfer_diagnose','aanbevolen_aanpak','creatieve_richting','aanbevolen_dimensies','iteratie_hypotheses']
   }

@@ -823,24 +823,199 @@ function iwIsVideo() {
    materiaal, en niet de itereer-modus die om een geplakt script vraagt: een
    veld dat we alleen met een gereconstrueerd script kunnen vullen, is een veld
    dat we verzinnen. */
-function iwStap3Html() {
-  if (!iwIsVideo()) {
-    return '<h3 class="iw-titel">3. Wat testen we</h3>' +
-      '<p class="iw-uitleg">De instellingen en het werkblad staan hieronder.</p>';
+/* ── Stap 3: van analyse naar strategie ─────────────────────────────────────
+ *
+ * Hier stond één zin: "de instellingen en het werkblad staan hieronder." Dat
+ * is geen stap, dat is een doorverwijzing -- en daarmee begon het werk weer
+ * onderaan een lang formulier, precies wat de wizard moest wegnemen.
+ *
+ * Wat er wél hoort te staan is de afweging die je op dit punt maakt: dit is de
+ * advertentie, dit werkt eraan, dit gaan we niet aanraken, en dit is waar de
+ * winst zit. Alles op dit scherm komt uit de analyse die Rory in stap 2 al
+ * gedaan heeft; er wordt hier niets bijverzonnen. Ontbreekt een stuk, dan
+ * staat dat stuk er niet -- een lege kolom met een vinkje erin is een oordeel
+ * dat niemand gegeven heeft.
+ *
+ * En het genereren gebeurt hier NIET meer. Deze stap eindigt met één besluit:
+ * welke richtingen we testen. Het werkblad en de knop staan op stap 4, waar ze
+ * horen. */
+
+/* De richtingen die je kunt testen. De sleutels zijn exact de waarden van de
+   bestaande vinkjes in het werkblad -- die blijven de enige waarheid, want
+   twee lijsten die hetzelfde bedoelen lopen uit elkaar zodra er een bijkomt.
+   De kaarten hier zetten die vinkjes. */
+var IW_RICHTINGEN = [
+  { id: 'hook', label: 'Nieuwe hooks', teken: '▶',
+    zegt: 'Andere openingszinnen en visuele starts.' },
+  { id: 'opening', label: 'Openingsbeeld', teken: '▣',
+    zegt: 'Een ander eerste beeld, dezelfde belofte.' },
+  { id: 'headline', label: 'Headline-varianten', teken: 'T',
+    zegt: 'Andere koppen en on-screen tekst.' },
+  { id: 'achtergrond', label: 'Achtergrond en setting', teken: '◲',
+    zegt: 'Dezelfde scene, een ander decor.' },
+  { id: 'sfeer', label: 'Kleur en sfeer', teken: '◐',
+    zegt: 'Ander licht, ander palet, zelfde opbouw.' },
+  { id: 'cta', label: 'CTA-varianten', teken: '◇',
+    zegt: 'Andere call-to-action, zelfde aanbod.' },
+  { id: 'persona', label: 'Persona', teken: '☺',
+    zegt: 'Dezelfde belofte, tegen iemand anders gezegd.' },
+  { id: 'format', label: 'Format en compositie', teken: '▤',
+    zegt: 'Een andere vorm voor hetzelfde idee.' }
+];
+
+/* Welke richtingen nu aanstaan. Uit de vinkjes zelf gelezen en niet uit een
+   eigen kopie: het werkblad is wat er straks meegaat. */
+function iwGekozenRichtingen() {
+  var uit = [];
+  document.querySelectorAll('input[name="iterate-vary"]').forEach(function (cb) {
+    if (cb.checked) uit.push(cb.value);
+  });
+  return uit;
+}
+
+function iwZetRichting(id, aan) {
+  var raak = false;
+  document.querySelectorAll('input[name="iterate-vary"]').forEach(function (cb) {
+    if (cb.value !== id) return;
+    cb.checked = (aan === undefined) ? !cb.checked : !!aan;
+    raak = true;
+  });
+  return raak;
+}
+
+function iwRichtingenHtml() {
+  var aan = iwGekozenRichtingen();
+  var alles = aan.length >= IW_RICHTINGEN.length;
+  var h = '<section class="iw-kaart iw-richtingen"><div class="iw-kaart-kop">' +
+    '<div><span class="iw-kaart-titel">Iteratie-richtingen</span>' +
+    '<p class="iw-uitleg">Voorgesteld op grond van de analyse. Kies er een of meer; ' +
+    'de rest van de winnaar blijft intact.</p></div>' +
+    '<button type="button" class="iw-link" data-action="iw-richting-alles">' +
+    (alles ? 'Selectie wissen' : 'Selecteer alles') + '</button></div>';
+  h += '<div class="iw-richtingraster">';
+  IW_RICHTINGEN.forEach(function (r) {
+    var uit = aan.indexOf(r.id) !== -1;
+    h += '<button type="button" class="iw-richting' + (uit ? ' aan' : '') + '" ' +
+      'data-action="iw-richting" data-id="' + iwEsc(r.id) + '" ' +
+      'aria-pressed="' + (uit ? 'true' : 'false') + '">' +
+      '<span class="iw-richting-t" aria-hidden="true">' + iwEsc(r.teken) + '</span>' +
+      '<span class="iw-richting-l">' + iwEsc(r.label) + '</span>' +
+      '<span class="iw-richting-z">' + iwEsc(r.zegt) + '</span>' +
+      '<span class="iw-vink" aria-hidden="true"></span></button>';
+  });
+  h += '</div></section>';
+  return h;
+}
+
+/* Een lijstje uit de analyse, of niets. Nooit een kop met een leeg vak
+   eronder: dan lees je "hier is niets" als "hier is niets gevonden". */
+function iwLijstKolom(titel, zegt, regels, soort) {
+  var lijst = (regels || []).map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+  if (!lijst.length) return '';
+  return '<div class="iw-kolom ' + soort + '">' +
+    '<div class="iw-kolom-kop">' + iwEsc(titel) + '</div>' +
+    '<p class="iw-kolom-zegt">' + iwEsc(zegt) + '</p>' +
+    '<ul>' + lijst.map(function (x) {
+      return '<li>' + iwEsc(x) + '</li>'; }).join('') + '</ul></div>';
+}
+
+function iwStrategieHtml() {
+  var a = (iwState() && iwState().iterateAnalysis) || {};
+  var h = '<section class="iw-kaart iw-strategie">';
+  h += '<div class="iw-kaart-kop"><span class="iw-kaart-titel">Van analyse naar strategie</span></div>';
+
+  /* Rory met zijn gezicht erbij, want dit is zijn oordeel en niet dat van het
+     systeem. */
+  var advies = [a.cijfer_diagnose, a.grootste_kans, a.aanbevolen_aanpak]
+    .map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+  if (advies.length) {
+    h += '<div class="iw-advies">' +
+      (typeof teamPortret === 'function' ? teamPortret('rory', 'iw-advies-foto') : '') +
+      '<div class="iw-advies-t"><b>Rory\'s strategisch advies</b>' +
+      advies.map(function (x) { return '<span>' + iwEsc(x) + '</span>'; }).join('') +
+      '</div></div>';
   }
-  var h = '<h3 class="iw-titel">3. Deze iteratie is een script</h3>';
-  h += '<section class="iw-kaart">';
-  h += '<p class="iw-uitleg">Dit is een videoadvertentie. Een iteratie erop is een nieuw script, ' +
-    'geen static: de hook van een video test je niet met een stilstaand beeld.</p>';
-  h += '<p class="iw-uitleg">Wat meegaat naar de Scriptwriter: de cijfers, de funnel-diagnose, ' +
-    'wat er volgens Rory sterk aan is en wat er getest moet worden. ' +
-    'Het originele script hebben we niet — wel zes beelden eruit — dus dit wordt een nieuwe opzet ' +
-    'op hetzelfde mechanisme, en geen herschrijving van iets wat we niet gelezen hebben.</p>';
-  h += '<div class="iw-voet"><button type="button" class="iw-knop groot" data-action="iw-script">' +
-    'Ga verder in de Scriptwriter →</button></div>';
-  h += '<p class="iw-uitleg leeg"><button type="button" class="iw-link" data-action="iw-tochstatic">' +
-    'Toch statics maken van deze video</button> — bijvoorbeeld om één frame als losse ad te testen.</p>';
+
+  var kolommen =
+    iwLijgKolomVeilig('Wat behouden we', 'Deze elementen maken de advertentie succesvol. Ze blijven in elke iteratie staan.', a.vasthouden, 'houden') +
+    iwLijgKolomVeilig('Wat testen we', 'Hier zit volgens de analyse de grootste kans op verbetering.', a.veilig_te_testen, 'testen') +
+    iwLijgKolomVeilig('Waarom deze aanpak', 'De redenering eronder, zodat je hem kunt tegenspreken.', a.waarom_werkt_dit, 'waarom');
+  if (kolommen) h += '<div class="iw-kolommen">' + kolommen + '</div>';
+  else {
+    h += '<p class="iw-uitleg">Rory heeft deze advertentie nog niet uitgelezen. ' +
+      'Ga terug naar stap 2 en laat hem kijken.</p>';
+  }
+
+  /* De verwachting is geen sier maar de toets achteraf: zonder opgeschreven
+     verwachting is elke uitslag met terugwerkende kracht te verklaren. Hij
+     staat er alleen als Rory hem gegeven heeft. */
+  if (a.verwachting) {
+    h += '<div class="iw-verwachting"><b>Verwachting</b><span>' + iwEsc(a.verwachting) + '</span></div>';
+  }
   h += '</section>';
+  return h;
+}
+
+/* Alias met een naam die niet verspringt -- iwLijstKolom is de functie, deze
+   vangt af dat er geen analyse is. */
+function iwLijgKolomVeilig(titel, zegt, regels, soort) {
+  return iwLijstKolom(titel, zegt, regels, soort);
+}
+
+function iwStap3Html() {
+  if (iwIsVideo() && !_iw.tochStatic) {
+    var hv = '<h3 class="iw-titel">3. Deze iteratie is een script</h3>';
+    hv += '<section class="iw-kaart">';
+    hv += '<p class="iw-uitleg">Dit is een videoadvertentie. Een iteratie erop is een nieuw script, ' +
+      'geen static: de hook van een video test je niet met een stilstaand beeld.</p>';
+    hv += '<p class="iw-uitleg">Wat meegaat naar de Scriptwriter: de cijfers, de funnel-diagnose, ' +
+      'wat er volgens Rory sterk aan is en wat er getest moet worden. ' +
+      'Het originele script hebben we niet — wel zes beelden eruit — dus dit wordt een nieuwe opzet ' +
+      'op hetzelfde mechanisme, en geen herschrijving van iets wat we niet gelezen hebben.</p>';
+    hv += '<div class="iw-voet"><button type="button" class="iw-knop groot" data-action="iw-script">' +
+      'Ga verder in de Scriptwriter →</button></div>';
+    hv += '<p class="iw-uitleg leeg"><button type="button" class="iw-link" data-action="iw-tochstatic">' +
+      'Toch statics maken van deze video</button> — bijvoorbeeld om één frame als losse ad te testen.</p>';
+    hv += '</section>';
+    return hv;
+  }
+
+  var h = '<h3 class="iw-titel">3. Van analyse naar een gerichte strategie</h3>';
+  h += '<div class="iw-tweeluik">' + iwAdkaartHtml() + iwStrategieHtml() + '</div>';
+  h += iwRichtingenHtml();
+
+  /* En de uitgang. Genereren gebeurt op stap 4; deze stap eindigt met een
+     besluit, niet met een knop die geld uitgeeft. */
+  var aan = iwGekozenRichtingen();
+  h += '<section class="iw-kaart iw-verder"><div>' +
+    '<b>Ga verder naar de iteraties</b>' +
+    '<p class="iw-uitleg">Rory gebruikt deze strategie om gerichte variaties te maken binnen het ' +
+    'bewezen concept. Op de volgende stap kies je het product en genereer je ze.</p></div>' +
+    '<button type="button" class="iw-knop groot" data-action="iw-stap" data-id="4"' +
+    (aan.length ? '' : ' disabled') + '>Naar de iteraties →</button></section>';
+  if (!aan.length) {
+    h += '<p class="iw-uitleg leeg">Kies eerst minstens één richting: zonder richting is elke ' +
+      'iteratie een nieuwe advertentie in plaats van een test.</p>';
+  }
+  return h;
+}
+
+/* ── Stap 4: hier worden ze gemaakt ──────────────────────────────────────── */
+function iwStap4Html() {
+  var aan = iwGekozenRichtingen().map(function (id) {
+    var r = IW_RICHTINGEN.filter(function (x) { return x.id === id; })[0];
+    return r ? r.label : id;
+  });
+  var h = '<h3 class="iw-titel">4. De iteraties maken</h3>';
+  h += '<section class="iw-kaart"><p class="iw-uitleg">' +
+    (aan.length
+      ? ('We testen: <b>' + iwEsc(aan.join(', ')) + '</b>. De rest van de winnaar blijft intact.')
+      : 'Er staat geen richting aan. Ga terug naar stap 3 en kies er een.') +
+    '</p>' +
+    '<p class="iw-uitleg leeg">Kies hieronder het product en de plaatsing, en laat Rory de ' +
+    'iteraties schrijven. Ze verschijnen daarna onder het werkblad.</p>' +
+    '<div class="iw-voet"><button type="button" class="iw-link" data-action="iw-stap" data-id="3">' +
+    '← terug naar de strategie</button></div></section>';
   return h;
 }
 
@@ -896,7 +1071,8 @@ function iwRender() {
   if (_iw.fout) h += '<div class="iw-fout"><b>Dat lukte niet.</b><br>' + iwEsc(_iw.fout) + '</div>';
   if (_iw.stap === 1) h += iwStap1Html();
   else if (_iw.stap === 2) h += iwStap2Html();
-  else h += iwStap3Html();
+  else if (_iw.stap === 3) h += iwStap3Html();
+  else h += iwStap4Html();
   el.innerHTML = h;
 
   iwToonWerkblad();
@@ -923,7 +1099,10 @@ function iwToonWerkblad() {
        het element weer gelden. */
     /* Bij een video maakt het werkblad het verkeerde ding. Het blijft weg tot
        je er zelf voor kiest -- dan is het een besluit en geen vergissing. */
-    var mag = _iw.stap >= 3 && (!iwIsVideo() || _iw.tochStatic);
+    /* Vanaf stap VIER, niet drie. Stap 3 is de strategie: daar besluit je wat
+       je test. Stond het werkblad daar al onder, dan begon het werk alsnog
+       onderaan een lang formulier -- precies wat de wizard moest wegnemen. */
+    var mag = _iw.stap >= 4 && (!iwIsVideo() || _iw.tochStatic);
     el.style.display = itereert ? (mag ? 'block' : 'none') : '';
   });
 }
@@ -986,6 +1165,17 @@ function iwKlik(e) {
        formulier waar dit vanaf moest. */
     if (n > 1 && !_iw.gekozen && !_iw.handmatig) return;
     _iw.stap = n; iwRender();
+  }
+  else if (act === 'iw-richting') {
+    /* De kaart zet het vinkje in het werkblad. Dat vinkje is de waarheid: het
+       gaat straks mee in de opdracht. */
+    iwZetRichting(knop.getAttribute('data-id'));
+    iwRender();
+  }
+  else if (act === 'iw-richting-alles') {
+    var alles = iwGekozenRichtingen().length >= IW_RICHTINGEN.length;
+    IW_RICHTINGEN.forEach(function (r) { iwZetRichting(r.id, !alles); });
+    iwRender();
   }
   else if (act === 'iw-preset') { _iw.preset = knop.getAttribute('data-id'); iwRender(); }
   else if (act === 'iw-bewaar') { iwBewaarToggle(knop.getAttribute('data-id')); iwRender(); }
@@ -1095,6 +1285,10 @@ window.IW_STAPPEN = IW_STAPPEN; window.IW_PRESETS = IW_PRESETS;
 window.IW_ANALYSEVELDEN = IW_ANALYSEVELDEN; window.IW_KAARTCIJFERS = IW_KAARTCIJFERS;
 window.iwFilter = iwFilter; window.iwBewaard = iwBewaard; window.iwBewaarToggle = iwBewaarToggle;
 window.iwStapperHtml = iwStapperHtml; window.iwStap1Html = iwStap1Html; window.iwStap2Html = iwStap2Html;
+window.iwStap4Html = iwStap4Html; window.IW_RICHTINGEN = IW_RICHTINGEN;
+window.iwGekozenRichtingen = iwGekozenRichtingen; window.iwZetRichting = iwZetRichting;
+window.iwRichtingenHtml = iwRichtingenHtml; window.iwStrategieHtml = iwStrategieHtml;
+window.iwLijstKolom = iwLijstKolom;
 window.iwAnalyse = iwAnalyse; window.iwState = iwState;
 window.iwToonWerkblad = iwToonWerkblad; window.IW_WERKBLADEN = IW_WERKBLADEN;
 window.iwZetBronVideo = iwZetBronVideo; window.IW_FRAMES = IW_FRAMES;

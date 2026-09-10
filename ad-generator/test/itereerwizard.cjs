@@ -269,7 +269,7 @@ function ONDERSCHEP() {
   check('en even breed', Math.abs(twee.breedtes[0] - twee.breedtes[1]) < 20, true);
   check('de stappenbalk is één rij', twee.stapperHoog !== null && twee.stapperHoog < 60, true);
 
-  console.log('\n  het oude werkblad staat er pas vanaf stap 3');
+  console.log('\n  het oude werkblad staat er pas vanaf stap 4');
   /* Het stond allemaal meteen onder de wizard: het uploadvak, de winnende ad,
      de testdimensies en de knop "Analyseer en genereer iteraties". Dan begin je
      aan het onderste eind van het scherm, en de wizard erboven is decoratie. */
@@ -279,7 +279,7 @@ function ONDERSCHEP() {
       return el ? getComputedStyle(el).display !== 'none' : null;
     });
     const uit = {};
-    [1, 2, 3].forEach(n => { _iw.stap = n; iwRender(); uit[n] = zicht(); });
+    [1, 2, 3, 4].forEach(n => { _iw.stap = n; iwRender(); uit[n] = zicht(); });
     /* En bij het verlaten van itereren komt alles weer terug. Blijft het op
        none staan, dan opent Kopieer ad met een leeg scherm -- kapot door een
        instelling van een ander scherm. */
@@ -291,7 +291,11 @@ function ONDERSCHEP() {
   });
   check('op stap 1 niets ervan', perStap['1'], [false, false, false]);
   check('op stap 2 nog steeds niet', perStap['2'], [false, false, false]);
-  check('op stap 3 alles', perStap['3'], [true, true, true]);
+  /* Stap 3 is de STRATEGIE: daar besluit je wat je test. Stond het werkblad
+     daar al onder, dan begon het werk alsnog onderaan een lang formulier --
+     precies wat de wizard moest wegnemen. */
+  check('op stap 3 nog steeds niet', perStap['3'], [false, false, false]);
+  check('op stap 4 alles', perStap['4'], [true, true, true]);
   check('en Kopieer ad krijgt zijn scherm terug', perStap.naKopieer, [true, true, true]);
 
   console.log('\n  ook als je via de modusknop binnenkomt');
@@ -733,10 +737,10 @@ function ONDERSCHEP() {
   check('er staat dat er niets terugkwam', /geen analyse terug/.test(stille.fout || ''), true);
   check('en het scherm zegt het ook', /De analyse liep vast/.test(stille.tekst), true);
 
-  console.log('\n  het werkblad komt pas bij stap 3 in beeld');
+  console.log('\n  het werkblad komt pas bij stap 4 in beeld');
   const werkblad = await page.evaluate(() => {
     const uit = {};
-    [1, 2, 3].forEach(function (n) {
+    [1, 2, 3, 4].forEach(function (n) {
       _iw.stap = n; iwRender();
       uit[n] = document.getElementById('iterate-werkblad').style.display;
     });
@@ -744,7 +748,8 @@ function ONDERSCHEP() {
   });
   check('op stap 1 niet', werkblad['1'], 'none');
   check('op stap 2 niet', werkblad['2'], 'none');
-  check('op stap 3 wel', werkblad['3'], 'block');
+  check('op stap 3 nog niet', werkblad['3'], 'none');
+  check('op stap 4 wel', werkblad['4'], 'block');
 
   console.log('\n  bij een video leest Rory de video, niet de thumbnail');
   /* Dit ging stil mis en het antwoord zag er compleet uit: hij las de eerste
@@ -999,19 +1004,25 @@ function ONDERSCHEP() {
     uit.videoWerkblad = zicht();
     uit.scriptknop = !!document.querySelector('[data-action="iw-script"]');
 
-    /* En bij een static verandert er niets: dat werkblad hoort daar wel. */
+    /* En bij een static staat er op stap 3 de strategie, en op stap 4 het
+       werkblad. */
     _iw.gekozen = { id: 's1', naam: 'Stil', cijfers: {}, beeld: 'https://x.fbcdn.net/1.jpg' };
     iwRender();
     uit.staticWerkblad = zicht();
     uit.staticTekst = document.getElementById('iw-paneel').textContent;
+    _iw.stap = 4; iwRender();
+    uit.stap4Werkblad = zicht();
+    _iw.stap = 3; iwRender();
     return uit;
   });
   check('bij een video staat er dat het een script wordt',
     /iteratie is een script/.test(stap3.videoTekst), true);
   check('met de knop naar de Scriptwriter', stap3.scriptknop, true);
   check('en het statics-werkblad blijft weg', stap3.videoWerkblad, [false, false, false]);
-  check('bij een static staat het werkblad er gewoon', stap3.staticWerkblad, [true, true, true]);
-  check('en gaat het over wat we testen', /Wat testen we/.test(stap3.staticTekst), true);
+  check('bij een static blijft het werkblad op stap 3 weg', stap3.staticWerkblad, [false, false, false]);
+  check('en staat het er op stap 4 wel', stap3.stap4Werkblad, [true, true, true]);
+  check('stap 3 gaat over de strategie', /Van analyse naar een gerichte strategie/.test(stap3.staticTekst), true);
+  check('met de richtingen erop', /Iteratie-richtingen/.test(stap3.staticTekst), true);
 
   /* Toch statics mag, maar als besluit. Een uitzondering die je zelf aanzet is
      iets anders dan een scherm dat het verkeerde ding aanbiedt. */
@@ -1019,6 +1030,9 @@ function ONDERSCHEP() {
     _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: {}, video: 'https://x.fbcdn.net/f.mp4' };
     _iw.stap = 3; _iw.tochStatic = false; iwRender();
     document.querySelector('[data-action="iw-tochstatic"]').click();
+    /* Toch statics brengt je op stap 3 bij de strategie; het werkblad hoort
+       daar nog steeds niet te staan, dat is stap 4. */
+    _iw.stap = 4; iwRender();
     const aan = getComputedStyle(document.getElementById('iterate-werkblad')).display !== 'none';
     /* En een andere advertentie zet die uitzondering terug: hij hoort niet stil
        mee te reizen naar de volgende keuze. */
@@ -1107,6 +1121,111 @@ function ONDERSCHEP() {
   check('het formulier komt in beeld', hand.zichtbaar, true);
   check('en wordt dan ook gelezen', hand.naam, 'Met de hand ingevuld');
   check('en de wizard staat op stap 2', hand.stap, 2);
+
+  console.log('\n  stap 3 is de strategie, en die komt uit de analyse');
+  /* Hier stond één zin: "de instellingen en het werkblad staan hieronder."
+     Dat is geen stap maar een doorverwijzing. Wat er hoort te staan is de
+     afweging: dit werkt, dit blijft, en hier zit de winst. Alles daarvan komt
+     uit de analyse -- er wordt niets bijverzonnen. */
+  const strategie = await page.evaluate(() => {
+    _iw.gekozen = { id: 's1', naam: 'WS - 160 - 1', cijfers: { spend: 45200, roas: 4.2, ctr: 2.31, cpa: 18.74 },
+                    beeld: 'https://x.fbcdn.net/1.jpg' };
+    _iw.tochStatic = false;
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.iterateAnalysis = {
+      cijfer_diagnose: 'De CTR loopt terug terwijl de conversie na de klik goed blijft.',
+      grootste_kans: 'De eerste drie seconden.',
+      aanbevolen_aanpak: 'Concept vasthouden, opening vervangen.',
+      vasthouden: ['Founder story', 'Persoonlijk verhaal', 'Product in gebruik'],
+      veilig_te_testen: ['Hook / opening', 'Headline', 'Bewijsvorm'],
+      waarom_werkt_dit: ['Sterke product-market fit', 'Bewezen concept'],
+      verwachting: 'Een hogere CTR bij gelijke conversie; we meten CTR link.'
+    };
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var t = el.textContent;
+    return {
+      advies: /Rory's strategisch advies/.test(t) && /CTR loopt terug/.test(t),
+      gezicht: !!el.querySelector('.iw-advies-foto'),
+      houden: Array.prototype.map.call(el.querySelectorAll('.iw-kolom.houden li'), function (x) { return x.textContent; }),
+      testen: el.querySelectorAll('.iw-kolom.testen li').length,
+      waarom: el.querySelectorAll('.iw-kolom.waarom li').length,
+      verwachting: /Een hogere CTR bij gelijke conversie/.test(t),
+      /* De advertentie waar het over gaat staat ernaast, met zijn cijfers. */
+      adkaart: !!el.querySelector('.iw-adtitel'),
+      cijfers: el.querySelectorAll('.iw-kaartcijfers .iw-tegel').length,
+      /* En er staat GEEN genereerknop op deze stap. */
+      genereer: /Genereer|genereren/.test(t) && !/Naar de iteraties/.test(t)
+    };
+  });
+  check('het advies van Rory staat er, met zijn gezicht', [strategie.advies, strategie.gezicht], [true, true]);
+  check('wat we behouden komt uit de analyse', strategie.houden,
+    ['Founder story', 'Persoonlijk verhaal', 'Product in gebruik']);
+  check('wat we testen ook', strategie.testen, 3);
+  check('en waarom', strategie.waarom, 2);
+  check('de verwachting staat erbij', strategie.verwachting, true);
+  check('de advertentie staat ernaast', strategie.adkaart, true);
+  check('met zijn cijfers', strategie.cijfers >= 4, true);
+  check('en er wordt op deze stap niets gegenereerd', strategie.genereer, false);
+
+  const zonderAnalyse = await page.evaluate(() => {
+    /* Zonder analyse geen kolommen. Een kop met een leeg vak eronder leest als
+       "hier is niets gevonden" in plaats van "hier is nog niet gekeken". */
+    var bewaard = state.iterateAnalysis;
+    state.iterateAnalysis = {};
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var uit = { kolommen: el.querySelectorAll('.iw-kolom').length,
+                zegt: /nog niet uitgelezen/.test(el.textContent),
+                verwachting: el.querySelectorAll('.iw-verwachting').length };
+    state.iterateAnalysis = bewaard; iwRender();
+    return uit;
+  });
+  check('zonder analyse staan er geen kolommen', zonderAnalyse.kolommen, 0);
+  check('en zegt het scherm waarom', zonderAnalyse.zegt, true);
+  check('een verwachting die er niet is, staat er niet', zonderAnalyse.verwachting, 0);
+
+  console.log('\n  de richtingen zijn de vinkjes uit het werkblad');
+  /* Twee lijsten die hetzelfde bedoelen lopen uit elkaar zodra er een bijkomt.
+     De kaarten zetten daarom de bestaande vinkjes, en die gaan mee in de
+     opdracht. */
+  const richtingen = await page.evaluate(() => {
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var kaarten = el.querySelectorAll('.iw-richting');
+    var waarden = Array.prototype.map.call(kaarten, function (k) { return k.getAttribute('data-id'); });
+    var vinkjes = Array.prototype.map.call(
+      document.querySelectorAll('input[name="iterate-vary"]'), function (cb) { return cb.value; });
+    /* Elke kaart hoort bij een bestaand vinkje. */
+    var wees = waarden.filter(function (v) { return vinkjes.indexOf(v) === -1; });
+    /* Klikken zet het vinkje om, niet alleen de kaart. */
+    document.querySelector('.iw-richting[data-id="opening"]').click();
+    var naKlik = Array.prototype.filter.call(
+      document.querySelectorAll('input[name="iterate-vary"]'),
+      function (cb) { return cb.value === 'opening' && cb.checked; }).length;
+    var kaartAan = document.querySelector('.iw-richting[data-id="opening"]').classList.contains('aan');
+    /* Alles aan, en dan alles uit. */
+    document.querySelector('[data-action="iw-richting-alles"]').click();
+    var alles = iwGekozenRichtingen().length;
+    document.querySelector('[data-action="iw-richting-alles"]').click();
+    var geen = iwGekozenRichtingen().length;
+    /* Zonder richting hoort de knop naar stap 4 uit te staan: zonder richting
+       is elke iteratie een nieuwe advertentie in plaats van een test. */
+    var knop = document.querySelector('[data-action="iw-stap"][data-id="4"]');
+    var uitAls = knop ? knop.disabled : null;
+    document.querySelector('.iw-richting[data-id="hook"]').click();
+    var knop2 = document.querySelector('[data-action="iw-stap"][data-id="4"]');
+    return { waarden: waarden, wees: wees, naKlik: naKlik, kaartAan: kaartAan,
+             alles: alles, geen: geen, uitAls: uitAls,
+             aanAls: knop2 ? knop2.disabled : null };
+  });
+  check('elke kaart hoort bij een bestaand vinkje', richtingen.wees, []);
+  check('en het zijn er acht', richtingen.waarden.length, 8);
+  check('klikken zet het vinkje om', [richtingen.naKlik, richtingen.kaartAan], [1, true]);
+  check('selecteer alles zet ze alle acht aan', richtingen.alles, 8);
+  check('en nog een keer zet ze uit', richtingen.geen, 0);
+  check('zonder richting kun je niet door', richtingen.uitAls, true);
+  check('met een richting wel', richtingen.aanAls, false);
 
   console.log('\n  itereren loopt niet meer vast zonder iets te zeggen');
   /* De melding was: ik klik een advertentie aan, druk op itereren, en er

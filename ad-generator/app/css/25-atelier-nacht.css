@@ -1300,3 +1300,83 @@ body.iterate-mode-active #source-ad-section { order: -1; }
   color: var(--gold-bright); border-color: rgba(var(--gold-rgb), .35);
   background: rgba(var(--gold-rgb), .07);
 }
+
+/* ── Stap 3 van het itereren: van analyse naar strategie ──────────────────
+   Links de advertentie waar het over gaat, rechts wat eruit gelezen is, en
+   daaronder het enige besluit dat deze stap vraagt: wat testen we. Het
+   genereren staat op stap 4 -- deze stap geeft geen geld uit. */
+.iw-tweeluik { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+@container itereren (min-width: 900px) {
+  .iw-tweeluik { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+}
+.iw-strategie { display: flex; flex-direction: column; gap: 14px; }
+.iw-advies { display: flex; gap: 12px; align-items: flex-start; }
+.iw-advies-foto {
+  position: relative; overflow: hidden; flex: 0 0 auto;
+  width: 40px; height: 40px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: rgba(var(--gold-rgb), .08); border: 1px solid rgba(var(--gold-rgb), .26);
+  color: var(--gold); font-size: 13px;
+}
+.iw-advies-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.iw-advies-foto i { font-style: normal; }
+.iw-advies-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.iw-advies-t b { font-size: 13.5px; color: var(--text); }
+.iw-advies-t span { font-size: 12.5px; color: var(--text-soft); line-height: 1.6; }
+
+.iw-kolommen { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@container itereren (min-width: 780px) { .iw-kolommen { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.iw-kolom {
+  padding: 13px 14px 15px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: rgba(255, 255, 255, .015);
+}
+.iw-kolom-kop { font-size: 12.5px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+.iw-kolom-zegt { margin: 0 0 8px; font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+.iw-kolom ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.iw-kolom li {
+  position: relative; padding-left: 20px; font-size: 12.5px; color: var(--text-soft); line-height: 1.5;
+}
+.iw-kolom li::before { position: absolute; left: 0; top: 0; font-size: 11px; }
+/* Behouden, testen en waarom zijn drie verschillende soorten uitspraak, en dat
+   hoort te zien te zijn zonder de kop te lezen. */
+.iw-kolom.houden { border-color: rgba(90, 160, 120, .28); }
+.iw-kolom.houden li::before { content: '✓'; color: #6fbf8f; }
+.iw-kolom.testen { border-color: rgba(var(--gold-rgb), .3); }
+.iw-kolom.testen li::before { content: '◎'; color: var(--gold); }
+.iw-kolom.waarom li::before { content: '·'; color: var(--text-faint); font-size: 15px; line-height: 1; }
+
+.iw-verwachting {
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid rgba(var(--gold-rgb), .3); background: rgba(var(--gold-rgb), .06);
+}
+.iw-verwachting b { font-size: 12.5px; color: var(--gold-bright); }
+.iw-verwachting span { font-size: 12.5px; color: var(--text-soft); line-height: 1.55; }
+
+.iw-richtingen .iw-kaart-kop { align-items: flex-start; gap: 16px; }
+.iw-richtingraster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@container itereren (min-width: 780px) { .iw-richtingraster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container itereren (min-width: 1200px) { .iw-richtingraster { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.iw-richting {
+  position: relative; display: flex; flex-direction: column; gap: 5px; text-align: left;
+  padding: 14px 13px 15px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text-soft);
+}
+.iw-richting:hover { border-color: rgba(var(--gold-rgb), .5); }
+.iw-richting.aan { border-color: var(--gold); background: rgba(var(--gold-rgb), .08); }
+.iw-richting-t { font-size: 17px; color: var(--text-faint); line-height: 1; }
+.iw-richting.aan .iw-richting-t { color: var(--gold); }
+.iw-richting-l { font-size: 12.5px; color: var(--text); }
+.iw-richting.aan .iw-richting-l { color: var(--gold-bright); }
+.iw-richting-z { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+.iw-richting .iw-vink {
+  position: absolute; top: 10px; right: 10px; width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid var(--line);
+}
+.iw-richting.aan .iw-vink { border-color: var(--gold); background: var(--gold); }
+.iw-richting.aan .iw-vink::after {
+  content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px;
+  border: solid #14120c; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg);
+}
+
+.iw-verder { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.iw-verder b { font-size: 13.5px; color: var(--text); }
+.iw-verder .iw-uitleg { margin: 3px 0 0; max-width: 62ch; }
