@@ -3997,37 +3997,7 @@ input:focus, select:focus, textarea:focus {
       <span class="chevron">▾</span>
     </div>
     <div class="settings-body">
-      <div class="settings-section vault-section">
-        <h4>Team API-keys <span class="label-hint">wachtwoord vereist</span></h4>
-        <div id="vault-locked">
-          <div class="field">
-            <label class="label">Wachtwoord</label>
-            <div class="pw-wrap">
-              <input type="password" id="vault-pw" placeholder="Wachtwoord" autocomplete="off" onkeydown="if(event.key==='Enter')unlockVault()">
-              <button type="button" class="pw-eye" id="vault-pw-eye" onclick="toggleVaultPw(this)" title="Toon of verberg wachtwoord" aria-label="Toon of verberg wachtwoord">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </div>
-          <button class="btn btn-small" onclick="unlockVault()">Ontgrendel</button>
-        </div>
-        <div id="vault-open" style="display:none;">
-          <div class="field">
-            <label class="label">ChatGPT / OpenAI</label>
-            <div class="vault-key" id="vault-openai"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('openai', this)">Kopieer</button>
-          </div>
-          <div class="field">
-            <label class="label">Claude / Anthropic</label>
-            <div class="vault-key" id="vault-anthropic"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('anthropic', this)">Kopieer</button>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-            <button class="btn btn-small" onclick="useVaultKeys()">Vul deze keys in &amp; bewaar</button>
-            <button class="btn btn-small btn-ghost" onclick="lockVault()">Vergrendel</button>
-          </div>
-        </div>
-      </div>
+      <!-- Het kluispaneel met de team-API-sleutels stond hier. Weggehaald. -->
       <div class="settings-section">
         <h4>Anthropic (concept-generatie)</h4>
         <div class="field">
@@ -9210,41 +9180,9 @@ async function copyProxyCmd(elId, btn) {
   });
 });
 
-const VAULT_PASSWORD = 'WellgroupADS';
-const VAULT_KEYS = { openai: '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', anthropic: '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' };
-function toggleVaultPw(btn){
-  const i = document.getElementById('vault-pw'); if (!i) return;
-  const show = i.type === 'password';
-  i.type = show ? 'text' : 'password';
-  if (btn) btn.classList.toggle('on', show);
-  i.focus();
-}
-function unlockVault(){
-  const pw = (document.getElementById('vault-pw').value || '');
-  if (pw !== VAULT_PASSWORD) { toast('Onjuist wachtwoord', true); return; }
-  document.getElementById('vault-openai').textContent = VAULT_KEYS.openai;
-  document.getElementById('vault-anthropic').textContent = VAULT_KEYS.anthropic;
-  document.getElementById('vault-locked').style.display = 'none';
-  document.getElementById('vault-open').style.display = 'block';
-  document.getElementById('vault-pw').value = '';
-}
-function lockVault(){
-  document.getElementById('vault-open').style.display = 'none';
-  document.getElementById('vault-locked').style.display = 'block';
-  document.getElementById('vault-openai').textContent = '';
-  document.getElementById('vault-anthropic').textContent = '';
-}
-function copyVaultKey(which, btn){
-  navigator.clipboard.writeText(VAULT_KEYS[which]);
-  if (btn){ const o = btn.textContent; btn.textContent = 'Gekopieerd'; setTimeout(function(){ btn.textContent = o; }, 1500); }
-}
-function useVaultKeys(){
-  [['anthropic-key', VAULT_KEYS.anthropic], ['openai-key', VAULT_KEYS.openai]].forEach(function(pair){
-    const el = document.getElementById(pair[0]);
-    if (el){ el.value = pair[1]; el.dispatchEvent(new Event('input', { bubbles: true })); }
-  });
-  toast('API-keys ingevuld en bewaard');
-}
+/* De kluis met de team-API-sleutels stond hier. Weggehaald: dit bestand is
+   een oude momentopname, maar de sleutels erin waren echt en zijn zo
+   weggelekt. Ze horen als Worker secret op marketing-ads. */
 
 function updateApiStatus() {
   // Teamserver-modus: de sleutels staan op de proxy (Cloudflare Worker), niet in de browser

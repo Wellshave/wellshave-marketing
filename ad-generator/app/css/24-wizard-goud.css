@@ -1,0 +1,875 @@
+/* Static Ad Wizard — de goudlaag.
+ *
+ * Dit bestand verandert geen enkele beslissing en geen enkel element van
+ * plaats: het is de interactielaag bovenop 23-wizard.css. Alles hier is
+ * gescoped op de wizard (.wiz-*, #wiz-*, .iw2-ingang) zodat Kopieer ad,
+ * Itereren, de Transformer en de rest van de console er niets van merken.
+ *
+ * Het principe dat elke regel hieronder moet halen: beweging betekent iets.
+ *   - iets laadt            -> shimmer of lichtlijn
+ *   - iets is zojuist gekozen -> één pulse die uitdooft
+ *   - Rory denkt            -> gloed om de avatar, punten in de balk
+ *   - je zweeft boven iets klikbaars -> lichte lift
+ * Beweging zonder een van die vier redenen hoort hier niet. Een dashboard
+ * waarin alles gloeit, gloeit nergens.
+ *
+ * Herbruikbaar: de keyframes en de klassen .net, .bezig, .denkt zijn de
+ * primitieven. Stap 2 t/m 9 krijgen dezelfde laag door dezelfde klassen te
+ * dragen; er hoeft dan geen nieuwe animatie bij.
+ */
+
+/* ── Bewegingstokens ─────────────────────────────────────────────────────── */
+
+:root {
+  --wg-t-snel: 150ms;      /* hover, focus */
+  --wg-t-keuze: 220ms;     /* selectie */
+  --wg-t-stap: 320ms;      /* wisselen van stap */
+  --wg-ease: cubic-bezier(0.22, 0.7, 0.3, 1);
+  --wg-gloed-zacht: 0 0 0 1px rgba(var(--gold-rgb), 0.25), 0 0 18px rgba(var(--gold-rgb), 0.10);
+  --wg-gloed-aan: 0 0 0 1px rgba(var(--gold-rgb), 0.45), 0 0 22px rgba(var(--gold-rgb), 0.16);
+}
+
+/* ── Keyframes: de vier betekenissen ────────────────────────────────────── */
+
+/* Zojuist gekozen: één keer opgloeien en binnen een seconde tot rust komen. */
+@keyframes wgSettle {
+  0%   { box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.7), 0 0 26px rgba(var(--gold-rgb), 0.35); }
+  100% { box-shadow: var(--wg-gloed-aan); }
+}
+
+/* Laden: een veeg licht die over het element loopt. */
+@keyframes wgShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
+
+/* De lichtlijn onder de statusbalk terwijl Rory werkt. */
+@keyframes wgLichtlijn {
+  0%   { left: -30%; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* Denken: een langzame ademende gloed. Nadrukkelijk traag — dit mag minuten
+   aanstaan zonder te vermoeien. */
+@keyframes wgAdem {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0.0); }
+  50%      { box-shadow: 0 0 0 5px rgba(var(--gold-rgb), 0.14); }
+}
+
+/* De drie punten in "Rory is thinking". */
+@keyframes wgPunt {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30%           { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ── Selectie: levend, daarna rustig ────────────────────────────────────── */
+
+.wiz-tegel.on, .wiz-pil.on {
+  border-color: var(--gold);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--gold-rgb), 0.10) 0%, transparent 70%),
+    var(--gold-haze);
+  box-shadow: var(--wg-gloed-aan);
+}
+/* De bevestiging: alleen op het element dat zojuist gekozen is (.net wordt in
+   JS voor ~1s gezet), één keer, en dan is het stil. */
+.wiz-tegel.on.net, .wiz-pil.on.net {
+  animation: wgSettle 0.9s var(--wg-ease) 1;
+}
+/* Vinkje op de gekozen tegel: bevestiging zonder woorden. */
+.wiz-tegel.on::after {
+  content: '✓';
+  position: absolute; top: -7px; right: -7px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold); color: #1a1408;
+  font-size: 11px; font-weight: 700;
+}
+.wiz-tegel { position: relative; }
+
+/* ── Hover: reageren vóór de klik ───────────────────────────────────────── */
+
+.wiz-tegel, .wiz-pil, .wiz-personakaart, .wiz-personarij, .wiz-format,
+.wiz-basis-tegel, .iw2-optie {
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              color var(--wg-t-snel) var(--wg-ease),
+              background var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-keuze) var(--wg-ease),
+              transform var(--wg-t-snel) var(--wg-ease);
+}
+.wiz-tegel:hover:not(.on), .wiz-pil:hover:not(.on),
+.wiz-personakaart:hover:not(.on), .wiz-personarij:hover:not(.on),
+.wiz-format:hover:not(.on), .wiz-basis-tegel:hover, .iw2-optie:hover {
+  border-color: var(--gold-line-strong);
+  box-shadow: var(--wg-gloed-zacht);
+  transform: translateY(-1px);
+}
+
+/* ── Dropdowns: bij de donkere werkbank horen ───────────────────────────── */
+
+.wiz-veld select {
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%),
+                    linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-snel) var(--wg-ease);
+  cursor: pointer;
+}
+.wiz-veld select:hover { border-color: var(--gold-line-strong); }
+.wiz-veld select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.14);
+  background-color: rgba(var(--gold-rgb), 0.04);
+}
+
+/* ── De stappenbalk ─────────────────────────────────────────────────────── */
+
+.wiz-step { transition: color var(--wg-t-snel), border-color var(--wg-t-snel), background var(--wg-t-stap) var(--wg-ease), box-shadow var(--wg-t-stap) var(--wg-ease); }
+.wiz-step.on {
+  background: linear-gradient(180deg, rgba(var(--gold-rgb), 0.14) 0%, rgba(var(--gold-rgb), 0.05) 100%);
+  box-shadow: var(--wg-gloed-zacht);
+}
+.wiz-step.done .wiz-step-num { background: rgba(var(--gold-rgb), 0.14); }
+.wiz-step:disabled { opacity: 0.45; }
+
+/* ── Rory: aanwezig, en actief als hij werkt ────────────────────────────── */
+
+.wiz-rory-avatar { transition: box-shadow var(--wg-t-stap) var(--wg-ease); }
+.wiz-rory-avatar.denkt { animation: wgAdem 2.6s ease-in-out infinite; }
+
+/* "Rory is thinking…" met drie levende punten in plaats van een vaste zin. */
+.wiz-rory-thinking { display: flex; align-items: center; gap: 8px; }
+.wiz-rory-thinking::after {
+  content: '';
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 8px 0 0 var(--gold), 16px 0 0 var(--gold);
+  animation: wgPunt 1.4s ease-in-out infinite;
+  margin-right: 16px;
+}
+
+/* De statusbalk boven de stap: een lichtlijn zolang er iets draait. */
+#wiz-rorybalk { position: relative; overflow: hidden; }
+#wiz-rorybalk .wiz-lichtlijn {
+  position: absolute; bottom: 0; height: 1px; width: 30%;
+  background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+  animation: wgLichtlijn 2.2s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+.wiz-rorybalk-punt.bezig { animation: wgAdem 1.6s ease-in-out infinite; }
+
+/* ── De hoofdknop ───────────────────────────────────────────────────────── */
+
+.wiz-btn { transition: background var(--wg-t-snel) var(--wg-ease), border-color var(--wg-t-snel), box-shadow var(--wg-t-snel) var(--wg-ease), transform 90ms var(--wg-ease); }
+.wiz-btn.primary {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 55%, var(--gold-deep) 130%);
+  border-color: rgba(var(--gold-rgb), 0.7);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 6px 16px rgba(var(--gold-rgb), 0.12);
+}
+.wiz-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-bright) 40%, var(--gold) 130%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 6px 22px rgba(var(--gold-rgb), 0.22);
+}
+.wiz-btn.primary:active:not(:disabled) { transform: scale(0.985); }
+/* Uitgeschakeld terwijl de wizard werkt: de knop zelf zegt dat er geladen
+   wordt, met een lichtveeg in plaats van alleen een grijze sluier. */
+#wiz-next:disabled { position: relative; overflow: hidden; opacity: 0.75; cursor: progress; }
+#wiz-next:disabled::after {
+  content: '';
+  position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: wgShimmer 1.4s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+
+/* ── Return to interview ────────────────────────────────────────────────── */
+
+.iw2-ingang { transition: border-color var(--wg-t-snel) var(--wg-ease), transform var(--wg-t-snel) var(--wg-ease), box-shadow var(--wg-t-keuze) var(--wg-ease); }
+.iw2-ingang:hover {
+  border-color: var(--gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 18px rgba(var(--gold-rgb), 0.20);
+}
+.iw2-ingang:hover .iw2-ingang-i { box-shadow: 0 0 10px rgba(var(--gold-rgb), 0.5); }
+.iw2-ingang-i { transition: box-shadow var(--wg-t-snel) var(--wg-ease); }
+
+/* ── Diepte: het paneel is een werkbank, geen vlak ──────────────────────── */
+
+.wiz-paneel {
+  background:
+    radial-gradient(90% 40% at 50% 0%, rgba(var(--gold-rgb), 0.035) 0%, transparent 60%),
+    var(--bg-elevated);
+}
+.wiz-zijpaneel, .wiz-bd, .iw2-aannames {
+  transition: border-color var(--wg-t-snel) var(--wg-ease);
+}
+
+/* Denkblokken in de stap zelf (wizDenkt) delen de puntjes van Rory. Het
+   punt-element bestaat al in de markup; hier wordt het drie levende punten. */
+.wiz-denkt .wiz-denkt-punt {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 8px 0 0 var(--gold), 16px 0 0 var(--gold);
+  animation: wgPunt 1.4s ease-in-out infinite;
+  margin-right: 14px; flex-shrink: 0;
+}
+
+/* ── Reduced motion: toestanden blijven, beweging verdwijnt ─────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wiz-tegel.on.net, .wiz-pil.on.net,
+  .wiz-rory-avatar.denkt, .wiz-rorybalk-punt.bezig,
+  .wiz-rory-thinking::after, .wiz-denkt .wiz-denkt-punt,
+  #wiz-rorybalk .wiz-lichtlijn, #wiz-next:disabled::after {
+    animation: none;
+  }
+  #wiz-rorybalk .wiz-lichtlijn { display: none; }
+  .wiz-tegel, .wiz-pil, .wiz-personakaart, .wiz-personarij, .wiz-format,
+  .wiz-basis-tegel, .iw2-optie, .wiz-btn, .wiz-step, .iw2-ingang {
+    transition: none;
+  }
+  .wiz-tegel:hover:not(.on), .wiz-pil:hover:not(.on), .iw2-ingang:hover { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET DONKERE ATELIER
+
+   De console draait de Daylight-skin: alle tokens worden op :root naar licht
+   omgezet, en de wizard erfde dat braaf mee. De referentie is het omgekeerde:
+   de Static Ad Generator is één donkere goudwerkbank, wat het thema van de
+   console eromheen ook is.
+
+   Dus krijgt de wizard-subtree zijn eigen tokens. Custom properties op de
+   scope winnen voor alles eronder van :root, ongeacht laadvolgorde — dit is
+   geen gevecht met !important maar gewoon de cascade. Alles wat al op tokens
+   gebouwd is (en dat is de hele wizard) wordt hiermee in één klap donker.
+
+   De goudwaarden zijn hier die van de referentie: warmer en helderder dan het
+   merk-goud van de lichte console, omdat goud op zwart meer licht nodig heeft
+   om hetzelfde te zeggen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#wiz-inline, .wiz-inline {
+  /* Vlakken: bijna-zwart met warmte, drie duidelijke lagen. */
+  --bg:           #080706;
+  --bg-elevated:  #0d0b09;
+  --glass:        rgba(24, 21, 16, 0.72);
+  --glass-2:      rgba(32, 27, 20, 0.62);
+  --glass-hover:  rgba(42, 35, 25, 0.7);
+
+  /* Lijnen: licht op donker. */
+  --hairline:        rgba(255, 246, 228, 0.07);
+  --hairline-strong: rgba(255, 246, 228, 0.13);
+
+  /* Goud: het spectrum van de referentie. */
+  --gold-rgb:     232, 186, 90;
+  --gold:         #e8ba5a;
+  --gold-bright:  #ffd98a;
+  --gold-deep:    #9a7428;
+  --gold-glow:    rgba(232, 186, 90, 0.20);
+  --gold-haze:    rgba(232, 186, 90, 0.07);
+  --gold-line:        rgba(232, 186, 90, 0.26);
+  --gold-line-strong: rgba(232, 186, 90, 0.55);
+
+  /* Inkt op donker. */
+  --text:       #f6efe1;
+  --text-soft:  #bdb19c;
+  --text-faint: #83786a;
+
+  color: var(--text);
+}
+
+/* Het Statics-scherm zelf wordt de donkere werkvloer zolang de wizard draait:
+   het paneel op een crèmekleurige pagina is een donker venster in een lichte
+   kamer, en de referentie is de kamer zelf. */
+#main-tab-generator.wiz-volscherm {
+  background:
+    radial-gradient(65% 38% at 50% 0%, rgba(232, 186, 90, 0.06) 0%, transparent 60%),
+    #080706;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* De randen van de werkbank: goudzweem in plaats van grijs. */
+#wiz-inline .wiz-paneel { border-color: rgba(232, 186, 90, 0.16); }
+#wiz-inline .wiz-rory {
+  border-color: rgba(232, 186, 90, 0.16);
+  background:
+    radial-gradient(80% 30% at 50% 0%, rgba(232, 186, 90, 0.05) 0%, transparent 60%),
+    rgba(20, 17, 13, 0.85);
+}
+
+/* ── De adviesregel als energieregel ─────────────────────────────────────
+   In de referentie is dit de donkere balk met de sprankel en de lichtlijn. */
+#wiz-inline .wiz-rorybalk {
+  background: linear-gradient(90deg, rgba(232, 186, 90, 0.10) 0%, rgba(232, 186, 90, 0.03) 55%, transparent 100%);
+  border-bottom: 1px solid rgba(232, 186, 90, 0.14);
+  color: var(--text);
+}
+#wiz-inline .wiz-rorybalk-punt {
+  box-shadow: 0 0 8px rgba(232, 186, 90, 0.6);
+}
+
+/* ── Rory zoals in de referentie ─────────────────────────────────────────
+   Gouden ring om de avatar, gouden sectielabels, en de bewijslijst als
+   vinkjes in plaats van bolletjes. */
+#wiz-inline .wiz-rory-avatar {
+  box-shadow: 0 0 0 2px rgba(232, 186, 90, 0.35), 0 0 14px rgba(232, 186, 90, 0.25);
+}
+#wiz-inline .wiz-rory-lbl { color: var(--gold); }
+#wiz-inline .wiz-rory-ev ul { list-style: none; padding-left: 0; }
+#wiz-inline .wiz-rory-ev li {
+  position: relative; padding-left: 24px; margin-bottom: 7px;
+  color: var(--text-soft); font-size: 12px; line-height: 1.5;
+}
+#wiz-inline .wiz-rory-ev li::before {
+  content: '✓';
+  position: absolute; left: 0; top: 1px;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(232, 186, 90, 0.16); color: var(--gold);
+  font-size: 9px; font-weight: 700;
+}
+
+/* Invoer op de donkere werkbank.
+   De Daylight-skin zet !important op elk formulierveld ("background: #fff"),
+   dus zonder gelijke kracht blijft elk typevak een lichtbak in het donker.
+   Binnen deze scope, en alleen hier, kaatsen we dat terug. */
+#wiz-inline input[type="text"], #wiz-inline input[type="number"],
+#wiz-inline input[type="search"], #wiz-inline input[type="url"],
+#wiz-inline select, #wiz-inline textarea {
+  background: rgba(255, 250, 238, 0.05) !important;
+  border: 1px solid var(--hairline-strong) !important;
+  color: var(--text) !important;
+}
+#wiz-inline input::placeholder, #wiz-inline textarea::placeholder {
+  color: var(--text-faint) !important;
+}
+#wiz-inline input:focus, #wiz-inline select:focus, #wiz-inline textarea:focus {
+  background: rgba(232, 186, 90, 0.06) !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(232, 186, 90, 0.16) !important;
+}
+#wiz-inline .wiz-veld select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%),
+                    linear-gradient(135deg, var(--gold) 50%, transparent 50%) !important;
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* De stappenbalk op donker: de nummers als bolletjes uit de referentie. */
+#wiz-inline .wiz-step-num { background: rgba(255, 246, 228, 0.08); color: var(--text-soft); }
+#wiz-inline .wiz-step.on .wiz-step-num { background: var(--gold); color: #1a1408; box-shadow: 0 0 10px rgba(232, 186, 90, 0.45); }
+#wiz-inline .wiz-step.done .wiz-step-num { background: rgba(232, 186, 90, 0.18); color: var(--gold); }
+
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .wiz-step.on .wiz-step-num { box-shadow: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAP 2 T/M 9 — dezelfde vier betekenissen op de stap-eigen kaarten
+
+   De donkere tokenscope en de gedeelde onderdelen (tegels, pillen, selects,
+   stappenbalk, Rory, knoppen) golden al voor elke stap. Wat hier bijkomt zijn
+   de kaartsoorten die maar op één stap bestaan: de conceptkaarten (8), de
+   variatiekaarten en de passkeuze (9), en de scorekaartknoppen. Geen nieuwe
+   keyframes — dezelfde primitieven, gedragen door meer elementen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wiz-concept, .wiz-take, .wiz-passknop, .wiz-tweakknop, .wiz-basis-gekozen {
+  transition: border-color var(--wg-t-snel) var(--wg-ease),
+              background var(--wg-t-snel) var(--wg-ease),
+              box-shadow var(--wg-t-keuze) var(--wg-ease),
+              transform var(--wg-t-snel) var(--wg-ease);
+}
+.wiz-concept:hover:not(.on), .wiz-take:hover:not(.on),
+.wiz-passknop:hover:not(.on), .wiz-tweakknop:hover:not(.on) {
+  border-color: var(--gold-line-strong);
+  box-shadow: var(--wg-gloed-zacht);
+  transform: translateY(-1px);
+}
+.wiz-concept.on, .wiz-take.on, .wiz-passknop.on {
+  border-color: var(--gold);
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(var(--gold-rgb), 0.08) 0%, transparent 70%),
+    var(--gold-haze);
+  box-shadow: var(--wg-gloed-aan);
+}
+
+/* Een beeld dat gemaakt wordt: de lichtveeg over het lege vak, dezelfde als op
+   de knop. Het vak is niet leeg, er wordt aan gewerkt, en dat hoort te zien. */
+.wiz-final-preview:has(.wiz-take-leeg) { position: relative; overflow: hidden; }
+.wiz-take .wiz-final-preview::after { content: none; }
+.wiz-take:has(.wiz-take-leeg) .wiz-final-preview::after {
+  content: '';
+  position: absolute; top: 0; bottom: 0; left: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(var(--gold-rgb), 0.07), transparent);
+  animation: wgShimmer 1.6s var(--wg-ease) infinite;
+  pointer-events: none;
+}
+
+/* De scorekaart: het oordeel verschijnt met gewicht, niet met een knal. */
+.wiz-score-verdict { border-left-width: 3px; }
+.wiz-score-rij { transition: background var(--wg-t-snel) var(--wg-ease); }
+.wiz-score-rij:hover { background: rgba(var(--gold-rgb), 0.04); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wiz-concept, .wiz-take, .wiz-passknop, .wiz-tweakknop { transition: none; }
+  .wiz-concept:hover:not(.on), .wiz-take:hover:not(.on),
+  .wiz-passknop:hover:not(.on), .wiz-tweakknop:hover:not(.on) { transform: none; }
+  .wiz-take:has(.wiz-take-leeg) .wiz-final-preview::after { animation: none; content: none; }
+}
+
+/* ── Rory's gezicht ───────────────────────────────────────────────────────
+   Een gegenereerd, fictief portret (img/rory.jpg). De foto vult de cirkel;
+   de letter R eronder is de fallback en verschijnt alleen als de foto er niet
+   is -- onerror haalt de img dan weg. */
+.wiz-rory-avatar, .iw2-avatar, .iw2-ingang-i { position: relative; overflow: hidden; }
+.wiz-rory-avatar img, .iw2-avatar img, .iw2-ingang-i img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 50%;
+}
+.wiz-rory-avatar i, .iw2-avatar i, .iw2-ingang-i i { font-style: normal; }
+
+/* ── De mismatch-waarschuwing bij de bestemming ─────────────────────────────
+   Geen rode alarmkleur: dit blokkeert niets en is soms een bewuste keuze
+   (er is maar één pagina). Wel een zichtbare rand, want stil laten staan is
+   precies hoe de fout blijft zitten. */
+#wiz-inline .wiz-waarschuwing {
+  margin: 8px 0 0; padding: 9px 11px;
+  background: rgba(var(--gold-rgb), .07);
+  border-left: 2px solid rgba(var(--gold-rgb), .5);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-soft); font-size: 12px; line-height: 1.5;
+}
+
+/* ── Bestemmingspaneel op de laatste stap ──────────────────────────────────
+   Rustig als de keuze past, met een gouden rand als hij dat niet doet. Geen
+   alarmrood: het blokkeert niets, het hoort alleen niet ongemerkt te blijven
+   staan. */
+#wiz-inline .wiz-bestemming {
+  margin: 10px 0 16px; padding: 12px 14px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  border-radius: 10px;
+}
+#wiz-inline .wiz-bestemming.mismatch { border-color: rgba(var(--gold-rgb), .45); }
+#wiz-inline .wiz-bestemming.leeg { background: transparent; color: var(--text-faint); font-size: 12px; }
+#wiz-inline .wiz-best-kop {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 5px;
+}
+#wiz-inline .wiz-bestemming p {
+  margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-soft);
+}
+#wiz-inline .wiz-bestemming .wiz-linkbtn { margin-top: 7px; }
+
+/* ── De denkbalk in het interview ──────────────────────────────────────────
+   Een aanroep naar het model duurt soms tientallen seconden. Zonder iets dat
+   beweegt is dat niet te onderscheiden van een stuk scherm, en dan klik je
+   nog een keer, of je gaat weg. Vandaar een balk die loopt zolang er gewerkt
+   wordt, met erbij WAT er gebeurt.
+
+   De balk is bewust onbepaald (hij loopt heen en weer, hij vult niet op naar
+   100%): we weten niet hoe lang het duurt, en een voortgangsbalk die dat
+   suggereert liegt. */
+#wiz-inline .iw2-bezig {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 16px; padding: 10px 13px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  border-radius: 9px;
+}
+#wiz-inline .iw2-bezig-balk {
+  flex: 0 0 84px; height: 3px; border-radius: 99px; overflow: hidden;
+  background: rgba(var(--gold-rgb), .14);
+}
+#wiz-inline .iw2-bezig-balk span {
+  display: block; width: 40%; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation: iw2Loopt 1.25s var(--wg-ease, cubic-bezier(.4, 0, .2, 1)) infinite;
+}
+@keyframes iw2Loopt {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+#wiz-inline .iw2-bezig-tekst {
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.4;
+}
+/* Wie beweging heeft uitgezet krijgt geen loopbalk maar een rustige puls:
+   de melding moet blijven, alleen niet als beweging. */
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .iw2-bezig-balk span {
+    animation: none; width: 100%;
+    background: rgba(var(--gold-rgb), .5);
+  }
+}
+
+/* ── Referentiebeelden op stap 1 ───────────────────────────────────────────
+   Het beeld is het halve werk, dus je hoort voor het genereren te zien waar
+   hij vandaan tekent. Een uitgezette referentie blijft staan maar dooft: weg
+   halen zou de indruk wekken dat hij er niet meer is. */
+#wiz-inline .wiz-refs {
+  margin-top: 18px; padding: 14px 15px;
+  background: rgba(var(--gold-rgb), .04);
+  border: 1px solid rgba(var(--gold-rgb), .14);
+  border-radius: 11px;
+}
+#wiz-inline .wiz-refs-kop {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--gold); font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+#wiz-inline .wiz-refs-telling { color: var(--text-faint); letter-spacing: .04em; }
+#wiz-inline .wiz-refs-uitleg,
+#wiz-inline .wiz-refs-leeg {
+  margin: 7px 0 12px; font-size: 12px; line-height: 1.5; color: var(--text-soft);
+}
+#wiz-inline .wiz-refs-bak + .wiz-refs-bak { margin-top: 12px; }
+#wiz-inline .wiz-refs-baknaam {
+  font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+#wiz-inline .wiz-refs-rij { display: flex; flex-wrap: wrap; gap: 8px; }
+
+#wiz-inline .wiz-ref {
+  position: relative; width: 64px; height: 64px; padding: 0;
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+  border: 1px solid rgba(var(--gold-rgb), .18);
+  background: rgba(0, 0, 0, .3);
+  transition: border-color var(--wg-t-snel, 150ms) ease, opacity var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Uit: gedimd en ontkleurd, zodat je in een oogopslag ziet wat er niet meedoet. */
+#wiz-inline .wiz-ref:not(.aan) img { opacity: .3; filter: grayscale(1); }
+#wiz-inline .wiz-ref.aan { border-color: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-ref:hover { border-color: var(--gold); }
+#wiz-inline .wiz-ref-vink {
+  position: absolute; right: 3px; bottom: 3px;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1;
+  background: var(--gold); color: #14100a;
+}
+#wiz-inline .wiz-ref:not(.aan) .wiz-ref-vink { background: rgba(255, 255, 255, .16); }
+#wiz-inline .wiz-ref.eigen { cursor: default; }
+#wiz-inline .wiz-ref-weg {
+  position: absolute; right: 2px; top: 2px;
+  width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, .68); color: var(--text);
+  font-size: 12px; line-height: 1; cursor: pointer;
+}
+#wiz-inline .wiz-ref-weg:hover { background: rgba(180, 60, 40, .85); }
+
+#wiz-inline .wiz-refdrop {
+  width: 64px; height: 64px; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; text-align: center;
+  border: 1px dashed rgba(var(--gold-rgb), .32);
+  background: rgba(var(--gold-rgb), .03);
+  color: var(--text-faint);
+  transition: border-color var(--wg-t-snel, 150ms) ease, background var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-refdrop:hover,
+#wiz-inline .wiz-refdrop.over {
+  border-color: var(--gold); background: rgba(var(--gold-rgb), .1); color: var(--gold);
+}
+#wiz-inline .wiz-refdrop-plus { font-size: 15px; line-height: 1; }
+#wiz-inline .wiz-refdrop-tekst { font-size: 8.5px; line-height: 1.25; letter-spacing: .02em; }
+
+/* ── De vraag om een foto van de mens in beeld ─────────────────────────────
+   Dit blok is geen instelling maar een vraag, en hij verschijnt op het moment
+   dat je "de founder" of "een model" kiest. Vandaar een gouden rand in plaats
+   van de rustige rand van het productpaneel: er wordt iets van je gevraagd. */
+#wiz-inline .wiz-refs-persoon {
+  border-color: rgba(var(--gold-rgb), .34);
+  background: rgba(var(--gold-rgb), .06);
+  margin-top: 14px;
+}
+#wiz-inline .wiz-refdrop.groot { width: 92px; height: 92px; }
+#wiz-inline .wiz-refs-persoon .wiz-ref { width: 92px; height: 92px; }
+@media (prefers-reduced-motion: no-preference) {
+  #wiz-inline .wiz-refs-persoon { animation: wgSettle var(--wg-t-stap, 320ms) var(--wg-ease, ease); }
+}
+
+/* ── Een melding met een uitweg ────────────────────────────────────────────
+   Een waarschuwing die alleen constateert, klik je weg. Deze noemt per leeg
+   veld een knop die je erheen brengt en het veld aanwijst, want jij weet het
+   antwoord en de generator gaat anders gokken. */
+#wiz-inline .wiz-warn-t { margin-bottom: 9px; }
+#wiz-inline .wiz-warn-knoppen { display: flex; flex-wrap: wrap; gap: 7px; }
+#wiz-inline .wiz-rory-error { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+
+/* Het veld waar een knop je net heen bracht, kort gemarkeerd. Zonder dit kom
+   je op de goede stap aan en zoek je alsnog welk van de acht velden het was. */
+#wiz-inline .wiz-aangewezen {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(var(--gold-rgb), .18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  #wiz-inline .wiz-aangewezen { animation: wgAdem 1.1s var(--wg-ease, ease) 2; }
+}
+
+/* ── De werkpersona ────────────────────────────────────────────────────────
+   Afgeleid uit productdata, niet uit interviews. Dat verschil zit in de
+   opmaak en niet alleen in een veld: hij mag bruikbaar zijn zonder dat hij
+   over een half jaar wordt aangezien voor iemand die daadwerkelijk gesproken
+   is. Vandaar de stippelrand, dezelfde taal als een afgeleide waarde in de
+   scorekaart. */
+#wiz-inline .wiz-pxbouw {
+  margin-top: 14px; padding: 13px 14px;
+  border: 1px dashed rgba(var(--gold-rgb), .3);
+  border-radius: 11px;
+  background: rgba(var(--gold-rgb), .035);
+}
+#wiz-inline .wiz-pxbouw.met { border-style: solid; border-color: rgba(var(--gold-rgb), .22); }
+#wiz-inline .wiz-pxbouw-kop {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--gold); font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+#wiz-inline .wiz-pxbouw-merk,
+#wiz-inline .wiz-pxmerk {
+  font-size: 9px; letter-spacing: .06em; color: var(--text-faint);
+  text-transform: none; font-family: inherit;
+}
+#wiz-inline .wiz-pxmerk {
+  margin-left: 8px; padding: 2px 7px; border-radius: 99px;
+  border: 1px dashed rgba(var(--gold-rgb), .35);
+}
+#wiz-inline .wiz-pxbouw-uitleg {
+  margin: 7px 0 11px; font-size: 12px; line-height: 1.55; color: var(--text-soft);
+}
+#wiz-inline .wiz-pxbouw-fout { margin: 9px 0 0; font-size: 12px; color: #d9714f; }
+#wiz-inline .wiz-pxkaart {
+  margin: 10px 0; padding: 12px 13px; border-radius: 10px;
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid rgba(var(--gold-rgb), .14);
+}
+#wiz-inline .wiz-pxkaart.on { border-color: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-pxnaam { font-size: 14px; color: var(--gold); margin-bottom: 5px; }
+#wiz-inline .wiz-pxdesc { font-size: 12.5px; line-height: 1.55; color: var(--text-soft); }
+#wiz-inline .wiz-pxblok { margin-top: 9px; }
+#wiz-inline .wiz-pxblok-k {
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint);
+}
+#wiz-inline .wiz-pxblok ul { margin: 3px 0 0; padding-left: 16px; }
+#wiz-inline .wiz-pxblok li { font-size: 12px; line-height: 1.5; color: var(--text-soft); }
+#wiz-inline .wiz-pxonzeker {
+  margin-top: 10px; padding-top: 9px; font-size: 12px; line-height: 1.5;
+  border-top: 1px solid rgba(var(--gold-rgb), .12); color: var(--text-faint);
+}
+#wiz-inline .wiz-pxonzeker strong { color: var(--text-soft); }
+#wiz-inline .wiz-pxknoppen { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+#wiz-inline .wiz-pxinuse {
+  font-size: 11px; color: var(--gold); padding: 4px 10px;
+  border: 1px solid rgba(var(--gold-rgb), .4); border-radius: 99px;
+}
+
+/* De laadstatus op een conceptkaart. Zonder deze toestand stond er "no
+   preview yet" terwijl er een beeld werd gemaakt, en veegde elke herteken de
+   status weg die de beeldgenerator er zelf in had gezet. */
+#wiz-inline .wiz-concept-bezig {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 9px; width: 100%; height: 100%;
+  color: var(--text-faint); font-size: 11.5px; letter-spacing: .02em;
+}
+#wiz-inline .wiz-concept-spin {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(var(--gold-rgb), .2);
+  border-top-color: var(--gold);
+  animation: wizConceptDraait .85s linear infinite;
+}
+@keyframes wizConceptDraait { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #wiz-inline .wiz-concept-spin { animation: none; border-top-color: rgba(var(--gold-rgb), .5); }
+}
+
+/* ── De lopende bewerking op een variatie ──────────────────────────────────
+   Onder het beeld en niet erin: je wilt het huidige beeld naast de uitkomst
+   kunnen leggen, en een laadvlak eroverheen neemt je precies dat af. */
+#wiz-inline .wiz-take-bewerkt {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding: 7px 10px; border-radius: 8px;
+  background: rgba(var(--gold-rgb), .07);
+  border: 1px solid rgba(var(--gold-rgb), .2);
+  font-size: 11.5px; color: var(--text-soft);
+}
+#wiz-inline .wiz-final-preview.bewerkt { outline: 1px solid rgba(var(--gold-rgb), .35); }
+
+/* Het fotovak in het bewerkpaneel: laten zien in plaats van beschrijven. */
+#wiz-inline .wiz-tweakfotos { margin-top: 11px; }
+#wiz-inline .wiz-tweakfotos-k {
+  font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 6px;
+}
+#wiz-inline .wiz-tweakfotos-rij { display: flex; flex-wrap: wrap; gap: 7px; }
+
+/* ── Een beeld op ware grootte ─────────────────────────────────────────────
+   De kaarten zijn een paar honderd pixels breed, en daarop kun je niet zien
+   of de tekst binnen de marge valt of het gezicht klopt. Klikken vergroot.
+   Bewust zonder zoom of galerij: dit is om te kijken voordat je verder gaat,
+   niet om in te werken. */
+.wiz-loep {
+  position: fixed; inset: 0; z-index: 999998;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; padding: 32px;
+  background: rgba(0, 0, 0, .86);
+  opacity: 0; transition: opacity 180ms ease;
+  cursor: zoom-out;
+}
+.wiz-loep.open { opacity: 1; }
+.wiz-loep img {
+  max-width: min(94vw, 1100px); max-height: 84vh;
+  object-fit: contain; border-radius: 10px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .7);
+  cursor: default;
+}
+.wiz-loep-bij {
+  font-size: 13px; color: var(--text-soft, #bdb19c); text-align: center;
+  max-width: 70ch; line-height: 1.5;
+}
+.wiz-loep-sluit {
+  position: absolute; top: 16px; right: 20px;
+  width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(0, 0, 0, .45); color: #fff;
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.wiz-loep-sluit:hover { background: rgba(255, 255, 255, .14); }
+/* Het beeldvak zelf laat zien dat er iets te vergroten valt. */
+#wiz-inline .wiz-concept-preview:has(img),
+#wiz-inline .wiz-final-preview:has(img) { cursor: zoom-in; }
+@media (prefers-reduced-motion: reduce) { .wiz-loep { transition: none; } }
+
+/* ── De nieuws- en artikelstijl op stap 5 ──────────────────────────────────
+   "Nieuwsstijl" is zes verschillende beelden, en het verschil zit in de
+   typografie en in wat er NIET op mag. Vandaar dat het archetype hier als
+   kaartje staat met zijn eigen samenvatting erbij: een keuzelijst zou zes
+   namen tonen waar je niets aan hebt zonder de anatomie erachter.
+
+   De afzender staat eronder in een eigen vak, want dat is het enige veld in
+   dit formaat waar het werkelijk misgaat -- niet in de kop. */
+#wiz-inline .wiz-nieuws { border-color: rgba(var(--gold-rgb), .26); }
+#wiz-inline .wiz-nieuwsrij {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+#wiz-inline .wiz-nieuwskaart {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 9px 10px; text-align: left; cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--gold-rgb), .16);
+  background: rgba(0, 0, 0, .22);
+  transition: border-color var(--wg-t-snel, 150ms) ease, background var(--wg-t-snel, 150ms) ease;
+}
+#wiz-inline .wiz-nieuwskaart:hover { border-color: rgba(var(--gold-rgb), .5); }
+#wiz-inline .wiz-nieuwskaart.aan {
+  border-color: var(--gold); background: rgba(var(--gold-rgb), .1);
+}
+#wiz-inline .wiz-nieuwskaart-t {
+  font-size: 12px; color: var(--text); line-height: 1.3;
+}
+#wiz-inline .wiz-nieuwskaart.aan .wiz-nieuwskaart-t { color: var(--gold); }
+#wiz-inline .wiz-nieuwskaart-k {
+  font-size: 10.5px; line-height: 1.45; color: var(--text-faint);
+}
+
+#wiz-inline .wiz-nieuwsuit {
+  margin-top: 11px; padding: 11px 12px; border-radius: 9px;
+  background: rgba(0, 0, 0, .24);
+  border: 1px solid rgba(var(--gold-rgb), .1);
+}
+#wiz-inline .wiz-nieuwsuit-r { font-size: 11.5px; line-height: 1.55; color: var(--text-soft); }
+#wiz-inline .wiz-nieuwsuit-r + .wiz-nieuwsuit-r { margin-top: 8px; }
+#wiz-inline .wiz-nieuwsuit-r em {
+  display: block; font-style: normal;
+  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-faint); margin-bottom: 3px;
+}
+#wiz-inline .wiz-nieuwsuit-r ul { margin: 0; padding-left: 16px; }
+#wiz-inline .wiz-nieuwsuit-r li { margin: 2px 0; }
+
+#wiz-inline .wiz-nieuwsbron {
+  margin-top: 11px; padding: 11px 12px; border-radius: 9px;
+  background: rgba(var(--gold-rgb), .05);
+  border: 1px solid rgba(var(--gold-rgb), .18);
+}
+/* Nog niet vastgesteld: een aandachtsrand, geen foutmelding. Er is niets
+   kapot, er is iets nog niet besloten -- en zolang dat zo is blijft de
+   mastheadpositie leeg, wat een geldige uitkomst is. */
+#wiz-inline .wiz-nieuwsbron.leeg { border-color: rgba(200, 150, 60, .4); }
+#wiz-inline .wiz-nieuwsbron label {
+  display: block; font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px;
+}
+#wiz-inline .wiz-nieuwsbron select { width: 100%; }
+#wiz-inline .wiz-nieuwsbron-u {
+  margin: 7px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-faint);
+}
+
+/* ── De voorbeeldweergave bij de nieuwsstijl-archetypes ───────────────────
+   De schets staat bovenaan de kaart en krijgt de meeste ruimte: hij is de
+   reden dat de kaart bestaat. De naam eronder bevestigt wat je al ziet.
+
+   De schets is opzettelijk grafisch en niet fotografisch. Hij liegt niet over
+   wat hij is -- een indeling, geen advertentie -- en dat is precies wat je op
+   dit moment moet kiezen. Een echt voorbeeld vervangt hem zodra er een is. */
+#wiz-inline .wiz-nieuwsbeeld {
+  display: block; width: 100%; aspect-ratio: 100 / 114; overflow: hidden;
+  border-radius: 5px; background: #100e0b;
+  border: 1px solid rgba(var(--gold-rgb), .12); margin-bottom: 6px;
+}
+#wiz-inline .wiz-nieuwsbeeld svg { width: 100%; height: 100%; display: block; }
+#wiz-inline .wiz-nieuwsbeeld img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Een echt voorbeeld krijgt een eigen rand: je moet kunnen zien of je naar een
+   schets kijkt of naar iets wat werkelijk gedraaid heeft. */
+#wiz-inline .wiz-nieuwsbeeld.echt { border-color: rgba(var(--gold-rgb), .45); }
+
+/* De onderdelen van de schets. Bewust een beperkt palet: dit is een plattegrond
+   en geen plaatje, dus grijswaarden plus één goudtoon voor wat opvalt. */
+#wiz-inline .wiz-nieuwsbeeld .s-kop    { fill: #ddd8cc; }
+#wiz-inline .wiz-nieuwsbeeld .s-lijn   { fill: #6b6455; }
+#wiz-inline .wiz-nieuwsbeeld .s-zacht  { fill: #4c4739; }
+#wiz-inline .wiz-nieuwsbeeld .s-vlak   { fill: rgba(var(--gold-rgb), .75); }
+#wiz-inline .wiz-nieuwsbeeld .s-streep { stroke: #6b6455; stroke-width: 1; }
+#wiz-inline .wiz-nieuwsbeeld .s-foto   { fill: #37332b; }
+#wiz-inline .wiz-nieuwsbeeld .s-grond  { fill: #24211b; }
+#wiz-inline .wiz-nieuwsbeeld .s-hard   { fill: #4a4438; }
+#wiz-inline .wiz-nieuwsbeeld .s-ding   { fill: #554f42; }
+#wiz-inline .wiz-nieuwsbeeld .s-label  { fill: #ddd8cc; }
+#wiz-inline .wiz-nieuwsbeeld .s-knop   { fill: rgba(var(--gold-rgb), .55); }
+#wiz-inline .wiz-nieuwsbeeld .s-cirkel {
+  fill: none; stroke: rgba(var(--gold-rgb), .95); stroke-width: 2;
+}
+
+#wiz-inline .wiz-nieuwsvb { color: var(--text-faint); }
+#wiz-inline .wiz-nieuwsvb-k {
+  background: none; border: none; padding: 0; margin-left: 2px;
+  color: var(--gold); font-size: inherit; text-decoration: underline; cursor: pointer;
+}
+#wiz-inline .wiz-nieuwsvb-k:hover { color: var(--gold-bright); }
+
+
+/* ── De herkomstregel: afgekeken bij een ander ─────────────────────────────
+   Niet jouw keuze en niet Rory's advies, maar overgenomen uit Creative
+   Research. Dat is een derde soort herkomst en die hoort zichtbaar te zijn
+   zolang hij meegaat. */
+.wiz-onderzoek {
+  position: relative; display: none; margin: 0 0 2px;
+  padding: 11px 40px 12px 18px;
+  border-bottom: 1px solid rgba(var(--gold-rgb), .18);
+  background: rgba(var(--gold-rgb), .05);
+}
+.wiz-onderzoek-kop { font-size: 11.5px; color: var(--gold-bright); margin-bottom: 3px; }
+.wiz-onderzoek-tekst { font-size: 11.5px; color: var(--text-faint); line-height: 1.55; }
+.wiz-onderzoek-weg {
+  position: absolute; top: 8px; right: 10px; width: 22px; height: 22px;
+  border: none; background: none; color: var(--text-faint); cursor: pointer; font-size: 15px;
+}
+.wiz-onderzoek-weg:hover { color: var(--gold-bright); }

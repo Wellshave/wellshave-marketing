@@ -1,0 +1,34 @@
+# De previewworker: dezelfde code, een ander adres.
+#
+# Waarom hij bestaat: er is één worker en de console praat er altijd mee, ook
+# vanaf een deploy-preview. Elke workerwijziging was daarmee meteen live voor
+# iedereen -- of hij moest met de hand geplakt worden. Deze tweede worker vangt
+# dat op: de branch rolt hierheen uit, de deploy-preview van de console praat
+# hiermee, en marketing-ads blijft staan tot we samenvoegen.
+#
+#   npx wrangler deploy --config platform/worker/wrangler.preview.toml
+#
+# Secrets: hij heeft er maar TWEE nodig. SLEUTEL_MASTER en SUPABASE_SERVICE_KEY;
+# de rest (Anthropic, OpenAI, Meta, Atria, TrendTrack) leest hij versleuteld uit
+# dezelfde database als de echte worker.
+#   npx wrangler secret put SLEUTEL_MASTER      --config platform/worker/wrangler.preview.toml
+#   npx wrangler secret put SUPABASE_SERVICE_KEY --config platform/worker/wrangler.preview.toml
+
+name = "marketing-ads-preview"
+main = "marketing-os.worker.js"
+compatibility_date = "2026-07-28"
+workers_dev = true
+
+# GEEN [triggers]. Dat is niet vergeten maar het hele punt: twee workers die
+# elke vijf minuten dezelfde wachtrij afwerken publiceren alles twee keer. De
+# geplande lus hoort bij één worker en dat is de echte.
+#
+# En omdat een cron er ooit per ongeluk bij gezet kan worden, staat er een
+# tweede slot in de code zelf: met ROL = "preview" weigert de geplande lus te
+# draaien, ook als er wél een trigger op staat. Twee sloten, want dit is een
+# fout die je pas ziet als een klant twee keer dezelfde mail heeft.
+[vars]
+ROL = "preview"
+
+[observability]
+enabled = true

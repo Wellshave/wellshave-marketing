@@ -48,6 +48,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       Itereren
     </button>
+    <button class="ws-nav-item" id="main-tab-btn-research" onclick="switchMainTab('research')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      Creative Research
+    </button>
     <button class="ws-nav-item" id="main-tab-btn-transformer" onclick="switchMainTab('transformer')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
       Ad transformer
@@ -136,37 +140,6 @@
       <span class="chevron">▾</span>
     </div>
     <div class="settings-body">
-      <div class="settings-section vault-section">
-        <h4>Team API-keys <span class="label-hint">wachtwoord vereist</span></h4>
-        <div id="vault-locked">
-          <div class="field">
-            <label class="label">Wachtwoord</label>
-            <div class="pw-wrap">
-              <input type="password" id="vault-pw" placeholder="Wachtwoord" autocomplete="off" onkeydown="if(event.key==='Enter')unlockVault()">
-              <button type="button" class="pw-eye" id="vault-pw-eye" onclick="toggleVaultPw(this)" title="Toon of verberg wachtwoord" aria-label="Toon of verberg wachtwoord">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </div>
-          <button class="btn btn-small" onclick="unlockVault()">Ontgrendel</button>
-        </div>
-        <div id="vault-open" style="display:none;">
-          <div class="field">
-            <label class="label">ChatGPT / OpenAI</label>
-            <div class="vault-key" id="vault-openai"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('openai', this)">Kopieer</button>
-          </div>
-          <div class="field">
-            <label class="label">Claude / Anthropic</label>
-            <div class="vault-key" id="vault-anthropic"></div>
-            <button class="btn btn-small btn-ghost" onclick="copyVaultKey('anthropic', this)">Kopieer</button>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-            <button class="btn btn-small" onclick="useVaultKeys()">Vul deze keys in &amp; bewaar</button>
-            <button class="btn btn-small btn-ghost" onclick="lockVault()">Vergrendel</button>
-          </div>
-        </div>
-      </div>
       <div class="settings-section">
         <h4>Anthropic (concept-generatie)</h4>
         <div class="field">
@@ -176,7 +149,8 @@
         <div class="field">
           <label class="label">Model</label>
           <select id="anthropic-model">
-            <option value="claude-fable-5" selected>Fable 5 (default, nieuwste en slimste)</option>
+            <option value="claude-opus-5" selected>Opus 5 (default)</option>
+            <option value="claude-fable-5">Fable 5</option>
             <option value="claude-opus-4-8">Opus 4.8</option>
             <option value="claude-opus-4-7">Opus 4.7</option>
             <option value="claude-opus-4-6">Opus 4.6</option>
@@ -345,17 +319,31 @@
 
     <div class="iterate-options" id="iterate-options">
       <div class="copy-options-title">Iteratie-instellingen <span class="label-hint">alleen voor itereer-modus</span></div>
-      <div style="margin-top:12px;"><span class="label">Advertentiedata <span class="label-hint">vul handmatig in, of lees uit een dashboard-screenshot</span></span></div>
-      <div class="iterate-upload">
-        <button class="btn btn-small btn-ghost" type="button" id="iterate-extract-btn" onclick="document.getElementById('iterate-data-input').click()">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Lees uit screenshot
-        </button>
-        <input type="file" id="iterate-data-input" accept="image/*" style="display:none;" onchange="handleIterateDataUpload(event)">
-        <span class="iterate-upload-status" id="iterate-extract-status">upload een screenshot van Atria of Meta, Claude vult de velden</span>
+      <div id="iw-paneel"></div>
+
+      <!-- De terugval: het oude formulier. Het staat er nog omdat de koppeling
+           kan ontbreken -- geen sleutel, een account dat nog niet gekoppeld is,
+           of cijfers uit een bron die wij niet lezen. Het staat alleen in beeld
+           als je er zelf voor kiest, want twee invoerwegen tegelijk tonen is
+           hoe je twee verschillende cijfers in dezelfde prompt krijgt. -->
+      <div id="iterate-handmatig" style="display:none;">
+        <div style="margin-top:12px;"><span class="label">Advertentiedata <span class="label-hint">met de hand, of uit een dashboard-screenshot</span></span></div>
+        <div class="iterate-upload">
+          <button class="btn btn-small btn-ghost" type="button" id="iterate-extract-btn" onclick="document.getElementById('iterate-data-input').click()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Lees uit screenshot
+          </button>
+          <input type="file" id="iterate-data-input" accept="image/*" style="display:none;" onchange="handleIterateDataUpload(event)">
+          <span class="iterate-upload-status" id="iterate-extract-status">upload een screenshot van Atria of Meta, Claude vult de velden</span>
+        </div>
+        <div id="iterate-fields"></div>
+        <button class="btn btn-small" id="iterate-save-btn" type="button" onclick="saveIterateData()" style="margin:10px 0 4px;">Opslaan</button>
       </div>
-      <div id="iterate-fields"></div>
-      <button class="btn btn-small" id="iterate-save-btn" type="button" onclick="saveIterateData()" style="margin:10px 0 4px;">Opslaan</button>
+      <!-- Vanaf stap 3 van de wizard. Het werkblad werkte al en verandert
+           niet; wat verandert is dat het pas in beeld komt als de advertentie
+           gekozen en gelezen is. Eerder tonen levert een scherm op waar je aan
+           het onderste eind begint. -->
+      <div id="iterate-werkblad" style="display:none;">
       <button class="btn btn-small" id="iterate-analyze-btn" type="button" onclick="analyzeWinningAd()" style="margin-bottom:6px;">Analyseer deze ad</button>
       <div class="iterate-analysis" id="iterate-analysis" style="display:none;"></div>
       <div class="field form-full">
@@ -372,6 +360,7 @@
         </div>
       </div>
       <div class="copy-nonneg"><strong>Blijft altijd intact:</strong> het winnende mechaniek en de kernboodschap van je ad, plus de merkbasis (Nederlands, mat zwart met goud, product uit referentiefotos, Trustpilot, Clarity Test). Je test alleen de aangevinkte elementen.</div>
+      </div>
     </div>
 
     <div class="copy-options" id="copy-options">
@@ -399,26 +388,13 @@
       <div class="copy-nonneg"><strong>Wordt sowieso toegepast:</strong> het product komt exact uit de referentiefotos, taal is Nederlands, de huisstijl van het merk (mat zwart met goud) blijft, de Clarity Test geldt, en concurrent-merknamen, niet-kloppende claims en herkenbare gezichten uit de bron worden nooit overgenomen.</div>
     </div>
 
-    <!-- Static Ad Wizard: de weg voor een nieuwe static vanaf nul. Alleen
-         zichtbaar in scratch-modus; Kopieer ad en Itereren delen dit scherm en
-         hebben het klassieke formulier hieronder nodig. -->
-    <div class="wiz-launch scratch-only" id="wiz-launch" onclick="wizOpen()">
-      <div class="wiz-launch-icon">R</div>
-      <div>
-        <div class="wiz-launch-t">Build a static with Rory</div>
-        <div class="wiz-launch-s">Nine guided steps. Rory reads the product data, the customer research and what already ran, recommends a direction at every step and explains why. You stay in control of every choice.</div>
-      </div>
-      <div class="wiz-launch-cta" id="wiz-launch-cta">Start &rarr;</div>
-    </div>
+    <!-- De wizard wordt hier ingehangen: in Statics is hij het scherm. Er is
+         geen startkaart en geen uitklap naar het klassieke formulier meer --
+         een nieuwe static maak je via de negen stappen.
 
-    <!-- Het klassieke formulier. In scratch-modus staat het ingeklapt onder de
-         wizard; in Kopieer ad en Itereren is het het hele scherm en staat het
-         altijd open. -->
-    <div class="classic-toggle scratch-only" id="classic-toggle" onclick="toggleClassicForm()">
-      <span id="classic-toggle-label">Use the classic form instead</span>
-      <span class="classic-toggle-chev">▾</span>
-    </div>
-
+         Het formulier hieronder blijft bestaan voor Kopieer ad en Itereren:
+         die delen dit tabblad en draaien er wél op. In Statics komt het niet
+         in beeld. -->
     <div id="classic-form">
 
     <div class="iw-launch" onclick="iwOpen()">
@@ -1332,6 +1308,17 @@
   </div>
 
   <!-- AD TRANSFORMER TAB -->
+  <div id="main-tab-research" style="display:none;">
+    <div class="cr-wrap">
+      <div class="cr-intro">
+        <h2>Creative Research</h2>
+        <p>Wat draait er bij anderen al zo lang dat het geen toeval meer is. Je kiest er een uit,
+           leest het patroon eronder, en maakt daar onze versie van.</p>
+      </div>
+      <div id="cr-inhoud"></div>
+    </div>
+  </div>
+
   <div id="main-tab-transformer" style="display:none;">
     <div class="container" style="max-width:1120px;margin:0 auto;padding:0 32px;">
       <div class="proxy-guide-intro" style="margin-bottom:18px;">
@@ -1954,6 +1941,21 @@
 <script src="js/35-strategie.js"></script>
 <script src="js/36-tracker.js"></script>
 <script src="js/37-team.js"></script>
+<script src="js/44-team-specialisten.js"></script>
+<script src="js/45-wizard-braindump.js"></script>
+<script src="js/46-wizard-basisfoto.js"></script>
+<script src="js/47-wizard-bestemming.js"></script>
+<script src="js/48-nick-analyse.js"></script>
+<script src="js/49-wizard-referenties.js"></script>
+<script src="js/50-wizard-persona.js"></script>
+<script src="js/51-wizard-loep.js"></script>
+<script src="js/52-wizard-nieuwsstijl.js"></script>
+<script src="js/53-sleutelbeheer.js"></script>
+<script src="js/54-landingsbrief.js"></script>
+<script src="js/55-creative-dossier.js"></script>
+<script src="js/56-creative-research.js"></script>
+<script src="js/57-itereerwizard.js"></script>
+<script src="js/58-formaat-anatomie.js"></script>
 
 <!-- Static Ad Wizard: alleen voor het maken van een nieuwe static vanaf nul.
      Kopieer ad, Itereren en de Ad Transformer draaien onveranderd door op het
@@ -1963,6 +1965,8 @@
 <script src="js/39-wizard-rory.js"></script>
 <script src="js/40-wizard-steps.js"></script>
 <script src="js/41-wizard-output.js"></script>
+<script src="js/43-wizard-leer.js"></script>
+<script src="js/42-wizard-interview.js"></script>
 
 <link id="console-skin-2" rel="stylesheet" href="css/06-console-skin-2.css">
 
@@ -2089,6 +2093,8 @@
 <!-- Static Ad Wizard. Na de groepering, want de wizard staat in een eigen
      overlay en mag niet door de afstandscorrecties eronder geraakt worden. -->
 <link id="wizard-css" rel="stylesheet" href="css/23-wizard.css">
+<link rel="stylesheet" href="css/24-wizard-goud.css">
+<link rel="stylesheet" href="css/25-atelier-nacht.css">
 
 <script id="wg-v10-review" src="js/31-wg-v10-review.js"></script>
 

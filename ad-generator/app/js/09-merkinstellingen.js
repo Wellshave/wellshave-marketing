@@ -181,7 +181,7 @@ function toggleMobileNav() { document.body.classList.toggle('nav-open'); }
 function closeMobileNav() { document.body.classList.remove('nav-open'); }
 
 function switchMainTab(tab) {
-  if (window._userRole === 'guest' && ['generator','copy','iterate','transformer','copywriter','scriptwriter','brand','proxy'].indexOf(tab) !== -1) { tab = 'library'; }
+  if (window._userRole === 'guest' && ['generator','copy','iterate','transformer','copywriter','scriptwriter','brand','proxy','research'].indexOf(tab) !== -1) { tab = 'library'; }
   closeMobileNav();
   const genView = document.getElementById('main-tab-generator');
   const proxyView = document.getElementById('main-tab-proxy');
@@ -205,6 +205,8 @@ function switchMainTab(tab) {
   const scriptsBtn = document.getElementById('main-tab-btn-scripts');
   const creativesView = document.getElementById('main-tab-creatives');
   const creativesBtn = document.getElementById('main-tab-btn-creatives');
+  const researchView = document.getElementById('main-tab-research');
+  const researchBtn = document.getElementById('main-tab-btn-research');
   const transformerView = document.getElementById('main-tab-transformer');
   const transformerBtn = document.getElementById('main-tab-btn-transformer');
   const copywriterView = document.getElementById('main-tab-copywriter');
@@ -213,7 +215,7 @@ function switchMainTab(tab) {
   const scriptwriterBtn = document.getElementById('main-tab-btn-scriptwriter');
   const teamView = document.getElementById('main-tab-team');
   const teamBtn = document.getElementById('main-tab-btn-team');
-  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, teamBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [genBtn, copyBtn, iterBtn, libBtn, proxyBtn, sopBtn, changeBtn, personaLibBtn, productLibBtn, transformerBtn, copywriterBtn, scriptwriterBtn, brandBtn, scriptsBtn, creativesBtn, teamBtn, researchBtn].forEach(b => { if (b) b.classList.remove('active'); });
   if (genView) genView.style.display = 'none';
   if (proxyView) proxyView.style.display = 'none';
   if (libView) libView.style.display = 'none';
@@ -221,6 +223,7 @@ function switchMainTab(tab) {
   if (changeView) changeView.style.display = 'none';
   if (personaLibView) personaLibView.style.display = 'none';
   if (productLibView) productLibView.style.display = 'none';
+  if (researchView) researchView.style.display = 'none';
   if (transformerView) transformerView.style.display = 'none';
   if (copywriterView) copywriterView.style.display = 'none';
   if (scriptwriterView) scriptwriterView.style.display = 'none';
@@ -240,6 +243,7 @@ function switchMainTab(tab) {
     if (genView) genView.style.display = 'block';
     if (iterBtn) iterBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('iterate');
+    if (typeof renderItereerWizard === 'function') renderItereerWizard();
   } else if (tab === 'team') {
     if (teamView) teamView.style.display = 'block';
     if (teamBtn) teamBtn.classList.add('active');
@@ -264,6 +268,10 @@ function switchMainTab(tab) {
     if (productLibView) productLibView.style.display = 'block';
     if (productLibBtn) productLibBtn.classList.add('active');
     if (typeof renderProductLibrary === 'function') renderProductLibrary();
+  } else if (tab === 'research') {
+    if (researchView) researchView.style.display = 'block';
+    if (researchBtn) researchBtn.classList.add('active');
+    if (typeof renderCreativeResearch === 'function') renderCreativeResearch();
   } else if (tab === 'transformer') {
     if (transformerView) transformerView.style.display = 'block';
     if (transformerBtn) transformerBtn.classList.add('active');
@@ -296,7 +304,7 @@ function switchMainTab(tab) {
     if (genBtn) genBtn.classList.add('active');
     if (typeof setMode === 'function') setMode('scratch');
   }
-  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', team: 'Team' };
+  const titleMap = { dashboard: 'Dashboard', generator: 'Statics', copy: 'Kopieer ad', iterate: 'Itereren', library: 'Bibliotheek', proxy: 'Proxy uitleg', sop: 'Handboek', changelog: 'Wijzigingen', personas: "Persona's", products: 'Producten', transformer: 'Ad transformer', copywriter: 'Copywriter', scriptwriter: 'Scriptwriter', brand: 'Merk-instellingen', scripts: 'Scripts', creatives: 'Creative Strategy', team: 'Team', research: 'Creative Research' };
   const tEl = document.getElementById('ws-page-title');
   if (tEl) tEl.textContent = titleMap[tab] || 'Generator';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -523,6 +531,18 @@ function renderIterateFields() {
 }
 
 function collectIterateData() {
+  /* Is er een advertentie uit Atria of Meta gekozen, dan komen de cijfers
+     daarvandaan -- inclusief de funneldiagnose, die je met de hand niet kunt
+     invullen omdat hij tegen het accountgemiddelde gemeten wordt.
+
+     Uitdrukkelijk niet allebei: de invoervelden houden hun oude waarde, en die
+     mengen met verse cijfers levert twee verschillende getallen in dezelfde
+     prompt op. Dan is de diagnose van het model gebaseerd op een advertentie
+     die niet bestaat. */
+  if (typeof iwCijfertekst === 'function') {
+    var uitBron = iwCijfertekst();
+    if (uitBron) return uitBron;
+  }
   let adName = '';
   let period = '';
   const lines = [];
@@ -596,6 +616,16 @@ const ITERATE_ANALYSIS_TOOL = {
       funnel: { type: 'string' },
       hook_mechaniek: { type: 'string' },
       compositie: { type: 'string' },
+      /* De vier velden die het scherm laat zien maar die het gereedschap niet
+         kende. Ze stonden dus altijd leeg -- niet omdat het model ze niet kon
+         lezen, maar omdat er niets was om ze in te zetten. Ze zijn niet
+         verplicht: liever leeg dan ingevuld met wat er zou kunnen staan. */
+      persona: { type: 'string', description: 'wie wordt hier aangesproken, in een korte zin' },
+      angle: { type: 'string', description: 'de invalshoek, niet de headline' },
+      bewijs: { type: 'string', description: 'welke bewijsvorm de ad gebruikt (demonstratie, cijfer, getuige, autoriteit, voor-na, geen)' },
+      offer: { type: 'string', description: 'wat er precies wordt aangeboden' },
+      hoofdpersoon: { type: 'string', description: 'wie er in beeld is en in welke rol' },
+      narratief_perspectief: { type: 'string', description: 'vanuit wie het verhaal verteld wordt (eerste persoon, tweede persoon, merk, derde)' },
       headline_patroon: { type: 'string' },
       cta_aanpak: { type: 'string' },
       cijfer_diagnose: { type: 'string', description: 'funnel-analyse in 2 tot 4 zinnen met de concrete getallen erbij' },
@@ -606,7 +636,12 @@ const ITERATE_ANALYSIS_TOOL = {
       iteratie_hypotheses: { type: 'array', items: { type: 'string' } },
       waarom_werkt_dit: { type: 'array', items: { type: 'string' } },
       vasthouden: { type: 'array', items: { type: 'string' } },
-      veilig_te_testen: { type: 'array', items: { type: 'string' } }
+      veilig_te_testen: { type: 'array', items: { type: 'string' } },
+      /* De verwachting is geen sier maar de toets achteraf: zonder
+         opgeschreven verwachting is elke uitslag met terugwerkende kracht te
+         verklaren. Niet verplicht -- liever geen verwachting dan een
+         verzonnen belofte. */
+      verwachting: { type: 'string', description: 'wat je van deze iteraties verwacht en waaraan je dat afmeet, in 1 zin met het cijfer erbij dat zou moeten bewegen' }
     },
     required: ['cijfer_diagnose','aanbevolen_aanpak','creatieve_richting','aanbevolen_dimensies','iteratie_hypotheses']
   }
@@ -624,7 +659,10 @@ function applyRoryPlan(parsed) {
 async function analyzeWinningAd() {
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
-  if (!state.sourceAd) { toast('Upload eerst je winnende ad', true); return; }
+  /* Wat het model sowieso zou weigeren, gaat er niet heen. De reden staat bij
+     de knop, niet in een vak verderop. */
+  var bezwaar = iterBronBezwaar(state.sourceAd);
+  if (bezwaar) { iterMelding(bezwaar, 'fout'); toast(bezwaar, true); return; }
   const collected = collectIterateData(); const perfData = collected.text;
   const model = document.getElementById('anthropic-model').value;
   const box = document.getElementById('iterate-analysis');
@@ -632,11 +670,30 @@ async function analyzeWinningAd() {
   if (btn) { btn.disabled = true; btn.textContent = 'Bezig met analyseren...'; }
   if (box) { box.style.display = 'block'; box.innerHTML = '<div style="color:var(--text-faint);font-size:12px;">Theriot leest de ad en de cijfers...</div>'; }
   try {
-    const userText = 'Je bekijkt de bijgevoegde advertentie-afbeelding van een Wellshave-ad EN de cijfers eronder, en je trekt zelf een plan om deze ad te itereren. ' + (perfData ? ('Prestatiecijfers uit de advertentiebeheerder (Atria of Meta):\n' + perfData + '\n\n') : 'Er zijn geen cijfers meegegeven; baseer je dan op wat je in de ad ziet.\n\n') + 'Doe DRIE dingen.\n(1) BEKIJK DE FOTO: wat zien we, welke hook, headline, compositie, CTA en sfeer.\n(2) LEES DE CIJFERS ALS EEN FUNNEL en bepaal met de concrete getallen erbij waar het knelpunt zit: levering (impressies, CPM), hook en creatief (CTR, see-more of hold rate), klik-naar-ATC (landingspagina en offer-match), ATC-naar-purchase (checkout, prijs, vertrouwen). Voorbeeld-logica: hoge CTR maar lage klik-naar-ATC betekent dat het creatief werkt en je NIET de hook moet wisselen maar de pre-sell of landing-belofte; lage hold of see-more rate betekent dat de eerste frame of headline niet vasthoudt; een gezonde funnel met krappe CPA-marge vraagt om schaalbare variatie, niet om een nieuw mechaniek.\n(3) TREK JE EIGEN ITERATIEPLAN: bepaal welke dimensies je zou testen (kies UITSLUITEND uit deze lijst: hook, headline, opening, achtergrond, cta, sfeer, persona, format) en welke concrete iteraties je zou maken, elk gekoppeld aan de funnel-diagnose. Bepaal ook de creatieve richting: een concrete brief voor de iteraties die naadloos aansluit op de diagnose, klaar om in het richtingsveld te zetten.\nGeef je volledige analyse en plan terug via de tool iteratieplan. Vul alle relevante velden in; kies de testdimensies UITSLUITEND uit de toegestane lijst.';
+    /* Bij een videoadvertentie krijgt hij BEELDEN UIT DE VIDEO, niet de
+       thumbnail. Dat leek een detail en was het niet: Rory las de eerste frame
+       en beschreef daarna de hele advertentie alsof die stilstond -- compositie,
+       CTA, opbouw -- terwijl er zevenentwintig seconden bewegend beeld onder
+       zat waarin de hook, het bewijs en de afsluiting allemaal ergens anders
+       staan. Een analyse die er compleet uitziet en over iets anders gaat. */
+    const frames = (state.sourceAd.frames && state.sourceAd.frames.length)
+      ? state.sourceAd.frames : null;
+    const videoRegels = frames
+      ? 'Dit is een VIDEOadvertentie. Je krijgt ' + frames.length + ' stilstaande beelden uit die ' +
+        'video, in volgorde, op ' + frames.map(function (f) { return Math.round(f.t) + 's'; }).join(', ') + '. ' +
+        'Je hoort het geluid NIET en je ziet de beweging niet. Bij een video zit de hook in de ' +
+        'eerste seconden, het bewijs in het midden en de CTA op het eind -- lees ze dus als een ' +
+        'volgorde en niet als losse beelden. Kun je iets niet uit de beelden of de cijfers ' +
+        'aflezen, laat het veld dan leeg in plaats van op te schrijven wat er gezegd zou kunnen zijn.\n\n'
+      : '';
+    const userText = videoRegels + 'Je bekijkt de bijgevoegde advertentie-afbeelding van een Wellshave-ad EN de cijfers eronder, en je trekt zelf een plan om deze ad te itereren. ' + (perfData ? ('Prestatiecijfers uit de advertentiebeheerder (Atria of Meta):\n' + perfData + '\n\n') : 'Er zijn geen cijfers meegegeven; baseer je dan op wat je in de ad ziet.\n\n') + 'Doe DRIE dingen.\n(1) BEKIJK DE FOTO: wat zien we, welke hook, headline, compositie, CTA en sfeer.\n(2) LEES DE CIJFERS ALS EEN FUNNEL en bepaal met de concrete getallen erbij waar het knelpunt zit: levering (impressies, CPM), hook en creatief (CTR, see-more of hold rate), klik-naar-ATC (landingspagina en offer-match), ATC-naar-purchase (checkout, prijs, vertrouwen). Voorbeeld-logica: hoge CTR maar lage klik-naar-ATC betekent dat het creatief werkt en je NIET de hook moet wisselen maar de pre-sell of landing-belofte; lage hold of see-more rate betekent dat de eerste frame of headline niet vasthoudt; een gezonde funnel met krappe CPA-marge vraagt om schaalbare variatie, niet om een nieuw mechaniek.\n(3) TREK JE EIGEN ITERATIEPLAN: bepaal welke dimensies je zou testen (kies UITSLUITEND uit deze lijst: hook, headline, opening, achtergrond, cta, sfeer, persona, format) en welke concrete iteraties je zou maken, elk gekoppeld aan de funnel-diagnose. Bepaal ook de creatieve richting: een concrete brief voor de iteraties die naadloos aansluit op de diagnose, klaar om in het richtingsveld te zetten.\nGeef je volledige analyse en plan terug via de tool iteratieplan. Vul alle relevante velden in; kies de testdimensies UITSLUITEND uit de toegestane lijst.';
     const data = await fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model, max_tokens: 3000, system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(), tools: [ITERATE_ANALYSIS_TOOL], tool_choice: { type: 'tool', name: 'iteratieplan' }, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userText } ] }] })
+      body: JSON.stringify({ model, max_tokens: 3000, system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(), tools: [ITERATE_ANALYSIS_TOOL], tool_choice: { type: 'tool', name: 'iteratieplan' }, messages: [{ role: 'user', content: (frames
+        ? frames.map(function (f) { return { type: 'image', source: { type: 'base64', media_type: f.mime, data: f.b64 } }; })
+        : [{ type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }]
+      ).concat([{ type: 'text', text: userText }]) }] })
     });
     let parsed = null;
     if (data && Array.isArray(data.content)) {
@@ -683,6 +740,100 @@ async function analyzeWinningAd() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Itereren dat vastloopt zonder iets te zeggen
+
+   De melding was: "ik klik een advertentie aan, druk op itereren, en er
+   gebeurt niets." Wat er op het scherm stond was de knop op zijn bezig-tekst,
+   en verder niets -- geen uitslag, geen reden, geen einde. Drie dingen maakten
+   dat mogelijk, en ze zijn alle drie te repareren zonder te weten wat er bij
+   het model misging:
+
+   1. ER ZAT GEEN DEADLINE OP. Een aanroep die niet terugkomt houdt de knop
+      eeuwig bezig. En omdat een tijdsoverschrijding bij Cloudflare als 5xx
+      terugkomt, probeerde de retry-lus het daarna nog vier keer met oplopende
+      pauzes: bij elkaar minuten waarin het scherm niets zei.
+
+   2. DE FOUT KWAM ERGENS ANDERS TERECHT. De reden werd in het resultatenvak
+      gezet, dat op dit scherm ver onder de knop staat en bij een lange pagina
+      buiten beeld valt. Je drukt bovenin en het antwoord verschijnt onderin.
+
+   3. WAT HET MODEL SOWIESO ZOU WEIGEREN, WERD TOCH GESTUURD. Een bronbeeld
+      met een type dat de API niet accepteert (of een te groot bestand) levert
+      een 400 op na tien seconden wachten, terwijl we dat vooraf weten. Een
+      advertentie die je AANKLIKT komt van de beeldproxy en kan een ander type
+      hebben dan een bestand dat je zelf uploadt -- precies het verschil tussen
+      "bij mij werkt het" en deze melding.
+
+   Wat hier NIET gebeurt: het beeld omzetten of verkleinen. Dat is raden naar
+   wat er mis is; zeggen wat er mis is, is genoeg om het te verhelpen. */
+var ITER_MEDIA_OK = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+/* De harde grens van de API is vijf megabyte per beeld, gemeten aan de
+   base64-tekst. Wij houden het daar net onder: een beeld dat er precies
+   overheen gaat kost je een aanroep van tien seconden om dat te horen. */
+var ITER_MAX_B64 = 4.8 * 1024 * 1024;
+
+/* Waarom dit bronbeeld niet naar het model kan. Null betekent: niets aan de
+   hand. Nooit een reden verzinnen -- een onbekend geval gaat gewoon mee, want
+   het model weigert het dan zelf met zijn eigen woorden. */
+function iterBronBezwaar(bron) {
+  if (!bron) return 'Er staat geen bronadvertentie. Kies er een uit de lijst of upload er een.';
+  if (!bron.b64) return 'Het bronbeeld is leeg. Kies de advertentie opnieuw, dan wordt het beeld opnieuw opgehaald.';
+  var type = String(bron.mimeType || '').toLowerCase();
+  if (type && ITER_MEDIA_OK.indexOf(type) === -1) {
+    return 'Het bronbeeld is van het type ' + type + ', en dat leest het model niet. ' +
+      'Het accepteert alleen jpeg, png, gif en webp. Sla de advertentie op als PNG of JPG en upload hem.';
+  }
+  if (bron.b64.length > ITER_MAX_B64) {
+    return 'Het bronbeeld is te groot (' + Math.round(bron.b64.length / 1024 / 1024 * 10) / 10 +
+      ' MB); het model neemt er hoogstens 5. Verklein hem of maak er een screenshot van.';
+  }
+  return null;
+}
+
+/* Het resultatenvak zichtbaar maken zodra er werkelijk iets in staat.
+ *
+ * Op het itereerscherm staat de rechterkolom -- die het resultatenvak draagt --
+ * uit zolang hij leeg is: een kolom met "Variaties verschijnen hier" naast het
+ * enige dat ertoe doet is ruis. Maar hij bleef ook uit NADAT er iets in stond,
+ * en dan worden drie gemaakte iteraties netjes gerenderd en daarna verborgen.
+ * Precies de melding: "hij zegt dat ze hieronder staan en er staat niets."
+ *
+ * Er is een waarnemer in de studiolaag die dit ook doet. Deze regel staat er
+ * expliciet naast, want een tijdsafhankelijkheid die je moet reconstrueren is
+ * geen garantie -- en dit geldt net zo goed voor een FOUTmelding in dat vak. */
+function iterToonUitslagvak() {
+  var vak = document.getElementById('results');
+  var kolom = document.querySelector('.ws8-right');
+  if (!vak || !kolom) return false;
+  var heeft = vak.childElementCount > 0;
+  kolom.classList.toggle('has-results', heeft);
+  return heeft;
+}
+
+/* De uitslag naast de knop, niet ergens onderaan de pagina. Leeg betekent:
+   weghalen. */
+function iterMelding(tekst, soort) {
+  var rij = document.querySelector('.generate-row');
+  var el = document.getElementById('iter-melding');
+  if (!tekst) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'iter-melding';
+    el.className = 'iter-melding';
+    if (rij && rij.parentNode) rij.parentNode.insertBefore(el, rij.nextSibling);
+    else document.body.appendChild(el);
+  }
+  el.className = 'iter-melding' + (soort ? ' ' + soort : '');
+  el.textContent = tekst;
+}
+
+/* Hoe lang deze aanroep mag duren. Ruim -- het model kijkt naar een beeld en
+   schrijft drie iteraties -- maar niet oneindig, want oneindig is precies de
+   toestand waarin dit scherm bleef hangen. */
+var ITER_DEADLINE_S = 210;
+
 async function generateFromIterateMode() {
   const apiKey = (window.__WG_TEAMSERVER ? 'teamserver' : document.getElementById('anthropic-key').value.trim());
   if (!apiKey) { toast('Eerst je Anthropic API key invullen', true); document.getElementById('settings-panel').classList.add('open'); return; }
@@ -709,16 +860,34 @@ async function generateFromIterateMode() {
   const resultsEl = document.getElementById('results');
   resultsEl.innerHTML = '<div class="loading-card">Claude bekijkt de winnaar en bouwt testbare iteraties...</div>';
 
+  /* Meetellen wat er verstrijkt, en er een einde aan breien. Een knop die
+     bezig zegt en niets doet is niet te onderscheiden van een knop die het
+     nog aan het doen is. */
+  const start = Date.now();
+  const afbreker = (typeof AbortController === 'function') ? new AbortController() : null;
+  const tikker = setInterval(function () {
+    const s = Math.round((Date.now() - start) / 1000);
+    iterMelding('Rory leest de advertentie en schrijft de iteraties… ' + s + ' seconden bezig.' +
+      (s > 60 ? ' Dit duurt langer dan gewoonlijk; hij gaat door tot ' + ITER_DEADLINE_S + ' seconden.' : ''));
+  }, 1000);
+  const wekker = setTimeout(function () { if (afbreker) afbreker.abort(); }, ITER_DEADLINE_S * 1000);
+  const opruimen = function () { clearInterval(tikker); clearTimeout(wekker); };
+
   try {
+    iterMelding('Rory leest de advertentie en schrijft de iteraties…');
     const data = await fetchJsonWithRetry((PROXY_BASE + '/anthropic'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      signal: afbreker ? afbreker.signal : undefined,
       body: JSON.stringify({
         model, max_tokens: 8000,
         system: SYSTEM_PROMPT + '\n\n' + ITERATE_MODE_SYSTEM_ADDITIONS + brandProfileBlock(),
         messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: state.sourceAd.mimeType, data: state.sourceAd.b64 } }, { type: 'text', text: userPrompt } ] }]
       })
-    });
+    /* Eén nieuwe poging, niet vier. Een aanroep die na drie minuten afkapt vier
+       keer herhalen is een kwartier stilte, en de tweede poging leert je al of
+       het aan de drukte lag. */
+    }, 1, 4000);
     const text = wgClaudeText(data);
     const jsonStart = text.indexOf('{'); const jsonEnd = text.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1) throw new Error('Geen geldig JSON gevonden in Claude-respons');
@@ -743,14 +912,31 @@ async function generateFromIterateMode() {
         iterateAnalysis: analysis || null
       }
     };
+    erfStrategieVanBron(state.lastGenerated.metadata, state.iterateBron);
     state.generatedImages = {};
     renderResults(state.lastGenerated.variations, state.lastGenerated.metadata);
+    iterToonUitslagvak();
+    opruimen();
+    iterMelding(parsed.variations.length + ' iteraties staan hieronder, na ' +
+      Math.round((Date.now() - start) / 1000) + ' seconden.', 'goed');
     btn.disabled = false;
     btn.textContent = 'Analyseer en genereer iteraties';
   } catch (err) {
     console.error(err);
-    toast('Iteratie mislukt: ' + err.message, true);
-    resultsEl.innerHTML = `<div class="loading-card" style="color:#bd0f0f;">Fout: ${escapeHtml(err.message)}</div>`;
+    opruimen();
+    /* Wat er misging, in de woorden van dit scherm. Een afgebroken aanroep is
+       iets anders dan een geweigerde en iets anders dan een kapotte proxy, en
+       ze vragen alle drie om iets anders. */
+    const ruw = String((err && err.message) || err);
+    const afgebroken = (err && err.name === 'AbortError') || /abort/i.test(ruw);
+    const uitslag = afgebroken
+      ? ('Afgebroken na ' + ITER_DEADLINE_S + ' seconden: het model gaf geen antwoord. ' +
+         'Probeer het opnieuw, of zet het aantal iteraties lager.')
+      : ('Iteratie mislukt: ' + ruw);
+    iterMelding(uitslag, 'fout');
+    toast(uitslag, true);
+    resultsEl.innerHTML = `<div class="loading-card" style="color:#bd0f0f;">${escapeHtml(uitslag)}</div>`;
+    iterToonUitslagvak();
     btn.disabled = false;
     btn.textContent = 'Analyseer en genereer iteraties';
   }
@@ -766,3 +952,26 @@ function dispatchGenerate() {
   }
 }
 
+/* De strategie van de creative waarop we itereren meenemen naar de iteratie.
+   Zonder dit begint elke iteratie met een leeg dossier: geen awareness, geen
+   sophistication, geen hoek -- en dus ook geen landingspagina-advies, want dat
+   hangt aan awareness. Terwijl de hele reden om te itereren is dat de
+   strategie blijft staan en alleen de uitvoering verandert.
+   Alleen overnemen wat er werkelijk is, en nooit een leeg veld met iets
+   vullen: erf_van laat zien dat het geerfd is en niet hier besloten. */
+function erfStrategieVanBron(meta, bron) {
+  if (!meta || !bron || !bron.id) return meta;
+  if (bron.brief) meta.wizardBrief = bron.brief;
+  if (bron.awareness) meta.awareness = bron.awareness;
+  if (bron.sophistication) meta.sophistication = bron.sophistication;
+  if (bron.destination) meta.destination = bron.destination;
+  if (!meta.personaName && bron.personaName) meta.personaName = bron.personaName;
+  if (!meta.personaId && bron.personaId) meta.personaId = bron.personaId;
+  meta.erf_van = bron.id;
+  return meta;
+}
+window.erfStrategieVanBron = erfStrategieVanBron;
+window.iterBronBezwaar = iterBronBezwaar; window.iterMelding = iterMelding;
+window.iterToonUitslagvak = iterToonUitslagvak;
+window.ITER_MEDIA_OK = ITER_MEDIA_OK; window.ITER_MAX_B64 = ITER_MAX_B64;
+window.ITER_DEADLINE_S = ITER_DEADLINE_S;

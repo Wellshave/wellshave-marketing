@@ -63,6 +63,63 @@
   }
 
   // ===== Fase 2a: bibliotheek-drill-in =====
+  /* Een afgeleide waarde vastleggen als beslissing.
+     De waarde stond er al -- hij kwam uit de brief van deze creative -- maar
+     hij bewoog mee: verandert de brief, dan verandert hij. Bevestigen schrijft
+     hem weg in de matrix, en vanaf dat moment is het een besluit van een mens
+     en niet meer een gok van het systeem. Zonder dat onderscheid weet je over
+     een maand niet meer wat er nagekeken is. */
+  function wgBevestigVeld(ov, item, veld) {
+    if (!veld || typeof nickVeld !== 'function') return;
+    var r = nickVeld(item, veld);
+    if (!r.waarde) return;
+    item.matrix = item.matrix || {};
+    item.matrix[veld] = r.waarde;
+    try { if (typeof saveLibrary === 'function') saveLibrary(); } catch (e) {}
+    /* Alleen dit blok bijwerken, niet het paneel opnieuw tekenen: hertekenen
+       zou je scrollpositie en het open tabblad wegvagen voor een verandering
+       van twee woorden. */
+    var blok = ov.querySelector('.dos-veld[data-veld="' + veld + '"]');
+    if (!blok) return;
+    blok.classList.remove('af');
+    var merk = blok.querySelector('.dos-merk');
+    if (merk) { merk.textContent = 'Bevestigd'; merk.classList.add('vast'); }
+    var knop = blok.querySelector('.dos-bevestig');
+    if (knop) knop.remove();
+  }
+
+  /* De bewerkbare blokken in de matrix. Ze zijn contenteditable in plaats van
+     een textarea, want een textarea van drie regels met een schuifbalk is
+     precies wat er misging: je scrolde binnen een vakje om een zin te lezen.
+     Opslaan gaat met een korte vertraging, zodat er niet bij elke aanslag
+     naar de opslag geschreven wordt. */
+  window.wgKoppelBlokken = function wgKoppelBlokken(ov) {
+    ov.querySelectorAll('p[data-matrix-id]').forEach(function (el) {
+      if (el._dosAan) return;
+      el._dosAan = true;
+      el.addEventListener('input', function () {
+        var lib = (typeof state !== 'undefined' && state.library) ? state.library : [];
+        var it = lib.filter(function (x) { return x.id === el.getAttribute('data-matrix-id'); })[0];
+        if (!it) return;
+        it.matrix = it.matrix || {};
+        it.matrix[el.getAttribute('data-matrix-field')] = el.textContent.trim();
+        clearTimeout(el._dosT);
+        el._dosT = setTimeout(function () {
+          try { if (typeof saveLibrary === 'function') saveLibrary(); } catch (e) {}
+        }, 500);
+      });
+      /* Een leeg blok toont een uitnodiging. Die hoort weg te zijn zodra je
+         begint te typen, anders typ je erdoorheen. */
+      el.addEventListener('focus', function () {
+        var blok = el.closest('.dos-veld');
+        if (blok && blok.classList.contains('leeg')) {
+          blok.classList.remove('leeg');
+          el.textContent = '';
+        }
+      });
+    });
+  };
+
   function wgEsc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   window.wgOpenLibraryItem = function(id){
     var lib = (typeof state!=='undefined' && state.library) ? state.library : [];
@@ -70,27 +127,105 @@
     if(!item) return;
     var v=item.variation||{}, m=item.metadata||{};
     var hasImg = !!(item.image && item.image.b64);
-    var imgHtml = hasImg ? '<img class="wg-drill-img" src="data:'+((item.image.mime)||'image/png')+';base64,'+item.image.b64+'" alt="">' : '<div style="padding:40px;text-align:center;color:#7d7664;border:1px dashed rgba(215, 179, 89, .25);border-radius:12px;">Geen afbeelding bewaard</div>';
-    var ov=document.createElement('div'); ov.className='wg-drill-overlay'; ov.id='wg-drill';
-    ov.innerHTML = '<div class="wg-drill-panel">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
-      +   '<span class="var-hook-tag" style="font-size:10px;padding:4px 8px;">'+wgEsc(v.hook_type||'concept')+'</span>'
-      +   '<div id="wg-drill-close" style="cursor:pointer;color:#504b3f;font-size:24px;line-height:1;padding:0 6px;" aria-label="Sluiten">&times;</div>'
+    var imgHtml = hasImg ? '<img class="wg-drill-img" src="data:'+((item.image.mime)||'image/png')+';base64,'+item.image.b64+'" alt="">' : '<div class="wg-drill-geenbeeld">Geen afbeelding bewaard</div>';
+    /* Een eventueel openstaand paneel eerst weg. Zonder dit stapelen ze op:
+       het id wg-drill komt dan twee keer voor, en alles wat het paneel
+       opzoekt (de matrixvelden, de kopieerknop) landt op het OUDSTE exemplaar
+       terwijl je naar het nieuwste kijkt. */
+    var _oud=document.getElementById('wg-drill'); if(_oud) _oud.remove();
+    var ov=document.createElement('div'); ov.id='wg-drill';
+    /* Het dossier staat in het midden en niet meer als lade aan de zijkant.
+       Een zijpaneel is 560 pixels breed, en daar geperst werden de drie
+       kaarten van het overzicht kolommen van een woord breed. Het dossier is
+       ook geen bijzaak naast de lijst: als je erop klikt is het het enige
+       waar je naar kijkt. */
+    ov.className = 'wg-drill-overlay' + ((typeof dosPaneelHtml === 'function') ? ' dos-modal' : '');
+    /* De inhoud komt uit js/55: kop, beeld met zijn variaties, Nicks oordeel
+       per as, kerninformatie, en drie tabbladen waaronder de landingsbrief.
+       Wat hier stond was het beeld met de kop en daaronder het hele dossier
+       plus de matrix onder elkaar geplakt -- acht velden met precies hetzelfde
+       gewicht, elk in een tekstvakje van drie regels met zijn eigen
+       schuifbalk. */
+    ov.innerHTML = '<div class="wg-drill-panel dos-panel">'
+      + '<div class="wg-drill-top">'
+      +   '<div id="wg-drill-close" class="wg-drill-sluit" aria-label="Sluiten">&times;</div>'
       + '</div>'
-      + imgHtml
-      + '<div style="font-family:var(--font-serif,Georgia,serif);font-size:22px;color:#916f27;margin-top:16px;">'+wgEsc(v.headline_nl||'(geen headline)')+'</div>'
-      + (v.body_copy_nl ? '<div style="color:#63583e;font-size:14px;line-height:1.6;margin-top:10px;">'+wgEsc(v.body_copy_nl)+'</div>' : '')
-      + '<div style="color:#504b3f;font-size:12px;margin-top:12px;">'+wgEsc(m.product||'')+' &middot; '+wgEsc(String(m.funnel||''))+' &middot; '+wgEsc(String(m.archetype||''))+(v.cta_nl?(' &middot; CTA: '+wgEsc(v.cta_nl)):'')+'</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;">'
-      +   '<button class="btn btn-small" data-proxy="view">Bekijk in generator</button>'
+      + '<div class="dos-inhoud">'
+      +   ((typeof dosPaneelHtml === 'function') ? dosPaneelHtml(item)
+           : ((typeof libVolledigHtml === 'function') ? libVolledigHtml(item) : ''))
+      + '</div>'
+      + '<div class="wg-drill-acties">'
+      +   '<button class="btn btn-small" data-proxy="view">Open in generator</button>'
       +   '<button class="btn btn-small" data-proxy="iterate">Itereer op deze</button>'
-      +   '<button class="btn btn-small btn-ghost" data-proxy="copy-prompt">Kopieer prompt</button>'
       +   (hasImg?'<button class="btn btn-small btn-ghost" data-proxy="download">Download beeld</button>':'')
       +   '<button class="btn btn-small btn-ghost btn-danger" data-proxy="delete">Verwijder</button>'
       + '</div>'
       + '</div>';
     document.body.appendChild(ov);
+    /* De matrixvelden in dit paneel moeten net zo goed opslaan als die op de
+       kaart deden. Zonder deze regel typ je een notitie in het paneel en is
+       hij weg zodra je het sluit. */
+    if (typeof libKoppelMatrix === 'function') libKoppelMatrix(ov);
+    wgKoppelBlokken(ov);
+    /* De knoppen die alleen in dit paneel bestaan en dus geen tegenhanger op
+       de kaart hebben om naar door te sturen. Via delegatie op het paneel,
+       niet met een handler per knop: het matrixblok wordt na een analyse
+       opnieuw getekend, en dan zou een vastgeklikte handler op een element
+       zitten dat er niet meer is. */
+    ov.addEventListener('click', function(e){
+      var knop = e.target.closest('button[data-action]');
+      if (!knop || !ov.contains(knop)) return;
+      var act = knop.getAttribute('data-action');
+      if (act === 'copy-name') {
+        try { navigator.clipboard.writeText(libAdNaam(item)); } catch(err){}
+        if (typeof toast === 'function') toast('Ad name gekopieerd, plak hem in Meta');
+      } else if (act === 'nick-analyse') {
+        if (typeof nickAnalyseer === 'function') nickAnalyseer(item.id);
+      } else if (act === 'tab') {
+        /* Van tabblad wisselen zonder het paneel opnieuw op te bouwen: dan
+           zou je scrollpositie terugspringen naar boven, en dat is precies
+           wat je niet wilt als je net iets aan het lezen was. */
+        var welk = knop.getAttribute('data-tab');
+        ov.querySelectorAll('.dos-tabs button').forEach(function (t) {
+          t.setAttribute('aria-selected', String(t === knop));
+        });
+        ov.querySelectorAll('[data-paneel]').forEach(function (p) {
+          p.hidden = p.getAttribute('data-paneel') !== welk;
+        });
+      } else if (act === 'wissel') {
+        /* Naar een andere variatie uit dezelfde ad set. Het paneel opnieuw
+           tekenen met dat item; de scrollpositie mag hier wel terug, want je
+           kijkt naar iets anders. */
+        var ander = knop.getAttribute('data-id');
+        if (ander && ander !== item.id) { close(); window.wgOpenLibraryItem(ander); }
+      } else if (act === 'bevestig') {
+        /* Een afgeleide waarde vastleggen als beslissing. Hij stond er al --
+           dit schrijft hem weg zodat hij niet meer met de brief meebeweegt. */
+        wgBevestigVeld(ov, item, knop.getAttribute('data-veld'));
+      } else if (act === 'kies-bestemming') {
+        /* De bestemming alsnog vastleggen. Dit schrijft op het item zelf en
+           niet in de brief van de wizard: die brief hoort te blijven wat er
+           bij het maken besloten is, en dit is een besluit dat er later
+           bijkomt. lpSoort leest allebei. */
+        item.metadata = item.metadata || {};
+        item.metadata.destination = knop.getAttribute('data-soort');
+        try { if (typeof saveLibrary === 'function') saveLibrary(); } catch (err) {}
+        var vak = ov.querySelector('[data-paneel="landing"]');
+        if (vak && typeof dosLandingHtml === 'function') vak.innerHTML = dosLandingHtml(item);
+        if (typeof toast === 'function') toast('Bestemming vastgelegd');
+      } else if (act === 'kopieer-lp') {
+        try { navigator.clipboard.writeText(lpPrompt(item)); } catch (err) {}
+        knop.textContent = 'Gekopieerd';
+        setTimeout(function () { knop.textContent = 'Kopieer prompt'; }, 1600);
+      } else if (act === 'itereer') {
+        var it = document.querySelector('#library button[data-action="iterate"][data-id="' + item.id + '"]');
+        close(); if (it) it.click();
+      }
+    });
     requestAnimationFrame(function(){ ov.classList.add('show'); });
+    /* Een functie-declaratie, geen const: hij wordt hierboven in de
+       klikdelegatie al aangeroepen en die draait pas na dit punt, maar de
+       hijsing maakt de volgorde onafhankelijk van waar hij staat. */
     function close(){ ov.classList.remove('show'); setTimeout(function(){ if(ov.parentNode) ov.remove(); }, 320); }
     ov.querySelector('#wg-drill-close').onclick=close;
     ov.addEventListener('click', function(e){ if(e.target===ov) close(); });

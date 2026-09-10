@@ -51,32 +51,59 @@ async function saveToLibraryFromCard(varIndex) {
     } catch (e) { console.error('compress lib image fail', e); }
   }
 
-  // Check of er al een library-item bestaat voor exact deze variatie (zelfde headline + funnel + product)
-  // Zo ja, update dat item in plaats van een duplicaat aan te maken
-  const existingIdx = (state.library || []).findIndex(libItem =>
-    libItem.variation &&
-    libItem.variation.headline_nl === v.headline_nl &&
-    libItem.metadata &&
-    libItem.metadata.product === metadata.product &&
-    libItem.metadata.funnel === metadata.funnel &&
-    libItem.metadata.archetype === metadata.archetype
-  );
-
+  /* De batch-id eerst, want hij bepaalt hieronder mede of dit een bestaand
+     item is. Stond dit ná de zoekopdracht, dan kon die zoekopdracht er nog
+     niets mee. */
   if (state.lastGenerated && !state.lastGenerated._batch_id) {
     state.lastGenerated._batch_id = 'batch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     var _mc = (metadata && metadata.concept) ? String(metadata.concept) : '';
     var _t = _mc ? _mc.replace(/^HOEK[^:]*:\s*/i, '').split('\n')[0].slice(0, 90) : ((v && v.headline_nl) ? v.headline_nl : ((metadata && metadata.product) ? (metadata.product + ' , concept') : 'Concept'));
     state.lastGenerated._batch_title = _t;
   }
+  const batchId = (state.lastGenerated && state.lastGenerated._batch_id) || null;
+
+  /* Bestaat er al een item voor precies DEZE variatie? Zo ja bijwerken, zo
+     nee erbij.
+     
+     Dit keek op headline + product + funnel + archetype, en dat ging stuk op
+     de dag dat "Save all 3" de drie takes achter elkaar wegschreef. De
+     visuele pass is één idee met DEZELFDE woorden en drie verschillende
+     beelden -- dus zijn die vier velden voor alle drie identiek, herkende
+     take 2 zichzelf als take 1, en schreef eroverheen. Take 3 daarna weer.
+     Van de drie variaties bleef er één in de bibliotheek staan, en de andere
+     twee beelden waren weg terwijl je ze wel had laten maken.
+     
+     Wat een variatie uniek maakt is niet de kop maar zijn plek in de batch.
+     Zit er een batch-id op allebei, dan is dat het hele antwoord. Anders
+     valt hij terug op de oude vergelijking, met het variatienummer erbij --
+     en items van vóór dit veld (variant_index ontbreekt) blijven zich
+     gedragen zoals ze deden. */
+  const existingIdx = (state.library || []).findIndex(function (libItem) {
+    if (!libItem.variation || !libItem.metadata) return false;
+    if (batchId && libItem.batch_id) {
+      return libItem.batch_id === batchId && libItem.variant_index === varIndex;
+    }
+    return libItem.variation.headline_nl === v.headline_nl &&
+      libItem.metadata.product === metadata.product &&
+      libItem.metadata.funnel === metadata.funnel &&
+      libItem.metadata.archetype === metadata.archetype &&
+      (libItem.variant_index == null || libItem.variant_index === varIndex);
+  });
   const item = {
     id: existingIdx >= 0 ? state.library[existingIdx].id : ('lib-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7)),
     variation: v,
     metadata,
     image: imageSnapshot,
     saved_at: Date.now(),
-    batch_id: (state.lastGenerated && state.lastGenerated._batch_id) || null,
+    batch_id: batchId,
     batch_title: (state.lastGenerated && state.lastGenerated._batch_title) || '',
-    variant_index: varIndex
+    variant_index: varIndex,
+    /* De naam waaronder deze creative in het advertentie-account komt te
+       staan. Meteen bij het bewaren vastleggen en niet pas bij het uploaden:
+       zodra de wizard-state weg is, is de hoek niet meer te reconstrueren, en
+       dan heet hij in Meta iets naamloos en is de data achteraf niet meer aan
+       een beslissing te koppelen. */
+    ad_name: (typeof wizAdNaam === 'function') ? wizAdNaam(metadata, varIndex) : null
   };
   /* Het id terugschrijven op de variatie in het geheugen. Zonder dit weet
      "Klaarzetten voor test" straks niet uit welk bibliotheekitem deze variant
@@ -192,7 +219,7 @@ function buildRecipeChips(m){
 /* ===== Rijke Customer Persona's (v5.15): Schwartz-stages + angle-brein + launch + test-hook ===== */
 var px = { selectedId:null, stage:'unaware', busy:false, angleStats:{}, statsLoaded:{} };
 var PX_STAGES = [['unaware','Onbewust'],['problem','Probleembewust'],['solution','Oplossingsbewust'],['product','Productbewust'],['most','Meest bewust']];
-function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function pxModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function pxE(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function pxText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function pxJson(txt){ var a=txt.indexOf('{'),b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }
@@ -594,7 +621,7 @@ function buildLibFilterBar(products, modes, shown, total, f) {
   return h;
 }
 
-function libExtraHtml(v){
+function libExtraHtml(v, open){
   v = v || {};
   const esc = s => escapeHtml(String(s || ''));
   const parts = [];
@@ -603,26 +630,89 @@ function libExtraHtml(v){
   const reasoning = v.reasoning_nl || v.reasoning || '';
   if (reasoning) parts.push(`<div><b>Rory&#39;s reasoning:</b> ${esc(reasoning)}</div>`);
   if (!parts.length) return '';
+  if (open) {
+    return `<section class="lib-extra open"><h4>Visual, hypothese &amp; reasoning</h4>`
+      + `<div class="lib-extra-body">${parts.join('')}</div></section>`;
+  }
   return `<details class="lib-extra"><summary>Visual, hypothese &amp; reasoning</summary><div class="lib-extra-body">${parts.join('')}</div></details>`;
 }
-function libMatrixHtml(id, mat, m){
+function libMatrixHtml(id, mat, m, open){
   mat = mat || {}; m = m || {};
   const va = x => escapeAttr(String(x == null ? '' : x));
-  const tx = (field, label, val) => `<label>${label}<textarea data-matrix-id="${id}" data-matrix-field="${field}" rows="2">${escapeHtml(String(val || ''))}</textarea></label>`;
-  const inp = (field, label, val) => `<label>${label}<input type="text" data-matrix-id="${id}" data-matrix-field="${field}" value="${va(val)}"></label>`;
-  return `<details class="lib-matrix"><summary>Static ad matrix (Theriot-scorecard)</summary><div class="lib-matrix-grid">`
-    + tx('hook', 'Hook', mat.hook)
-    + tx('proof', 'Proof / bewijs', mat.proof)
-    + tx('avatar', 'Avatar / Desire', mat.avatar)
-    + tx('purplecow', 'Purple Cow', mat.purplecow)
-    + inp('sophistication', 'Market sophistication', mat.sophistication != null && mat.sophistication !== '' ? mat.sophistication : (m.sophistication || ''))
-    + inp('awareness', 'Customer awareness', mat.awareness != null && mat.awareness !== '' ? mat.awareness : (m.awareness || ''))
-    + inp('score', 'Score (1-5)', mat.score)
-    + tx('notes', 'Notities / resultaat', mat.notes)
-    + `</div></details>`;
+  /* De waarde per veld komt uit nickVeld: wat iemand typte wint, anders het
+     afgeleide uit de brief van deze creative. Een matrix die je zelf uit je
+     eigen briefing moet overtypen wordt niet ingevuld, en dan staat er een
+     leeg testlog terwijl de beslissingen wel genomen zijn.
+
+     Een afgeleide waarde draagt de klasse 'af': hij staat er wel, maar
+     niemand heeft hem bevestigd. Dat verschil hoort zichtbaar te zijn. */
+  const item = ((typeof state !== 'undefined' && state.library) || []).filter(x => x.id === id)[0];
+  const lees = (field) => {
+    if (item && typeof nickVeld === 'function') return nickVeld(item, field);
+    return { waarde: String(mat[field] == null ? '' : mat[field]), afgeleid: false };
+  };
+  const tx = (field, label) => { const r = lees(field);
+    return `<label class="${r.afgeleid ? 'af' : ''}">${label}<textarea data-matrix-id="${id}" data-matrix-field="${field}" rows="2">${escapeHtml(r.waarde)}</textarea></label>`; };
+  const inp = (field, label) => { const r = lees(field);
+    return `<label class="${r.afgeleid ? 'af' : ''}">${label}<input type="text" data-matrix-id="${id}" data-matrix-field="${field}" value="${va(r.waarde)}"></label>`; };
+  const kop = open
+    ? `<section class="lib-matrix open"><h4>Static ad matrix (Theriot-scorecard)</h4><div class="lib-matrix-grid">`
+    : `<details class="lib-matrix"><summary>Static ad matrix (Theriot-scorecard)</summary><div class="lib-matrix-grid">`;
+  return kop
+    + tx('hook', 'Hook')
+    + tx('proof', 'Proof / bewijs')
+    + tx('avatar', 'Avatar / Desire')
+    + tx('purplecow', 'Purple Cow')
+    + inp('sophistication', 'Market sophistication')
+    + inp('awareness', 'Customer awareness')
+    + inp('score', 'Score (1-5)')
+    + tx('notes', 'Notities / resultaat')
+    + `</div>`
+    + (open ? libNickKnopHtml(item) : '')
+    + (open ? `</section>` : `</details>`);
+}
+
+/* De knop die Nick ernaar laat kijken. Hij staat er alleen als er werkelijk
+   nog iets leeg is: een knop die niets te doen heeft, leert je af om op
+   knoppen te drukken. Het cijfer telt daarin mee, want dat valt nergens uit
+   af te leiden -- dat is een oordeel tegen de acht eigenschappen. */
+function libNickKnopHtml(item){
+  if (!item || typeof nickGaten !== 'function') return '';
+  const bezig = !!(typeof nickBezig !== 'undefined' && nickBezig[item.id]);
+  const gaten = nickGaten(item);
+  if (!gaten.length && !bezig) return '';
+  const wat = gaten.map(k => {
+    const r = (typeof NICK_MATRIX !== 'undefined' ? NICK_MATRIX : []).filter(x => x.key === k)[0];
+    return r ? r.label : k;
+  }).join(', ');
+  return `<div class="lib-nick">`
+    + `<button class="btn btn-small" data-action="nick-analyse" data-id="${item.id}"${bezig ? ' disabled' : ''}>`
+    + (typeof teamPortret === 'function' ? teamPortret('nick', 'lib-nick-foto') : '')
+    + (bezig ? 'Nick kijkt ernaar…' : 'Laat Nick Theriot deze creative analyseren') + `</button>`
+    + (bezig ? '' : `<span class="lib-nick-wat">Nog leeg: ${escapeHtml(wat)}</span>`)
+    + `</div>`;
 }
 function iterateFromLibrary(item){
   if (!item) return;
+  /* De strategie van de bron onthouden. Itereren op een winnaar betekent per
+     definitie: dezelfde hoek, dezelfde doelgroep, andere uitvoering -- daarom
+     itereer je erop. Toch bouwde de itereerroute verse metadata en liet hij
+     awareness, sophistication, persona, hoek, boodschap, pijn, verlangen,
+     mechanisme en bewijs allemaal liggen. In de bibliotheek stond daarna
+     negen keer "Niet vastgelegd", en het tabblad landingspagina had niets om
+     mee te werken.
+     Wat hier niet gebeurt: iets verzinnen. Heeft de bron zelf geen brief --
+     een van buiten geuploade ad bijvoorbeeld -- dan wordt er niets geerfd en
+     blijven de velden leeg. Dat is dan het eerlijke antwoord. */
+  state.iterateBron = {
+    id: item.id,
+    brief: (item.metadata && item.metadata.wizardBrief) || null,
+    awareness: (item.metadata && item.metadata.awareness) || null,
+    sophistication: (item.metadata && item.metadata.sophistication) || null,
+    destination: (item.metadata && item.metadata.destination) || null,
+    personaName: (item.metadata && item.metadata.personaName) || null,
+    personaId: (item.metadata && item.metadata.personaId) || null
+  };
   if (typeof switchMainTab === 'function') switchMainTab('generator');
   if (typeof setMode === 'function') setMode('iterate');
   if (item.image && item.image.b64){
@@ -646,6 +736,76 @@ function iterateFromLibrary(item){
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){}
 }
 /* ===== Bibliotheek: concept-groepering (v5.11) ===== */
+/* Het strategie-dossier op de kaart. Dit stond tot nu toe alleen in de
+   wizard en verdween bij het opslaan, waardoor de bibliotheek liet zien DAT
+   er een creative was en niet WAARVOOR hij gemaakt was. Zonder hoek,
+   verlangen en de twee assen is een testlog niet te lezen: je ziet welke ad
+   won, maar niet welke beslissing won. */
+function libDossierHtml(item){
+  var brief = ((item.metadata || {}).wizardBrief) || null;
+  if (!brief || typeof wizDossierVan !== 'function') return '';
+  var regels = wizDossierVan(brief);
+  if (!regels.length) return '';
+  return '<div class="lib-dossier">' + regels.map(function(r){
+    return '<div class="lib-dos-rij"><span class="lib-dos-k">' + escapeHtml(r.label) + '</span>'
+      + '<span class="lib-dos-v">' + escapeHtml(r.tekst) + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/* De naam voor het advertentie-account, met een knop ernaast. Oudere items
+   hebben hem nog niet opgeslagen; die krijgen hem alsnog berekend, zodat de
+   bibliotheek niet in twee soorten uiteenvalt. */
+function libAdNaam(item){
+  if (item.ad_name) return item.ad_name;
+  if (typeof wizAdNaam === 'function' && item.metadata) {
+    return wizAdNaam(item.metadata, item.variant_index == null ? 0 : item.variant_index);
+  }
+  return '';
+}
+function libAdNaamHtml(item){
+  var naam = libAdNaam(item);
+  if (!naam) return '';
+  return '<div class="lib-adnaam">'
+    + '<code>' + escapeHtml(naam) + '</code>'
+    + '<button class="btn btn-small btn-ghost" data-action="copy-name" data-id="' + item.id + '" '
+    + 'title="Copy this name into the Meta ad account">Copy ad name</button></div>';
+}
+
+/* Alles wat er over een creative te weten valt, in leesvolgorde. Dit is de
+   inhoud van het zijpaneel en de enige plek waar het volledige verhaal staat:
+   de kaart in de lijst is er om te KIEZEN, het paneel om te LEZEN. Dat scheelt
+   twee uitklappers per kaart in een lijst waar je doorheen scrolt.
+
+   Zonder eigen kop-elementen, want het paneel zet zijn eigen koppen. */
+function libVolledigHtml(item){
+  var v = item.variation || {}, m = item.metadata || {}, mat = item.matrix || {};
+  return buildRecipeChips(m)
+    + libAdNaamHtml(item)
+    + libDossierHtml(item)
+    + libExtraHtml(v, true)
+    + libMatrixHtml(item.id, mat, m, true);
+}
+
+/* De matrixvelden schrijven terug naar het bewaarde item. Dit stond als
+   losse lus in renderLibrary en gold dus alleen voor de kaart; nu het paneel
+   dezelfde velden toont, moeten die daar net zo goed opslaan. Eén functie,
+   twee plekken, anders bewerk je in het paneel iets wat nergens landt. */
+function libKoppelMatrix(root){
+  if (!root) return;
+  root.querySelectorAll('[data-matrix-id]').forEach(function (el) {
+    if (el._matrixAan) return;
+    el._matrixAan = true;
+    el.addEventListener('input', function () {
+      var it = (state.library || []).find(function (x) { return x.id === el.getAttribute('data-matrix-id'); });
+      if (!it) return;
+      it.matrix = it.matrix || {};
+      it.matrix[el.getAttribute('data-matrix-field')] = el.value;
+      clearTimeout(el._mt);
+      el._mt = setTimeout(function () { try { saveLibrary(); } catch (e) {} }, 500);
+    });
+  });
+}
+
 function libCardHtml(item){
   const d = new Date(item.saved_at);
   const dateStr = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -653,7 +813,6 @@ function libCardHtml(item){
   const imgMime = (item.image && item.image.mime) ? item.image.mime : 'image/png';
   const v = item.variation || {};
   const m = item.metadata || {};
-  const mat = item.matrix || {};
   const imgHtml = hasImage
     ? `<img class="lib-card-img" src="data:${imgMime};base64,${item.image.b64}" alt="Bewaarde afbeelding">`
     : `<div class="lib-card-img-empty">Geen afbeelding bewaard</div>`;
@@ -671,14 +830,12 @@ function libCardHtml(item){
           ${bodyHtml}
           <div class="lib-meta">${escapeHtml(m.product || '')} , ${escapeHtml(String(m.funnel || ''))} , ${escapeHtml(String(m.archetype || ''))}${ctaTxt}</div>
           ${buildRecipeChips(m)}
-          ${libExtraHtml(v)}
-          ${libMatrixHtml(item.id, mat, m)}
           <div class="lib-actions">
             <button class="btn btn-small" data-action="view" data-id="${item.id}">Bekijk in generator</button>
             <button class="btn btn-small" data-action="iterate" data-id="${item.id}">Itereer op deze</button>
             <button class="btn btn-small btn-ghost" data-action="copy-prompt" data-id="${item.id}">Kopieer prompt</button>
             ${hasImage ? `<button class="btn btn-small btn-ghost" data-action="download" data-id="${item.id}">Download beeld</button>` : ''}
-            <button class="btn btn-small btn-ghost btn-danger" data-action="delete" data-id="${item.id}">×</button>
+            <button class="btn btn-small btn-ghost btn-danger" data-action="delete" data-id="${item.id}" title="Verwijder" aria-label="Verwijder">×</button>
           </div>
         </div>
       </div>
@@ -748,18 +905,24 @@ function renderLibrary() {
     lib.innerHTML = html;
     return;
   }
+  /* Welke groepen open staan leeft alleen in de DOM, en innerHTML gooit die
+     DOM weg. Elke herteken (teamsync, filter, verwijderen) klapte dus alles
+     dicht waar je net in zat te lezen. Eerst onthouden, straks terugzetten. */
+  var openGroepen = {};
+  lib.querySelectorAll('.lib-group').forEach(function(g){
+    var b = g.querySelector('.lib-group-body');
+    if (b && b.style.display !== 'none') openGroepen[g.getAttribute('data-batch')] = true;
+  });
   html += '<div class="library-list">' + libRenderGroups(filtered) + '</div>';
   lib.innerHTML = html;
-
-  lib.querySelectorAll('[data-matrix-id]').forEach(el => {
-    el.addEventListener('input', () => {
-      const it = state.library.find(x => x.id === el.getAttribute('data-matrix-id'));
-      if (!it) return;
-      it.matrix = it.matrix || {};
-      it.matrix[el.getAttribute('data-matrix-field')] = el.value;
-      clearTimeout(el._mt); el._mt = setTimeout(() => { try { saveLibrary(); } catch(e){} }, 500);
-    });
+  lib.querySelectorAll('.lib-group').forEach(function(g){
+    if (!openGroepen[g.getAttribute('data-batch')]) return;
+    var b = g.querySelector('.lib-group-body'), h = g.querySelector('.lib-group-head');
+    if (b) b.style.display = '';
+    if (h) h.classList.add('open');
   });
+
+  libKoppelMatrix(lib);
 
   lib.querySelectorAll('button[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -771,6 +934,9 @@ function renderLibrary() {
       if (action === 'copy-prompt') {
         navigator.clipboard.writeText(item.variation.image_prompt_en);
         toast('Image prompt gekopieerd');
+      } else if (action === 'copy-name') {
+        navigator.clipboard.writeText(libAdNaam(item));
+        toast('Ad name gekopieerd, plak hem in Meta');
       } else if (action === 'view') {
         viewLibraryItem(item);
       } else if (action === 'iterate') {

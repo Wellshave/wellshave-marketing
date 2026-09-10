@@ -12,3 +12,97 @@
 .lib-g-chev { color:#624c1b; font-size:15px; transition:transform .18s; flex-shrink:0; }
 .lib-group-head.open .lib-g-chev { transform:rotate(180deg); }
 .lib-group-body { padding:2px 12px 14px; display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; align-items:start; }
+
+/* ── Dossier en advertentienaam op de bibliotheekkaart ──────────────────────
+   Het dossier is een leesblok, geen formulier: sleutel links smal, waarde
+   rechts. De advertentienaam staat in monospace omdat hij op breedte
+   gescand wordt en elk streepje een veldgrens is. */
+.lib-adnaam {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 8px 0 2px;
+}
+.lib-adnaam code {
+  flex: 1 1 240px; min-width: 0; overflow-x: auto; white-space: nowrap;
+  padding: 6px 9px; border-radius: 6px;
+  background: rgba(var(--gold-rgb), .06);
+  border: 1px solid rgba(var(--gold-rgb), .18);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; color: var(--gold);
+}
+.lib-dossier {
+  margin: 8px 0 4px; padding: 9px 11px;
+  background: rgba(var(--gold-rgb), .04);
+  border: 1px solid rgba(var(--gold-rgb), .12);
+  border-radius: 8px;
+  display: grid; gap: 4px;
+}
+.lib-dos-rij { display: grid; grid-template-columns: 116px 1fr; gap: 10px; align-items: baseline; }
+.lib-dos-k {
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.lib-dos-v { font-size: 12px; color: var(--text-soft); line-height: 1.45; }
+@media (max-width: 560px) { .lib-dos-rij { grid-template-columns: 1fr; gap: 1px; } }
+
+/* ── Het dossier in het zijpaneel ───────────────────────────────────────────
+   De kaart in de lijst is er om te kiezen, dit paneel om te lezen. Vandaar
+   dat de blokken hier open staan in plaats van als uitklapper: je hebt net
+   op deze creative geklikt, dus je wilt het nu zien, niet nog een keer
+   klikken. */
+.wg-drill-meta { color: var(--text-soft); font-size: 12px; margin-top: 12px; }
+.wg-drill-dossier { margin-top: 18px; }
+.wg-drill-dossier .lib-chip-row { margin-bottom: 12px; }
+.wg-drill-dossier .lib-adnaam { margin: 0 0 14px; }
+/* In het paneel is er verticale ruimte, dus de naam breekt af in plaats van
+   weg te scrollen: je wilt hem hier kunnen LEZEN en controleren voor je hem
+   kopieert, niet zijwaarts slepen. */
+.wg-drill-dossier .lib-adnaam code {
+  white-space: normal; overflow-wrap: anywhere; overflow-x: visible;
+  line-height: 1.6;
+}
+.wg-drill-dossier .lib-dossier { margin: 0 0 16px; }
+
+/* De open varianten van de twee blokken die eerst uitklappers waren. */
+.lib-extra.open, .lib-matrix.open { display: block; margin: 0 0 16px; }
+/* De kleur met !important, want de Daylight-skin zet h1 t/m h4 hard op
+   --ink. Zonder gelijke kracht komen deze kopjes crevekleurig uit en zijn ze
+   op de donkere ondergrond niet van de lopende tekst te onderscheiden. */
+.lib-extra.open > h4, .lib-matrix.open > h4 {
+  margin: 0 0 8px;
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--gold) !important;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500;
+}
+.lib-extra.open .lib-extra-body { font-size: 12.5px; line-height: 1.6; color: var(--text-soft); }
+.lib-extra.open .lib-extra-body > div + div { margin-top: 7px; }
+.lib-extra.open .lib-extra-body b { color: var(--gold); font-weight: 600; }
+
+/* ── De matrix: afgeleid versus bevestigd ──────────────────────────────────
+   Een waarde die uit de brief van deze creative komt staat er wel, maar
+   niemand heeft hem bevestigd. Dat verschil hoort zichtbaar te zijn, anders
+   lijkt een aanname net zo hard als een aantekening. Zodra je hem aanraakt is
+   het gewoon tekst. */
+.lib-matrix-grid label.af textarea,
+.lib-matrix-grid label.af input {
+  color: var(--text-soft);
+  font-style: italic;
+  border-style: dashed;
+}
+.lib-matrix-grid label.af textarea:focus,
+.lib-matrix-grid label.af input:focus {
+  color: var(--text); font-style: normal; border-style: solid;
+}
+.lib-nick {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(var(--gold-rgb), .12);
+}
+.lib-nick-wat {
+  font-size: 11px; color: var(--text-faint);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* In het paneel is er ruimte, dus de matrixvelden zijn hoog genoeg om een
+   afgeleide waarde in één keer te lezen. Twee regels was genoeg toen ze leeg
+   waren; nu staat er iets in dat je wilt kunnen controleren. */
+.wg-drill-panel .lib-matrix-grid textarea { min-height: 84px; }

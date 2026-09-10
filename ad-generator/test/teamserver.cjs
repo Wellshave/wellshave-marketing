@@ -53,7 +53,7 @@ const check = (label, echt, verwacht) => {
      wijst. Anders is er geen manier om de console op een ándere host te laten
      draaien dan localhost, en juist dát verschil is wat hier getest wordt. */
   const opties = fs.existsSync(CHROOM) ? { executablePath: CHROOM } : {};
-  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1, MAP wellshave-werkbank.netlify.app 127.0.0.1'];
+  opties.args = ['--host-resolver-rules=MAP console.test 127.0.0.1, MAP wellshave-werkbank.netlify.app 127.0.0.1, MAP deploy-preview-14--wellshave-adgen.netlify.app 127.0.0.1'];
   const browser = await chromium.launch(opties);
 
   /* Twee pagina's, want er zijn twee situaties en ze verschillen alleen in de
@@ -74,6 +74,13 @@ const check = (label, echt, verwacht) => {
   const werkbankPage = await browser.newPage();
   await werkbankPage.goto(`http://wellshave-werkbank.netlify.app:${poort}/`, { waitUntil: 'load' });
   await werkbankPage.waitForTimeout(1200);
+
+  /* En een deploy preview van diezelfde console. Die draait dezelfde code en
+     dus dezelfde lange calls; via de tussenstap sneuvelt het uitwerken van
+     drie concepten op de dertig seconden. */
+  const previewPage = await browser.newPage();
+  await previewPage.goto(`http://deploy-preview-14--wellshave-adgen.netlify.app:${poort}/`, { waitUntil: 'load' });
+  await previewPage.waitForTimeout(1200);
 
   console.log('\n  PROXY_BASE kiest per host');
   const basis = await page.evaluate(() => ({
@@ -102,12 +109,64 @@ const check = (label, echt, verwacht) => {
     werkbank.hier, werkbank.worker);
   check('en heeft de tussenstap dus niet meer nodig', werkbank.tussenstap, false);
 
+  const preview = await previewPage.evaluate(() => ({
+    hier: PROXY_BASE, worker: WORKER_URL, previewWorker: WORKER_PREVIEW_URL,
+    aan: WORKER_PREVIEW_AAN, tussenstap: PROXY_BASE === location.origin
+  }));
+  /* Een deploy preview praat met de PREVIEWworker zodra die er staat, en tot
+     die tijd met de echte. Dat onderscheid is de hele reden dat de tweede
+     worker bestaat: anders is elke workerwijziging meteen live voor iedereen,
+     of hij moet met de hand geplakt worden. */
+  check('een deploy preview praat rechtstreeks met een worker',
+    preview.hier, preview.aan ? preview.previewWorker : preview.worker);
+  check('en heeft de tussenstap dus niet nodig', preview.tussenstap, false);
+  check('de twee workers zijn niet hetzelfde adres',
+    preview.worker === preview.previewWorker, false);
+
+  /* En de twee andere omgevingen praten NOOIT met de previewworker, aan of uit.
+     Een vlag die per ongeluk de live console omzet is precies het soort schade
+     dat een preview hoort te voorkomen. */
+  const nooitPreview = await Promise.all([page, werkbankPage].map(p => p.evaluate(() => PROXY_BASE)));
+  check('de live consoles blijven bij de echte worker',
+    nooitPreview.every(u => u.indexOf('-preview') === -1), true);
+
+  /* En de regel zelf, met de vlag allebei de kanten op. Anders is de helft van
+     het gedrag pas te meten door de vlag om te zetten -- en dan test je hem
+     nooit, want hij staat maar op één stand tegelijk. */
+  const regel = await page.evaluate(() => {
+    const kies = (h, aan) => wgWorkerVoor(h, 'https:', 'https://' + h, aan);
+    return {
+      liveUit: kies('wellshave-adgen.netlify.app', false),
+      liveAan: kies('wellshave-adgen.netlify.app', true),
+      werkbankAan: kies('wellshave-werkbank.netlify.app', true),
+      previewUit: kies('deploy-preview-14--wellshave-adgen.netlify.app', false),
+      previewAan: kies('deploy-preview-14--wellshave-adgen.netlify.app', true),
+      previewWerkbankAan: kies('deploy-preview-9--wellshave-werkbank.netlify.app', true),
+      lokaalAan: kies('localhost', true),
+      vreemdAan: kies('ergens-anders.nl', true),
+      worker: WORKER_URL, preview: WORKER_PREVIEW_URL
+    };
+  });
+  check('de live console gaat naar de echte worker, vlag of geen vlag',
+    [regel.liveUit, regel.liveAan, regel.werkbankAan],
+    [regel.worker, regel.worker, regel.worker]);
+  check('een preview met de vlag uit gaat naar de echte worker', regel.previewUit, regel.worker);
+  check('en met de vlag aan naar de previewworker', regel.previewAan, regel.preview);
+  check('dat geldt voor allebei de sites', regel.previewWerkbankAan, regel.preview);
+  /* Lokaal werk hoort nooit tegen een preview te praten: dan debug je tegen een
+     worker die iemand anders net heeft omgegooid. */
+  check('lokaal blijft bij de echte worker', regel.lokaalAan, regel.worker);
+  check('en een vreemde host valt terug op zijn eigen origin',
+    regel.vreemdAan, 'https://ergens-anders.nl');
+
   console.log('\n  wie krijgt het token');
   // De kern. De vraag is niet "welke hostnaam" maar "gaat dit naar onze
   // server" -- rechtstreeks of over de proxy op de eigen origin.
   const oordeel = await proxyPage.evaluate(() => {
+    /* /agents/status stond hier ook in. Die route is verdwenen met de agents
+       zelf, dus de console routeert hem niet meer -- en dat hoort ook niet. */
     const paden = [
-      '/anthropic', '/v1/images/edits', '/openai/images', '/agents/status', '/health'
+      '/anthropic', '/v1/images/edits', '/openai/images', '/health'
     ].map(p => [location.origin + p, _naarDeWorker(location.origin + p)]);
     return {
       viaEigenOrigin: paden,
@@ -121,7 +180,7 @@ const check = (label, echt, verwacht) => {
     };
   });
   check('elk doorgezet pad op de eigen origin telt als de worker',
-    oordeel.viaEigenOrigin.map(p => p[1]), [true, true, true, true, true]);
+    oordeel.viaEigenOrigin.map(p => p[1]), [true, true, true, true]);
   check('rechtstreeks naar de worker ook', oordeel.rechtstreeks, true);
   check('en een relatief pad net zo goed', oordeel.relatief, true);
 
@@ -220,6 +279,59 @@ const check = (label, echt, verwacht) => {
     /worker kapte af na ongeveer honderd seconden|verbinding met de worker kapte af na ongeveer honderd seconden/
       .test(meldingDirect || ''), true);
 
+  console.log('\n  een overload wordt uitgezeten, niet doorgegeven');
+  /* Anthropic geeft bij drukte een 529 met "Overloaded". Dat duurt meestal
+     tientallen seconden -- twee snelle pogingen zaten dat nooit uit, en dan
+     stond er "Concepts failed: Overloaded" op een generatie die gewoon even
+     later gelukt was. Drie dingen horen waar te zijn: hij probeert vaker met
+     oplopend wachten, hij zégt dat hij wacht, en als het echt niet lukt legt
+     de melding uit dat opnieuw drukken volstaat. */
+  const overload = await proxyPage.evaluate(async () => {
+    const echt = window.fetch;
+    const echteToast = window.toast;
+    let pogingen = 0;
+    const wachttijden = [];
+    const meldingen = [];
+    const echteSetTimeout = window.setTimeout;
+    window.setTimeout = (fn, ms) => { wachttijden.push(ms); return echteSetTimeout(fn, 1); };
+    window.toast = (m) => meldingen.push(String(m));
+    window.fetch = async () => {
+      pogingen++;
+      if (pogingen < 3) return { ok: false, status: 529, json: async () => ({ error: { message: 'Overloaded' } }) };
+      return { ok: true, json: async () => ({ content: [{ type: 'text', text: 'gelukt' }] }) };
+    };
+    /* delayMs op 40 zodat de test niet echt seconden zit te wachten; de
+       verdubbeling (40, 80) is wat hier getest wordt, niet de absolute duur.
+       Het filter eronder houdt alleen die herkenbare waarden over, zodat een
+       toevallige timer van de app zelf de meting niet vervuilt. */
+    const data = await fetchJsonWithRetry(location.origin + '/anthropic',
+      { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 4, 40);
+
+    // En nu een overload die nooit overgaat: wat zegt de eindmelding?
+    window.fetch = async () => ({ ok: false, status: 529, json: async () => ({ error: { message: 'Overloaded' } }) });
+    let eind = null;
+    try {
+      await fetchJsonWithRetry(location.origin + '/anthropic',
+        { method: 'POST', body: JSON.stringify({ messages: [], max_tokens: 100 }) }, 1, 5);
+    } catch (e) { eind = e.message; }
+
+    window.fetch = echt; window.toast = echteToast; window.setTimeout = echteSetTimeout;
+    return { pogingen, wachttijden, meldingen, tekst: (data.content || [{}])[0].text, eind };
+  });
+  check('na twee keer 529 komt de derde poging er gewoon door', overload.tekst, 'gelukt');
+  check('en het wachten verdubbelt per poging',
+    overload.wachttijden.filter(ms => ms === 40 || ms === 80).slice(0, 2), [40, 80]);
+  check('tijdens het wachten staat er een melding, geen bevroren scherm',
+    overload.meldingen.filter(m => /busy|retrying/i.test(m)).length >= 2, true);
+  check('een overload die aanhoudt legt uit dat opnieuw drukken volstaat',
+    /overloaded right now[\s\S]*press the button again/i.test(overload.eind || ''), true);
+  /* De tests hierboven geven het aantal pogingen expliciet mee; de console
+     zelf leunt op de standaard. Die hoort op vier te staan (3+6+12+24 s zit
+     een gewone overload uit) -- terug naar twee en het oude gedrag is stil
+     terug. */
+  const proxyBron = fs.readFileSync(path.join(APP, 'js', '04-instellingen-en-proxy.js'), 'utf8');
+  check('de standaard is vier herkansingen', /maxRetries = 4/.test(proxyBron), true);
+
   console.log('\n  de lijst hier en de lijst in de worker lopen gelijk');
   const workerBron = fs.readFileSync(
     path.join(__dirname, '..', '..', 'platform', 'worker', 'marketing-os.worker.js'), 'utf8');
@@ -230,6 +342,26 @@ const check = (label, echt, verwacht) => {
     .split(',').map(s2 => s2.trim().replace(/'/g, '')).filter(Boolean);
   check('elke host die de console rechtstreeks aanroept, staat ook in de worker',
     hostsApp.filter(h => hostsWorker.indexOf(h) === -1), []);
+
+  /* Sinds de deploy previews erbij mogen staat er naast de lijst een patroon,
+     aan beide kanten. Lopen die uit elkaar, dan belt de console rechtstreeks
+     aan bij een worker die de deur dichthoudt -- en dan valt de app terug op
+     de tussenstap die lange calls afkapt. Precies de storing die dit patroon
+     moest oplossen, maar dan onvindbaar. */
+  const patroonApp = new RegExp(
+    (appBron.match(/WORKER_HOST_PATROON = \/(.+?)\/;/) || [])[1] || '$^');
+  const patroonWorker = new RegExp(
+    (workerBron.match(/ORIGIN_PATROON = \/(.+?)\/;/) || [])[1] || '$^');
+  const proef = ['deploy-preview-14--wellshave-adgen.netlify.app',
+                 'deploy-preview-7--wellshave-werkbank.netlify.app'];
+  const nep = ['deploy-preview-14--wellshave-adgen.netlify.app.kwaad.nl',
+               'boos--wellshave-adgen.netlify.app'];
+  check('de console laat de deploy previews rechtstreeks bellen',
+    proef.filter(h => !patroonApp.test(h)), []);
+  check('en de worker doet voor exact dezelfde adressen open',
+    proef.filter(h => !patroonWorker.test('https://' + h)), []);
+  check('een adres dat er alleen op lijkt komt er bij geen van beide in',
+    nep.filter(h => patroonApp.test(h) || patroonWorker.test('https://' + h)), []);
 
   console.log('');
   console.log(fout === 0 ? '  Alle controles geslaagd' : `  ${fout} controle(s) mislukt`);

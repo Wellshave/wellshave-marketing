@@ -19,7 +19,7 @@ if (savedMode) {
 /* ===== Interview-mode (Wizard) voor Statics (v5.09): adaptief Rory-interview -> Theriot scherpt -> 3 statics ===== */
 var iw = { open:false, phase:'entrance', entrance:'persona', product:'', persona:null, angle:'', chat:[], known:{}, checklist:{}, hist:null, briefing:null, busy:false, suggest:[] };
 
-function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-fable-5'; }
+function iwModel(){ var el=document.getElementById('anthropic-model'); return (el&&el.value)||'claude-opus-5'; }
 function iwEsc(t){ return (typeof escapeHtml==='function')?escapeHtml(t==null?'':String(t)):String(t==null?'':t); }
 function iwText(data){ var t=''; try{ (data.content||[]).forEach(function(b){ if(b&&b.type==='text') t+=b.text; }); }catch(e){} return t; }
 function iwJson(txt){ var a=txt.indexOf('{'), b=txt.lastIndexOf('}'); if(a<0||b<0) throw new Error('geen JSON'); return JSON.parse(txt.substring(a,b+1)); }
@@ -357,6 +357,16 @@ function setMode(mode) {
 
   document.body.classList.toggle('copy-mode-active', mode === 'copy');
   document.body.classList.toggle('iterate-mode-active', mode === 'iterate');
+  /* De itereerwizard tekent zichzelf zodra de modus aangaat. Zonder dit staat
+     hij leeg als je via de modusknop binnenkomt in plaats van via het menu --
+     twee ingangen naar hetzelfde scherm en maar een ervan tekent, is precies
+     het soort verschil dat je pas ziet als iemand het meldt. */
+  if (mode === 'iterate' && typeof renderItereerWizard === 'function') renderItereerWizard();
+  /* En bij het VERLATEN van itereren de blokken weer vrijgeven. De wizard zet
+     ze op none tot stap 3; blijft dat staan, dan opent Kopieer ad met een leeg
+     scherm -- een scherm dat kapot is door een instelling van een ander
+     scherm is precies het soort fout dat niemand terugvindt. */
+  if (mode !== 'iterate' && typeof iwToonWerkblad === 'function') iwToonWerkblad();
 
   // scratch-only elementen (format mode, funnel, archetype, concept-suggester) verbergen in copy en iterate
   document.querySelectorAll('.scratch-only').forEach(el => {

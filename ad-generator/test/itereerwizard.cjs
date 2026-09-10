@@ -1,0 +1,1529 @@
+/* De itereerwizard — de consolekant.
+ *
+ * De bronlaag staat in platform/worker/test/itereren.mjs. Hier gaat het om wat
+ * het scherm met die cijfers doet, en dat is een ander soort risico. Vier
+ * fouten, alle vier stil:
+ *
+ *   1. TWEE WAARHEDEN IN DEZELFDE PROMPT. Het oude formulier bestaat nog als
+ *      terugval en houdt zijn oude waarden. Als beide invoerwegen meetellen,
+ *      krijgt het model cijfers van een advertentie die niet bestaat -- en dan
+ *      is de diagnose op niets gebaseerd terwijl hij er overtuigd uitziet.
+ *
+ *   2. HET LEK NA DE KLIK WORDT EEN CREATIVE-OPDRACHT. De duurste. Zit het
+ *      lek op de pagina of bij het afrekenen, dan lost een nieuwe hook niets
+ *      op; drie iteraties lekken dan alle drie even hard. Dat moet op het
+ *      scherm staan én in wat er naar het model gaat.
+ *
+ *   3. TE WEINIG DATA KRIJGT EEN OORDEEL. Een conversiepercentage op zeven
+ *      klikken is ruis. Ruis met een kleurtje eromheen is erger dan geen
+ *      oordeel.
+ *
+ *   4. ONBEKEND WORDT NUL. Een streepje zegt "wij weten het niet". Een nul
+ *      zegt "het is nul keer gebeurd", en daar wordt een iteratie op gebouwd.
+ *
+ *   node ad-generator/test/itereerwizard.cjs
+ */
+const { chromium } = require('playwright');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const APP = path.join(__dirname, '..', 'app');
+const CHROOM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.jpg': 'image/jpeg' };
+
+let fout = 0;
+function check(naam, kreeg, wilde) {
+  const ok = JSON.stringify(kreeg) === JSON.stringify(wilde);
+  console.log((ok ? '  ok   ' : '  FOUT ') + naam + (ok ? '' : `  (kreeg ${JSON.stringify(kreeg)}, wilde ${JSON.stringify(wilde)})`));
+  if (!ok) fout++;
+}
+
+function serve(root) {
+  const s = http.createServer((req, res) => {
+    const rel = req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]).slice(1);
+    const p = path.join(root, rel);
+    if (!p.startsWith(root) || !fs.existsSync(p)) { res.writeHead(404); return res.end('x'); }
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'text/plain' });
+    res.end(fs.readFileSync(p));
+  });
+  return new Promise(r => s.listen(0, () => r([s, s.address().port])));
+}
+
+function ONDERSCHEP() {
+  window.__gevraagd = [];
+  window.__bronnen = { bronnen: [
+    { bron: 'atria', naam: 'Atria', bruikbaar: true, reden: null,
+      accounts: [{ id: 'a1', naam: 'Wellshave NL' }] },
+    { bron: 'meta', naam: 'Meta Ads', bruikbaar: false, reden: 'er staat geen META_ACCESS_TOKEN', accounts: [] }
+  ] };
+  window.__lijst = { trend_beschikbaar: true, advertenties: [
+    { id: '120001', naam: 'WS - 160 - 1', beeld: null,
+      cijfers: { spend: 241.15, roas: 5.56, aankopen: 22, impressions: 40270, klikken: 542 },
+      trend: { roas: 1.12, spend: 1.4 } },
+    { id: '120002', naam: 'WS - 161 - 2', beeld: null,
+      cijfers: { spend: 88, roas: null, aankopen: null, impressions: 9000, klikken: 60 },
+      trend: null },
+    /* Eentje die daalt: dezelfde advertentie draait nog, maar de ROAS is een
+       derde lager dan de periode ervoor. */
+    { id: '120003', naam: 'WS - 158 - 4', beeld: null,
+      cijfers: { spend: 512.4, roas: 2.1, aankopen: 18, impressions: 60000, klikken: 700 },
+      trend: { roas: 0.66, spend: 1.02 } },
+    /* Een ROAS zonder bestellingen. Dat komt echt voor -- omzet uit een bron
+       die de bestellingen niet meldt -- en het is geen winnaar: een verhouding
+       zonder noemer is geen uitslag. */
+    { id: '120004', naam: 'WS - 162 - 9', beeld: null,
+      cijfers: { spend: 150, roas: 9.9, aankopen: 0, impressions: 20000, klikken: 210 },
+      trend: { roas: 1.0, spend: 1.0 } }
+  ] };
+  /* Een advertentie die goed klikt maar lekt op de pagina. Dat is het geval
+     waarin een nieuwe creative het probleem niet oplost. */
+  /* Een videoadvertentie met hook, hold en een retentiecurve. Los van het
+     stille geval hieronder, want dit is een ander scherm. */
+  window.__videoDetail = {
+    advertentie: { id: '120009', naam: 'WS - 103 - 2 - New Vid', beeld: 'https://x.fbcdn.net/p.jpg',
+      video: 'https://video.xx.fbcdn.net/v/echt.mp4', staat: 'ARCHIVED', copy: null,
+      cijfers: { spend: 509.50, impressions: 68000, klikken: 853, ctr: 2.52, aankopen: 23,
+                 roas: 2.91, cpa: 22.15, video_plays: 20400, video_thruplay: 6800,
+                 hook_rate: 30, hold_rate: 10 } },
+    norm: null,
+    doorkijk: { p25: 50, p50: 30, p75: 15, p100: 10 },
+    norm_doorkijk: { p25: 55, p50: 44, p75: 20, p100: 12 },
+    diagnose: null
+  };
+  window.__detail = {
+    advertentie: { id: '120001', naam: 'WS - 160 - 1', beeld: null, staat: 'ACTIVE', copy: null,
+      cijfers: { spend: 241.15, impressions: 40270, reach: 28000, klikken: 542, ctr: 1.35,
+                 cpm: 5.99, cpc: 0.44, lpv: 384, atc: 41, aankopen: 22, omzet: 1341.56,
+                 roas: 5.56, aov: 60.98, cpa: 10.96, frequency: 1.4 } },
+    norm: { spend: 5000, impressions: 800000, klikken: 8000, lpv: 7000, atc: 1400, aankopen: 700 },
+    diagnose: {
+      knelpunt: 'pagina', meetbaar: 4, reden: null,
+      wat_testen: { creative: false, varieer: [],
+        zeg: 'Het lek zit na de klik: mensen komen op de pagina en leggen niets in de wagen. Een nieuwe creative lost dit niet op.' },
+      stappen: [
+        { sleutel: 'aandacht', label: 'Vertoning naar klik', waarde: 0.01346, norm: 0.01, verhouding: 1.35,
+          noemer: 40270, drempel: 1000, genoeg_data: true, oordeel: 'sterk', zit: 'in de advertentie' },
+        { sleutel: 'klikkwaliteit', label: 'Klik naar landingspagina', waarde: 0.708, norm: 0.875, verhouding: 0.81,
+          noemer: 542, drempel: 100, genoeg_data: true, oordeel: 'zwak', zit: 'tussen advertentie en pagina' },
+        { sleutel: 'pagina', label: 'Landingspagina naar winkelwagen', waarde: 0.1068, norm: 0.2, verhouding: 0.53,
+          noemer: 384, drempel: 100, genoeg_data: true, oordeel: 'zwak', zit: 'op de pagina' },
+        { sleutel: 'afrekenen', label: 'Winkelwagen naar bestelling', waarde: 0.536, norm: 0.5, verhouding: 1.07,
+          noemer: 41, drempel: 25, genoeg_data: true, oordeel: 'gemiddeld', zit: 'bij het afrekenen' },
+        /* Deze heeft te weinig eronder: hij hoort geen oordeel te krijgen en
+           geen knelpunt te worden, hoe slecht de verhouding ook is. */
+        { sleutel: 'orderwaarde', label: 'Gemiddelde orderwaarde', waarde: 60.98, norm: 90, verhouding: 0.68,
+          noemer: 22, drempel: 25, genoeg_data: false, oordeel: null, zit: 'in het aanbod' },
+        { sleutel: 'inkoop', label: 'Prijs per duizend vertoningen', waarde: 5.99, norm: null, verhouding: null,
+          noemer: 40270, drempel: 1000, genoeg_data: true, oordeel: null, zit: 'in de veiling' }
+      ]
+    }
+  };
+  const echt = window.fetch;
+  window.fetch = async function (url, opties) {
+    const u = String(url);
+    window.__gevraagd.push({ url: u, auth: (opties && opties.headers && opties.headers.Authorization) || null });
+    if (u.indexOf('/itereren/bronnen') > -1) return { ok: true, status: 200, json: async () => window.__bronnen };
+    if (u.indexOf('/itereren/advertenties') > -1) return { ok: true, status: 200, json: async () => window.__lijst };
+    if (u.indexOf('/itereren/advertentie') > -1) return { ok: true, status: 200, json: async () => window.__detail };
+    if (u.indexOf('/onderzoek/beeld') > -1) {
+      return { ok: true, status: 200, blob: async () => new Blob(['JPEGDATA'], { type: 'image/jpeg' }) };
+    }
+    if (u.indexOf('/onderzoek/video') > -1) {
+      return { ok: true, status: 200, blob: async () => new Blob(['MP4DATA'], { type: 'video/mp4' }) };
+    }
+    if (u.indexOf('/anthropic') > -1) {
+      window.__naarRory = JSON.parse(opties.body);
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name: 'iteratieplan',
+        input: { cijfer_diagnose: 'x', aanbevolen_aanpak: 'y', creatieve_richting: 'z',
+                 aanbevolen_dimensies: ['hook'], iteratie_hypotheses: ['a'] } }] }) };
+    }
+    return echt(url, opties);
+  };
+  window.__WG_TOKEN = 'token-van-de-baas';
+}
+
+(async () => {
+  const [srv, poort] = await serve(APP);
+  const browser = await chromium.launch({ executablePath: CHROOM });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 1100 } });
+  const paginafouten = [];
+  page.on('pageerror', e => paginafouten.push(String(e)));
+  await page.goto('http://127.0.0.1:' + poort + '/');
+  await page.waitForFunction(() => typeof renderItereerWizard === 'function');
+  await page.evaluate(fx => { eval('(' + fx + ')()'); }, ONDERSCHEP.toString());
+
+  console.log('\n  het oude formulier is niet meer de eerste weg');
+  /* Dertig velden overtikken was de oude ingang. Hij bestaat nog als terugval,
+     maar hij staat niet meer in beeld tenzij je erom vraagt -- anders is het
+     geen terugval maar een tweede route. */
+  const start = await page.evaluate(() => {
+    switchMainTab('iterate');
+    const oud = document.getElementById('iterate-handmatig');
+    return {
+      wizard: !!document.getElementById('iw-paneel'),
+      getekend: document.getElementById('iw-paneel').textContent.length > 40,
+      oudErNog: !!oud,
+      oudZichtbaar: oud && oud.style.display !== 'none',
+      /* En de analyseknop blijft: die stap verandert niet, alleen waar zijn
+         cijfers vandaan komen. */
+      analyse: !!document.getElementById('iterate-analyze-btn')
+    };
+  });
+  check('de wizard staat er', start.wizard, true);
+  check('en is getekend', start.getekend, true);
+  check('het oude formulier bestaat nog', start.oudErNog, true);
+  check('maar staat niet in beeld', start.oudZichtbaar, false);
+  check('de analyseknop is er nog', start.analyse, true);
+
+  console.log('\n  itereren is een eigen scherm, geen drie kolommen');
+  /* De drie kolommen van de studio horen bij het maken van een nieuwe static.
+     Bij itereren stel je niets in -- de advertentie bestaat al en de cijfers
+     komen uit de koppeling -- en er is geen resultaat tot je op genereren
+     drukt. Twee lege kolommen naast het enige dat ertoe doet. */
+  const kolommen = await page.evaluate(() => {
+    switchMainTab('iterate');
+    const zichtbaar = (sel) => {
+      const n = document.querySelector(sel);
+      if (!n) return null;
+      return getComputedStyle(n).display !== 'none';
+    };
+    const paneel = document.getElementById('iw-paneel');
+    const bron = document.getElementById('source-ad-section');
+    /* En de volgorde: eerst de cijfers ophalen, dan pas het uploadvak. Dat is
+       de volgorde waarin het werk gebeurt. */
+    const doos = paneel && paneel.closest('#iterate-options');
+    return {
+      configuratie: zichtbaar('.ws8-left'),
+      resultaat: zichtbaar('.ws8-right'),
+      werkblad: zichtbaar('.ws8-center'),
+      wizardEerst: !!(doos && bron &&
+        (doos.compareDocumentPosition(bron) & Node.DOCUMENT_POSITION_FOLLOWING) > 0)
+        || !!(doos && bron && parseInt(getComputedStyle(doos).order, 10) < parseInt(getComputedStyle(bron).order, 10)),
+      /* En bij Kopieer ad staan ze er gewoon nog: dit is een verschil per
+         scherm, geen verwijdering. Statics is hier niet de tegenproef -- daar
+         is de wizard het scherm en is de kolom om een andere reden weg. */
+      naKopieer: (function () { setMode('copy'); return zichtbaar('.ws8-left'); })()
+    };
+  });
+  check('de configuratiekolom is weg', kolommen.configuratie, false);
+  check('de resultaatkolom ook', kolommen.resultaat, false);
+  check('het werkblad blijft', kolommen.werkblad, true);
+  check('en de cijfers staan boven het uploadvak', kolommen.wizardEerst, true);
+  check('bij Kopieer ad staat de configuratie er gewoon', kolommen.naKopieer, true);
+  await page.evaluate(() => switchMainTab('iterate'));
+
+  console.log('\n  en het werkblad krijgt de hele breedte, niet een strook');
+  /* De controle hierboven keek of de kolommen "display: none" waren. Dat waren
+     ze -- en het scherm was tóch kapot: de rasterbreedtes stonden met
+     !important vast op 296px / 484px / 336px, dus het werkblad kreeg 290
+     pixels midden op een leeg scherm van 1600. Zichtbaarheid meten is hier
+     niet genoeg; je moet de breedte meten. */
+  const breedte = await page.evaluate(() => {
+    switchMainTab('iterate');
+    _iw.stap = 1; iwRender();
+    const b = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? Math.round(el.getBoundingClientRect().width) : null;
+    };
+    return { grid: b('.ws8-grid'), center: b('.ws8-center'), paneel: b('#iw-paneel'),
+             kolommen: getComputedStyle(document.querySelector('.ws8-grid')).gridTemplateColumns };
+  });
+  check('het werkblad vult het raster', breedte.center !== null && breedte.grid - breedte.center < 40, true);
+  check('en het paneel is breed, geen strook', breedte.paneel > 800, true);
+  check('het raster heeft nog maar één kolom',
+    /^[0-9.]+px$/.test(breedte.kolommen || '') && breedte.kolommen.split(' ').length, 1);
+
+  console.log('\n  de commandobalk van Statics hoort hier niet');
+  /* Hij zegt "Statics", telt 2/5 van een andere wizard, en zijn Genereer-knop
+     start de statics-generatie. Op het itereerscherm is elk woord ervan
+     onwaar -- en hij stond er gewoon, boven de stappenbalk. */
+  const balk = await page.evaluate(() => {
+    switchMainTab('iterate');
+    const h = document.querySelector('.ws8-header');
+    const bijItereren = h ? getComputedStyle(h).display : null;
+    setMode('copy');
+    const bijKopieer = h ? getComputedStyle(h).display : null;
+    setMode('iterate');
+    return { bijItereren: bijItereren, bijKopieer: bijKopieer, bestaat: !!h };
+  });
+  check('de balk bestaat wel', balk.bestaat, true);
+  check('maar staat niet op het itereerscherm', balk.bijItereren, 'none');
+  check('en bij Kopieer ad staat hij er gewoon', balk.bijKopieer !== 'none', true);
+
+  console.log('\n  stap 1 staat in twee kolommen, zoals het ontwerp zegt');
+  const twee = await page.evaluate(() => {
+    _iw.stap = 1; _iw.gekozen = null; iwRender();
+    const k = [].slice.call(document.querySelectorAll('.iw-kaart'));
+    const st = document.querySelector('.iw-stapper');
+    return {
+      kaarten: k.length,
+      naastElkaar: k.length === 2 && Math.abs(k[0].getBoundingClientRect().top - k[1].getBoundingClientRect().top) < 4,
+      breedtes: k.map(e => Math.round(e.getBoundingClientRect().width)),
+      /* De stappenbalk is één rij, geen blokje van vijf onder elkaar. */
+      stapperHoog: st ? Math.round(st.getBoundingClientRect().height) : null
+    };
+  });
+  check('twee kaarten', twee.kaarten, 2);
+  check('naast elkaar', twee.naastElkaar, true);
+  /* En NIET even breed. Het advertentieaccount is de hoofdweg; zelf uploaden
+     is de uitzondering. Even breed maken zegt dat het twee gelijkwaardige
+     routes zijn, en dan neemt het uitzonderingsvak de halve pagina. */
+  check('het account krijgt veruit de meeste ruimte',
+    twee.breedtes[0] > twee.breedtes[1] * 2, true);
+  check('de stappenbalk is één rij', twee.stapperHoog !== null && twee.stapperHoog < 60, true);
+
+  console.log('\n  het oude werkblad staat er pas vanaf stap 4');
+  /* Het stond allemaal meteen onder de wizard: het uploadvak, de winnende ad,
+     de testdimensies en de knop "Analyseer en genereer iteraties". Dan begin je
+     aan het onderste eind van het scherm, en de wizard erboven is decoratie. */
+  const perStap = await page.evaluate(() => {
+    const zicht = () => ['iterate-werkblad', 'source-ad-section', 'classic-form'].map(id => {
+      const el = document.getElementById(id);
+      return el ? getComputedStyle(el).display !== 'none' : null;
+    });
+    const uit = {};
+    [1, 2, 3, 4].forEach(n => { _iw.stap = n; iwRender(); uit[n] = zicht(); });
+    /* En bij het verlaten van itereren komt alles weer terug. Blijft het op
+       none staan, dan opent Kopieer ad met een leeg scherm -- kapot door een
+       instelling van een ander scherm. */
+    _iw.stap = 1; iwRender();
+    setMode('copy');
+    uit.naKopieer = zicht();
+    setMode('iterate');
+    return uit;
+  });
+  check('op stap 1 niets ervan', perStap['1'], [false, false, false]);
+  check('op stap 2 nog steeds niet', perStap['2'], [false, false, false]);
+  /* Stap 3 is de STRATEGIE: daar besluit je wat je test. Stond het werkblad
+     daar al onder, dan begon het werk alsnog onderaan een lang formulier --
+     precies wat de wizard moest wegnemen. */
+  check('op stap 3 nog steeds niet', perStap['3'], [false, false, false]);
+  check('op stap 4 alles', perStap['4'], [true, true, true]);
+  check('en Kopieer ad krijgt zijn scherm terug', perStap.naKopieer, [true, true, true]);
+
+  console.log('\n  ook als je via de modusknop binnenkomt');
+  /* Twee ingangen naar hetzelfde scherm en maar een ervan tekent: dat zie je
+     pas als iemand het meldt. */
+  const viaModus = await page.evaluate(() => {
+    document.getElementById('iw-paneel').innerHTML = '';
+    setMode('iterate');
+    return document.getElementById('iw-paneel').textContent.length > 40;
+  });
+  check('dan tekent hij ook', viaModus, true);
+
+  console.log('\n  de bronnen komen binnen, met een reden als ze niet werken');
+  const bronnen = await page.evaluate(async () => {
+    await iwHaalBronnen();
+    const t = document.getElementById('iw-paneel').textContent;
+    return { tekst: t, bron: _iw.bron, account: _iw.account,
+             auth: (window.__gevraagd[0] || {}).auth };
+  });
+  check('Atria is gekozen omdat hij werkt', bronnen.bron, 'atria');
+  check('met zijn account erbij', bronnen.account, 'a1');
+  check('en de vraag droeg het teamtoken', bronnen.auth, 'Bearer token-van-de-baas');
+  /* Een uitgegrijsde knop zonder reden stuurt iemand naar de worker terwijl
+     het aan de sleutel ligt. */
+  check('waarom Meta niet kan staat erbij', /META_ACCESS_TOKEN/.test(bronnen.tekst), true);
+
+  console.log('\n  de eigen advertenties, met wat ze kostten en opleverden');
+  const lijst = await page.evaluate(async () => {
+    await iwHaalLijst();
+    const el = document.getElementById('iw-paneel');
+    var kaartTekst = el.textContent;
+    var roasOpKaarten = [].slice.call(el.querySelectorAll('.iw-adcijfer'))
+      .filter(function (x) { return /ROAS/.test(x.textContent); }).length;
+    _iw.weergave = 'tabel'; iwRender();
+    var tabel = document.getElementById('iw-paneel').textContent;
+    /* De rij van de advertentie die GEEN ROAS heeft. */
+    var tabelrij = { roas: null };
+    [].slice.call(document.querySelectorAll('.iw-tabel tbody tr')).forEach(function (tr) {
+      if (!/zonder cijfers|WS - 161/.test(tr.textContent)) return;
+      var cellen = tr.querySelectorAll('td');
+      if (cellen[2]) tabelrij.roas = cellen[2].textContent.trim();
+    });
+    _iw.weergave = 'kaarten'; iwRender();
+    return { kaarten: el.querySelectorAll('.iw-adkaart').length, tekst: kaartTekst,
+             roasOpKaarten: roasOpKaarten, tabel: tabel, tabelrij: tabelrij,
+             url: window.__gevraagd.filter(g => g.url.indexOf('/itereren/advertenties') > -1)[0].url };
+  });
+  check('vier advertenties', lijst.kaarten, 4);
+  check('met naam en uitgave', /WS - 160 - 1/.test(lijst.tekst) && /241\.15/.test(lijst.tekst), true);
+  check('en het gekozen venster ging mee', /dagen=30/.test(lijst.url), true);
+  /* En de vorige periode erbij gevraagd. Zonder dat is "daalt hij" niet te
+     beantwoorden, en dan staat het filter erop zonder iets te filteren. */
+  check('met de vorige periode erbij gevraagd', /vergelijk=1/.test(lijst.url), true);
+  /* De tweede heeft geen ROAS. Een streepje, geen 0,00 -- een nul zou zeggen
+     dat er niets verkocht is, en de waarheid is dat we het niet weten. */
+  /* Op de kaart staat een ongemeten cijfer er NIET: een tegel met een streepje
+     vult de rij en zegt niets. In de tabel staat wél een streepje, want daar
+     zou een leeg vak in een kolom met cijfers als een nul lezen. */
+  check('een ongemeten ROAS staat niet als nul op de kaart', /ROAS 0[.,]00/.test(lijst.tekst), false);
+  check('de kaart toont alleen wat gemeten is', lijst.roasOpKaarten, 3);
+  /* En in de tabel staat op die plek een streepje. Precies die ene rij
+     nakijken en niet de hele tabel: "0,00" komt in een tabel met cijfers ook
+     als geldige waarde voor. */
+  check('in de tabel staat op die plek een streepje', lijst.tabelrij.roas, '—');
+  check('en geen nul', lijst.tabelrij.roas === '0,00' || lijst.tabelrij.roas === '0.00', false);
+
+  console.log('\n  de trap laat zien waar het lek zit');
+  const trap = await page.evaluate(async () => {
+    await iwKies(0);
+    const el = document.getElementById('iw-paneel');
+    const knel = el.querySelectorAll('.iw-stap.knelpunt');
+    return {
+      stappen: el.querySelectorAll('.iw-stap').length,
+      knelpunten: knel.length,
+      knelLabel: knel.length ? knel[0].textContent : '',
+      tekst: el.textContent
+    };
+  });
+  check('alle zes stappen staan er', trap.stappen, 6);
+  /* Precies een. Alles laten opvallen is hetzelfde als niets laten opvallen. */
+  check('en precies een is het lek', trap.knelpunten, 1);
+  check('de landingspagina', /Landingspagina naar winkelwagen/.test(trap.knelLabel), true);
+  check('met het woord erbij', /het lek/.test(trap.knelLabel), true);
+  check('de verhouding staat er in gewone taal', /47% onder het account/.test(trap.tekst), true);
+  check('en de sterke stap ook', /35% boven het account/.test(trap.tekst), true);
+
+  console.log('\n  de static komt met de advertentie mee');
+  /* Dit is de winst van de hele wizard: de static die je zelf gemaakt hebt
+     hoef je niet opnieuw te uploaden om erop te kunnen itereren. Zonder deze
+     controle blijft het scherm groen terwijl je alsnog staat te slepen. */
+  const bronAd = await page.evaluate(async () => {
+    state.sourceAd = null;
+    window.__detail.advertentie.beeld = 'https://scontent.xx.fbcdn.net/v/b.jpg';
+    await iwKies(0);
+    return { er: !!state.sourceAd,
+             soort: state.sourceAd && state.sourceAd.mimeType,
+             naam: state.sourceAd && state.sourceAd.fileName,
+             /* En via de worker, niet rechtstreeks: die servers laten een
+                browser van een vreemde herkomst niet toe. */
+             viaWorker: window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/beeld') > -1).length > 0 };
+  });
+  check('de advertentie is nu de bron-ad', bronAd.er, true);
+  check('als afbeelding', bronAd.soort, 'image/jpeg');
+  check('met een naam die zegt waar hij vandaan komt', /^meta-/.test(bronAd.naam || ''), true);
+  check('opgehaald via de worker', bronAd.viaWorker, true);
+
+  /* En als het beeld er niet is, gaat de rest gewoon door: geen beeld is
+     vervelend, geen cijfers is fataal en die hebben we al. */
+  const zonderBeeld = await page.evaluate(async () => {
+    state.sourceAd = null;
+    window.__detail.advertentie.beeld = null;
+    await iwKies(0);
+    return { bronAd: state.sourceAd, diagnose: !!_iw.diagnose };
+  });
+  check('zonder beeld blijft de bron-ad leeg', zonderBeeld.bronAd, null);
+  check('maar de diagnose is er wel', zonderBeeld.diagnose, true);
+
+  console.log('\n  te weinig data krijgt geen oordeel, en wordt geen lek');
+  const dun = await page.evaluate(() => {
+    const el = document.getElementById('iw-paneel');
+    const vakken = [].slice.call(el.querySelectorAll('.iw-stap'));
+    const orderwaarde = vakken.filter(v => /orderwaarde/i.test(v.textContent))[0];
+    return { tekst: orderwaarde ? orderwaarde.textContent : '',
+             knelpunt: orderwaarde ? orderwaarde.classList.contains('knelpunt') : null,
+             kleur: orderwaarde ? (orderwaarde.className.match(/o-\w+/) || [''])[0] : '' };
+  });
+  check('er staat dat er te weinig data is', /te weinig data/.test(dun.tekst), true);
+  check('met hoeveel er nodig was', /22 van de 25/.test(dun.tekst), true);
+  check('hij wordt geen lek', dun.knelpunt, false);
+  /* En hij krijgt geen kleur. Ruis met een kleurtje eromheen is erger dan geen
+     oordeel: het ziet eruit als een bevinding. */
+  check('en geen kleur', dun.kleur, '');
+
+  console.log('\n  een lek na de klik zegt dat een creative het niet oplost');
+  /* De duurste fout van de vier: drie nieuwe hooks die alle drie even hard
+     lekken, gemaakt omdat het scherm niets zei. */
+  const waarschuwing = await page.evaluate(() => {
+    const el = document.getElementById('iw-paneel');
+    return { tekst: el.textContent, gemarkeerd: !!el.querySelector('.iw-uitleg.waarschuwing') };
+  });
+  check('het staat er met zoveel woorden', /lost dit niet op/.test(waarschuwing.tekst), true);
+  check('en het valt op', waarschuwing.gemarkeerd, true);
+  /* En je mag toch doorgaan: het is zijn budget. Maar niet zonder dat het er
+     staat. */
+  check('doorgaan mag nog steeds', /Je kunt alsnog iteraties maken/.test(waarschuwing.tekst), true);
+
+  console.log('\n  de cijfers gaan naar het model, en de diagnose erbij');
+  const naarModel = await page.evaluate(() => {
+    const c = collectIterateData();
+    return { naam: c.adName, periode: c.period, tekst: c.text };
+  });
+  check('de naam van de advertentie', naarModel.naam, 'WS - 160 - 1');
+  check('en het venster', naarModel.periode, 'laatste 30 dagen');
+  check('de uitgave staat erin', /241\.15/.test(naarModel.tekst), true);
+  check('de ROAS ook', /5\.56/.test(naarModel.tekst), true);
+  check('met de funnel tegen het account', /GEMETEN TEGEN HETZELFDE ACCOUNT/.test(naarModel.tekst), true);
+  check('en waar het knelpunt zit', /HET KNELPUNT ZIT OP DE PAGINA/.test(naarModel.tekst), true);
+  /* Het model moet dit expliciet te horen krijgen, niet alleen de gebruiker.
+     Anders schrijft het alsnog drie hooks alsof het lek daar zit. */
+  check('het model wordt gewaarschuwd', /Een nieuwe creative lost het niet op/.test(naarModel.tekst), true);
+  /* En wat er NIET in staat: de stappen zonder genoeg data. Die zouden als
+     bevinding meelezen terwijl het ruis is. */
+  check('een stap zonder genoeg data staat er niet in',
+    /Gemiddelde orderwaarde/.test(naarModel.tekst), false);
+
+  console.log('\n  het oude formulier mengt zich er niet in');
+  /* Dit is de fout die de prompt op een advertentie baseert die niet bestaat:
+     de invoervelden houden hun oude waarden, en als die meetellen krijgt het
+     model twee verschillende getallen voor dezelfde maat. */
+  const gemengd = await page.evaluate(() => {
+    const el = document.getElementById('iterate-spend');
+    if (el) el.value = '99999';
+    const c = collectIterateData();
+    return { spend: /99999/.test(c.text), naam: c.adName };
+  });
+  check('het oude bedrag komt er niet in', gemengd.spend, false);
+  check('en de naam komt uit de bron', gemengd.naam, 'WS - 160 - 1');
+
+  console.log('\n  de testdimensies volgen uit de diagnose');
+  const dims = await page.evaluate(() => {
+    /* Bij een lek op de pagina hoort GEEN creative-dimensie. Wat er stond
+       blijft dan staan -- het scherm vinkt niets aan wat het niet meent. */
+    const voor = [].slice.call(document.querySelectorAll('input[name="iterate-vary"]:checked')).map(c => c.value);
+    iwZetDimensies();
+    const naPagina = [].slice.call(document.querySelectorAll('input[name="iterate-vary"]:checked')).map(c => c.value);
+    /* En met een lek in de aandacht wel: dan wordt de hook aangevinkt. */
+    _iw.diagnose.wat_testen = { creative: true, varieer: ['hook', 'headline', 'opening'], zeg: 'x' };
+    iwZetDimensies();
+    const naHook = [].slice.call(document.querySelectorAll('input[name="iterate-vary"]:checked')).map(c => c.value);
+    return { voor, naPagina, naHook };
+  });
+  check('bij een paginalek wordt er niets aangevinkt', dims.naPagina, dims.voor);
+  check('bij een aandachtslek de voorgestelde dimensies', dims.naHook.sort(), ['headline', 'hook', 'opening']);
+
+  console.log('\n  een fout van de bron komt op het scherm');
+  const stuk = await page.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/itereren/advertenties') > -1) {
+        return { ok: false, status: 502, json: async () => ({ error: 'Atria: The provided API key is invalid' }) };
+      }
+      return echt(u, o);
+    };
+    _iw.gekozen = null;
+    await iwHaalLijst();
+    const t = document.getElementById('iw-paneel').textContent;
+    /* En de stukke fetch weer weg. Zonder dit blijft /itereren/advertenties de
+       rest van de lus kapot, en meet elke controle daarna een leeg scherm dat
+       er niets over zegt. */
+    window.fetch = echt;
+    return t;
+  });
+  check('de melding staat er', /Dat lukte niet/.test(stuk), true);
+  check('met wat de bron zei', /API key is invalid/.test(stuk), true);
+
+  console.log('\n  een te oude worker zegt dat, en nooit [object Object]');
+  /* Precies wat er op het scherm stond toen de console al uitgerold was en de
+     worker nog niet: "[object Object]" in een rood vak. De worker geeft bij een
+     onbekende route een object terug waar de console een string verwachtte. */
+  const teOud = await page.evaluate(async () => {
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/itereren/bronnen') > -1) {
+        return { ok: false, status: 404,
+                 json: async () => ({ error: { message: 'Gebruik /systeem/*, POST /anthropic of /openai/… (of GET /health).' } }) };
+      }
+      return echt(u, o);
+    };
+    _iw.gekozen = null; _iw.bronnen = null;
+    await iwHaalBronnen();
+    const t = document.getElementById('iw-paneel').textContent;
+    window.fetch = echt;
+    return t;
+  });
+  check('geen [object Object] meer', /\[object Object\]/.test(teOud), false);
+  check('er staat wat er moet gebeuren', /wrangler deploy/.test(teOud), true);
+  check('en waaraan je ziet of het gelukt is', /versie 20 of hoger/.test(teOud), true);
+
+  console.log('\n  vijf stappen, en je kunt er niet doorheen springen');
+  /* Een stappenbalk die alles laat aanklikken is geen balk maar een rij
+     knoppen: dan sta je op stap 3 met een leeg werkblad en de balk zegt dat je
+     er bent. Terug mag altijd, vooruit alleen als er iets ligt. */
+  const stapper = await page.evaluate(() => {
+    _iw.stap = 1; _iw.gekozen = null; _iw.handmatig = false; iwRender();
+    const el = document.getElementById('iw-paneel');
+    const stappen = [...el.querySelectorAll('.iw-stapper-stap')];
+    return {
+      aantal: stappen.length,
+      labels: stappen.map(s => s.querySelector('.iw-stapper-label').textContent),
+      nu: stappen.filter(s => s.classList.contains('nu')).length,
+      klikbaar: stappen.filter(s => !s.disabled).length
+    };
+  });
+  check('vijf stappen', stapper.aantal, 5);
+  check('met de namen uit het ontwerp', stapper.labels,
+    ['Advertentie', 'Analyse', 'Strategie', 'Iteraties', 'Resultaat']);
+  check('precies één is de huidige', stapper.nu, 1);
+  check('en zonder advertentie is er niets aan te klikken', stapper.klikbaar, 0);
+
+  /* En de grendel zelf, niet alleen het uitgegrijsde knopje. Een tweede weg
+     naar dezelfde stap -- een oude knop, een link, een toets -- moet op
+     dezelfde grendel stuiten. */
+  const sprong = await page.evaluate(() => {
+    const el = document.getElementById('iw-paneel');
+    const k = document.createElement('button');
+    k.setAttribute('data-action', 'iw-stap');
+    k.setAttribute('data-id', '3');
+    el.appendChild(k);
+    k.click();
+    const zonder = _iw.stap;
+    _iw.handmatig = true;
+    el.appendChild(k);
+    k.click();
+    const met = _iw.stap;
+    _iw.handmatig = false; _iw.stap = 1; iwRender();
+    return { zonder: zonder, met: met };
+  });
+  check('zonder advertentie kom je niet op stap 3', sprong.zonder, 1);
+  check('met de handmatige weg wel', sprong.met, 3);
+
+  console.log('\n  de ingangen naar de lijst filteren wat ze beloven');
+  const filters = await page.evaluate(() => {
+    const l = window.__lijst.advertenties;
+    /* Een filter dat struikelt over een advertentie zonder trend hoort een
+       gezakte controle op te leveren en niet een dode testlus: dan zie je
+       WELKE ingang het is. */
+    const veilig = function (id, bewaard) {
+      try { return iwFilter(l, id, bewaard || []).map(a => a.id); }
+      catch (e) { return 'viel om: ' + String((e && e.message) || e); }
+    };
+    return {
+      winnaars: veilig('winnaars'), spend: veilig('spend'), dalend: veilig('dalend'),
+      recent: veilig('recent'), bewaard: veilig('bewaard', ['120002'])
+    };
+  });
+  /* Een ROAS uit nul bestellingen is geen ROAS: die advertentie hoort niet in
+     een lijst met "winnaars", ook niet onderaan. */
+  check('winnaars: alleen met bestellingen, hoogste ROAS eerst', filters.winnaars, ['120001', '120003']);
+  check('een ROAS van 9,9 uit nul bestellingen telt niet mee',
+    Array.isArray(filters.winnaars) && filters.winnaars.indexOf('120004') === -1, true);
+  check('spend: alleen boven de honderd euro', filters.spend, ['120001', '120003', '120004']);
+  /* Geen vorige periode is geen daling. De tweede heeft geen trend en hoort
+     hier dus niet te staan -- niet als stabiel en niet als dalend. */
+  check('dalend: alleen wie werkelijk daalde', filters.dalend, ['120003']);
+  check('recent: de hele lijst', filters.recent, ['120001', '120002', '120003', '120004']);
+  check('bewaard: alleen wat bewaard is', filters.bewaard, ['120002']);
+
+  console.log('\n  een gefilterde kaart opent de advertentie die erop staat');
+  /* De controles hiervoor lieten een stukke bron achter: geen bronnen, geen
+     lijst, een foutmelding. Eerst alles terugzetten -- anders meet ik een leeg
+     scherm en denk ik dat het aan het filter ligt. */
+  await page.evaluate(async () => {
+    _iw.fout = null; _iw.bronnen = window.__bronnen.bronnen;
+    _iw.bron = 'atria'; _iw.account = 'a1';
+    await iwHaalLijst();
+  });
+  /* De plek in de gefilterde lijst en de plek in de opgehaalde lijst lopen
+     uiteen zodra je een ingang kiest. Wie de eerste doorgeeft opent een andere
+     advertentie dan hij aanklikte -- en dat ziet er volkomen normaal uit,
+     want er verschijnt gewoon een advertentie. */
+  const gefilterd = await page.evaluate(async () => {
+    _iw.preset = 'dalend'; _iw.gekozen = null; iwRender();
+    const kaarten = [...document.querySelectorAll('.iw-adkaart')];
+    const opKaart = kaarten.length === 1 ? kaarten[0].textContent : '(' + kaarten.length + ' kaarten)';
+    if (!kaarten.length) { _iw.preset = 'recent'; return { opKaart: opKaart, url: '' }; }
+    kaarten[0].click();
+    for (var i = 0; i < 60 && !_iw.gekozen; i++) await new Promise(r => setTimeout(r, 25));
+    const gevraagd = window.__gevraagd.filter(g => /\/itereren\/advertentie\?/.test(g.url)).pop();
+    _iw.preset = 'recent';
+    return { opKaart: opKaart, url: (gevraagd || {}).url || '' };
+  });
+  check('er staat één dalende advertentie', /WS - 158 - 4/.test(gefilterd.opKaart), true);
+  check('en die wordt ook opgehaald', /id=120003/.test(gefilterd.url), true);
+
+  console.log('\n  een lege uitkomst zegt waarom hij leeg is');
+  /* Drie soorten leeg met drie verschillende vervolgstappen: geen
+     advertenties, geen treffers voor deze ingang, of niet gemeten. Eén zin
+     "geen resultaten" maakt ze alle drie hetzelfde. */
+  const leeg = await page.evaluate(() => {
+    /* Terug naar stap 1: de controle hiervoor koos een advertentie, en op stap
+       2 staat de lijst er niet. */
+    _iw.stap = 1; _iw.gekozen = null;
+    _iw.preset = 'bewaard';
+    try { localStorage.removeItem('wg-iw-bewaard'); } catch (e) { }
+    iwRender();
+    const t = document.getElementById('iw-paneel').textContent;
+    _iw.preset = 'recent';
+    return t;
+  });
+  check('het zegt welke ingang niets opleverde', /Opgeslagen advertenties/.test(leeg), true);
+  check('en hoeveel er wel in het venster staan', /wel 4 in dit venster/.test(leeg), true);
+
+  console.log('\n  bewaren staat in deze browser, en het scherm zegt dat');
+  const ster = await page.evaluate(() => {
+    try { localStorage.removeItem('wg-iw-bewaard'); } catch (e) { }
+    _iw.preset = 'recent'; iwRender();
+    const el = document.getElementById('iw-paneel');
+    const voor = el.querySelectorAll('.iw-ster.aan').length;
+    /* Het sterretje van een BEPAALDE advertentie, niet "de eerste": de
+       volgorde hangt aan de sortering, en die is een keuze van de gebruiker. */
+    const kies = () => document.getElementById('iw-paneel')
+      .querySelector('.iw-ster[data-id="120001"]');
+    kies().click();
+    const na = document.getElementById('iw-paneel').querySelectorAll('.iw-ster.aan').length;
+    const bewaard = iwBewaard();
+    /* En weer terug: een sterretje dat alleen aan kan is een sterretje dat je
+       niet durft aan te raken. */
+    kies().click();
+    return { voor: voor, na: na, bewaard: bewaard, weer: iwBewaard().length,
+             zegt: /Handmatig bewaard/.test(el.textContent) };
+  });
+  check('eerst is er niets bewaard', ster.voor, 0);
+  check('na een klik eentje', ster.na, 1);
+  check('en het is de goede', ster.bewaard, ['120001']);
+  check('nog een klik haalt hem er weer uit', ster.weer, 0);
+  check('en de kaart zegt wat "opgeslagen" betekent', ster.zegt, true);
+
+  console.log('\n  een bron zonder vorige periode zegt dat, en filtert niet stil');
+  /* Atria kent alleen vaste periodes. Dan is "dalend" niet te beantwoorden --
+     en een lege lijst onder een knop die aan staat leest als "er daalt niets",
+     wat een geruststelling is die we niet gemeten hebben. */
+  const geenTrend = await page.evaluate(async () => {
+    window.__lijst = { trend_beschikbaar: false,
+      trend_reden: 'Atria levert alleen vaste periodes, geen vorige periode om tegen te vergelijken.',
+      advertenties: window.__lijst.advertenties };
+    _iw.preset = 'dalend';
+    await iwHaalLijst();
+    const el = document.getElementById('iw-paneel');
+    const knop = [...el.querySelectorAll('.iw-preset')]
+      .filter(k => k.getAttribute('data-id') === 'dalend')[0];
+    return { uit: knop ? knop.disabled : null, reden: knop ? knop.getAttribute('title') : null,
+             preset: _iw.preset };
+  });
+  check('de knop staat uit', geenTrend.uit, true);
+  check('met de reden erbij', /vaste periodes/.test(geenTrend.reden || ''), true);
+  check('en de ingang valt terug op de hele lijst', geenTrend.preset, 'recent');
+
+  console.log('\n  de kaart van de gekozen advertentie');
+  const kaart = await page.evaluate(async () => {
+    window.__lijst = { trend_beschikbaar: true, advertenties: window.__lijst.advertenties };
+    await iwHaalLijst();
+    await iwKies(0);
+    const el = document.getElementById('iw-paneel');
+    const tegels = [...el.querySelectorAll('.iw-tegel')].map(t => t.textContent);
+    return { stap: _iw.stap, tegels: tegels, tekst: el.textContent,
+             link: (el.querySelector('.iw-adacties a') || {}).href || null };
+  });
+  check('kiezen brengt je naar stap 2', kaart.stap, 2);
+  check('met de kerncijfers erop', kaart.tegels.length, 5);
+  check('spend staat erbij', kaart.tegels.some(t => /Spend/.test(t) && /241\.15/.test(t)), true);
+  /* Bij Atria kennen we geen adres waar de advertentie te bekijken valt. Een
+     knop die nergens heen gaat is erger dan geen knop. */
+  check('en geen link naar een bron die we niet kennen', kaart.link, null);
+
+  const metaLink = await page.evaluate(() => {
+    _iw.bron = 'meta'; _iw.account = 'act_998'; iwRender();
+    const a = document.querySelector('.iw-adacties a');
+    return a ? a.getAttribute('href') : null;
+  });
+  check('bij Meta staat er wel een adres', /adsmanager/.test(metaLink || ''), true);
+  check('met het account erin', /act=998/.test(metaLink || ''), true);
+  check('en de advertentie erin', /selected_ad_ids=120001/.test(metaLink || ''), true);
+  await page.evaluate(() => { _iw.bron = 'atria'; _iw.account = 'a1'; iwRender(); });
+
+  console.log('\n  Rory leest de advertentie, en een leeg veld blijft leeg');
+  const analyse = await page.evaluate(() => {
+    state.iterateAnalysis = {
+      archetype: 'Founder Story', hook_mechaniek: '"Waarom ik Wellshave begon"',
+      persona: 'Mannen 25-45', compositie: 'Founder in authentieke setting',
+      angle: 'Authenticiteit & vertrouwen', bewijs: 'Eigen ervaring & productresultaat',
+      funnel: 'TOF', offer: 'Betere scheerervaring zonder irritatie',
+      hoofdpersoon: 'Dustin (Founder)', cta_aanpak: 'Shop nu',
+      /* Dit veld blijft met opzet leeg: het hoort dan niet op het scherm te
+         staan, ook niet als kopje met niets erachter. */
+      narratief_perspectief: '', format_mode: 'Static Image (1:1)',
+      cijfer_diagnose: 'Sterk presterende Founder Story.',
+      grootste_kans: 'De opening kan frisser.',
+      vasthouden: ['Authentieke founder angle', 'Heldere persoonlijke motivatie']
+    };
+    iwRender();
+    const el = document.getElementById('iw-paneel');
+    const velden = [...el.querySelectorAll('.iw-veld-l')].map(x => x.textContent);
+    return { velden: velden, tekst: el.textContent };
+  });
+  check('elf gelezen velden staan er', analyse.velden.length, 11);
+  check('in de volgorde van het ontwerp', analyse.velden.slice(0, 4),
+    ['Concept', 'Hook', 'Persona', 'Visueel concept']);
+  check('het lege veld staat er niet', analyse.velden.indexOf('Narratief perspectief'), -1);
+  check('de conclusie staat er', /Rory’s conclusie/.test(analyse.tekst), true);
+  check('en wat blijft staan ook', /Wat blijft sterk/.test(analyse.tekst), true);
+
+  console.log('\n  een analyse die niets oplevert is een mislukking, geen stilte');
+  /* De vorige analyse laten staan alsof hij vers is, is het soort stilte dat
+     je op een verkeerd plan zet: de velden gaan over een andere advertentie. */
+  const stille = await page.evaluate(async () => {
+    /* Er IS een beeld: het gaat hier om een analyse die niets teruggeeft, niet
+       om een advertentie zonder creative. */
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png', fileName: 'x.png', size: 3 };
+    const echt = window.analyzeWinningAd;
+    window.analyzeWinningAd = async () => { /* doet niets, geeft niets terug */ };
+    await iwAnalyse();
+    window.analyzeWinningAd = echt;
+    return { fout: _iw.analyseFout, tekst: document.getElementById('iw-paneel').textContent };
+  });
+  check('er staat dat er niets terugkwam', /geen analyse terug/.test(stille.fout || ''), true);
+  check('en het scherm zegt het ook', /De analyse liep vast/.test(stille.tekst), true);
+
+  console.log('\n  het werkblad komt pas bij stap 4 in beeld');
+  const werkblad = await page.evaluate(() => {
+    const uit = {};
+    [1, 2, 3, 4].forEach(function (n) {
+      _iw.stap = n; iwRender();
+      uit[n] = document.getElementById('iterate-werkblad').style.display;
+    });
+    return uit;
+  });
+  check('op stap 1 niet', werkblad['1'], 'none');
+  check('op stap 2 niet', werkblad['2'], 'none');
+  check('op stap 3 nog niet', werkblad['3'], 'none');
+  check('op stap 4 wel', werkblad['4'], 'block');
+
+  console.log('\n  bij een video leest Rory de video, niet de thumbnail');
+  /* Dit ging stil mis en het antwoord zag er compleet uit: hij las de eerste
+     frame en beschreef daarna de hele advertentie alsof die stilstond --
+     compositie, CTA, opbouw -- terwijl er zevenentwintig seconden bewegend
+     beeld onder zat waarin de hook, het bewijs en de afsluiting alle drie
+     ergens anders staan. */
+  const uitVideo = await page.evaluate(async () => {
+    /* Een echte mp4 valt hier niet te decoderen. De speler wordt vervangen door
+       een dubbelganger die zich gedraagt zoals de API belooft: springen naar een
+       tijdstip, "seeked" melden, en dan een ANDER beeld tonen. Wat hier bewaakt
+       wordt is dat er zes verschillende beelden uitkomen en niet zes kopieën. */
+    const echteSpeler = window.crEigenSpeler;
+    window.crEigenSpeler = async () => {
+      const doek = document.createElement('canvas');
+      doek.width = 24; doek.height = 24;
+      const ctx = doek.getContext('2d');
+      let t = 0;
+      Object.defineProperty(doek, 'duration', { value: 27 });
+      Object.defineProperty(doek, 'videoWidth', { value: 24 });
+      Object.defineProperty(doek, 'videoHeight', { value: 24 });
+      Object.defineProperty(doek, 'currentTime', { get: () => t, set: function (w) {
+        t = w;
+        setTimeout(() => {
+          ctx.fillStyle = 'hsl(' + Math.round(w * 13) + ' 90% 50%)'; ctx.fillRect(0, 0, 24, 24);
+          doek.dispatchEvent(new Event('seeked'));
+        }, 2);
+      } });
+      return doek;
+    };
+    state.sourceAd = null;
+    /* De teller staat vol van eerdere controles; alleen wat hierna gebeurt telt. */
+    window.__gevraagd.length = 0;
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: { spend: 144.92, roas: 3.5 },
+                    beeld: 'https://x.fbcdn.net/poster.jpg', video: 'https://x.fbcdn.net/f.mp4' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    const kaart = document.querySelector('.iw-adbeeld');
+    const bron = state.sourceAd || {};
+    const uit = {
+      frames: (bron.frames || []).length,
+      verschillend: new Set((bron.frames || []).map(f => f.b64)).size,
+      eerste: bron.b64 === (bron.frames || [{}])[0].b64,
+      speler: !!kaart.querySelector('video'),
+      plaatje: !!kaart.querySelector('img'),
+      zegt: document.getElementById('iw-paneel').textContent,
+      /* En geen enkel verzoek naar de beeldpoort: de thumbnail is hier niet
+         waar het om gaat. */
+      beeldOpgehaald: window.__gevraagd.filter(g => g.url.indexOf('/onderzoek/beeld') > -1).length
+    };
+    window.__gevraagd.length = 0;
+    await iwAnalyse();
+    const b = window.__naarRory;
+    const inhoud = b.messages[0].content;
+    uit.beelden = inhoud.filter(x => x.type === 'image').length;
+    uit.tekst = inhoud.filter(x => x.type === 'text').map(x => x.text).join('');
+    window.crEigenSpeler = echteSpeler;
+    return uit;
+  });
+  check('zes beelden uit de video', uitVideo.frames, 6);
+  check('en het zijn zes VERSCHILLENDE beelden', uitVideo.verschillend, 6);
+  check('het eerste beeld is ook het losse beeld', uitVideo.eerste, true);
+  check('de kaart toont een speler', uitVideo.speler, true);
+  check('en geen stilstaand beeld', uitVideo.plaatje, false);
+  check('het scherm zegt wat Rory leest', /6 beelden uit deze video/.test(uitVideo.zegt), true);
+  check('en dat hij het geluid niet hoort', /geluid hoort hij niet/.test(uitVideo.zegt), true);
+  check('de thumbnail is niet opgehaald', uitVideo.beeldOpgehaald, 0);
+  /* De kern: zes beelden naar het model, niet één. */
+  check('Rory krijgt zes beelden', uitVideo.beelden, 6);
+  check('met de uitleg dat het een video is', /VIDEOadvertentie/.test(uitVideo.tekst), true);
+  check('op welke seconden ze staan', /0s, 5s, 11s, 16s, 22s, 27s/.test(uitVideo.tekst), true);
+  check('en dat het geluid ontbreekt', /geluid NIET/.test(uitVideo.tekst), true);
+  check('met de opdracht om niet te gokken', /laat het veld dan leeg/.test(uitVideo.tekst), true);
+
+  /* Levert de video geen enkel beeld op, dan is dat een uitslag en geen stilte.
+     Zonder melding staat er een lege kaart en denkt Rory dat er niets is. */
+  const geenFrames = await page.evaluate(async () => {
+    const echt = window.crVideoFrames;
+    const echteSpeler2 = window.crEigenSpeler;
+    /* Ook de speler vervangen: een blob met "MP4DATA" erin is geen video, en
+       dan valt hij al om vóór de lus die we hier willen meten. */
+    window.crEigenSpeler = async () => document.createElement('canvas');
+    window.crVideoFrames = async () => [];
+    state.sourceAd = null;
+    _iw.gekozen = { id: 'v2', naam: 'Stille film', cijfers: {}, beeld: null,
+                    video: 'https://x.fbcdn.net/leeg.mp4' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    window.crVideoFrames = echt;
+    window.crEigenSpeler = echteSpeler2;
+    return { melding: document.querySelector('.iw-adbeeld').textContent,
+             bron: !!state.sourceAd };
+  });
+  check('het zegt dat er geen beeld uitkwam', /geen enkel beeld uit de video/.test(geenFrames.melding), true);
+  check('en er staat geen halve bron klaar', geenFrames.bron, false);
+
+  /* En de tegenproef: een gewone static krijgt geen videoregels en één beeld. */
+  const uitStatic = await page.evaluate(async () => {
+    state.sourceAd = null;
+    _iw.gekozen = { id: 's1', naam: 'Stil', cijfers: {}, beeld: 'https://x.fbcdn.net/1.jpg' };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    await iwAnalyse();
+    const inhoud = window.__naarRory.messages[0].content;
+    return { beelden: inhoud.filter(x => x.type === 'image').length,
+             tekst: inhoud.filter(x => x.type === 'text').map(x => x.text).join(''),
+             speler: !!document.querySelector('.iw-adbeeld video') };
+  });
+  check('een static levert één beeld', uitStatic.beelden, 1);
+  check('zonder videoregels', /VIDEO|geluid/.test(uitStatic.tekst), false);
+  check('en zonder speler', uitStatic.speler, false);
+
+  console.log('\n  geen beeld is drie verschillende dingen');
+  /* Op het scherm stond bij alle drie hetzelfde: "geen beeld bij deze
+     advertentie". Ze vragen om iets heel anders -- een andere uitlezing, een
+     host erbij, of gewoon opnieuw proberen. */
+  const redenen = await page.evaluate(async () => {
+    const uit = {};
+    /* Er staat nog een creative van een eerdere controle. Die hoort te
+       verdwijnen zodra je een advertentie zonder beeld kiest -- dat is de
+       eerste controle hieronder. */
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png', fileName: 'oud.png', size: 3 };
+    const toon = () => document.querySelector('.iw-adbeeld').textContent.trim();
+
+    /* 1. De bron gaf geen adres, maar wel andere velden. Dan zoeken wij
+          verkeerd, en de veldnamen zeggen waar we moeten kijken. */
+    _iw.gekozen = { id: 'a', naam: 'Zonder beeld', cijfers: {}, beeld: null,
+                    velden_zonder_beeld: ['id', 'snapshot.preview'] };
+    await iwZetBronAd(_iw.gekozen);
+    _iw.stap = 2; iwRender();
+    uit.veldnamen = toon();
+    /* Het beeld van de vorige advertentie is weg. Bleef het staan, dan las
+       Rory dat beeld met deze cijfers. */
+    uit.oudeCreativeWeg = !state.sourceAd;
+
+    /* 3. Er is een adres, maar de beeldpoort weigert de host. Dan hoort de
+          host erbij, en dat kun je alleen weten als het er staat. */
+    const echt = window.fetch;
+    window.fetch = async (u, o) => {
+      if (String(u).indexOf('/onderzoek/beeld') > -1) {
+        return { ok: false, status: 400, json: async () => ({ error: 'dit adres wordt niet doorgelaten' }) };
+      }
+      return echt(u, o);
+    };
+    _iw.gekozen = { id: 'c', naam: 'Vreemde host', cijfers: {},
+                    beeld: 'https://onbekende-host.nl/1.jpg' };
+    await iwZetBronAd(_iw.gekozen);
+    window.fetch = echt;
+    iwRender();
+    uit.geweigerd = toon();
+    return uit;
+  });
+  check('het beeld van de vorige advertentie is weg', redenen.oudeCreativeWeg, true);
+  check('de veldnamen staan erbij', /snapshot.preview/.test(redenen.veldnamen), true);
+  check('en een geweigerd adres zegt dat het geweigerd is',
+    /niet doorgelaten/.test(redenen.geweigerd), true);
+  /* Twee keer dezelfde zin zou betekenen dat je nog steeds niets weet. */
+  check('en het zijn verschillende meldingen',
+    new Set([redenen.veldnamen, redenen.geweigerd]).size, 2);
+
+  console.log('\n  en Rory zegt wat hij mist in plaats van niets te doen');
+  const roryZonderBeeld = await page.evaluate(async () => {
+    state.sourceAd = null;
+    _iw.beeldFout = 'De bron gaf geen beeldadres bij deze advertentie.';
+    _iw.gekozen = { id: 'a', naam: 'Zonder beeld', cijfers: {}, beeld: null };
+    _iw.stap = 2;
+    await iwAnalyse();
+    return { fout: _iw.analyseFout, tekst: document.getElementById('iw-paneel').textContent };
+  });
+  check('hij zegt waarom het niet kan', /zonder beeld kan hij niet lezen/.test(roryZonderBeeld.fout || ''), true);
+  check('met de oorzaak erbij', /geen beeldadres/.test(roryZonderBeeld.fout || ''), true);
+  check('en wat je eraan kunt doen', /Upload de creative/.test(roryZonderBeeld.fout || ''), true);
+  check('het staat ook op het scherm', /De analyse liep vast/.test(roryZonderBeeld.tekst), true);
+
+  console.log('\n  bij een video staan hook, hold en de retentiecurve op het scherm');
+  /* Zonder deze cijfers beoordeel je een video op precies dezelfde manier als
+     een static -- en dan wordt een lek in de eerste drie seconden nooit
+     gevonden, want daar meet niets naar. */
+  const videoCijfers = await page.evaluate(async () => {
+    const echteSpeler = window.crEigenSpeler;
+    window.crEigenSpeler = async () => {
+      const doek = document.createElement('canvas');
+      doek.width = 8; doek.height = 8;
+      const ctx = doek.getContext('2d');
+      let t = 0;
+      Object.defineProperty(doek, 'duration', { value: 27 });
+      Object.defineProperty(doek, 'videoWidth', { value: 8 });
+      Object.defineProperty(doek, 'videoHeight', { value: 8 });
+      Object.defineProperty(doek, 'currentTime', { get: () => t, set: function (w) {
+        t = w;
+        setTimeout(() => { ctx.fillStyle = 'hsl(' + Math.round(w * 13) + ' 90% 50%)';
+          ctx.fillRect(0, 0, 8, 8); doek.dispatchEvent(new Event('seeked')); }, 2);
+      } });
+      return doek;
+    };
+    const bewaard = window.__detail;
+    window.__detail = window.__videoDetail;
+    _iw.gekozen = null; _iw.tochStatic = false;
+    await iwHaalLijst();
+    await iwKies(0);
+    const tekst = document.getElementById('iw-paneel').textContent;
+    const balken = document.querySelectorAll('.iw-dk').length;
+    const naarModel = iwCijfertekst().text;
+    window.__detail = bewaard;
+    window.crEigenSpeler = echteSpeler;
+    return { tekst: tekst, balken: balken, model: naarModel };
+  });
+  check('de hook rate staat er', /Hook rate/.test(videoCijfers.tekst), true);
+  check('met zijn waarde', /30\.00%/.test(videoCijfers.tekst), true);
+  check('de hold rate ook', /Hold rate/.test(videoCijfers.tekst), true);
+  /* De deling staat erbij, en dat is geen sier: "hold rate" betekent bij de ene
+     tafel thruplay gedeeld door vertoningen en bij de andere gedeeld door
+     starts, en die twee schelen een factor. */
+  check('met de deling erbij', /ThruPlays ÷ vertoningen/.test(videoCijfers.tekst), true);
+  check('vier punten in de curve', videoCijfers.balken, 4);
+  check('met de norm van het account ernaast', /account 44\.00%/.test(videoCijfers.tekst), true);
+  check('en er staat waartegen de curve gemeten is',
+    /tegen wie de video gestart is/.test(videoCijfers.tekst), true);
+  /* En het model krijgt dezelfde cijfers MET dezelfde deling. Anders rekent hij
+     met een andere hold rate dan het scherm toont. */
+  check('het model krijgt de videocijfers', /DE VIDEO ZELF/.test(videoCijfers.model), true);
+  check('met de deling', /ThruPlays ÷ vertoningen/.test(videoCijfers.model), true);
+  check('en de curve', /helft 30\.00%/.test(videoCijfers.model), true);
+
+  /* Bij een static hoort er niets van te staan: nul zou zeggen "niemand keek",
+     en de waarheid is dat er niets te kijken viel. */
+  const staticCijfers = await page.evaluate(async () => {
+    _iw.gekozen = null; _iw.doorkijk = null; _iw.normDoorkijk = null;
+    await iwHaalLijst();
+    await iwKies(0);
+    return { tekst: document.getElementById('iw-paneel').textContent,
+             model: iwCijfertekst().text, balken: document.querySelectorAll('.iw-dk').length };
+  });
+  check('geen hook rate bij een static', /Hook rate/.test(staticCijfers.tekst), false);
+  check('geen curve', staticCijfers.balken, 0);
+  check('en het model krijgt er ook niets over', /DE VIDEO ZELF/.test(staticCijfers.model), false);
+
+  console.log('\n  een iteratie op een video is een script, geen static');
+  /* Je kunt de hook van een video van dertig seconden niet testen met een
+     stilstaand beeld: dan test je iets anders en noem je het dezelfde test. Het
+     werkblad hieronder maakt statics, dus dat hoort hier niet in beeld. */
+  const stap3 = await page.evaluate(async () => {
+    const zicht = () => ['iterate-werkblad', 'source-ad-section', 'classic-form'].map(id => {
+      const el = document.getElementById(id);
+      return el ? getComputedStyle(el).display !== 'none' : null;
+    });
+    const uit = {};
+    _iw.tochStatic = false;
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: {}, video: 'https://x.fbcdn.net/f.mp4' };
+    _iw.stap = 3; iwRender();
+    uit.videoTekst = document.getElementById('iw-paneel').textContent;
+    uit.videoWerkblad = zicht();
+    uit.scriptknop = !!document.querySelector('[data-action="iw-script"]');
+
+    /* En bij een static staat er op stap 3 de strategie, en op stap 4 het
+       werkblad. */
+    _iw.gekozen = { id: 's1', naam: 'Stil', cijfers: {}, beeld: 'https://x.fbcdn.net/1.jpg' };
+    iwRender();
+    uit.staticWerkblad = zicht();
+    uit.staticTekst = document.getElementById('iw-paneel').textContent;
+    _iw.stap = 4; iwRender();
+    uit.stap4Werkblad = zicht();
+    _iw.stap = 3; iwRender();
+    return uit;
+  });
+  check('bij een video staat er dat het een script wordt',
+    /iteratie is een script/.test(stap3.videoTekst), true);
+  check('met de knop naar de Scriptwriter', stap3.scriptknop, true);
+  check('en het statics-werkblad blijft weg', stap3.videoWerkblad, [false, false, false]);
+  check('bij een static blijft het werkblad op stap 3 weg', stap3.staticWerkblad, [false, false, false]);
+  check('en staat het er op stap 4 wel', stap3.stap4Werkblad, [true, true, true]);
+  check('stap 3 gaat over de strategie', /Van analyse naar een gerichte strategie/.test(stap3.staticTekst), true);
+  check('met de richtingen erop', /Iteratie-richtingen/.test(stap3.staticTekst), true);
+
+  /* Toch statics mag, maar als besluit. Een uitzondering die je zelf aanzet is
+     iets anders dan een scherm dat het verkeerde ding aanbiedt. */
+  const toch = await page.evaluate(() => {
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', cijfers: {}, video: 'https://x.fbcdn.net/f.mp4' };
+    _iw.stap = 3; _iw.tochStatic = false; iwRender();
+    document.querySelector('[data-action="iw-tochstatic"]').click();
+    /* Toch statics brengt je op stap 3 bij de strategie; het werkblad hoort
+       daar nog steeds niet te staan, dat is stap 4. */
+    _iw.stap = 4; iwRender();
+    const aan = getComputedStyle(document.getElementById('iterate-werkblad')).display !== 'none';
+    /* En een andere advertentie zet die uitzondering terug: hij hoort niet stil
+       mee te reizen naar de volgende keuze. */
+    _iw.stap = 2; iwRender();
+    document.querySelector('[data-action="iw-anders"]').click();
+    return { aan: aan, na: _iw.tochStatic };
+  });
+  check('je kunt er zelf voor kiezen', toch.aan, true);
+  check('en bij een andere advertentie staat hij weer uit', toch.na, false);
+
+  /* Ook als je die andere advertentie uit de lijst kiest in plaats van via de
+     terugknop: twee wegen naar dezelfde stap, en allebei horen ze de
+     uitzondering terug te zetten. */
+  const naKiezen = await page.evaluate(async () => {
+    _iw.tochStatic = true;
+    await iwHaalLijst();
+    await iwKies(0);
+    return _iw.tochStatic;
+  });
+  check('ook na een keuze uit de lijst', naKiezen, false);
+
+  console.log('\n  en de Scriptwriter krijgt de cijfers en de diagnose mee');
+  const naarScript = await page.evaluate(() => {
+    _iw.gekozen = { id: 'v1', naam: 'WS - 103 - 2', video: 'https://x.fbcdn.net/f.mp4',
+                    cijfers: { spend: 144.92, roas: 3.5, aankopen: 8 } };
+    _iw.dagen = 30;
+    _iw.diagnose = window.__detail.diagnose;
+    state.iterateAnalysis = {
+      funnel: 'TOF', format_mode: 'UGC Demo / How-To',
+      hook_mechaniek: 'Call-out via sociale spiegel', angle: 'Sociale spiegel',
+      persona: 'Nederlandse man 25-45', bewijs: 'Getuige',
+      vasthouden: ['De vrouwelijke getuige als bron', 'Geen product in de opening'],
+      creatieve_richting: 'Zelfde quote, drie andere werelden'
+    };
+    const dir = document.getElementById('sw-direction');
+    dir.value = '';
+    iwNaarScriptwriter();
+    return {
+      tab: document.getElementById('main-tab-scriptwriter').style.display,
+      funnel: document.getElementById('sw-funnel').value,
+      formaat: document.getElementById('sw-format').value,
+      richting: dir.value
+    };
+  });
+  check('de Scriptwriter staat open', naarScript.tab, 'block');
+  check('de funnel is overgenomen', naarScript.funnel, 'tof');
+  check('en het formaat', naarScript.formaat, 'UGC Demo / How-To');
+  check('de brief zegt dat het een iteratie op een video is',
+    /ITERATIE OP EEN DRAAIENDE VIDEOADVERTENTIE/.test(naarScript.richting), true);
+  /* De eerlijkheid die hier het meest kost: wij hebben het originele script
+     niet. Een brief die dat niet zegt levert een "herschrijving" op van iets
+     wat niemand gelezen heeft. */
+  check('en dat we het originele script NIET hebben',
+    /originele script hebben we niet/.test(naarScript.richting), true);
+  check('de hook gaat mee', /Call-out via sociale spiegel/.test(naarScript.richting), true);
+  check('wat vast moet blijven ook', /vrouwelijke getuige/.test(naarScript.richting), true);
+  check('en de cijfers', /144\.92/.test(naarScript.richting), true);
+  check('met de funnel-diagnose', /HET KNELPUNT ZIT/.test(naarScript.richting), true);
+
+  const alGevuld = await page.evaluate(() => {
+    const dir = document.getElementById('sw-direction');
+    dir.value = 'Hier zat iemand tien minuten aan';
+    iwNaarScriptwriter();
+    return dir.value;
+  });
+  check('een richting die er al staat blijft staan', alGevuld, 'Hier zat iemand tien minuten aan');
+
+  console.log('\n  handmatig invullen kan nog steeds');
+  const hand = await page.evaluate(() => {
+    /* De handmatige weg staat in stap 1, in de kaart naast de koppeling. Eerst
+       terug dus -- de controles hiervoor lieten de wizard op stap 2 staan. */
+    _iw.stap = 1; _iw.gekozen = null; _iw.handmatig = false;
+    iwRender();
+    const link = document.querySelector('[data-action="iw-handmatig"]');
+    if (!link) return { zichtbaar: '(geen handmatige weg in stap 1)', naam: null };
+    link.click();
+    const oud = document.getElementById('iterate-handmatig');
+    /* Zonder gekozen advertentie leest collectIterateData weer de velden. Dat
+       is de terugval, en hij hoort echt te werken -- niet alleen te bestaan. */
+    _iw.gekozen = null;
+    const el = document.getElementById('iterate-adname');
+    if (el) el.value = 'Met de hand ingevuld';
+    return { zichtbaar: oud.style.display === 'block', naam: collectIterateData().adName,
+             stap: _iw.stap };
+  });
+  check('het formulier komt in beeld', hand.zichtbaar, true);
+  check('en wordt dan ook gelezen', hand.naam, 'Met de hand ingevuld');
+  check('en de wizard staat op stap 2', hand.stap, 2);
+
+  console.log('\n  stap 1 is een creative-selectie, geen namenlijst');
+  /* "WS 106 3 Copy · € 967 · ROAS 2,77" is functioneel en het verkeerde
+     scherm: de vraag is of dit een interessante advertentie is om op te
+     itereren, en dat beslis je op wat je ziet. */
+  const selectie = await page.evaluate(async () => {
+    /* Zichtbaar zetten voor we meten: een vak dat niet getekend wordt is nul
+       pixels breed, en dan slaagt een maatcontrole zonder iets te meten. */
+    switchMainTab('iterate');
+    _iw.stap = 1; _iw.gekozen = null; _iw.weergave = 'kaarten'; _iw.preset = 'recent';
+    _iw.sortering = 'spend';
+    await iwHaalLijst();
+    var el = document.getElementById('iw-paneel');
+    var kaart = el.querySelector('.iw-adrij[data-ad="120001"]');
+    return {
+      /* Elke kaart heeft een plek voor het beeld -- ook als het beeld nog moet
+         komen; anders springt de lijst zodra de miniaturen binnendruppelen. */
+      miniaturen: el.querySelectorAll('.iw-mini').length,
+      /* En dat vak heeft echte maat. Een miniatuur van nul pixels is geen
+         miniatuur. */
+      miniBreed: kaart ? Math.round(kaart.querySelector('.iw-mini').getBoundingClientRect().width) : 0,
+      /* De cijfers die ertoe doen staan op de kaart. */
+      cijfers: kaart ? [].slice.call(kaart.querySelectorAll('.iw-adcijfer'))
+        .map(function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); }) : [],
+      /* Plus een stempel: winnaar, dalend of de staat. */
+      stempels: kaart ? [].slice.call(kaart.querySelectorAll('.iw-stempel'))
+        .map(function (x) { return x.textContent; }) : [],
+      /* En een knop die zegt wat er gebeurt als je klikt. */
+      kiesknop: kaart ? kaart.querySelector('.iw-adkies').textContent : '',
+      /* De dalende advertentie draagt dat stempel. */
+      dalend: (function () {
+        var r = el.querySelector('.iw-adrij[data-ad="120003"]');
+        return r ? [].slice.call(r.querySelectorAll('.iw-stempel')).map(function (x) { return x.textContent; }) : [];
+      })()
+    };
+  });
+  check('elke advertentie heeft een beeldvak', selectie.miniaturen, 4);
+  check('en dat vak heeft echte maat', selectie.miniBreed >= 60, true);
+  check('de kaart draagt spend, ROAS en bestellingen',
+    selectie.cijfers.filter(function (x) { return /spend|ROAS|bestellingen/.test(x); }).length >= 3, true);
+  check('met een stempel erbij', selectie.stempels.length >= 1, true);
+  check('en een knop die zegt wat hij doet', selectie.kiesknop, 'Kies deze ad');
+  check('een dalende advertentie zegt dat', selectie.dalend.indexOf('Dalend') > -1, true);
+
+  const weergaven = await page.evaluate(() => {
+    /* Twee manieren van kijken: herkennen en vergelijken. */
+    _iw.weergave = 'kaarten'; iwRender();
+    var kaarten = document.querySelectorAll('.iw-adkaart').length;
+    document.querySelector('[data-action="iw-weergave"][data-id="tabel"]').click();
+    var rijen = document.querySelectorAll('.iw-tabel tbody tr').length;
+    var kaartenNaTabel = document.querySelectorAll('.iw-adkaart').length;
+    document.querySelector('[data-action="iw-weergave"][data-id="kaarten"]').click();
+    return { kaarten: kaarten, rijen: rijen, kaartenNaTabel: kaartenNaTabel,
+             terug: document.querySelectorAll('.iw-adkaart').length };
+  });
+  check('kaarten tonen elke advertentie', weergaven.kaarten, 4);
+  check('de tabel ook', weergaven.rijen, 4);
+  check('en het is de een of de ander', weergaven.kaartenNaTabel, 0);
+  check('terug naar kaarten werkt', weergaven.terug, 4);
+
+  console.log('\n  de ingangen dragen hun aantal, en de sortering staat los');
+  const ingangen = await page.evaluate(() => {
+    var el = document.getElementById('iw-paneel');
+    var tellingen = {};
+    [].slice.call(el.querySelectorAll('.iw-preset')).forEach(function (b) {
+      var t = b.querySelector('.iw-preset-telling');
+      tellingen[b.getAttribute('data-id')] = t ? Number(t.textContent) : null;
+    });
+    /* De telling hoort te kloppen met wat het filter werkelijk oplevert. */
+    var echt = {};
+    ['winnaars', 'spend', 'dalend', 'recent'].forEach(function (id) {
+      echt[id] = iwFilter(_iw.lijst, id, iwBewaard()).length;
+    });
+    /* Sorteren verandert de volgorde en niet wie er meedoet. */
+    _iw.sortering = 'roas'; iwRender();
+    var naRoas = [].slice.call(document.querySelectorAll('.iw-adrij'))
+      .map(function (r) { return r.getAttribute('data-ad'); });
+    _iw.sortering = 'spend'; iwRender();
+    var naSpend = [].slice.call(document.querySelectorAll('.iw-adrij'))
+      .map(function (r) { return r.getAttribute('data-ad'); });
+    _iw.sortering = 'spend'; iwRender();
+    return { tellingen: tellingen, echt: echt, naRoas: naRoas, naSpend: naSpend };
+  });
+  /* En vóór de lijst er is staat er GEEN aantal. Nul zou daar "dit account
+     heeft geen winnende advertenties" zeggen, terwijl er nog niets opgehaald
+     is -- twee heel verschillende dingen. */
+  const voorLijst = await page.evaluate(() => {
+    var bewaardeLijst = _iw.lijst;
+    _iw.lijst = null; iwRender();
+    var n = document.querySelectorAll('.iw-preset-telling').length;
+    _iw.lijst = bewaardeLijst; iwRender();
+    return n;
+  });
+  check('zonder lijst staat er nergens een aantal', voorLijst, 0);
+  check('elke ingang draagt zijn aantal',
+    [ingangen.tellingen.winnaars, ingangen.tellingen.recent],
+    [ingangen.echt.winnaars, ingangen.echt.recent]);
+  check('sorteren op ROAS zet de hoogste bovenaan', ingangen.naRoas[0], '120004');
+  check('sorteren op spend een andere', ingangen.naSpend[0], '120003');
+  check('en het blijven dezelfde advertenties',
+    ingangen.naRoas.slice().sort().join(), ingangen.naSpend.slice().sort().join());
+  /* Wat niet gemeten is zakt naar onderen -- niet naar boven: een onbekende
+     waarde is geen nul en zeker geen beste. 120002 heeft geen ROAS. */
+  check('zonder gemeten ROAS zak je naar onderen',
+    ingangen.naRoas[ingangen.naRoas.length - 1], '120002');
+
+  const doorknop = await page.evaluate(() => {
+    /* Stap 1 kiest alleen een advertentie. De uitgang zegt wat de volgende
+       stap is en niet "genereer" -- dat is drie stappen verderop en geeft geld
+       uit. */
+    _iw.gekozen = null; iwRender();
+    var zonder = !!document.querySelector('[data-action="iw-stap"][data-id="2"]');
+    _iw.gekozen = { id: '120001', naam: 'WS - 160 - 1', cijfers: {} };
+    iwRender();
+    var knop = document.querySelector('[data-action="iw-stap"][data-id="2"]');
+    var uit = { zonder: zonder, met: !!knop, tekst: knop ? knop.textContent.trim() : '',
+                /* En de gekozen kaart is te zien als gekozen. */
+                gemarkeerd: !!document.querySelector('.iw-adrij.gekozen') };
+    _iw.gekozen = null; iwRender();
+    return uit;
+  });
+  check('zonder keuze geen doorknop', doorknop.zonder, false);
+  check('met een keuze wel', doorknop.met, true);
+  check('en hij noemt de volgende stap', doorknop.tekst, 'Verder naar de analyse →');
+  check('de gekozen advertentie is gemarkeerd', doorknop.gemarkeerd, true);
+
+  console.log('\n  stap 3 is de strategie, en die komt uit de analyse');
+  /* Hier stond één zin: "de instellingen en het werkblad staan hieronder."
+     Dat is geen stap maar een doorverwijzing. Wat er hoort te staan is de
+     afweging: dit werkt, dit blijft, en hier zit de winst. Alles daarvan komt
+     uit de analyse -- er wordt niets bijverzonnen. */
+  const strategie = await page.evaluate(() => {
+    _iw.gekozen = { id: 's1', naam: 'WS - 160 - 1', cijfers: { spend: 45200, roas: 4.2, ctr: 2.31, cpa: 18.74 },
+                    beeld: 'https://x.fbcdn.net/1.jpg' };
+    _iw.tochStatic = false;
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.iterateAnalysis = {
+      cijfer_diagnose: 'De CTR loopt terug terwijl de conversie na de klik goed blijft.',
+      grootste_kans: 'De eerste drie seconden.',
+      aanbevolen_aanpak: 'Concept vasthouden, opening vervangen.',
+      vasthouden: ['Founder story', 'Persoonlijk verhaal', 'Product in gebruik'],
+      veilig_te_testen: ['Hook / opening', 'Headline', 'Bewijsvorm'],
+      waarom_werkt_dit: ['Sterke product-market fit', 'Bewezen concept'],
+      verwachting: 'Een hogere CTR bij gelijke conversie; we meten CTR link.'
+    };
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var t = el.textContent;
+    return {
+      advies: /Rory's strategisch advies/.test(t) && /CTR loopt terug/.test(t),
+      gezicht: !!el.querySelector('.iw-advies-foto'),
+      houden: Array.prototype.map.call(el.querySelectorAll('.iw-kolom.houden li'), function (x) { return x.textContent; }),
+      testen: el.querySelectorAll('.iw-kolom.testen li').length,
+      waarom: el.querySelectorAll('.iw-kolom.waarom li').length,
+      verwachting: /Een hogere CTR bij gelijke conversie/.test(t),
+      /* De advertentie waar het over gaat staat ernaast, met zijn cijfers. */
+      adkaart: !!el.querySelector('.iw-adtitel'),
+      cijfers: el.querySelectorAll('.iw-kaartcijfers .iw-tegel').length,
+      /* En er staat GEEN genereerknop op deze stap. */
+      genereer: /Genereer|genereren/.test(t) && !/Naar de iteraties/.test(t)
+    };
+  });
+  check('het advies van Rory staat er, met zijn gezicht', [strategie.advies, strategie.gezicht], [true, true]);
+  check('wat we behouden komt uit de analyse', strategie.houden,
+    ['Founder story', 'Persoonlijk verhaal', 'Product in gebruik']);
+  check('wat we testen ook', strategie.testen, 3);
+  check('en waarom', strategie.waarom, 2);
+  check('de verwachting staat erbij', strategie.verwachting, true);
+  check('de advertentie staat ernaast', strategie.adkaart, true);
+  check('met zijn cijfers', strategie.cijfers >= 4, true);
+  check('en er wordt op deze stap niets gegenereerd', strategie.genereer, false);
+
+  const zonderAnalyse = await page.evaluate(() => {
+    /* Zonder analyse geen kolommen. Een kop met een leeg vak eronder leest als
+       "hier is niets gevonden" in plaats van "hier is nog niet gekeken". */
+    var bewaard = state.iterateAnalysis;
+    state.iterateAnalysis = {};
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var uit = { kolommen: el.querySelectorAll('.iw-kolom').length,
+                zegt: /nog niet uitgelezen/.test(el.textContent),
+                verwachting: el.querySelectorAll('.iw-verwachting').length };
+    state.iterateAnalysis = bewaard; iwRender();
+    return uit;
+  });
+  check('zonder analyse staan er geen kolommen', zonderAnalyse.kolommen, 0);
+  check('en zegt het scherm waarom', zonderAnalyse.zegt, true);
+  check('een verwachting die er niet is, staat er niet', zonderAnalyse.verwachting, 0);
+
+  console.log('\n  de richtingen zijn de vinkjes uit het werkblad');
+  /* Twee lijsten die hetzelfde bedoelen lopen uit elkaar zodra er een bijkomt.
+     De kaarten zetten daarom de bestaande vinkjes, en die gaan mee in de
+     opdracht. */
+  const richtingen = await page.evaluate(() => {
+    _iw.stap = 3; iwRender();
+    var el = document.getElementById('iw-paneel');
+    var kaarten = el.querySelectorAll('.iw-richting');
+    var waarden = Array.prototype.map.call(kaarten, function (k) { return k.getAttribute('data-id'); });
+    var vinkjes = Array.prototype.map.call(
+      document.querySelectorAll('input[name="iterate-vary"]'), function (cb) { return cb.value; });
+    /* Elke kaart hoort bij een bestaand vinkje. */
+    var wees = waarden.filter(function (v) { return vinkjes.indexOf(v) === -1; });
+    /* Klikken zet het vinkje om, niet alleen de kaart. */
+    document.querySelector('.iw-richting[data-id="opening"]').click();
+    var naKlik = Array.prototype.filter.call(
+      document.querySelectorAll('input[name="iterate-vary"]'),
+      function (cb) { return cb.value === 'opening' && cb.checked; }).length;
+    var kaartAan = document.querySelector('.iw-richting[data-id="opening"]').classList.contains('aan');
+    /* Alles aan, en dan alles uit. */
+    document.querySelector('[data-action="iw-richting-alles"]').click();
+    var alles = iwGekozenRichtingen().length;
+    document.querySelector('[data-action="iw-richting-alles"]').click();
+    var geen = iwGekozenRichtingen().length;
+    /* Zonder richting hoort de knop naar stap 4 uit te staan: zonder richting
+       is elke iteratie een nieuwe advertentie in plaats van een test. */
+    var knop = document.querySelector('[data-action="iw-stap"][data-id="4"]');
+    var uitAls = knop ? knop.disabled : null;
+    document.querySelector('.iw-richting[data-id="hook"]').click();
+    var knop2 = document.querySelector('[data-action="iw-stap"][data-id="4"]');
+    return { waarden: waarden, wees: wees, naKlik: naKlik, kaartAan: kaartAan,
+             alles: alles, geen: geen, uitAls: uitAls,
+             aanAls: knop2 ? knop2.disabled : null };
+  });
+  check('elke kaart hoort bij een bestaand vinkje', richtingen.wees, []);
+  check('en het zijn er acht', richtingen.waarden.length, 8);
+  check('klikken zet het vinkje om', [richtingen.naKlik, richtingen.kaartAan], [1, true]);
+  check('selecteer alles zet ze alle acht aan', richtingen.alles, 8);
+  check('en nog een keer zet ze uit', richtingen.geen, 0);
+  check('zonder richting kun je niet door', richtingen.uitAls, true);
+  check('met een richting wel', richtingen.aanAls, false);
+
+  console.log('\n  itereren loopt niet meer vast zonder iets te zeggen');
+  /* De melding was: ik klik een advertentie aan, druk op itereren, en er
+     gebeurt niets. Wat er stond was de knop op zijn bezig-tekst en verder
+     niets: geen uitslag, geen reden, geen einde. */
+  const bezwaar = await page.evaluate(() => {
+    var groot = new Array(Math.round(5.2 * 1024 * 1024)).join('a');
+    return {
+      geenBron: iterBronBezwaar(null),
+      leeg: iterBronBezwaar({ b64: '', mimeType: 'image/png' }),
+      /* Een advertentie die je AANKLIKT komt van de beeldproxy en kan een type
+         hebben dat het model niet leest -- precies het verschil tussen "bij mij
+         werkt het" en deze melding. */
+      verkeerdType: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/avif' }),
+      teGroot: iterBronBezwaar({ b64: groot, mimeType: 'image/png' }),
+      /* En wat wel kan, gaat gewoon door. */
+      png: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/png' }),
+      jpeg: iterBronBezwaar({ b64: 'AAA', mimeType: 'image/jpeg' }),
+      /* Onbekend type zonder waarde: niet tegenhouden. Zelf raden is erger dan
+         het model het laten zeggen. */
+      zonderType: iterBronBezwaar({ b64: 'AAA', mimeType: '' })
+    };
+  });
+  check('zonder bronadvertentie is er een reden', /geen bronadvertentie/.test(bezwaar.geenBron), true);
+  check('een leeg beeld ook', /leeg/.test(bezwaar.leeg), true);
+  check('een type dat het model niet leest wordt vooraf tegengehouden',
+    /image\/avif/.test(bezwaar.verkeerdType) && /jpeg, png, gif en webp/.test(bezwaar.verkeerdType), true);
+  check('en een te groot beeld met zijn formaat erbij', /MB/.test(bezwaar.teGroot), true);
+  check('png en jpeg gaan gewoon door', [bezwaar.png, bezwaar.jpeg], [null, null]);
+  check('een onbekend type wordt niet zelf beoordeeld', bezwaar.zonderType, null);
+
+  const vastloper = await page.evaluate(async () => {
+    /* Een aanroep die nooit terugkomt hield de knop eeuwig bezig. Nu is er een
+       deadline, en die zegt wat er gebeurd is. */
+    var echt = window.fetchJsonWithRetry, echteDeadline = window.ITER_DEADLINE_S;
+    window.ITER_DEADLINE_S = 1;
+    state.products = [{ id: 'p1', name: 'Groom Guard', usps: [], references: {} }];
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.generatorMode = 'iterate';
+    switchMainTab('iterate');
+    if (typeof renderProductSelect === 'function') renderProductSelect();
+    var sel = document.getElementById('product-select');
+    if (sel) sel.value = 'p1';
+    /* Een aanroep die het afbreeksignaal netjes volgt, zoals fetch dat doet. */
+    window.fetchJsonWithRetry = function (url, opties) {
+      return new Promise(function (_, mislukt) {
+        if (opties && opties.signal) {
+          opties.signal.addEventListener('abort', function () {
+            var e = new Error('The operation was aborted'); e.name = 'AbortError'; mislukt(e);
+          });
+        }
+      });
+    };
+    await generateFromIterateMode();
+    var el = document.getElementById('iter-melding');
+    var btn = document.getElementById('generate-btn');
+    var uit = {
+      melding: el ? el.textContent : '',
+      soort: el ? el.className : '',
+      knopVrij: btn ? !btn.disabled : false,
+      knopTekst: btn ? btn.textContent.trim() : ''
+    };
+    window.fetchJsonWithRetry = echt; window.ITER_DEADLINE_S = echteDeadline;
+    if (el) el.remove();
+    state.sourceAd = null;
+    return uit;
+  });
+  check('een aanroep die niet terugkomt wordt afgebroken',
+    /Afgebroken na 1 seconden/.test(vastloper.melding), true);
+  check('met een raad wat je nu kunt doen', /Probeer het opnieuw/.test(vastloper.melding), true);
+  check('de melding staat als fout', /fout/.test(vastloper.soort), true);
+  check('en de knop is weer bruikbaar', vastloper.knopVrij, true);
+  check('met zijn gewone tekst', vastloper.knopTekst, 'Analyseer en genereer iteraties');
+
+  const gelukt = await page.evaluate(async () => {
+    var echt = window.fetchJsonWithRetry;
+    state.sourceAd = { b64: 'AAA', mimeType: 'image/png' };
+    state.generatorMode = 'iterate';
+    window.fetchJsonWithRetry = async function () {
+      return { content: [{ type: 'text', text: JSON.stringify({ variations: [
+        { hook_type: 'Vraag', hook_label_nl: 'x', headline_nl: 'Kop', body_copy_nl: '', cta_nl: '',
+          image_prompt_en: 'a man', visual_nl: 'man' }] }) }] };
+    };
+    await generateFromIterateMode();
+    var el = document.getElementById('iter-melding');
+    var vak = document.getElementById('results');
+    var kolom = document.querySelector('.ws8-right');
+    var werkblad = document.querySelector('.ws8-center');
+    var maat = kolom ? kolom.getBoundingClientRect() : { width: 0, height: 0, top: 0 };
+    var uit = {
+      melding: el ? el.textContent : '', soort: el ? el.className : '',
+      zichtbaar: !!(kolom && kolom.offsetParent !== null && maat.width > 200),
+      hoogte: Math.round(maat.height),
+      eronder: !!(kolom && werkblad &&
+        maat.top >= werkblad.getBoundingClientRect().bottom - 4),
+      kaarten: document.querySelectorAll('#results .var-card, #results .variation-card').length
+    };
+    /* En andersom: een leeg vak hoort de kolom NIET te tonen -- dan staat er
+       een lege "Resultaat"-kolom naast het enige dat ertoe doet. */
+    vak.innerHTML = '';
+    iterToonUitslagvak();
+    uit.leegWeg = !!(kolom && kolom.offsetParent === null);
+    window.fetchJsonWithRetry = echt;
+    if (el) el.remove();
+    state.sourceAd = null;
+    return uit;
+  });
+  check('bij succes zegt hij hoeveel iteraties er staan', /1 iteraties staan hieronder/.test(gelukt.melding), true);
+  check('en dat is geen foutmelding', /fout/.test(gelukt.soort), false);
+  /* En ze zijn ook werkelijk TE ZIEN. Dit was de fout: de rechterkolom draagt
+     het resultatenvak en stond op dit scherm onvoorwaardelijk uit, dus de
+     iteraties werden gemaakt, gerenderd en daarna verborgen. Het scherm zei
+     "3 iteraties staan hieronder" en er stond niets. Meten dus, niet alleen
+     kijken of het element bestaat: een vak van nul pixels is er ook. */
+  check('en ze staan werkelijk in beeld', gelukt.zichtbaar, true);
+  check('met echte hoogte', gelukt.hoogte > 40, true);
+  check('onder het werkblad, niet ernaast', gelukt.eronder, true);
+  check('en bij een lege uitslag blijft de kolom weg', gelukt.leegWeg, true);
+
+  const vakschakelaar = await page.evaluate(() => {
+    /* De schakelaar zelf, los van de waarnemer in de studiolaag die hetzelfde
+       doet. Twee wegen naar dezelfde klasse betekent dat een kapotte weg
+       onopgemerkt blijft; deze controle kijkt naar de functie. */
+    var vak = document.getElementById('results');
+    var kolom = document.querySelector('.ws8-right');
+    kolom.classList.remove('has-results');
+    vak.innerHTML = '';
+    var leeg = iterToonUitslagvak();
+    var naLeeg = kolom.classList.contains('has-results');
+    vak.innerHTML = '<div class="loading-card">iets</div>';
+    var vol = iterToonUitslagvak();
+    var naVol = kolom.classList.contains('has-results');
+    vak.innerHTML = '';
+    iterToonUitslagvak();
+    return { leeg: leeg, naLeeg: naLeeg, vol: vol, naVol: naVol };
+  });
+  check('een leeg vak zet de kolom niet aan', [vakschakelaar.leeg, vakschakelaar.naLeeg], [false, false]);
+  check('een gevuld vak wel', [vakschakelaar.vol, vakschakelaar.naVol], [true, true]);
+
+  check('en geen enkele paginafout onderweg', paginafouten, []);
+
+  await browser.close();
+  srv.close();
+  console.log('\n' + (fout ? '  ' + fout + ' controle(s) mislukt' : '  Alle controles geslaagd'));
+  process.exit(fout ? 1 : 0);
+})();

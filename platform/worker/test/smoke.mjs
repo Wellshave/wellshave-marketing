@@ -171,6 +171,32 @@ check('de live-feed heeft events', db.systeem_events.length > 0, true);
 check('events dragen geen agent meer',
   db.systeem_events.every(e => !('agent_id' in e)), true);
 
+/* ── De previewworker draait de geplande lus niet ──────────────────────────
+   Twee workers die elke vijf minuten dezelfde wachtrij afwerken publiceren
+   alles twee keer, en dat zie je pas als een klant twee keer dezelfde mail
+   heeft. De previewconfiguratie zet geen cron; dit is het tweede slot, voor als
+   iemand er later toch een op zet. */
+const takenVoor = db.taken.length;
+const runsVoor = db.taak_runs.length;
+/* De planning weer scherp zetten, anders zou de lus ook zonder de grendel
+   niets doen -- en dan meet ik dat de grendel werkt terwijl er niets te
+   grendelen viel. */
+db.schedules.forEach(p => { p.last_fired_at = null; });
+await worker.scheduled({ scheduledTime: Date.now() }, Object.assign({}, env, { ROL: 'preview' }),
+  { waitUntil: p => p });
+await new Promise(r => setTimeout(r, 50));
+check('de preview zet geen werk in de rij', db.taken.length, takenVoor);
+check('en werkt de rij ook niet af', db.taak_runs.length, runsVoor);
+
+/* En /health zegt welke van de twee je te pakken hebt. Zonder dat kijk je naar
+   een antwoord dat er goed uitziet en vraag je je af waarom je wijziging er
+   niet in zit -- omdat je naar de andere worker keek. */
+const gezondLive = await (await worker.fetch(new Request('https://w/health'), env)).json();
+const gezondPreview = await (await worker.fetch(new Request('https://w/health'),
+  Object.assign({}, env, { ROL: 'preview' }))).json();
+check('de echte worker noemt zich live', gezondLive.rol, 'live');
+check('en de preview noemt zich preview', gezondPreview.rol, 'preview');
+
 /* De harde controle. Een volledige cyclus -- planning, twee taken, logging --
    zonder één aanroep naar een taalmodel. Dit is wat "zonder AI-agents"
    feitelijk betekent, en het is het enige wat het echt bewijst. */

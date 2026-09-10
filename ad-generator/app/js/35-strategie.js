@@ -598,9 +598,8 @@ function strOordeel(d) {
       waarom: 'Het beeld moet geüpload worden en de ad-creative aangemaakt. Dat kost '
         + 'nog niets: er wordt pas geld uitgegeven als hij live gaat.',
       actie: 'Klaarzetten bij Meta',
-      hoe: 'Dit deed Bolt automatisch. Sinds de agents eruit zijn is het een handeling '
-         + 'van een mens: klaarzetten maakt de creative aan en zet meteen een '
-         + 'goedkeuring klaar, live zetten vraagt daarna een admin.' };
+      hoe: 'Klaarzetten maakt de creative aan bij Meta en zet meteen een goedkeuring '
+         + 'klaar. Live zetten vraagt daarna een admin.' };
   }
 
   /* 4. De poort waar geld begint te lopen. Het enige moment waarop een mens
@@ -1086,8 +1085,9 @@ function strDosPerf(d) {
   var heeft = (m.spend != null) || pub.status || d.date_live;
   if (!heeft) {
     return { kop: 'Nog geen performance', blokkade: null, body: null,
-      leeg: 'Deze creative heeft nog niet gedraaid. Zodra hij live staat vult Atlas dit '
-          + 'vanzelf uit de metingen — hier wordt niets met de hand ingevuld.' };
+      leeg: 'Deze creative heeft nog niet gedraaid. Zodra hij live staat vult de '
+          + 'terugkoppeling dit vanzelf uit de metingen — hier wordt niets met de '
+          + 'hand ingevuld.' };
   }
   var body = strLijst([
     strPaar('Publicatiestatus', strTekst(pub.status)),

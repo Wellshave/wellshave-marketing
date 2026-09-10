@@ -45,6 +45,9 @@ let vroegVenster = null;
    laatste venster maar een stukje van het geheel -- daar moet je naar de rand
    van alles samen kijken. */
 let vensters = [];
+/* De stand van de meting ná de run, en hoe vaak de dekking al gelezen is. */
+let dekkingNa = null;
+let dekkingGelezen = 0;
 /* Wat de agent uiteindelijk terugkreeg van het gereedschap. */
 let toolUitkomst = null;
 
@@ -103,6 +106,11 @@ globalThis.fetch = async (url, opts = {}) => {
 
   if (url.includes('/rest/v1/')) {
     const tabel = tabelUit(url);
+    /* Eerste lezing is het ijkpunt vóór de run, daarna de stand erna. */
+    if (tabel === 'meta_meetdekking' && methode === 'GET') {
+      dekkingGelezen++;
+      if (dekkingGelezen > 1 && dekkingNa) return ok(dekkingNa);
+    }
     if (!db[tabel]) db[tabel] = [];
     if (methode === 'POST') {
       const rijen = JSON.parse(opts.body).map(r => ({ id: volgendeId++, created_at: new Date().toISOString(), ...defaults(tabel), ...r }));
@@ -181,7 +189,17 @@ const inhaal = async (payload, gaten, dekking) => {
   vensters = []; vroegPerDag = null;
   db.meta_insights_daily = []; db.systeem_events = []; db.taken = []; db.taak_runs = [];
   db.meta_meetgaten = gaten;
-  db.meta_meetdekking = dekking;
+  /* De dekking wordt twee keer gelezen: vóór de run als ijkpunt en erna om te
+     zien wat er is opgeschoten. Sinds versie 17 vervolgt de inhaalslag zichzelf
+     alléén als dat verschil er is -- anders herhaalt hij eindeloos een blok dat
+     niet lukt, en dat is één nacht lang echt gebeurd. Eén vaste waarde
+     teruggeven zou hier dus "niets opgeschoten" betekenen en de vervolgtaak ten
+     onrechte wegnemen. Daarom vóór de run een hogere stand. */
+  db.meta_meetdekking = dekking.map(r => Object.assign({}, r, {
+    dagen_ontbreken: (Number(r.dagen_ontbreken) || 0) + 30
+  }));
+  dekkingNa = dekking;
+  dekkingGelezen = 0;
   await worker.fetch(new Request('https://w/systeem/taken', { method: 'POST', ...auth,
     body: JSON.stringify({ kind: 'meta_inhaalslag', payload: payload || {} }) }), env);
   await worker.fetch(new Request('https://w/systeem/tick', { method: 'POST', ...auth }), env);

@@ -190,7 +190,12 @@ const haal = async (input) => {
        die verdubbelen elke telling hieronder zonder iets over paginering te
        zeggen. */
     rijen: db.meta_insights_daily.filter(r => r.level === 'ad'),
-    waarschuwingen: db.systeem_events.filter(e => e.level === 'warn')
+    waarschuwingen: db.systeem_events.filter(e => e.level === 'warn'),
+    meldingen: db.systeem_events.filter(e => e.level === 'info'),
+    /* Welke vensters de worker uiteindelijk aan Meta vroeg, op
+       advertentieniveau. Daarmee is te zien of hij een geweigerd venster
+       werkelijk kleiner opnieuw heeft geprobeerd. */
+    vensters: gevraagdeVensters.filter(v => v.level !== 'account')
   };
 };
 
@@ -224,9 +229,19 @@ check('en er staat per niveau een waarschuwing bij', r.waarschuwingen.length, 2)
 check('die zegt na hoeveel paginas het misging',
   /brak af na 2 pagina/.test(r.waarschuwingen[0] ? r.waarschuwingen[0].message : ''), true);
 
-console.log('\n  het venster reikt tot voorbij een jaar');
+console.log('\n  het venster reikt tot de start van de map');
+/* Dit stond hier als "400 dagen", met een controle op een vaste datum
+   ernaast. Dat werkte tot 400 dagen niet meer tot 4 augustus 2025 reikten --
+   op 6 augustus 2026 viel deze lus om zonder dat er iets veranderd was. Een
+   grens in dagen loopt van zijn eigen bedoeling weg zodra de tijd verstrijkt.
+
+   De bedoeling is: de historie tot de start van de map moet op te halen zijn.
+   Daarom vraagt deze lus precies zoveel dagen als daarvoor nodig is, en meet
+   hij of de bovengrens dat niet stilletjes afknipt. */
+const MAP_START = '2025-08-04';
+const nodigeDagen = Math.ceil((Date.now() - Date.parse(MAP_START)) / 86400000) + 1;
 paginas = 1; knaptOpPagina = 0;
-r = await haal({ level: 'ad', days: 400 });
+r = await haal({ level: 'ad', days: nodigeDagen });
 /* De Creative Strategy Map begint op 4 augustus 2025. Op de oude grens van 30
    dagen was die historie onbereikbaar en bleef het inhaalslagje leeg. */
 /* Niet het aantal rijen tellen -- dat zegt niets over het venster. Het gaat
@@ -242,17 +257,17 @@ r = await haal({ level: 'ad', days: 400 });
 const alles = gevraagdeVensters.filter(v => v.level !== 'account').slice().sort((a, b) => a.since < b.since ? -1 : 1);
 const dagenTerug = Math.round(
   (new Date(alles[alles.length - 1].until) - new Date(alles[0].since)) / 86400000);
-check('het gevraagde venster is echt 400 dagen', dagenTerug, 399);
-check('en reikt dus tot voor 4 augustus 2025',
-  alles[0].since < '2025-08-04', true);
+check('het gevraagde venster is niet afgeknipt', dagenTerug, nodigeDagen - 1);
+check('en reikt dus tot de start van de map',
+  alles[0].since <= MAP_START, true);
 
 console.log('\n  een groot venster wordt in stukken geknipt');
 paginas = 1; knaptOpPagina = 0; weigertVensterMetDagen = 0;
-r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
-/* Meta weigerde 400 dagen per dag op advertentieniveau letterlijk met "Please
+r = await haal({ level: 'ad', days: nodigeDagen, breakdown_by_day: true });
+/* Meta weigerde ruim een jaar per dag op advertentieniveau letterlijk met "Please
    reduce the amount of data you're asking for". Niet paginatie: hij komt daar
    niet eens aan toe, hij wijst het verzoek zelf af. */
-check('400 dagen wordt opgeknipt', gevraagdeVensters.filter(v => v.level !== 'account').length > 1, true);
+check('een venster van ruim een jaar wordt opgeknipt', gevraagdeVensters.filter(v => v.level !== 'account').length > 1, true);
 check('geen enkel stuk is groter dan 30 dagen',
   gevraagdeVensters.every(v =>
     Math.round((new Date(v.until) - new Date(v.since)) / 86400000) + 1 <= 30), true);
@@ -263,8 +278,8 @@ const opVolgorde = gevraagdeVensters.filter(v => v.level !== 'account')
 check('de stukken sluiten op elkaar aan, zonder gat of overlap',
   opVolgorde.every((v, i) => i === 0 ||
     Math.round((new Date(v.since) - new Date(opVolgorde[i - 1].until)) / 86400000) === 1), true);
-check('en samen reiken ze tot voor 4 augustus 2025',
-  opVolgorde[0].since < '2025-08-04', true);
+check('en samen reiken ze tot de start van de map',
+  opVolgorde[0].since <= MAP_START, true);
 check('elk stuk levert zijn rijen', r.rijen.length, opVolgorde.length * 2);
 
 console.log('\n  de dagelijkse run blijft precies één verzoek');
@@ -282,17 +297,36 @@ check('zeven dagen blijft één venster per niveau',
    de tak weggehaald in plaats van bewaakt. Wat er nog van overblijft is dat
    élk verzoek per dag gaat, en dat bewaakt dagrijen.mjs. */
 
-console.log('\n  weigert Meta één periode, dan is dat te zien');
-weigertVensterMetDagen = 0;
-/* Eén specifiek venster laten mislukken: de nagemaakte Meta weigert alles wat
-   30 dagen of langer is, en het laatste stuk is korter. */
+/* Sinds versie 17: een geweigerd venster is meestal geen inhoudelijke
+   afkeuring maar een venster dat te zwaar is. Meta zegt dat niet -- hij geeft
+   "An unknown error occurred" of vraagt om minder data -- en dat leverde
+   maandenlang lege advertentiecijfers op terwijl accountniveau gewoon
+   doorliep. De dekking zag er half uit zonder dat iets kapot was.
+
+   Daarom wordt zo'n venster gehalveerd en opnieuw geprobeerd, tot het licht
+   genoeg is of tot één dag. Dat is het verschil tussen "die maanden ontbreken"
+   en "die maanden staan er". */
+console.log('\n  een geweigerd venster wordt kleiner opnieuw geprobeerd');
 weigertVensterMetDagen = 30;
 r = await haal({ level: 'ad', days: 400, breakdown_by_day: true });
-check('de rest komt gewoon binnen', r.rijen.length > 0, true);
-check('en er staat een waarschuwing bij',
-  r.waarschuwingen.some(w => /vensters niet/.test(w.message)), true);
-check('die zegt hoeveel periodes ontbreken',
-  r.waarschuwingen.some(w => /van de \d+ vensters/.test(w.message)), true);
+const dagenVan = (v) =>
+  Math.round((new Date(v.until) - new Date(v.since)) / 86400000) + 1;
+check('de cijfers komen alsnog binnen', r.rijen.length > 0, true);
+check('hij heeft het echt kleiner geprobeerd',
+  r.vensters.some(v => dagenVan(v) < 30), true);
+check('en er ontbreekt geen enkele periode meer',
+  r.waarschuwingen.some(w => /vensters? niet/.test(w.message)), false);
+check('dat het opgeknipt is staat wel in de log',
+  r.meldingen.some(m => /opgeknipt/.test(m.message)), true);
+
+/* De harde variant: alles boven één dag wordt geweigerd. Dan moet hij
+   doorknippen tot dagvensters en alsnog alles ophalen. */
+console.log('\n  en als het moet knipt hij door tot losse dagen');
+weigertVensterMetDagen = 2;
+r = await haal({ level: 'ad', days: 60, breakdown_by_day: true });
+check('ook dan komen de cijfers binnen', r.rijen.length > 0, true);
+check('en is er tot dagvensters geknipt',
+  r.vensters.some(v => dagenVan(v) === 1), true);
 
 console.log('\n  weigert Meta alles, dan is het geen halve meting');
 weigertVensterMetDagen = 1;
