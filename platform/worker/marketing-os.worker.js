@@ -496,11 +496,24 @@ async function accountVoorMerk(env, merk) {
 
    Vandaag telt mee (Meta rekent inclusief), dus het venster loopt van
    days-1 dagen geleden tot en met vandaag — bij days=4 zijn dat vier dagen. */
-/* Tot 400 dagen en niet 365: de Creative Strategy Map begint op 4 augustus
-   2025, en dat is net over een jaar. Op 365 blijft de eerste week van de map
-   onbereikbaar -- precies de rijen waar het inhaalslagje om begonnen was. */
+/* Waar de Creative Strategy Map begint. De bovengrens van het venster hangt
+   hieraan vast en niet aan een rond getal: op 365 dagen bleef de eerste week
+   van de map onbereikbaar, en op 400 gold dat vanaf augustus 2026 opnieuw --
+   een grens in dagen loopt vanzelf van zijn eigen bedoeling weg zodra de tijd
+   verstrijkt. Nu schuift hij mee: hoever je terug MAG is minstens tot de dag
+   waarop de map begint. */
+var MAP_START = '2025-08-04';
+
+/* Hoeveel dagen het venster minstens moet kunnen omvatten om de start van de
+   map te halen, met vandaag meegeteld. Nooit minder dan 400 -- de oude grens
+   blijft de bodem, zodat een korter wordende afstand hem niet omlaag trekt. */
+function metaMaxVenster() {
+  var dagen = Math.ceil((Date.now() - Date.parse(MAP_START)) / 86400000) + 1;
+  return Math.max(400, dagen);
+}
+
 function metaVenster(days, verschuif) {
-  var n = Math.max(1, Math.min(Number(days) || 7, 400));
+  var n = Math.max(1, Math.min(Number(days) || 7, metaMaxVenster()));
   /* Een venster dat een heel venster terug ligt. Nodig om "daalt hij" te
      kunnen beantwoorden: dat is geen eigenschap van een advertentie maar een
      vergelijking tussen twee periodes, en zonder de tweede periode is het een
@@ -547,7 +560,7 @@ function vensterStukken(days, expliciet) {
     return uit;
   }
 
-  var n = Math.max(1, Math.min(Number(days) || 7, 400));
+  var n = Math.max(1, Math.min(Number(days) || 7, metaMaxVenster()));
   if (n <= 45) return [metaVenster(n)];
 
   var eind = new Date();

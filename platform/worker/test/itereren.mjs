@@ -494,6 +494,25 @@ const zonder = (await roep('/itereren/advertenties?bron=meta&account=act_1&dagen
 check('één aanroep', aanroepen.meta.filter(u => u.includes('/insights')).length, 1);
 check('en geen trendveld', zonder.advertenties[0].trend, undefined);
 
+console.log('\n  het venster wordt niet stil afgeknipt op een rond getal');
+/* De bovengrens stond vast op 400 dagen, met als reden dat de Creative
+   Strategy Map op 4 augustus 2025 begint. Vanaf augustus 2026 reikte 400 daar
+   niet meer bij -- een grens in dagen loopt van zijn eigen bedoeling weg zodra
+   de tijd verstrijkt. Nu schuift hij mee, en dat is hier te meten: vraag om
+   meer dan 400 dagen en het venster hoort ook werkelijk zo lang te zijn. */
+await reset();
+db.ad_accounts = [{ account_id: 'act_1', naam: 'Wellshave NL', actief: true }];
+meta.ad = [metaAd()];
+await roep('/itereren/advertenties?bron=meta&account=act_1&dagen=500',
+  {}, { META_ACCESS_TOKEN: 'meta-nep' });
+const groot = aanroepen.vensters[aanroepen.vensters.length - 1];
+const grootDagen = Math.round((new Date(groot.until) - new Date(groot.since)) / 86400000) + 1;
+/* Een grens blijft er -- vraag om vijfhonderd dagen en je krijgt niet
+   vijfhonderd. Maar de grens ligt nooit vóór de start van de map, en dat is
+   waar hij voor bedoeld was. */
+check('het reikt tot de start van de map', groot.since <= '2025-08-04', true);
+check('en nooit korter dan de oude grens van 400 dagen', grootDagen >= 400, true);
+
 console.log('\n  de lijst draagt het beeld, in EEN aanroep voor alles');
 /* Zonder beeld kies je een advertentie op naam, en dan is een creative-
    selectiescherm een namenlijst. Maar per advertentie een creative ophalen is
