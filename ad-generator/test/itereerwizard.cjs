@@ -1192,8 +1192,23 @@ function ONDERSCHEP() {
     };
     await generateFromIterateMode();
     var el = document.getElementById('iter-melding');
-    var uit = { melding: el ? el.textContent : '', soort: el ? el.className : '',
-                kaarten: document.querySelectorAll('#results .var-card, #results .variation-card').length };
+    var vak = document.getElementById('results');
+    var kolom = document.querySelector('.ws8-right');
+    var werkblad = document.querySelector('.ws8-center');
+    var maat = kolom ? kolom.getBoundingClientRect() : { width: 0, height: 0, top: 0 };
+    var uit = {
+      melding: el ? el.textContent : '', soort: el ? el.className : '',
+      zichtbaar: !!(kolom && kolom.offsetParent !== null && maat.width > 200),
+      hoogte: Math.round(maat.height),
+      eronder: !!(kolom && werkblad &&
+        maat.top >= werkblad.getBoundingClientRect().bottom - 4),
+      kaarten: document.querySelectorAll('#results .var-card, #results .variation-card').length
+    };
+    /* En andersom: een leeg vak hoort de kolom NIET te tonen -- dan staat er
+       een lege "Resultaat"-kolom naast het enige dat ertoe doet. */
+    vak.innerHTML = '';
+    iterToonUitslagvak();
+    uit.leegWeg = !!(kolom && kolom.offsetParent === null);
     window.fetchJsonWithRetry = echt;
     if (el) el.remove();
     state.sourceAd = null;
@@ -1201,6 +1216,35 @@ function ONDERSCHEP() {
   });
   check('bij succes zegt hij hoeveel iteraties er staan', /1 iteraties staan hieronder/.test(gelukt.melding), true);
   check('en dat is geen foutmelding', /fout/.test(gelukt.soort), false);
+  /* En ze zijn ook werkelijk TE ZIEN. Dit was de fout: de rechterkolom draagt
+     het resultatenvak en stond op dit scherm onvoorwaardelijk uit, dus de
+     iteraties werden gemaakt, gerenderd en daarna verborgen. Het scherm zei
+     "3 iteraties staan hieronder" en er stond niets. Meten dus, niet alleen
+     kijken of het element bestaat: een vak van nul pixels is er ook. */
+  check('en ze staan werkelijk in beeld', gelukt.zichtbaar, true);
+  check('met echte hoogte', gelukt.hoogte > 40, true);
+  check('onder het werkblad, niet ernaast', gelukt.eronder, true);
+  check('en bij een lege uitslag blijft de kolom weg', gelukt.leegWeg, true);
+
+  const vakschakelaar = await page.evaluate(() => {
+    /* De schakelaar zelf, los van de waarnemer in de studiolaag die hetzelfde
+       doet. Twee wegen naar dezelfde klasse betekent dat een kapotte weg
+       onopgemerkt blijft; deze controle kijkt naar de functie. */
+    var vak = document.getElementById('results');
+    var kolom = document.querySelector('.ws8-right');
+    kolom.classList.remove('has-results');
+    vak.innerHTML = '';
+    var leeg = iterToonUitslagvak();
+    var naLeeg = kolom.classList.contains('has-results');
+    vak.innerHTML = '<div class="loading-card">iets</div>';
+    var vol = iterToonUitslagvak();
+    var naVol = kolom.classList.contains('has-results');
+    vak.innerHTML = '';
+    iterToonUitslagvak();
+    return { leeg: leeg, naLeeg: naLeeg, vol: vol, naVol: naVol };
+  });
+  check('een leeg vak zet de kolom niet aan', [vakschakelaar.leeg, vakschakelaar.naLeeg], [false, false]);
+  check('een gevuld vak wel', [vakschakelaar.vol, vakschakelaar.naVol], [true, true]);
 
   check('en geen enkele paginafout onderweg', paginafouten, []);
 

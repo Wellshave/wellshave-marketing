@@ -787,6 +787,26 @@ function iterBronBezwaar(bron) {
   return null;
 }
 
+/* Het resultatenvak zichtbaar maken zodra er werkelijk iets in staat.
+ *
+ * Op het itereerscherm staat de rechterkolom -- die het resultatenvak draagt --
+ * uit zolang hij leeg is: een kolom met "Variaties verschijnen hier" naast het
+ * enige dat ertoe doet is ruis. Maar hij bleef ook uit NADAT er iets in stond,
+ * en dan worden drie gemaakte iteraties netjes gerenderd en daarna verborgen.
+ * Precies de melding: "hij zegt dat ze hieronder staan en er staat niets."
+ *
+ * Er is een waarnemer in de studiolaag die dit ook doet. Deze regel staat er
+ * expliciet naast, want een tijdsafhankelijkheid die je moet reconstrueren is
+ * geen garantie -- en dit geldt net zo goed voor een FOUTmelding in dat vak. */
+function iterToonUitslagvak() {
+  var vak = document.getElementById('results');
+  var kolom = document.querySelector('.ws8-right');
+  if (!vak || !kolom) return false;
+  var heeft = vak.childElementCount > 0;
+  kolom.classList.toggle('has-results', heeft);
+  return heeft;
+}
+
 /* De uitslag naast de knop, niet ergens onderaan de pagina. Leeg betekent:
    weghalen. */
 function iterMelding(tekst, soort) {
@@ -890,6 +910,7 @@ async function generateFromIterateMode() {
     erfStrategieVanBron(state.lastGenerated.metadata, state.iterateBron);
     state.generatedImages = {};
     renderResults(state.lastGenerated.variations, state.lastGenerated.metadata);
+    iterToonUitslagvak();
     opruimen();
     iterMelding(parsed.variations.length + ' iteraties staan hieronder, na ' +
       Math.round((Date.now() - start) / 1000) + ' seconden.', 'goed');
@@ -910,6 +931,7 @@ async function generateFromIterateMode() {
     iterMelding(uitslag, 'fout');
     toast(uitslag, true);
     resultsEl.innerHTML = `<div class="loading-card" style="color:#bd0f0f;">${escapeHtml(uitslag)}</div>`;
+    iterToonUitslagvak();
     btn.disabled = false;
     btn.textContent = 'Analyseer en genereer iteraties';
   }
@@ -945,5 +967,6 @@ function erfStrategieVanBron(meta, bron) {
 }
 window.erfStrategieVanBron = erfStrategieVanBron;
 window.iterBronBezwaar = iterBronBezwaar; window.iterMelding = iterMelding;
+window.iterToonUitslagvak = iterToonUitslagvak;
 window.ITER_MEDIA_OK = ITER_MEDIA_OK; window.ITER_MAX_B64 = ITER_MAX_B64;
 window.ITER_DEADLINE_S = ITER_DEADLINE_S;

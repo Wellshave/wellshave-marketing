@@ -1254,8 +1254,20 @@ input:focus, select:focus, textarea:focus {
    een strook van 290 pixels midden op een leeg scherm van 1600. Precies wat je
    op de schermafdruk ziet. */
 body.iterate-mode-active .ws8-grid { grid-template-columns: minmax(0, 1fr) !important; }
-body.iterate-mode-active .ws8-left,
-body.iterate-mode-active .ws8-right { display: none; }
+body.iterate-mode-active .ws8-left { display: none; }
+/* De rechterkolom is het RESULTATENVAK, en die stond hier onvoorwaardelijk uit.
+   Dat klopte voor het lege scherm -- een kolom met "Variaties verschijnen hier"
+   naast het enige dat ertoe doet -- maar hij bleef ook uit NADAT je op
+   genereren drukte. Gevolg: de drie iteraties werden gemaakt, netjes gerenderd,
+   en daarna door deze regel verborgen. Het scherm zei "3 iteraties staan
+   hieronder" en er stond niets.
+   .has-results wordt door 27-wg-v8-studio.js op de kolom gezet zodra er
+   werkelijk iets in staat; leeg blijft dus verborgen, gevuld verschijnt onder
+   het werkblad over de volle breedte. */
+body.iterate-mode-active .ws8-right:not(.has-results) { display: none; }
+body.iterate-mode-active .ws8-right.has-results {
+  display: block; grid-column: 1; min-width: 0; margin-top: 22px;
+}
 /* Een kolomnaam boven de enige kolom zegt niets. */
 body.iterate-mode-active .ws8-center > .ws8-zone-lbl { display: none; }
 body.iterate-mode-active .ws8-grid { max-width: 1180px; }
